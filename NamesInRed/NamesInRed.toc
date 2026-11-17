@@ -1,0 +1,7 @@
+## Interface: 16001
+## Title: Names in Red
+## Notes: Personal PvP rival history
+## SavedVariablesPerCharacter: NamesInRedDB
+
+Ledger.lua
+Core.lua

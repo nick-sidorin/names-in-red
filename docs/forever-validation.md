@@ -1,0 +1,91 @@
+# Forever feasibility and validation
+
+Source baseline: Forever 1.60.1 build 70959, interface 16001. The findings below
+come from code review and published addon packages. Live behavior has yet to be
+verified for Names in Red.
+
+## Attribution
+
+- **Incoming deaths.** Blizzard documents `PLAYER_DEAD` without a killer payload,
+  and `C_DeathRecap.GetRecapEvents(recapID?)` without a documented row schema.
+  Blizzard's death dialog calls `HasRecapEvents()` and the recap UI consumes
+  `overkill`. HeadHunter reports that a 1.60.1.69913 probe saw source GUID, name,
+  flags, and timestamps. Its code retries after death, accepts a recent hostile
+  participant when the finisher cannot be identified, and can infer pet ownership.
+  Warlords Forever's `Kills.lua` instead takes the first recap row. Neither
+  fallback establishes that a hostile player landed the final blow. Probe row
+  ordering, zero overkill, completeness, and freshness. Commit only a uniquely
+  identified hostile player finisher from a fresh recap. Use bounded retries
+  tied to that death, cancel stale callbacks, and ensure at most one write across
+  event retries and reloads. Leave pet attribution out until ownership and credit
+  can be proven.
+- **Outgoing kills.** Blizzard's standalone `PARTY_KILL` provides attacker and
+  target GUIDs and is marked `SecretWhenUnitIdentityRestricted`. Warlords Forever
+  1.3.0 registers this event, checks readable GUIDs, and checks the attacker
+  against the local player or their current pet. Test event delivery in world
+  PvP and battlegrounds, both solo and grouped. Require readable evidence that
+  the local player was the attacker and the target was an opposing player with
+  resolvable identity. A party member's blow does not qualify. Treat pet credit
+  as a separate product decision. The similarly named combat-log subevent is a
+  separate route. Generated documentation flags `COMBAT_LOG_EVENT_UNFILTERED`
+  as restricted; compatible addon authors report it is closed to addons.
+- **Honor and scoreboards.** `PLAYER_PVP_KILLS_CHANGED` carries a unit token for
+  the changed totals. It does not identify a victim. Honor chat can name a
+  victim for shared credit and can also report unrelated honor. Killbook 0.2.0
+  uses honor and observed deaths, with a delayed Feign Death check in
+  `Detect.lua`. These signals cannot prove who landed a killing blow. The
+  `PVPScoreInfo` schema exposes per-player totals, including killing blows and
+  deaths. `UPDATE_BATTLEFIELD_SCORE` carries no pairwise record and the
+  `GetScoreInfo*` APIs carry `SecretInActivePvPMatch`. Post-match totals can
+  cross-check the test session, but cannot attribute any individual event.
+- **Identity and display.** `UnitGUID` and `UnitName` can be secret under
+  identity restrictions. Check accessibility before comparing, indexing, parsing,
+  printing or persisting results, including nested fields of returned tables.
+  Protected calls contain runtime errors only. Hide contextual counts when a
+  unit cannot be matched safely. HeadHunter's probe describes recap names as
+  given name plus realm, while Killbook handles scoreboard names that may
+  contain a surname in multiple formats. Treat any delimiter or name-only match
+  as ambiguous until tested. Compare readable player GUIDs across recap,
+  `PARTY_KILL`, unit tokens, relogs and realm contexts before adopting them as
+  persistent IDs. Keep display names separate from record IDs.
+
+Sources:
+
+- [Blizzard Forever UI and generated API, build 70959](https://github.com/Gethe/wow-ui-source/tree/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns)
+- [HeadHunter ForeverDeaths.lua](https://github.com/GudaAddons/HeadHunter/blob/4b06580c25e623f725ffd97bcf985c4437bb2164/Detection/ForeverDeaths.lua)
+- [Warlords Forever 1.3.0 source package](https://www.curseforge.com/wow/addons/warlords-forever/files/9560128)
+- [Killbook 0.2.0 source package](https://www.curseforge.com/wow/addons/killbook/files/9636021)
+
+## Live client checks
+
+Record the full client build, addon commit, context, event delivery and field
+accessibility. Use consented participants and redact character identifiers from
+published evidence.
+
+| Scenario | Expected criterion |
+| --- | --- |
+| One opposing player kills the local player in world PvP and in a battleground | Fresh recap associates a unique lethal row with the actual attacker |
+| Several attackers, NPC or fall as finisher, pet or guardian, exact-lethal damage | No attribution to a recent attacker or guessed owner |
+| Rapid deaths, release, resurrection and reload while dead | Old recap cannot count again or be applied to the next death |
+| Solo and party kills, group member kill, pet kill, unrelated nearby death, Feign Death | Check `PARTY_KILL` delivery and accessibility. Only a readable direct personal blow can qualify by default |
+| Simultaneous deaths in an active battleground and final scoreboard | Compare totals and verify that a matching delta does not qualify as an individual kill |
+| Target, mouseover and nameplate in/out of combat and across plate reuse | Match only the currently exposed unit; restricted or stale identity clears decorations |
+| Cold login, reload, switch characters, logout and relog | Verify SavedVariables loading, persistence and isolation |
+
+## Implementation sequence
+
+1. Bootstrap the local ledger and CI. Storage accepts a resolved ID and keeps
+   display name and totals separately. Per-character storage is provisional.
+2. Probe attribution and identity in both PvP contexts before wiring any event
+   into storage. Prefer direct killing blows and skip ambiguous encounters.
+3. Add a small editable list. Start with one sortable table and two columns,
+   zero totals for manual additions, and add/remove. Decide how a name-only
+   manual entry can be linked without merging distinct players. Decide whether
+   to offer explicit manual corrections and how to label them before storing any.
+4. Add individually verified incoming and outgoing attribution paths. Leave an
+   unsupported direction manual for now, subject to the manual-edit decision.
+5. Append to the native GameTooltip, add a noninteractive Blizzard-style target
+   badge, then test addon-owned decorations on exposed nameplates. Research each
+   matching Blizzard component before choosing a template or native artwork.
+   Check combat lockdown, frame reuse, Edit Mode and input. Show only nonzero
+   icons and hide the display when both counters are zero.
