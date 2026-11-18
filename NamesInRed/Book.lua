@@ -228,6 +228,12 @@ local function ToggleBook()
         window.onCloseCallback = function() window:Hide(); return false end
         MakeDraggable(window)
         tinsert(UISpecialFrames, window:GetName())
+        -- The overview atlas can be translucent over the game world.
+        local backing = window:CreateTexture(nil, "BACKGROUND", nil, -7)
+        backing:SetPoint("TOPLEFT", 2, -21)
+        backing:SetPoint("BOTTOMRIGHT", -2, 2)
+        backing:SetColorTexture(0.065, 0.047, 0.033, 1)
+
         -- Camelot professions replace the portrait frame background and omit
         -- both inset borders. The decorative corners belong to the recipe atlas.
         if window.Bg and addon.ApplyAtlas(window.Bg, "Profession-Background-Overview") then
