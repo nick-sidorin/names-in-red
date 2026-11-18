@@ -143,5 +143,5 @@ art. The overview uses the circular output icon's ring and mask without its item
 scripts. Race portraits follow `GetRaceAtlas` based on readable player info by
 GUID, then fall back to a class icon or a question mark. Test selected and
 empty rosters, enough rivals to overflow, and records with and without identity
-data. The add dialog uses the matching No Quest Hints card and external glow
-atlases. Check spacing, corners and selected states in Forever.
+data. The compact add dialog uses the circular portrait ring and a restrained
+ArtifactsFX-YellowRing selection glow. Check spacing and selected states in Forever.

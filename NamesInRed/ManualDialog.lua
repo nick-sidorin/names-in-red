@@ -9,28 +9,13 @@ function addon.ApplyAtlas(texture, atlas)
 end
 
 local function Choice(parent, x, title, texture, direction, choose)
-    local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
-    button:SetSize(160, 126)
-    button:SetPoint("TOPLEFT", x, -136)
-    local card = button:CreateTexture(nil, "BACKGROUND")
-    card:SetAllPoints()
-    local glow = button:CreateTexture(nil, "OVERLAY")
-    glow:SetPoint("TOPLEFT", -5, 5)
-    glow:SetPoint("BOTTOMRIGHT", 5, -5)
-    local hasArt = addon.ApplyAtlas(card, "Mode-Selection-Card-Regular")
-    local hasGlow = hasArt and addon.ApplyAtlas(glow, "Mode-Selection-Card-Regular-yellow-glow")
-    if not hasArt or not hasGlow then
-        card:Hide()
-        button:SetBackdrop({
-            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border", edgeSize = 14,
-            insets = { left = 4, right = 4, top = 4, bottom = 4 },
-        })
-    end
-    glow:Hide()
+    local button = CreateFrame("Button", nil, parent)
+    button:SetSize(150, 102)
+    button:SetPoint("TOPLEFT", x, -111)
+
     local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(54, 54)
-    icon:SetPoint("TOP", 0, -18)
+    icon:SetSize(52, 52)
+    icon:SetPoint("TOP", 0, -9)
     icon:SetTexture(texture)
     local mask = button:CreateMaskTexture()
     mask:SetAllPoints(icon)
@@ -39,24 +24,40 @@ local function Choice(parent, x, title, texture, direction, choose)
     end
     icon:AddMaskTexture(mask)
     local ring = button:CreateTexture(nil, "OVERLAY")
-    ring:SetSize(67, 67)
+    ring:SetSize(64, 64)
     ring:SetPoint("CENTER", icon)
     if not addon.ApplyAtlas(ring, "Mode-Selection-Ring") then
         ring:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
         ring:SetTexCoord(0, 0.68, 0, 0.68)
     end
+    local glow = button:CreateTexture(nil, "OVERLAY", nil, 1)
+    glow:SetSize(69, 69)
+    glow:SetPoint("CENTER", icon)
+    glow:SetBlendMode("ADD")
+    glow:SetAlpha(0.32)
+    local hasGlow = addon.ApplyAtlas(glow, "ArtifactsFX-YellowRing")
+    glow:Hide()
+
     local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    label:SetPoint("TOP", icon, "BOTTOM", 0, -10)
-    label:SetWidth(136)
+    label:SetPoint("TOP", icon, "BOTTOM", 0, -9)
+    label:SetWidth(144)
     label:SetText(title)
     button:SetScript("OnClick", function() choose(direction) end)
+    button:SetScript("OnEnter", function() icon:SetVertexColor(1, 1, 1) end)
+    button:SetScript("OnLeave", function()
+        if not button.selected then icon:SetVertexColor(0.86, 0.86, 0.86) end
+    end)
     function button:SetSelected(selected)
-        if hasGlow then
-            glow:SetShown(selected)
-        elseif selected then
-            self:SetBackdropBorderColor(1, 0.88, 0.25)
+        self.selected = selected
+        glow:SetShown(selected and hasGlow == true)
+        if selected then
+            ring:SetVertexColor(1, 0.88, 0.47)
+            label:SetTextColor(1, 0.84, 0.38)
+            icon:SetVertexColor(1, 1, 1)
         else
-            self:SetBackdropBorderColor(0.62, 0.49, 0.33)
+            ring:SetVertexColor(0.72, 0.69, 0.63)
+            label:SetTextColor(0.9, 0.87, 0.82)
+            icon:SetVertexColor(0.86, 0.86, 0.86)
         end
     end
     return button
@@ -73,7 +74,7 @@ function addon.CreateManualDialog(parent, onAdded)
     shade:SetAllPoints()
     shade:SetColorTexture(0, 0, 0, 0.45)
     local dialog = CreateFrame("Frame", "NamesInRedManualEntry", shield, "PortraitFrameTemplate")
-    dialog:SetSize(388, 327)
+    dialog:SetSize(360, 267)
     dialog:SetPoint("CENTER", parent)
     dialog:SetClampedToScreen(true)
     dialog:SetTitle(L.addTitle)
@@ -81,7 +82,7 @@ function addon.CreateManualDialog(parent, onAdded)
     dialog.onCloseCallback = function() shield:Hide(); return false end
 
     local label = dialog:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    label:SetPoint("TOPLEFT", 22, -65)
+    label:SetPoint("TOPLEFT", 24, -60)
     label:SetText(L.fullName)
     -- The native mail widget supplies navigation and a dropdown for known names.
     local mail = AUTOCOMPLETE_LIST and AUTOCOMPLETE_LIST.MAIL
@@ -90,8 +91,8 @@ function addon.CreateManualDialog(parent, onAdded)
     local edit = CreateFrame("EditBox", nil, dialog,
         autocomplete and "InputBoxTemplate, AutoCompleteEditBoxTemplate" or "InputBoxTemplate")
     -- InputBoxVisualTemplate extends the left edge five pixels from its anchor.
-    edit:SetPoint("TOPLEFT", 27, -91)
-    edit:SetPoint("TOPRIGHT", -22, -91)
+    edit:SetPoint("TOPLEFT", 29, -81)
+    edit:SetPoint("TOPRIGHT", -24, -81)
     edit:SetHeight(23)
     edit:SetMaxLetters(96)
     edit:SetAutoFocus(false)
@@ -101,12 +102,12 @@ function addon.CreateManualDialog(parent, onAdded)
     end
 
     local add = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
-    add:SetPoint("BOTTOMRIGHT", -22, 15)
-    add:SetSize(132, 25)
+    add:SetPoint("BOTTOMRIGHT", -24, 19)
+    add:SetSize(150, 25)
     add:SetText(L.add)
     local cancel = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
-    cancel:SetPoint("RIGHT", add, "LEFT", -8, 0)
-    cancel:SetSize(132, 25)
+    cancel:SetPoint("RIGHT", add, "LEFT", -12, 0)
+    cancel:SetSize(150, 25)
     cancel:SetText(CANCEL)
 
     local selected, win, loss
@@ -119,8 +120,8 @@ function addon.CreateManualDialog(parent, onAdded)
         selected = direction
         Update()
     end
-    win = Choice(dialog, 22, L.win, "Interface\\AddOns\\NamesInRed\\Art\\Victory.tga", "killsAgainstThem", Choose)
-    loss = Choice(dialog, 206, L.loss, "Interface\\AddOns\\NamesInRed\\Art\\Gravestone.tga", "deathsToThem", Choose)
+    win = Choice(dialog, 24, L.win, "Interface\\AddOns\\NamesInRed\\Art\\Victory.tga", "killsAgainstThem", Choose)
+    loss = Choice(dialog, 186, L.loss, "Interface\\AddOns\\NamesInRed\\Art\\Gravestone.tga", "deathsToThem", Choose)
     local function Save()
         local id = addon.AddManualEncounter(edit:GetText(), selected)
         if id then
