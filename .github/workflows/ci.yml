@@ -14,12 +14,12 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y lua5.1
       - run: bash scripts/check.sh
       - name: Stage debug preview
-        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/book-polish'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/outcome-art'
         run: mkdir -p preview && cp -R NamesInRed preview/
       - name: Upload debug preview
-        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/book-polish'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/outcome-art'
         uses: actions/upload-artifact@v4
         with:
-          name: NamesInRed-0.0.4-debug
+          name: NamesInRed-0.0.5-debug
           path: preview/
           if-no-files-found: error
