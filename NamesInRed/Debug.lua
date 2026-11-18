@@ -51,6 +51,7 @@ local function Unit(unit)
     local data = { status = {} }
     Call(data, "guid", UnitGUID, unit)
     Call(data, "name", UnitName, unit)
+    Call(data, "faction", UnitFactionGroup, unit)
     Call(data, "isPlayer", UnitIsPlayer, unit)
     Call(data, "opponent", UnitCanAttack, "player", unit)
     return data

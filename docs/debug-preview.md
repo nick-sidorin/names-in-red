@@ -8,6 +8,7 @@ and works during ordinary play.
 - `/nirdebug` prints the retained record count and session number.
 - `/nirdebug sample` adds a snapshot of the current target and mouseover,
   HK totals and, in an instanced PvP match, the local scoreboard row.
+  Unit snapshots include the faction tag when readable.
 - Log out normally or use `/reload` to flush SavedVariables. Open
   `_forever_/WTF/Account/<account>/<realm>/<character>/SavedVariables/NamesInRed.lua`
   and inspect `NamesInRedDebugDB`. The file contains the complete retained
