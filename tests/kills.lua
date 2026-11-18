@@ -1,5 +1,6 @@
 local addon = {}
 assert(loadfile("NamesInRed/Ledger.lua"))("NamesInRed", addon)
+assert(loadfile("NamesInRed/Encounter.lua"))("NamesInRed", addon)
 local onEvent
 local secret = {}
 local context = "none"

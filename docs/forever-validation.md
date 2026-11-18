@@ -101,3 +101,21 @@ retained three sessions. This observation supports the direct world kill path
 only. The preview adds an explicit opposing-faction requirement, which was
 not captured by the earlier build. Validate this requirement in the next
 live sample. Assists, recap coverage, and battleground attribution are pending.
+
+
+## Live death evidence and first UI
+
+One open-world death on 1.60.1.70959 produced two PLAYER_DEAD notifications
+108 ms apart. Both immediately exposed the same ten damage rows from one
+hostile player, including readable GUID, display name, flags and a lethal hit
+with 87 overkill. Later reads repeated the same lethal timestamp. The test
+fixture reproduces this duplicate with synthetic identity and timestamps.
+Coverage for groups and battlegrounds still needs live data.
+
+The UI uses the Forever Blizzard PortraitFrameTemplate,
+UIPanelScrollFrameTemplate and UIPanelButtonTemplate, and a unit-only
+TooltipDataProcessor post-call for GameTooltip. The minimap button follows
+Azeroth Fitness's native tracking-border artwork and drag behavior.
+Level, zone and local map coordinates are best-effort snapshots. Test layout,
+scrolling, minimap dragging and tooltip refresh in the real client, including
+hovering an item after a known unit and reopening the book after reload.

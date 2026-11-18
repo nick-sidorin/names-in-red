@@ -4,10 +4,12 @@ A personal rival ledger for World of Warcraft: Forever. The goal is to remember
 who killed your character and whom your character killed, then recognize those
 rivals in the game world.
 
-The foundation targets Forever 1.60.1 (interface 16001). It initializes a local
-ledger with separate death and kill totals. The ledger is per character in
-this preview. This preview records confirmed personal killing blows in open-world PvP.
-Other attribution paths and player-facing UI are planned.
+The preview targets Forever 1.60.1 (interface 16001). It keeps separate
+per-character totals for confirmed personal killing blows and single-attacker
+deaths in open-world PvP. Click the book icon on the minimap to browse rivals.
+Pick a rival to see totals and the last 20 recorded encounters, including date,
+zone, map coordinates and levels when available. Known rivals also have
+history appended to the standard unit tooltip.
 
 See [PvP diagnostics preview](docs/debug-preview.md) for capture and installation.
 

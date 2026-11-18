@@ -39,6 +39,22 @@ This preview also records personal killing blows in open-world PvP. It
 requires readable PARTY_KILL GUIDs, a local player attacker, and a matching
 attackable target or mouseover player of the opposing faction. The first
 counter is stored under `NamesInRedDB.rivals[guid].killsAgainstThem` in the
-same SavedVariables file. Deaths, assists, pet kills, and battleground kills
-remain diagnostic. Earlier debug rows are retained for analysis and are not
+same SavedVariables file. Assists, pet kills, and battleground kills remain diagnostic. Earlier debug rows are retained for analysis and are not
 replayed into the ledger.
+
+## Rival Book preview
+
+The minimap book icon opens the Rival Book and can be dragged around the
+minimap. Select a name to see counts and the latest 20 encounters. Existing
+totals load without needing saved encounter details. The standard GameTooltip
+gets a history section for recognized rivals with nonzero counts.
+
+The preview records single-attacker world deaths when the first recap row is
+a fresh lethal hit from an identifiable hostile player and all other recap rows
+identify the same player. A saved lethal-hit timestamp prevents double counts
+from duplicate PLAYER_DEAD signals or the same recap after reload. Earlier
+debug captures are preserved as evidence and left out of the live totals.
+
+Encounter metadata uses the local character's map position at capture time.
+The rival's level is included only when a readable target or mouseover GUID
+matches. Party encounters and battlegrounds remain diagnostic.

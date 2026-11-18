@@ -1,10 +1,6 @@
 local _, addon = ...
 
-local function Readable(value)
-    if not issecretvalue or not issecretvalue(value) then
-        return value
-    end
-end
+local Readable = addon.Readable
 
 local function RivalName(unit, victim, faction)
     if Readable(UnitGUID(unit)) ~= victim or Readable(UnitIsPlayer(unit)) ~= true
@@ -14,7 +10,7 @@ local function RivalName(unit, victim, faction)
 
     local rivalFaction = Readable(UnitFactionGroup(unit))
     if (rivalFaction == "Alliance" or rivalFaction == "Horde") and rivalFaction ~= faction then
-        return Readable(UnitName(unit))
+        return Readable(UnitName(unit)), unit
     end
 end
 
@@ -41,12 +37,12 @@ frame:SetScript("OnEvent", function(_, _, attacker, victim)
         return
     end
 
-    local name = RivalName("target", victim, faction) or RivalName("mouseover", victim, faction)
-    if type(name) ~= "string" or name == "" then
-        return
+    local name, unit = RivalName("target", victim, faction)
+    if not name then
+        name, unit = RivalName("mouseover", victim, faction)
     end
-
-    local rival = addon.Ledger.Add(addon.db, victim, name)
-    rival.killsAgainstThem = rival.killsAgainstThem + 1
+    if type(name) == "string" and name ~= "" then
+        addon.RecordEncounter(victim, name, "killsAgainstThem", addon.EncounterContext(unit))
+    end
 end)
 pcall(frame.RegisterEvent, frame, "PARTY_KILL")
