@@ -9,6 +9,8 @@ ledger with separate death and kill totals. The ledger is per character in
 this preview. Gameplay detection and player-facing UI are planned. Live client
 compatibility is pending.
 
+See [PvP diagnostics preview](docs/debug-preview.md) for capture and installation.
+
 ## Development
 
 Run `bash scripts/check.sh` with Python 3, Bash, `lua5.1` and `luac5.1` installed.

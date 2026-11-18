@@ -1,7 +1,9 @@
 ## Interface: 16001
-## Title: Names in Red
-## Notes: Personal PvP rival history
-## SavedVariablesPerCharacter: NamesInRedDB
+## Title: Names in Red (Debug)
+## Notes: PvP diagnostics preview
+## Version: 0.0.1-debug
+## SavedVariablesPerCharacter: NamesInRedDB, NamesInRedDebugDB
 
 Ledger.lua
 Core.lua
+Debug.lua
