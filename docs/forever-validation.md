@@ -145,3 +145,9 @@ GUID, then fall back to a class icon or a question mark. Test selected and
 empty rosters, enough rivals to overflow, and records with and without identity
 data. The compact add dialog uses the circular portrait ring and a restrained
 ArtifactsFX-YellowRing selection glow. Check spacing and selected states in Forever.
+
+Camelot's profession overrides in `Blizzard_ProfessionsFrame.lua` and
+`Blizzard_ProfessionsCrafting.lua` replace the window background with
+`Profession-Background-Overview`, hide the list NineSlice, and clear the
+schematic NineSlice anchors. The book follows that treatment and uses the
+recipe atlas for the right panel's ornamental frame.

@@ -34,6 +34,8 @@ local function Scroll(parent, x, y, width, height, minimal)
 end
 
 local function UpdatePortrait(rival)
+    portrait:SetDesaturated(false)
+    portrait:SetVertexColor(1, 1, 1)
     local race, sex, class = rival.race, rival.sex, rival.class
     if not race then
         local knownRace, knownSex, knownClass = addon.RivalAppearance(selected)
@@ -50,13 +52,15 @@ local function UpdatePortrait(rival)
     else
         portrait:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
         portrait:SetTexCoord(0, 1, 0, 1)
+        portrait:SetDesaturated(true)
+        portrait:SetVertexColor(0.62, 0.54, 0.42)
     end
 end
 
 local function Stat(parent, y, art)
     local icon = parent:CreateTexture(nil, "ARTWORK")
     icon:SetPoint("TOPLEFT", 25, y)
-    icon:SetSize(34, 34)
+    icon:SetSize(33, 33)
     icon:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\" .. art .. ".tga")
     local border = parent:CreateTexture(nil, "OVERLAY")
     border:SetPoint("CENTER", icon)
@@ -65,7 +69,7 @@ local function Stat(parent, y, art)
         border:SetTexture("Interface\\Buttons\\UI-Quickslot2")
     end
     local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    label:SetPoint("LEFT", icon, "RIGHT", 14, 0)
+    label:SetPoint("LEFT", icon, "RIGHT", 12, 0)
     return label
 end
 
@@ -138,7 +142,7 @@ function addon.RefreshBook()
         local button = buttons[index]
         if not button then
             button = CreateFrame("Button", nil, names)
-            button:SetSize(270, 24)
+            button:SetSize(273, 24)
             button:SetPoint("TOPLEFT", 0, -(index - 1) * 24)
             local highlight = button:CreateTexture(nil, "HIGHLIGHT")
             highlight:SetAllPoints()
@@ -152,7 +156,7 @@ function addon.RefreshBook()
             end
             button.selection = selection
             local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-            label:SetPoint("LEFT", 10, 0)
+            label:SetPoint("LEFT", 18, 0)
             label:SetPoint("RIGHT", -7, 0)
             label:SetJustifyH("LEFT")
             label:SetWordWrap(false)
@@ -174,11 +178,11 @@ function addon.RefreshBook()
     ShowDetails()
 end
 
-local function Pane(parent, x, y, width, height, atlas, framed)
-    local frame = CreateFrame("Frame", nil, parent, framed and "InsetFrameTemplate" or nil)
+local function Pane(parent, x, y, width, height, atlas)
+    local frame = CreateFrame("Frame", nil, parent)
     frame:SetPoint("TOPLEFT", x, y)
     frame:SetSize(width, height)
-    local art = frame:CreateTexture(nil, "BACKGROUND", nil, -4)
+    local art = frame:CreateTexture(nil, "BACKGROUND")
     art:SetAllPoints()
     if not addon.ApplyAtlas(art, atlas) and not addon.ApplyAtlas(art, "Professions-Recipe-Background") then
         art:SetColorTexture(0.07, 0.048, 0.034, 1)
@@ -214,7 +218,7 @@ local function ToggleBook()
     if not addon.db then return end
     if not window then
         window = CreateFrame("Frame", "NamesInRedRivalBook", UIParent, "PortraitFrameTemplate")
-        window:SetSize(700, 520)
+        window:SetSize(700, 572)
         window:SetPoint("CENTER")
         window:SetFrameStrata("DIALOG")
         window:EnableMouse(true)
@@ -224,43 +228,38 @@ local function ToggleBook()
         window.onCloseCallback = function() window:Hide(); return false end
         MakeDraggable(window)
         tinsert(UISpecialFrames, window:GetName())
-        local body = window:CreateTexture(nil, "BACKGROUND")
-        body:SetPoint("TOPLEFT", 8, -53)
-        body:SetPoint("BOTTOMRIGHT", -8, 9)
-        body:SetColorTexture(0.065, 0.047, 0.033, 0.92)
-        local left = Pane(window, 13, -58, 296, 407, "Professions-background-summarylist", true)
-        local right = Pane(window, 318, -58, 369, 448, "Professions-Recipe-Background-FirstAid", true)
-        local divider = window:CreateTexture(nil, "OVERLAY")
-        divider:SetPoint("TOPLEFT", 309, -58)
-        divider:SetSize(8, 448)
-        if not addon.ApplyAtlas(divider, "common-framedivider") then
-            divider:SetColorTexture(0.28, 0.19, 0.11, 1)
+        -- Camelot professions replace the portrait frame background and omit
+        -- both inset borders. The decorative corners belong to the recipe atlas.
+        if window.Bg and addon.ApplyAtlas(window.Bg, "Profession-Background-Overview") then
+            if window.TopTileStreaks then window.TopTileStreaks:Hide() end
         end
 
-        names = Scroll(left, 8, -9, 270, 385, true)
-        details = Scroll(right, 25, -230, 318, 199)
+        local left = Pane(window, 12, -65, 300, 451, "Professions-background-summarylist")
+        local right = Pane(window, 318, -65, 370, 451, "Professions-Recipe-Background-FirstAid")
+        names = Scroll(left, 7, -12, 273, 425, true)
+        details = Scroll(right, 25, -219, 318, 210)
         summary = CreateFrame("Frame", nil, right)
         summary:SetAllPoints()
         portrait = summary:CreateTexture(nil, "ARTWORK")
         portrait:SetPoint("TOPLEFT", 23, -23)
-        portrait:SetSize(55, 55)
+        portrait:SetSize(53, 53)
         local mask = summary:CreateMaskTexture()
         mask:SetAllPoints(portrait)
         mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
         portrait:AddMaskTexture(mask)
         local rim = summary:CreateTexture(nil, "OVERLAY")
         rim:SetPoint("CENTER", portrait)
-        rim:SetSize(72, 72)
+        rim:SetSize(68, 68)
         if not addon.ApplyAtlas(rim, "auctionhouse-itemicon-border-white") then
             addon.ApplyAtlas(rim, "Mode-Selection-Ring")
         end
         rim:SetVertexColor(0.81, 0.66, 0.48)
-        heading = summary:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-        heading:SetPoint("TOPLEFT", 91, -27)
+        heading = summary:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
+        heading:SetPoint("TOPLEFT", 90, -26)
         heading:SetWidth(250)
         heading:SetJustifyH("LEFT")
         wins = Stat(summary, -107, "Victory")
-        losses = Stat(summary, -157, "Gravestone")
+        losses = Stat(summary, -152, "Gravestone")
         empty = right:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         empty:SetPoint("CENTER", 0, 5)
         empty:SetWidth(305)
@@ -268,7 +267,7 @@ local function ToggleBook()
 
         local openDialog
         local add = CreateFrame("Button", nil, window, "UIPanelButtonTemplate")
-        add:SetPoint("TOP", left, "BOTTOM", 0, -11)
+        add:SetPoint("TOP", left, "BOTTOM", 0, -12)
         add:SetSize(162, 25)
         add:SetText(L.add)
         add:SetScript("OnClick", function()
