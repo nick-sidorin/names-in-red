@@ -119,3 +119,11 @@ Azeroth Fitness's native tracking-border artwork and drag behavior.
 Level, zone and local map coordinates are best-effort snapshots. Test layout,
 scrolling, minimap dragging and tooltip refresh in the real client, including
 hovering an item after a known unit and reopening the book after reload.
+
+The revised book follows the title drag region in Azeroth Fitness
+`UI.lua`, the art and divider in Forever's Camelot `CharacterFrame.xml`
+and honor heading art in `PVPRankFrame.xml`. The manual outcome cards use
+the selection glow and ring atlases used by No Quest Hints Forever
+`Onboarding.lua`. Verify window movement with and without BlizzMove,
+empty panes, both outcome choices, and closing the dialog via Cancel,
+Escape, the close button, and the parent closing.

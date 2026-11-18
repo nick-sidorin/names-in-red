@@ -61,3 +61,25 @@ function addon.RecordEncounter(guid, name, direction, context)
         addon.RefreshBook()
     end
 end
+
+function addon.ManualName(input)
+    if type(input) ~= "string" or input:find("[%c|]") then
+        return nil
+    end
+    local name = input:match("^%s*(.-)%s*$"):gsub(" +", " ")
+    if name == "" or #name > 96 then
+        return nil
+    end
+    return name
+end
+
+function addon.AddManualEncounter(input, direction)
+    local name = addon.ManualName(input)
+    if not name or (direction ~= "killsAgainstThem" and direction ~= "deathsToThem") then
+        return nil
+    end
+    -- A typed name alone cannot identify a GUID or its realm.
+    local id = "manual:" .. (strlower or string.lower)(name)
+    addon.RecordEncounter(id, name, direction, { manual = true })
+    return id
+end

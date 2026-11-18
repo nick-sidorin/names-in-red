@@ -8,7 +8,9 @@ The preview targets Forever 1.60.1 (interface 16001). It keeps separate
 per-character totals for confirmed personal killing blows and single-attacker
 deaths in open-world PvP. Click the book icon on the minimap to browse rivals.
 Pick a rival to see totals and the last 20 recorded encounters, including date,
-zone, map coordinates and levels when available. Known rivals also have
+zone, map coordinates and levels when available. Drag the window by its title.
+Use Add to enter a full character name and select who won. A manual entry
+keeps its chosen outcome and has no inferred battle details. Known rivals also have
 history appended to the standard unit tooltip.
 
 See [PvP diagnostics preview](docs/debug-preview.md) for capture and installation.

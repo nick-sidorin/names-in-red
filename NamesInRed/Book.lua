@@ -1,7 +1,7 @@
 local addonName, addon = ...
 local L, Readable = addon.L, addon.Readable
 local iconPath = "Interface\\Icons\\INV_Misc_Book_11"
-local window, names, details, heading, totals, selected
+local window, names, details, heading, totals, selected, empty
 local buttons, lines = {}, {}
 
 local function Counts(rival)
@@ -15,12 +15,18 @@ local function Scroll(parent, x, y, width, height)
     local child = CreateFrame("Frame", nil, frame)
     child:SetSize(width, 1)
     frame:SetScrollChild(child)
+    frame.ScrollBar:Hide()
+    frame:HookScript("OnScrollRangeChanged", function(self, _, verticalRange)
+        self.ScrollBar:SetShown(verticalRange > 0)
+    end)
     return child, frame
 end
 
 local function ShowDetails()
     local rival = selected and addon.db.rivals[selected]
-    heading:SetText(rival and rival.displayName or L.empty)
+    heading:SetText(rival and rival.displayName or "")
+    empty:SetShown(rival == nil)
+    details:GetParent():SetShown(rival ~= nil and rival.encounters ~= nil and #rival.encounters > 0)
     totals:SetText(rival and Counts(rival) or "")
     local encounters = rival and rival.encounters or {}
     local offset = 0
@@ -34,7 +40,7 @@ local function ShowDetails()
         end
         local winning = encounter.direction == "killsAgainstThem"
         local outcome = winning and L.kills or L.deaths
-        local when = encounter.time and date("%x %H:%M", encounter.time) or ""
+        local when = encounter.manual and L.manual or (encounter.time and date("%x %H:%M", encounter.time))
         local place = encounter.zone or ""
         if encounter.x and encounter.y then
             place = ("%s (%.1f, %.1f)"):format(place, encounter.x * 100, encounter.y * 100)
@@ -46,7 +52,7 @@ local function ShowDetails()
         if place ~= "" then
             place = "\n" .. place
         end
-        line:SetText(outcome .. "  ·  " .. when .. place .. levels)
+        line:SetText(outcome .. (when and ("  ·  " .. when) or "") .. place .. levels)
         if winning then
             line:SetTextColor(0.63, 0.82, 1)
         else
@@ -75,12 +81,13 @@ function addon.RefreshBook()
         if first == second then return a < b end
         return first < second
     end)
-    selected = selected or ids[1]
+    if not selected or not addon.db.rivals[selected] then selected = ids[1] end
+    names:GetParent():SetShown(#ids > 0)
     for index, guid in ipairs(ids) do
         local button = buttons[index]
         if not button then
             button = CreateFrame("Button", nil, names, "UIPanelButtonTemplate")
-            button:SetSize(174, 25)
+            button:SetSize(166, 25)
             button:SetPoint("TOPLEFT", 0, -(index - 1) * 27)
             button:SetScript("OnClick", function(self)
                 selected = self.rivalID
@@ -90,13 +97,51 @@ function addon.RefreshBook()
             buttons[index] = button
         end
         button.rivalID = guid
-        button:SetText(addon.db.rivals[guid].displayName)
+        local name = addon.db.rivals[guid].displayName
+        button:SetText(name .. (guid:match("^manual:") and " *" or ""))
         if guid == selected then button:LockHighlight() else button:UnlockHighlight() end
         button:Show()
     end
     for index = #ids + 1, #buttons do buttons[index]:Hide() end
     names:SetHeight(math.max(1, #ids * 27))
     ShowDetails()
+end
+
+local function Pane(parent, x, width, atlas)
+    local frame = CreateFrame("Frame", nil, parent, "InsetFrameTemplate")
+    frame:SetPoint("TOPLEFT", x, -58)
+    frame:SetSize(width, 346)
+    local art = frame:CreateTexture(nil, "BACKGROUND", nil, -4)
+    art:SetPoint("TOPLEFT", 3, -3)
+    art:SetPoint("BOTTOMRIGHT", -3, 3)
+    if not addon.ApplyAtlas(art, atlas) then
+        art:SetColorTexture(0.07, 0.048, 0.034, 1)
+    end
+    return frame
+end
+
+local function MakeDraggable(frame)
+    frame:SetMovable(true)
+    frame:SetToplevel(true)
+    local drag = CreateFrame("Frame", nil, frame)
+    drag:SetPoint("TOPLEFT", 60, -1)
+    drag:SetPoint("TOPRIGHT", -30, -1)
+    drag:SetHeight(22)
+    drag:EnableMouse(true)
+    drag:RegisterForDrag("LeftButton")
+    local moving
+    local function Stop()
+        if moving then
+            frame:StopMovingOrSizing()
+            moving = nil
+        end
+    end
+    drag:SetScript("OnDragStart", function()
+        frame:StartMoving()
+        moving = true
+    end)
+    drag:SetScript("OnDragStop", Stop)
+    frame:HookScript("OnHide", Stop)
 end
 
 local function ToggleBook()
@@ -110,15 +155,52 @@ local function ToggleBook()
         window:SetClampedToScreen(true)
         window:SetTitle(L.book)
         if window.SetPortraitToAsset then window:SetPortraitToAsset(iconPath) end
+        window.onCloseCallback = function() window:Hide(); return false end
+        MakeDraggable(window)
         tinsert(UISpecialFrames, window:GetName())
-        names = Scroll(window, 20, -76, 174, 320)
-        details = Scroll(window, 222, -124, 334, 272)
+        Pane(window, 13, 193, "UI-Character-Info-General-BG")
+        local right = Pane(window, 208, 367, "UI-Character-Info-Stat-BG")
+        local divider = window:CreateTexture(nil, "OVERLAY")
+        divider:SetPoint("TOPLEFT", 203, -58)
+        divider:SetSize(8, 346)
+        if not addon.ApplyAtlas(divider, "common-framedivider") then
+            divider:SetColorTexture(0.42, 0.29, 0.14, 1)
+        end
+
+        names = Scroll(window, 22, -67, 166, 286)
+        details = Scroll(window, 226, -128, 328, 262)
         heading = window:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-        heading:SetPoint("TOPLEFT", 223, -76)
-        heading:SetWidth(330)
+        heading:SetPoint("TOPLEFT", 226, -74)
+        heading:SetWidth(326)
         heading:SetJustifyH("LEFT")
         totals = window:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-        totals:SetPoint("TOPLEFT", 223, -103)
+        totals:SetPoint("TOPLEFT", 226, -101)
+        local rule = right:CreateTexture(nil, "ARTWORK")
+        rule:SetPoint("TOPLEFT", 16, -62)
+        rule:SetSize(333, 4)
+        if not addon.ApplyAtlas(rule, "UI-Character-Info-Honor-LevelBG") then
+            rule:SetColorTexture(0.55, 0.39, 0.2, 0.65)
+        end
+        empty = window:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+        empty:SetPoint("CENTER", right, "CENTER", 0, 5)
+        empty:SetWidth(305)
+        empty:SetText(L.empty)
+
+        local openDialog
+        local add = CreateFrame("Button", nil, window, "UIPanelButtonTemplate")
+        add:SetPoint("BOTTOMLEFT", 23, 26)
+        add:SetSize(172, 25)
+        add:SetText(L.add)
+        add:SetScript("OnClick", function()
+            if not openDialog then
+                openDialog = addon.CreateManualDialog(window, function(id)
+                    selected = id
+                    details:GetParent():SetVerticalScroll(0)
+                    addon.RefreshBook()
+                end)
+            end
+            openDialog()
+        end)
     elseif window:IsShown() then
         window:Hide()
         return
