@@ -101,13 +101,13 @@ function addon.CreateManualDialog(parent, onAdded)
             mail.include, mail.exclude)
     end
 
-    local add = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
+    local add = CreateFrame("Button", nil, dialog, "SharedButtonSmallTemplate")
     add:SetPoint("BOTTOMRIGHT", -24, 19)
-    add:SetSize(150, 25)
+    add:SetSize(150, 28)
     add:SetText(L.add)
-    local cancel = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
+    local cancel = CreateFrame("Button", nil, dialog, "SharedButtonSmallTemplate")
     cancel:SetPoint("RIGHT", add, "LEFT", -12, 0)
-    cancel:SetSize(150, 25)
+    cancel:SetSize(150, 28)
     cancel:SetText(CANCEL)
 
     local selected, win, loss
