@@ -24,7 +24,8 @@ for _, supported in ipairs({
 }) do
     locale = supported
     assert(loadfile("NamesInRed/Locale.lua"))("NamesInRed", addon)
-    for _, key in ipairs({ "book", "kills", "deaths", "empty", "level", "add", "addTitle", "fullName", "win", "loss", "manual" }) do
+    assert(addon.title == "Names in Red")
+    for _, key in ipairs({ "kills", "deaths", "empty", "level", "add", "addTitle", "fullName", "win", "loss", "manual" }) do
         assert(type(addon.L[key]) == "string" and addon.L[key] ~= "")
     end
 end

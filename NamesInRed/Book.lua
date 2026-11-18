@@ -1,4 +1,4 @@
-local addonName, addon = ...
+local _, addon = ...
 local L, Readable = addon.L, addon.Readable
 local iconPath = "Interface\\Icons\\INV_Misc_Book_11"
 local window, names, details, heading, totals, selected, empty
@@ -34,7 +34,7 @@ local function ShowDetails()
         local line = lines[index]
         if not line then
             line = details:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-            line:SetWidth(326)
+            line:SetWidth(342)
             line:SetJustifyH("LEFT")
             lines[index] = line
         end
@@ -52,7 +52,7 @@ local function ShowDetails()
         if place ~= "" then
             place = "\n" .. place
         end
-        line:SetText(outcome .. (when and ("  ·  " .. when) or "") .. place .. levels)
+        line:SetText(outcome .. (when and ("  -  " .. when) or "") .. place .. levels)
         if winning then
             line:SetTextColor(0.63, 0.82, 1)
         else
@@ -86,9 +86,26 @@ function addon.RefreshBook()
     for index, guid in ipairs(ids) do
         local button = buttons[index]
         if not button then
-            button = CreateFrame("Button", nil, names, "UIPanelButtonTemplate")
-            button:SetSize(166, 25)
-            button:SetPoint("TOPLEFT", 0, -(index - 1) * 27)
+            button = CreateFrame("Button", nil, names)
+            button:SetSize(270, 24)
+            button:SetPoint("TOPLEFT", 0, -(index - 1) * 24)
+            local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+            highlight:SetAllPoints()
+            if not addon.ApplyAtlas(highlight, "Professions_Recipe_Hover") then
+                highlight:SetColorTexture(1, 0.82, 0.4, 0.12)
+            end
+            local selection = button:CreateTexture(nil, "ARTWORK")
+            selection:SetAllPoints()
+            if not addon.ApplyAtlas(selection, "Professions_Recipe_Active") then
+                selection:SetColorTexture(1, 0.78, 0.28, 0.24)
+            end
+            button.selection = selection
+            local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+            label:SetPoint("LEFT", 10, 0)
+            label:SetPoint("RIGHT", -7, 0)
+            label:SetJustifyH("LEFT")
+            label:SetWordWrap(false)
+            button.label = label
             button:SetScript("OnClick", function(self)
                 selected = self.rivalID
                 details:GetParent():SetVerticalScroll(0)
@@ -97,20 +114,19 @@ function addon.RefreshBook()
             buttons[index] = button
         end
         button.rivalID = guid
-        local name = addon.db.rivals[guid].displayName
-        button:SetText(name .. (guid:match("^manual:") and " *" or ""))
-        if guid == selected then button:LockHighlight() else button:UnlockHighlight() end
+        button.label:SetText(addon.db.rivals[guid].displayName)
+        button.selection:SetShown(guid == selected)
         button:Show()
     end
     for index = #ids + 1, #buttons do buttons[index]:Hide() end
-    names:SetHeight(math.max(1, #ids * 27))
+    names:SetHeight(math.max(1, #ids * 24))
     ShowDetails()
 end
 
-local function Pane(parent, x, width, atlas)
-    local frame = CreateFrame("Frame", nil, parent, "InsetFrameTemplate")
+local function Pane(parent, x, width, atlas, framed)
+    local frame = CreateFrame("Frame", nil, parent, framed and "InsetFrameTemplate" or nil)
     frame:SetPoint("TOPLEFT", x, -58)
-    frame:SetSize(width, 346)
+    frame:SetSize(width, 448)
     local art = frame:CreateTexture(nil, "BACKGROUND", nil, -4)
     art:SetPoint("TOPLEFT", 3, -3)
     art:SetPoint("BOTTOMRIGHT", -3, 3)
@@ -148,39 +164,27 @@ local function ToggleBook()
     if not addon.db then return end
     if not window then
         window = CreateFrame("Frame", "NamesInRedRivalBook", UIParent, "PortraitFrameTemplate")
-        window:SetSize(588, 420)
+        window:SetSize(700, 520)
         window:SetPoint("CENTER")
         window:SetFrameStrata("DIALOG")
         window:EnableMouse(true)
         window:SetClampedToScreen(true)
-        window:SetTitle(L.book)
+        window:SetTitle(addon.title)
         if window.SetPortraitToAsset then window:SetPortraitToAsset(iconPath) end
         window.onCloseCallback = function() window:Hide(); return false end
         MakeDraggable(window)
         tinsert(UISpecialFrames, window:GetName())
-        Pane(window, 13, 193, "UI-Character-Info-General-BG")
-        local right = Pane(window, 208, 367, "UI-Character-Info-Stat-BG")
-        local divider = window:CreateTexture(nil, "OVERLAY")
-        divider:SetPoint("TOPLEFT", 203, -58)
-        divider:SetSize(8, 346)
-        if not addon.ApplyAtlas(divider, "common-framedivider") then
-            divider:SetColorTexture(0.42, 0.29, 0.14, 1)
-        end
+        Pane(window, 13, 296, "Professions-background-summarylist", true)
+        local right = Pane(window, 313, 374, "Professions-Recipe-Background")
 
-        names = Scroll(window, 22, -67, 166, 286)
-        details = Scroll(window, 226, -128, 328, 262)
+        names = Scroll(window, 22, -68, 270, 391)
+        details = Scroll(window, 327, -128, 344, 362)
         heading = window:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-        heading:SetPoint("TOPLEFT", 226, -74)
-        heading:SetWidth(326)
+        heading:SetPoint("TOPLEFT", 327, -76)
+        heading:SetWidth(342)
         heading:SetJustifyH("LEFT")
         totals = window:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-        totals:SetPoint("TOPLEFT", 226, -101)
-        local rule = right:CreateTexture(nil, "ARTWORK")
-        rule:SetPoint("TOPLEFT", 16, -62)
-        rule:SetSize(333, 4)
-        if not addon.ApplyAtlas(rule, "UI-Character-Info-Honor-LevelBG") then
-            rule:SetColorTexture(0.55, 0.39, 0.2, 0.65)
-        end
+        totals:SetPoint("TOPLEFT", 327, -102)
         empty = window:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
         empty:SetPoint("CENTER", right, "CENTER", 0, 5)
         empty:SetWidth(305)
@@ -189,7 +193,7 @@ local function ToggleBook()
         local openDialog
         local add = CreateFrame("Button", nil, window, "UIPanelButtonTemplate")
         add:SetPoint("BOTTOMLEFT", 23, 26)
-        add:SetSize(172, 25)
+        add:SetSize(162, 25)
         add:SetText(L.add)
         add:SetScript("OnClick", function()
             if not openDialog then
@@ -262,7 +266,7 @@ local function CreateShortcut()
     end)
     button:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:SetText(L.book)
+        GameTooltip:SetText(addon.title)
         GameTooltip:Show()
     end)
     button:SetScript("OnLeave", function(self)
@@ -287,7 +291,7 @@ if TooltipDataProcessor and Enum and Enum.TooltipDataType then
         local guid = Readable(data.guid)
         local rival = type(guid) == "string" and addon.db.rivals[guid]
         if rival and (rival.killsAgainstThem > 0 or rival.deathsToThem > 0) then
-            tooltip:AddLine(L.book, 1, 0.82, 0)
+            tooltip:AddLine(addon.title, 1, 0.82, 0)
             tooltip:AddLine(Counts(rival), 1, 1, 1)
         end
     end)

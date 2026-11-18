@@ -11,15 +11,20 @@ end
 local function Choice(parent, x, title, texture, direction, choose)
     local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
     button:SetSize(152, 116)
-    button:SetPoint("TOPLEFT", x, -104)
+    button:SetPoint("TOPLEFT", x, -133)
     button:SetBackdrop({
         bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
         edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border", edgeSize = 14,
         insets = { left = 4, right = 4, top = 4, bottom = 4 },
     })
-    local glow = button:CreateTexture(nil, "BORDER")
-    glow:SetAllPoints()
-    local hasGlow = addon.ApplyAtlas(glow, "Mode-Selection-Card-Regular-yellow-glow")
+    local outline = CreateFrame("Frame", nil, button, "BackdropTemplate")
+    outline:SetPoint("TOPLEFT", -3, 3)
+    outline:SetPoint("BOTTOMRIGHT", 3, -3)
+    outline:SetBackdrop({
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border", edgeSize = 12,
+    })
+    outline:SetBackdropBorderColor(1, 0.88, 0.25)
+    outline:Hide()
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetSize(54, 54)
     icon:SetPoint("TOP", 0, -14)
@@ -43,12 +48,7 @@ local function Choice(parent, x, title, texture, direction, choose)
     label:SetText(title)
     button:SetScript("OnClick", function() choose(direction) end)
     function button:SetSelected(selected)
-        glow:SetShown(selected and hasGlow == true)
-        if selected then
-            self:SetBackdropBorderColor(1, 0.84, 0.25)
-        else
-            self:SetBackdropBorderColor(0.53, 0.42, 0.27)
-        end
+        outline:SetShown(selected)
     end
     return button
 end
@@ -64,7 +64,7 @@ function addon.CreateManualDialog(parent, onAdded)
     shade:SetAllPoints()
     shade:SetColorTexture(0, 0, 0, 0.45)
     local dialog = CreateFrame("Frame", "NamesInRedManualEntry", shield, "PortraitFrameTemplate")
-    dialog:SetSize(364, 274)
+    dialog:SetSize(364, 305)
     dialog:SetPoint("CENTER", parent)
     dialog:SetClampedToScreen(true)
     dialog:SetTitle(L.addTitle)
@@ -72,13 +72,24 @@ function addon.CreateManualDialog(parent, onAdded)
     dialog.onCloseCallback = function() shield:Hide(); return false end
 
     local label = dialog:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    label:SetPoint("TOPLEFT", 26, -52)
+    label:SetPoint("TOPLEFT", 22, -65)
     label:SetText(L.fullName)
-    local edit = CreateFrame("EditBox", nil, dialog, "InputBoxTemplate")
-    edit:SetPoint("TOPLEFT", 27, -73)
-    edit:SetSize(310, 23)
+    -- The native mail widget supplies navigation and a dropdown for known names.
+    local mail = AUTOCOMPLETE_LIST and AUTOCOMPLETE_LIST.MAIL
+    local autocomplete = mail and C_AutoComplete and C_AutoComplete.GetAutoCompleteResults
+        and AutoCompleteEditBox_SetAutoCompleteSource and AutoCompleteBox
+    local edit = CreateFrame("EditBox", nil, dialog,
+        autocomplete and "InputBoxTemplate, AutoCompleteEditBoxTemplate" or "InputBoxTemplate")
+    -- InputBoxVisualTemplate extends the left edge five pixels from its anchor.
+    edit:SetPoint("TOPLEFT", 27, -91)
+    edit:SetPoint("TOPRIGHT", -22, -91)
+    edit:SetHeight(23)
     edit:SetMaxLetters(96)
     edit:SetAutoFocus(false)
+    if autocomplete then
+        AutoCompleteEditBox_SetAutoCompleteSource(edit, C_AutoComplete.GetAutoCompleteResults,
+            mail.include, mail.exclude)
+    end
 
     local add = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
     add:SetPoint("BOTTOMRIGHT", -22, 15)
@@ -110,9 +121,13 @@ function addon.CreateManualDialog(parent, onAdded)
     end
     add:SetScript("OnClick", Save)
     cancel:SetScript("OnClick", function() shield:Hide() end)
-    edit:SetScript("OnTextChanged", Update)
-    edit:SetScript("OnEscapePressed", function() shield:Hide() end)
-    edit:SetScript("OnEnterPressed", function()
+    edit:HookScript("OnTextChanged", Update)
+    edit:SetScript("OnEscapePressed", function(self)
+        if autocomplete and AutoCompleteEditBox_OnEscapePressed(self) then return end
+        shield:Hide()
+    end)
+    edit:SetScript("OnEnterPressed", function(self)
+        if autocomplete and AutoCompleteEditBox_OnEnterPressed(self) then return end
         if add:IsEnabled() then Save() end
     end)
     parent:HookScript("OnHide", function() shield:Hide() end)

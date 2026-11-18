@@ -63,11 +63,12 @@ matches. Party encounters and battlegrounds remain diagnostic.
 
 Drag the window by its title. The empty book keeps the roster pane and Add
 button visible. Scrollbars appear when content overflows. The panes use
-Blizzard inset frames, Camelot CharacterFrame backgrounds and the native
-vertical divider where available.
+Blizzard profession list and recipe backgrounds. Selected and hovered names
+use the same atlases as profession recipe rows.
 
-Add opens a name field and two outcome choices. Entries marked with an
-asterisk are manual. Repeating a manual entry for the same name adds to
+Add opens a name field and two outcome choices. The native mail autocomplete
+suggests names known to the client. Free-form names remain valid. Manual
+entries are identified in the encounter details. Repeating a manual entry for the same name adds to
 its totals. Name-only records are separate from GUID-backed rivals and do
 not create tooltip matches. Manual entries store the selected outcome
 without a battle date, levels, zone or coordinates.

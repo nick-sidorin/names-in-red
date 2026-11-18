@@ -127,3 +127,12 @@ the selection glow and ring atlases used by No Quest Hints Forever
 `Onboarding.lua`. Verify window movement with and without BlizzMove,
 empty panes, both outcome choices, and closing the dialog via Cancel,
 Escape, the close button, and the parent closing.
+
+The profession-inspired revision reuses the background and row-state atlases
+from `Blizzard_ProfessionsRecipeList.xml` and the generic recipe background
+from `Blizzard_Professions.lua`. The book owns all row data and frames.
+The add dialog uses `AutoCompleteEditBoxTemplate` with the mail recipient
+filters in `MailFrame.xml` and leaves free-form entry available. Verify a known
+character suggestion, Tab and arrow selection, Enter accepting a suggestion
+before saving, Escape dismissing suggestions first, and an enemy name the
+client does not suggest. Check both layouts with longer localized names.
