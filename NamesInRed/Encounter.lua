@@ -47,9 +47,28 @@ function addon.EncounterContext(unit)
     return result
 end
 
+function addon.RivalAppearance(guid)
+    if not guid or not guid:match("^Player%-") or not GetPlayerInfoByGUID then
+        return
+    end
+    local ok, _, class, _, race, sex = pcall(GetPlayerInfoByGUID, guid)
+    if not ok then return end
+    class, race, sex = addon.Readable(class), addon.Readable(race), addon.Readable(sex)
+    if type(race) == "string" and race ~= "" and (sex == 2 or sex == 3) then
+        race = race:lower()
+    else
+        race, sex = nil, nil
+    end
+    if type(class) ~= "string" or class == "" then class = nil end
+    return race, sex, class
+end
+
 function addon.RecordEncounter(guid, name, direction, context)
     local rival = addon.Ledger.Add(addon.db, guid, name)
     rival.displayName = name
+    local race, sex, class = addon.RivalAppearance(guid)
+    if race then rival.race, rival.sex = race, sex end
+    if class then rival.class = class end
     rival[direction] = rival[direction] + 1
     rival.encounters = rival.encounters or {}
     context.direction = direction

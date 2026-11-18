@@ -78,3 +78,16 @@ assert(manual ~= rival and manual.killsAgainstThem == 1 and manual.deathsToThem 
 assert(manual.encounters[1].manual and manual.encounters[1].time == nil and manual.encounters[1].zone == nil)
 assert(rival.deathsToThem == 2 and rival.killsAgainstThem == 0)
 print("Manual encounter checks passed")
+
+function GetPlayerInfoByGUID(guid)
+    assert(guid == "Player-rival")
+    return "Warrior", "WARRIOR", "Orc", "Orc", 2
+end
+
+addon.RecordEncounter("Player-rival", "Rival", "killsAgainstThem", {})
+assert(rival.race == "orc" and rival.sex == 2 and rival.class == "WARRIOR")
+function GetPlayerInfoByGUID() return nil, secret, nil, secret, secret end
+addon.RecordEncounter("Player-rival", "Rival", "killsAgainstThem", {})
+assert(rival.race == "orc" and rival.sex == 2 and rival.class == "WARRIOR")
+assert(addon.RivalAppearance("manual:rival") == nil)
+print("Rival portrait metadata checks passed")

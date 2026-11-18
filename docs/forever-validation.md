@@ -136,3 +136,12 @@ filters in `MailFrame.xml` and leaves free-form entry available. Verify a known
 character suggestion, Tab and arrow selection, Enter accepting a suggestion
 before saving, Escape dismissing suggestions first, and an enemy name the
 client does not suggest. Check both layouts with longer localized names.
+
+The First Aid reference uses the specialized `Professions-Recipe-Background-FirstAid`
+atlas, the recipe list background, the minimal scrolling track and the item slot
+art. The overview uses the circular output icon's ring and mask without its item
+scripts. Race portraits follow `GetRaceAtlas` based on readable player info by
+GUID, then fall back to a class icon or a question mark. Test selected and
+empty rosters, enough rivals to overflow, and records with and without identity
+data. The add dialog uses the matching No Quest Hints card and external glow
+atlases. Check spacing, corners and selected states in Forever.

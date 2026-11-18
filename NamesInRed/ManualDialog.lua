@@ -10,24 +10,27 @@ end
 
 local function Choice(parent, x, title, texture, direction, choose)
     local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
-    button:SetSize(152, 116)
-    button:SetPoint("TOPLEFT", x, -133)
-    button:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border", edgeSize = 14,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 },
-    })
-    local outline = CreateFrame("Frame", nil, button, "BackdropTemplate")
-    outline:SetPoint("TOPLEFT", -3, 3)
-    outline:SetPoint("BOTTOMRIGHT", 3, -3)
-    outline:SetBackdrop({
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border", edgeSize = 12,
-    })
-    outline:SetBackdropBorderColor(1, 0.88, 0.25)
-    outline:Hide()
+    button:SetSize(160, 126)
+    button:SetPoint("TOPLEFT", x, -136)
+    local card = button:CreateTexture(nil, "BACKGROUND")
+    card:SetAllPoints()
+    local glow = button:CreateTexture(nil, "OVERLAY")
+    glow:SetPoint("TOPLEFT", -5, 5)
+    glow:SetPoint("BOTTOMRIGHT", 5, -5)
+    local hasArt = addon.ApplyAtlas(card, "Mode-Selection-Card-Regular")
+    local hasGlow = hasArt and addon.ApplyAtlas(glow, "Mode-Selection-Card-Regular-yellow-glow")
+    if not hasArt or not hasGlow then
+        card:Hide()
+        button:SetBackdrop({
+            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border", edgeSize = 14,
+            insets = { left = 4, right = 4, top = 4, bottom = 4 },
+        })
+    end
+    glow:Hide()
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetSize(54, 54)
-    icon:SetPoint("TOP", 0, -14)
+    icon:SetPoint("TOP", 0, -18)
     icon:SetTexture(texture)
     local mask = button:CreateMaskTexture()
     mask:SetAllPoints(icon)
@@ -48,7 +51,13 @@ local function Choice(parent, x, title, texture, direction, choose)
     label:SetText(title)
     button:SetScript("OnClick", function() choose(direction) end)
     function button:SetSelected(selected)
-        outline:SetShown(selected)
+        if hasGlow then
+            glow:SetShown(selected)
+        elseif selected then
+            self:SetBackdropBorderColor(1, 0.88, 0.25)
+        else
+            self:SetBackdropBorderColor(0.62, 0.49, 0.33)
+        end
     end
     return button
 end
@@ -64,7 +73,7 @@ function addon.CreateManualDialog(parent, onAdded)
     shade:SetAllPoints()
     shade:SetColorTexture(0, 0, 0, 0.45)
     local dialog = CreateFrame("Frame", "NamesInRedManualEntry", shield, "PortraitFrameTemplate")
-    dialog:SetSize(364, 305)
+    dialog:SetSize(388, 327)
     dialog:SetPoint("CENTER", parent)
     dialog:SetClampedToScreen(true)
     dialog:SetTitle(L.addTitle)
@@ -111,7 +120,7 @@ function addon.CreateManualDialog(parent, onAdded)
         Update()
     end
     win = Choice(dialog, 22, L.win, "Interface\\AddOns\\NamesInRed\\Art\\Victory.tga", "killsAgainstThem", Choose)
-    loss = Choice(dialog, 190, L.loss, "Interface\\AddOns\\NamesInRed\\Art\\Gravestone.tga", "deathsToThem", Choose)
+    loss = Choice(dialog, 206, L.loss, "Interface\\AddOns\\NamesInRed\\Art\\Gravestone.tga", "deathsToThem", Choose)
     local function Save()
         local id = addon.AddManualEncounter(edit:GetText(), selected)
         if id then
