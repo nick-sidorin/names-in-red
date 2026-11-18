@@ -89,3 +89,15 @@ published evidence.
    matching Blizzard component before choosing a template or native artwork.
    Check combat lockdown, frame reuse, Edit Mode and input. Show only nonzero
    icons and hide the display when both counters are zero.
+
+## First live evidence
+
+A 1.60.1.70959 open-world sample on ruRU exposed both PARTY_KILL GUIDs in
+combat. The attacker matched the local player and the victim matched an
+attackable player on the target token. The HK total increased from 0 to 1
+after 285 ms despite two change notifications. The honor message one second
+after the blow awarded seven honor without naming a victim. The saved log
+retained three sessions. This observation supports the direct world kill path
+only. The preview adds an explicit opposing-faction requirement, which was
+not captured by the earlier build. Validate this requirement in the next
+live sample. Assists, recap coverage, and battleground attribution are pending.

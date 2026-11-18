@@ -15,12 +15,12 @@ and works during ordinary play.
 - Send the file to the project owner privately for analysis. The data can
   include character names, GUIDs and raw honor messages.
 
-The last 250 rows are retained independently per character. Each row has a
+The last 1,000 diagnostic rows (individual events or snapshots) are retained independently per character. Each row has a
 session and timestamp. The initial row records the client build, locale and
 event registration results. The preview captures the honor channel, HK
 changes, standalone PARTY_KILL, match completion, and the local death recap
-immediately and after 0.3, 1 and 2 seconds. Local deaths and party kills may
-also include PvE so the same cases can act as controls. Consecutive death
+immediately and after 0.3, 1 and 2 seconds. Local PvE deaths remain as controls. Party kills with a readable creature,
+pet or vehicle victim GUID are filtered out. Prior rows remain available. Consecutive death
 probes are scoped to their own sequence. Field status distinguishes
 `readable`, `absent`, `secret`, restricted tables, and API failures.
 Recap rows are bounded to 32 per sample and include the original event count.
@@ -34,6 +34,10 @@ Record these scenarios when they happen:
 3. Try one PvE death as a control. Compare repeated recap reads to identify
    stale or delayed rows.
 
-This preview collects evidence for multi-attacker and assist attribution.
-The diagnostic data lives in a separate SavedVariables table. Ordinary
-rival counters receive no automatic writes.
+This preview also records personal killing blows in open-world PvP. It
+requires readable PARTY_KILL GUIDs, a local player attacker, and a matching
+attackable target or mouseover player of the opposing faction. The first
+counter is stored under `NamesInRedDB.rivals[guid].killsAgainstThem` in the
+same SavedVariables file. Deaths, assists, pet kills, and battleground kills
+remain diagnostic. Earlier debug rows are retained for analysis and are not
+replayed into the ledger.

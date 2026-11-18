@@ -2,7 +2,7 @@ local addonName = ...
 local frame = CreateFrame("Frame")
 local db
 local deathSequence = 0
-local limit = 250
+local limit = 1000
 
 local function Value(value)
     if issecretvalue and issecretvalue(value) then
@@ -172,6 +172,11 @@ function handlers.PLAYER_DEAD()
 end
 
 function handlers.PARTY_KILL(attacker, victim)
+    local guid = Value(victim)
+    if type(guid) == "string" and (guid:match("^Creature%-") or guid:match("^Vehicle%-")
+        or guid:match("^Pet%-")) then
+        return
+    end
     local row = Add("PARTY_KILL")
     Capture(row, "attacker", attacker)
     Capture(row, "victim", victim)

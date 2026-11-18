@@ -69,8 +69,10 @@ assert(db.rows[9].attacker == "Player-test")
 assert(db.rows[9].victim == nil and db.rows[9].status.victim == "secret")
 Event("CHAT_MSG_COMBAT_HONOR_GAIN", "Test message")
 assert(db.rows[10].message == "Test message")
-for _ = 1, 250 do Event("PLAYER_PVP_KILLS_CHANGED", "player") end
-assert(#db.rows == 250 and db.dropped == 10)
-assert(Login() == db and db.session == 2 and db.rows[250].kind == "SESSION")
+Event("PARTY_KILL", "Player-test", "Creature-test")
+assert(#db.rows == 10)
+for _ = 1, 1000 do Event("PLAYER_PVP_KILLS_CHANGED", "player") end
+assert(#db.rows == 1000 and db.dropped == 10)
+assert(Login() == db and db.session == 2 and db.rows[1000].kind == "SESSION")
 assert(NamesInRedDB == nil)
 print("Debug capture checks passed")

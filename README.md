@@ -6,8 +6,8 @@ rivals in the game world.
 
 The foundation targets Forever 1.60.1 (interface 16001). It initializes a local
 ledger with separate death and kill totals. The ledger is per character in
-this preview. Gameplay detection and player-facing UI are planned. Live client
-compatibility is pending.
+this preview. This preview records confirmed personal killing blows in open-world PvP.
+Other attribution paths and player-facing UI are planned.
 
 See [PvP diagnostics preview](docs/debug-preview.md) for capture and installation.
 
