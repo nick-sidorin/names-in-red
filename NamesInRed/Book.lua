@@ -2,7 +2,7 @@ local _, addon = ...
 local L, Readable = addon.L, addon.Readable
 local iconPath = "Interface\\Icons\\INV_Misc_Book_11"
 local victoryGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipVictory.tga:14:14:0:1|t"
-local deathGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipGravestone.tga:14:14:0:1|t"
+local deathGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipSkull.tga:14:14:0:1|t"
 local window, names, details, heading, portrait, summary, wins, losses, status, selected, empty
 local search, remove, levelBadge
 local deletePopup = "NAMES_IN_RED_DELETE_RIVAL"

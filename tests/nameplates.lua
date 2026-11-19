@@ -14,9 +14,9 @@ local function Anchor()
         shown = true,
     }
 end
-local bar, level, parent = Anchor(), Anchor(), Anchor()
+local bar, name, parent = Anchor(), Anchor(), Anchor()
 parent.HealthBarsContainer = { healthBar = bar }
-parent.PlayerLevelDiffFrame = level
+parent.name = name
 local plate = Anchor()
 plate.IsForbidden = function(self) return self.forbidden end
 plate.UnitFrame = parent
@@ -39,7 +39,10 @@ function CreateFrame(_, _, owner)
             }
         end,
         ClearAllPoints = function() end,
-        SetPoint = function(self, _, anchor) self.anchor = anchor end,
+        SetPoint = function(self, point, anchor, relativePoint, x, y)
+            assert(point == "BOTTOM" and relativePoint == "TOP" and x == 0 and y == 0)
+            self.anchor = anchor
+        end,
         Show = function(self) self.shown = true end,
         Hide = function(self) self.shown = false end,
     }
@@ -51,14 +54,15 @@ for _, file in ipairs({ "Encounter", "Book", "Nameplates" }) do
 end
 
 onEvent(nil, "NAME_PLATE_UNIT_ADDED", unit)
-assert(badge.shown and badge.anchor == level)
-assert(badge.text:find("TooltipVictory", 1, true) and not badge.text:find("TooltipGravestone", 1, true))
+assert(badge.shown and badge.anchor == name)
+assert(badge.text:find("TooltipVictory", 1, true) and not badge.text:find("TooltipSkull", 1, true))
 rival.deathsToThem = 2
 addon.RefreshNameplates()
-assert(badge.shown and badge.text:find("TooltipGravestone", 1, true))
-level.shown = false
+assert(badge.shown and badge.text:find("TooltipSkull", 1, true))
+name.shown = false
 addon.RefreshNameplates()
 assert(badge.anchor == bar)
+name.shown = true
 
 guid = secret
 onEvent(nil, "PLAYER_REGEN_DISABLED")

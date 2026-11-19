@@ -93,9 +93,11 @@ published evidence.
 ## First live evidence
 
 For the nameplate preview, Camelot places the raid marker left of the health
-bar and the level on its right. BigDebuffs attaches side indicators outside
-the visible bar or name. Names in Red anchors its own label just beyond the
-rightmost level badge to leave the name, aura row and raid marker clear.
+bar and the level on its right. BigDebuffs can attach side indicators outside
+the visible bar or name. The first Names in Red preview used a side anchor.
+The current preview centers the label directly above the name to keep the
+counters close to the character name and leave room for higher overlays.
+Check spacing with native raid markers, auras and other addons in Forever.
 See the [Camelot level template](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_NamePlates/Camelot/Blizzard_NamePlateLevelFrame.xml)
 and [BigDebuffs attachment code](https://github.com/jordonwow/bigdebuffs/blob/38690ed9d782c01c137779b7998dbe905c740fda/BigDebuffs.lua#L1596-L1630).
 

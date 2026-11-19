@@ -29,28 +29,24 @@ local function Refresh(unit)
     local parent = Readable(plate.UnitFrame)
     if not parent or parent:IsForbidden() then return end
 
-    local bar = parent.HealthBarsContainer and parent.HealthBarsContainer.healthBar
-    local anchor
-    if bar and not bar:IsForbidden() and bar:IsShown() then
-        local level = parent.PlayerLevelDiffFrame
-        anchor = level and not level:IsForbidden() and level:IsShown() and level or bar
-    elseif parent.name and not parent.name:IsForbidden() and parent.name:IsShown() then
-        anchor = parent.name
+    local anchor = parent.name
+    if not anchor or anchor:IsForbidden() or not anchor:IsShown() then
+        anchor = parent.HealthBarsContainer and parent.HealthBarsContainer.healthBar
+        if not anchor or anchor:IsForbidden() or not anchor:IsShown() then return end
     end
-    if not anchor then return end
 
     local badge = badges[parent]
     if not badge then
         badge = CreateFrame("Frame", nil, parent)
-        badge:SetSize(1, 16)
+        badge:SetSize(1, 14)
         badge.label = badge:CreateFontString(nil, "OVERLAY", "GameFontNormalSmallOutline")
         badge.label:SetTextColor(1, 1, 1)
-        badge.label:SetPoint("LEFT")
+        badge.label:SetPoint("CENTER")
         badges[parent] = badge
     end
     if badge.unit then active[badge.unit] = false end
     badge:ClearAllPoints()
-    badge:SetPoint("LEFT", anchor, "RIGHT", 6, 0)
+    badge:SetPoint("BOTTOM", anchor, "TOP", 0, 0)
     badge.label:SetText(text)
     badge.unit = unit
     active[unit] = badge

@@ -86,7 +86,7 @@ remove only the sample roster. Your real and manually added records are kept.
 Target another player, open Add an encounter, keep the prefilled name, and
 confirm an outcome. The form includes the surname when available, and the entry
 uses the selected player's GUID. Hover over the player to see the counts beside
-crossed swords and a gravestone below a blank line in the standard unit tooltip.
+crossed swords and a skull below a blank line in the standard unit tooltip.
 An existing name-only entry can also appear when
 the player's full name is readable and matches exactly one ledger record.
 You can delete the test record afterward in the book.
@@ -100,6 +100,6 @@ book and tooltip until the full name is available. Targeting or hovering over
 the same player can fill in the name without adding another encounter. This
 also completes older half-name records. New manual entries require both names.
 
-Visible player nameplates show the nonzero counters just to the right of the
-level badge, or beside the bar or name when no level badge is shown. Plates
-whose identity is restricted do not show counters.
+Visible player nameplates show the nonzero counters in a centered row directly
+above the name. When the name is hidden, the row sits just above the visible
+health bar. Plates whose identity is restricted do not show counters.

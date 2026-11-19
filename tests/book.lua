@@ -50,7 +50,7 @@ assert(tooltipLines[1] == " ")
 assert(tooltipLines[2] == addon.title)
 local art = "|TInterface\\AddOns\\NamesInRed\\Art\\"
 local victory = art .. "TooltipVictory.tga:14:14:0:1|t"
-local death = art .. "TooltipGravestone.tga:14:14:0:1|t"
+local death = art .. "TooltipSkull.tga:14:14:0:1|t"
 assert(tooltipLines[3] == victory .. " 2   " .. death .. " 1")
 print("Rival tooltip and locale checks passed")
 
