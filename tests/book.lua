@@ -26,7 +26,7 @@ for _, supported in ipairs({
     assert(loadfile("NamesInRed/Locale.lua"))("NamesInRed", addon)
     assert(addon.title == "Names in Red")
     assert(addon.L.deleteConfirm:format("Rival"):find("Rival", 1, true))
-    for _, key in ipairs({ "kills", "deaths", "empty", "level", "add", "addTitle", "fullName", "win", "loss", "manual", "noMatches", "deleteConfirm" }) do
+    for _, key in ipairs({ "kills", "deaths", "empty", "level", "add", "addTitle", "fullName", "win", "loss", "manual", "noMatches", "deleteConfirm", "statistics", "winTooltip", "lossTooltip" }) do
         assert(type(addon.L[key]) == "string" and addon.L[key] ~= "")
     end
 end

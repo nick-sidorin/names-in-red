@@ -53,3 +53,20 @@ searchStrings.enGB = searchStrings.enUS
 searchStrings.esMX = searchStrings.esES
 local search = searchStrings[GetLocale()] or searchStrings.enUS
 addon.L.noMatches, addon.L.deleteConfirm = search[1], search[2]
+
+local statisticsStrings = {
+    enUS = { "Statistics", "How many times I killed them", "How many times they killed me" },
+    ruRU = { "Статистика", "сколько раз я убил его", "сколько раз он убил меня" },
+    deDE = { "Statistik", "Wie oft ich den Rivalen getötet habe", "Wie oft der Rivale mich getötet hat" },
+    frFR = { "Statistiques", "Combien de fois j’ai tué ce rival", "Combien de fois ce rival m’a tué" },
+    esES = { "Estadísticas", "Cuántas veces maté al rival", "Cuántas veces me mató el rival" },
+    itIT = { "Statistiche", "Quante volte ho ucciso il rivale", "Quante volte il rivale mi ha ucciso" },
+    ptBR = { "Estatísticas", "Quantas vezes matei o rival", "Quantas vezes o rival me matou" },
+    koKR = { "통계", "내가 상대를 처치한 횟수", "상대가 나를 처치한 횟수" },
+    zhCN = { "统计", "我击杀了对手多少次", "对手击杀了我多少次" },
+    zhTW = { "統計", "我擊殺了對手多少次", "對手擊殺了我多少次" },
+}
+statisticsStrings.enGB = statisticsStrings.enUS
+statisticsStrings.esMX = statisticsStrings.esES
+local statistics = statisticsStrings[GetLocale()] or statisticsStrings.enUS
+addon.L.statistics, addon.L.winTooltip, addon.L.lossTooltip = statistics[1], statistics[2], statistics[3]

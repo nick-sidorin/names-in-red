@@ -165,3 +165,9 @@ and adding a manual rival while filtered. The native delete confirmation names
 the selected rival and captures its ID when opened. Verify that cancel leaves
 the record intact and accepting removes only that record, including when two
 rivals share a display name.
+
+The statistics section follows the reagent slots in
+`Blizzard_ProfessionsTemplates.xml` and
+`Blizzard_ProfessionsRecipeReagentSlotBase.lua`. It uses a 39-unit slot,
+the native square hover texture, and the reagent heading font. The book owns
+its controls and shows short localized GameTooltip descriptions.
