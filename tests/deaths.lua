@@ -14,6 +14,8 @@ function UnitGUID(unit)
     if unit == "target" then return "Player-rival" end
 end
 function UnitLevel(unit) return unit == "player" and 25 or 30 end
+function UnitIsPlayer(unit) return unit == "target" end
+function UnitName() return "Rival", "Emberfang" end
 function GetRealZoneText() return "Test Zone" end
 function GetServerTime() return now end
 C_Map = {
@@ -46,6 +48,7 @@ rows = { Hit(1000.848, 87), Hit(999, -1), Hit(998, -1) }
 onEvent()
 onEvent()
 local rival = assert(addon.db.rivals["Player-rival"])
+assert(rival.displayName == "Rival Emberfang")
 assert(rival.deathsToThem == 1 and rival.killsAgainstThem == 0)
 assert(#rival.encounters == 1 and rival.encounters[1].rivalLevel == 30)
 assert(rival.encounters[1].x == 0.4 and rival.encounters[1].y == 0.6)
@@ -70,11 +73,25 @@ assert(rival.deathsToThem == 2 and #rival.encounters == 2)
 print("Confirmed world death checks passed")
 
 assert(addon.AddManualEncounter("   ", "killsAgainstThem") == nil)
+assert(addon.AddManualEncounter("Rival", "killsAgainstThem") == nil)
 assert(addon.AddManualEncounter("Rival", "invalid") == nil)
-local manualID = assert(addon.AddManualEncounter(" Rival ", "killsAgainstThem"))
-assert(addon.AddManualEncounter("rival", "deathsToThem") == manualID)
+local manualID = assert(addon.AddManualEncounter(" Rival Emberfang ", "killsAgainstThem"))
+assert(addon.AddManualEncounter("rival emberfang", "deathsToThem") == manualID)
 local manual = addon.db.rivals[manualID]
 assert(manual ~= rival and manual.killsAgainstThem == 1 and manual.deathsToThem == 1)
 assert(manual.encounters[1].manual and manual.encounters[1].time == nil and manual.encounters[1].zone == nil)
 assert(rival.deathsToThem == 2 and rival.killsAgainstThem == 0)
 print("Manual encounter checks passed")
+
+function GetPlayerInfoByGUID(guid)
+    assert(guid == "Player-rival")
+    return "Warrior", "WARRIOR", "Orc", "Orc", 2
+end
+
+addon.RecordEncounter("Player-rival", "Rival", "killsAgainstThem", {})
+assert(rival.race == "orc" and rival.sex == 2 and rival.class == "WARRIOR")
+function GetPlayerInfoByGUID() return nil, secret, nil, secret, secret end
+addon.RecordEncounter("Player-rival", "Rival", "killsAgainstThem", {})
+assert(rival.race == "orc" and rival.sex == 2 and rival.class == "WARRIOR")
+assert(addon.RivalAppearance("manual:rival") == nil)
+print("Rival portrait metadata checks passed")

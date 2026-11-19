@@ -1,7 +1,8 @@
 ## Interface: 16001
 ## Title: Names in Red (Debug)
 ## Notes: PvP diagnostics preview
-## Version: 0.0.5-debug
+## Version: 0.0.38-debug
+## IconTexture: Interface\AddOns\NamesInRed\Art\Skull.tga
 ## SavedVariablesPerCharacter: NamesInRedDB, NamesInRedDebugDB
 
 Locale.lua
@@ -12,4 +13,6 @@ Kills.lua
 Deaths.lua
 ManualDialog.lua
 Book.lua
+Nameplates.lua
+DebugSeeds.lua
 Debug.lua

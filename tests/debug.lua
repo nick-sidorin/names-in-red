@@ -11,6 +11,7 @@ function GetServerTime() return 100 end
 function GetTime() return 15 end
 function IsInInstance() return true, "pvp" end
 function UnitGUID(unit) return unit == "player" and "Player-test" or secret end
+function UnitName(unit) if unit == "player" then return "Test", "Rival" end end
 function GetPVPSessionStats() return 2 end
 
 C_PvP = { GetScoreInfoByPlayerGuid = function() return { killingBlows = secret } end }
@@ -37,8 +38,8 @@ local function Event(name, ...)
     onEvent(frame, name, ...)
 end
 
-local function Login()
-    assert(loadfile("NamesInRed/Debug.lua"))("NamesInRed")
+local function Login(addon)
+    assert(loadfile("NamesInRed/Debug.lua"))("NamesInRed", addon)
     Event("ADDON_LOADED", "OtherAddon")
     Event("ADDON_LOADED", "NamesInRed")
     return NamesInRedDebugDB
@@ -66,9 +67,11 @@ assert(db.rows[8].events[2].sourceGUID == nil)
 
 Event("PARTY_KILL", "Player-test", secret)
 assert(db.rows[9].attacker == "Player-test")
+assert(db.rows[9].player.name == "Test" and db.rows[9].player.surname == "Rival")
 assert(db.rows[9].victim == nil and db.rows[9].status.victim == "secret")
-Event("CHAT_MSG_COMBAT_HONOR_GAIN", "Test message")
+Event("CHAT_MSG_COMBAT_HONOR_GAIN", "Test message", nil, nil, nil, nil, nil, nil, nil, nil, nil, 42, secret)
 assert(db.rows[10].message == "Test message")
+assert(db.rows[10].lineID == 42 and db.rows[10].status.chatGUID == "secret")
 Event("PARTY_KILL", "Player-test", "Creature-test")
 assert(#db.rows == 10)
 for _ = 1, 1000 do Event("PLAYER_PVP_KILLS_CHANGED", "player") end
@@ -76,3 +79,36 @@ assert(#db.rows == 1000 and db.dropped == 10)
 assert(Login() == db and db.session == 2 and db.rows[1000].kind == "SESSION")
 assert(NamesInRedDB == nil)
 print("Debug capture checks passed")
+
+local addon = {}
+assert(loadfile("NamesInRed/Ledger.lua"))("NamesInRed", addon)
+assert(loadfile("NamesInRed/DebugSeeds.lua"))("NamesInRed", addon)
+addon.db = assert(addon.Ledger.Open(nil))
+local existing = addon.Ledger.Add(addon.db, "Player-existing", "Existing")
+local existingManual = addon.Ledger.Add(addon.db, "manual:existing", "Existing")
+Login(addon)
+SlashCmdList.NAMESINREDDEBUG("seed")
+SlashCmdList.NAMESINREDDEBUG("seed")
+
+local automatic, manual = 0, 0
+for key, rival in pairs(addon.db.rivals) do
+    if key:match("^seed:manual:") then
+        manual = manual + 1
+        assert(rival.encounters[1].manual and #rival.encounters == 1)
+        assert(rival.killsAgainstThem + rival.deathsToThem == 1)
+    elseif key:match("^seed:") then
+        automatic = automatic + 1
+        assert(rival.race and rival.class and rival.raceLabel and rival.classLabel)
+        assert(#rival.encounters == rival.killsAgainstThem + rival.deathsToThem)
+        for _, encounter in ipairs(rival.encounters) do
+            assert(encounter.rivalLevel and encounter.playerLevel and encounter.time)
+            assert(encounter.zone and encounter.x and encounter.y and not encounter.manual)
+        end
+    end
+end
+assert(manual == 6 and automatic == 24)
+SlashCmdList.NAMESINREDDEBUG("clear-seed")
+for key in pairs(addon.db.rivals) do assert(not key:match("^seed:")) end
+assert(addon.db.rivals["Player-existing"] == existing)
+assert(addon.db.rivals["manual:existing"] == existingManual)
+print("Debug seed checks passed")

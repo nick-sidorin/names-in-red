@@ -1,4 +1,4 @@
-local addonName = ...
+local addonName, addon = ...
 local frame = CreateFrame("Frame")
 local db
 local deathSequence = 0
@@ -39,18 +39,19 @@ local function Call(result, key, fn, ...)
         result.status[key] = "unavailable"
         return
     end
-    local ok, value = pcall(fn, ...)
+    local ok, value, second = pcall(fn, ...)
     if not ok then
         result.status[key] = "error"
         return
     end
     Capture(result, key, value)
+    return second
 end
 
 local function Unit(unit)
     local data = { status = {} }
     Call(data, "guid", UnitGUID, unit)
-    Call(data, "name", UnitName, unit)
+    Capture(data, "surname", Call(data, "name", UnitName, unit))
     Call(data, "faction", UnitFactionGroup, unit)
     Call(data, "isPlayer", UnitIsPlayer, unit)
     Call(data, "opponent", UnitCanAttack, "player", unit)
@@ -191,10 +192,12 @@ function handlers.PLAYER_PVP_KILLS_CHANGED(unit)
     Sample(row)
 end
 
-function handlers.CHAT_MSG_COMBAT_HONOR_GAIN(message, _, _, _, _, _, _, _, _, _, lineID)
+function handlers.CHAT_MSG_COMBAT_HONOR_GAIN(message, sender, _, _, _, _, _, _, _, _, lineID, chatGUID)
     local row = Add("CHAT_MSG_COMBAT_HONOR_GAIN")
     Capture(row, "message", message)
     Capture(row, "lineID", lineID)
+    Capture(row, "chatSender", sender)
+    Capture(row, "chatGUID", chatGUID)
     Sample(row)
 end
 
@@ -236,6 +239,18 @@ frame:SetScript("OnEvent", function(self, event, ...)
 
     SLASH_NAMESINREDDEBUG1 = "/nirdebug"
     SlashCmdList.NAMESINREDDEBUG = function(message)
+        if message == "seed" or message == "clear-seed" then
+            if not addon or not addon.db then return end
+            local count
+            if message == "seed" then
+                count = addon.AddDebugSeeds(GetServerTime())
+            else
+                count = addon.ClearDebugSeeds()
+            end
+            if addon.RefreshBook then addon.RefreshBook(message == "seed") end
+            print("NamesInRed", message, count)
+            return
+        end
         if message == "sample" then
             Sample(Add("MANUAL_SAMPLE"))
         end

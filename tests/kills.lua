@@ -12,7 +12,8 @@ local units = {
 function issecretvalue(value) return value == secret end
 function UnitGUID(unit) return units[unit].guid end
 function UnitFactionGroup(unit) return units[unit].faction end
-function UnitName(unit) return units[unit].name end
+function UnitName(unit) return units[unit].name, units[unit].surname end
+function UnitNameUnmodified(unit) return units[unit].originalName, units[unit].originalSurname end
 function UnitIsPlayer(unit) return units[unit].guid ~= nil end
 function UnitCanAttack(_, unit) return units[unit].attackable end
 function IsInInstance() return context ~= "none", context end
@@ -47,20 +48,33 @@ Kill("Player-self", "Player-rival")
 target.faction = secret
 Kill("Player-self", "Player-rival")
 target.faction = "Horde"
-target.name = secret
-Kill("Player-self", "Player-rival")
-target.name = "Rival"
 context = "pvp"
 Kill("Player-self", "Player-rival")
 assert(next(addon.db.rivals) == nil)
 
 context = "none"
+target.name = secret
 Kill("Player-self", "Player-rival")
 local rival = assert(addon.Ledger.Find(addon.db, "Player-rival"))
-assert(rival.displayName == "Rival" and rival.killsAgainstThem == 1 and rival.deathsToThem == 0)
+assert(rival.displayName == "" and rival.killsAgainstThem == 1 and rival.deathsToThem == 0)
 addon.db = assert(addon.Ledger.Open(addon.db))
+target.name = "Rival"
+local namesake = { guid = "Player-namesake", faction = "Horde", name = "Rival", surname = "Other", attackable = true }
+units.mouseover = namesake
+addon.ResolveRivalName("mouseover")
+assert(rival.displayName == "")
+target.originalName, target.originalSurname = "Rival", "Emberfang"
+addon.ResolveRivalName("target")
+assert(rival.displayName == "Rival Emberfang" and rival.killsAgainstThem == 1)
+Kill("Player-self", "Player-namesake")
+assert(addon.db.rivals["Player-namesake"].displayName == "Rival Other")
 units.target = {}
 units.mouseover = target
+target.originalName, target.originalSurname = nil, nil
+target.surname = "Emberfang"
 Kill("Player-self", "Player-rival")
-assert(addon.Ledger.Find(addon.db, "Player-rival").killsAgainstThem == 2)
+assert(rival.displayName == "Rival Emberfang" and rival.killsAgainstThem == 2)
+target.surname = secret
+Kill("Player-self", "Player-rival")
+assert(rival.displayName == "Rival Emberfang" and rival.killsAgainstThem == 3)
 print("Confirmed world kill checks passed")

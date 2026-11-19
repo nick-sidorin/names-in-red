@@ -92,6 +92,17 @@ published evidence.
 
 ## First live evidence
 
+For the nameplate preview, Camelot places the raid marker left of the health
+bar and the level on its right. BigDebuffs can attach side indicators outside
+the visible bar or name. The first Names in Red preview used a side anchor.
+The current preview centers the label directly above the name to keep the
+counters close to the character name and leave room for higher overlays.
+Check spacing with native raid markers, auras and other addons in Forever.
+See the [Camelot level template](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_NamePlates/Camelot/Blizzard_NamePlateLevelFrame.xml)
+and [BigDebuffs attachment code](https://github.com/jordonwow/bigdebuffs/blob/38690ed9d782c01c137779b7998dbe905c740fda/BigDebuffs.lua#L1596-L1630).
+
+### Open-world killing blows
+
 A 1.60.1.70959 open-world sample on ruRU exposed both PARTY_KILL GUIDs in
 combat. The attacker matched the local player and the victim matched an
 attackable player on the target token. The HK total increased from 0 to 1
@@ -102,6 +113,12 @@ only. The preview adds an explicit opposing-faction requirement, which was
 not captured by the earlier build. Validate this requirement in the next
 live sample. Assists, recap coverage, and battleground attribution are pending.
 
+Another ruRU sample confirmed a personal killing blow against an opposing
+player. An unnamed nine-honor message followed 1.012 seconds after `PARTY_KILL`.
+The same session also recorded an unnamed one-honor message before the fight.
+`CHAT_MSG_COMBAT_HONOR_GAIN` exposes general chat metadata and no documented
+victim identifier. The preview keeps the raw messages in diagnostics and does
+not assign a reward to an encounter based on timing alone.
 
 ## Live death evidence and first UI
 
@@ -127,3 +144,47 @@ the selection glow and ring atlases used by No Quest Hints Forever
 `Onboarding.lua`. Verify window movement with and without BlizzMove,
 empty panes, both outcome choices, and closing the dialog via Cancel,
 Escape, the close button, and the parent closing.
+
+The profession-inspired revision reuses the background and row-state atlases
+from `Blizzard_ProfessionsRecipeList.xml` and the generic recipe background
+from `Blizzard_Professions.lua`. The book owns all row data and frames.
+The add dialog uses `AutoCompleteEditBoxTemplate` with the mail recipient
+filters in `MailFrame.xml` and leaves free-form entry available. Verify a known
+character suggestion, Tab and arrow selection, Enter accepting a suggestion
+before saving, Escape dismissing suggestions first, and an enemy name the
+client does not suggest. Check both layouts with longer localized names.
+
+The First Aid reference uses the specialized `Professions-Recipe-Background-FirstAid`
+atlas, the recipe list background, the minimal scrolling track and the item slot
+art. The overview uses the circular output icon's ring and mask without its item
+scripts. Race portraits follow `GetRaceAtlas` based on readable player info by
+GUID, then fall back to a class icon or a question mark. Test selected and
+empty rosters, enough rivals to overflow, and records with and without identity
+data. The compact add dialog uses the circular portrait ring and a restrained
+ArtifactsFX-YellowRing selection glow. Check spacing and selected states in Forever.
+
+Camelot's profession overrides in `Blizzard_ProfessionsFrame.lua` and
+`Blizzard_ProfessionsCrafting.lua` replace the window background with
+`Profession-Background-Overview`, hide the list NineSlice, and clear the
+schematic NineSlice anchors. The book follows that treatment and uses the
+recipe atlas for the right panel's ornamental frame.
+
+The book uses the top band of Camelot's `Profession-Background-Template2`
+atlas, including its lower edge. The details panel uses a plain recipe backdrop,
+a proportional Engineering illustration with feathered edges in the lower right,
+and the separate `common-insideframe` trim from Camelot's schematic XML. The portrait uses the
+add dialog's circle mask and rim. UV insets remove the inventory bevel from
+the fallback icon. Verify these surfaces in Forever.
+
+The roster toolbar uses the professions search box and the native Friends
+add icon. Check UTF-8 name filtering and clearing, selecting the first result,
+and adding a manual rival while filtered. The native delete confirmation names
+the selected rival and captures its ID when opened. Verify that cancel leaves
+the record intact and accepting removes only that record, including when two
+rivals share a display name.
+
+The statistics section follows the reagent slots in
+`Blizzard_ProfessionsTemplates.xml` and
+`Blizzard_ProfessionsRecipeReagentSlotBase.lua`. It uses a 39-unit slot,
+the native square hover texture, and the reagent heading font. The book owns
+its controls and shows short localized GameTooltip descriptions.

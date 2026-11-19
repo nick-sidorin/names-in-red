@@ -63,11 +63,44 @@ matches. Party encounters and battlegrounds remain diagnostic.
 
 Drag the window by its title. The empty book keeps the roster pane and Add
 button visible. Scrollbars appear when content overflows. The panes use
-Blizzard inset frames, Camelot CharacterFrame backgrounds and the native
-vertical divider where available.
+Blizzard profession list and recipe backgrounds. Selected and hovered names
+use the same atlases as profession recipe rows.
 
-Add opens a name field and two outcome choices. Entries marked with an
-asterisk are manual. Repeating a manual entry for the same name adds to
-its totals. Name-only records are separate from GUID-backed rivals and do
-not create tooltip matches. Manual entries store the selected outcome
-without a battle date, levels, zone or coordinates.
+Add opens a name field and two outcome choices. The native mail autocomplete
+suggests names known to the client. Free-form names remain valid. Manual
+entries are identified in the encounter details. Repeating a manual entry for the same name adds to
+its totals. A matching selected target also supplies its readable level, race,
+sex, class and faction when the form opens. Manual entries have no battle date,
+zone or coordinates. A typed name without a matching target supplies no target
+details.
+
+## Sample roster
+
+Run `/nirdebug seed` to load 30 fictional rivals into the current character's
+book. Twenty-four have race and class information and several dated encounters
+with levels, zones and coordinates. Six are sample manual records. Running the
+command again refreshes those sample entries. Run `/nirdebug clear-seed` to
+remove only the sample roster. Your real and manually added records are kept.
+
+## Testing the player tooltip
+
+Target another player, open Add an encounter, keep the prefilled name, and
+confirm an outcome. The form includes the surname when available, and the entry
+uses the selected player's GUID. Hover over the player to see the counts beside
+crossed swords and a skull below a blank line in the standard unit tooltip.
+An existing name-only entry can also appear when
+the player's full name is readable and matches exactly one ledger record.
+You can delete the test record afterward in the book.
+
+The book portrait shows the latest recorded rival level from an automatic
+encounter or a manual entry linked to a selected target.
+
+Automatic encounters are stored by player GUID. If the client exposes only a
+first name or no name, the encounter is saved and its rival stays out of the
+book and tooltip until the full name is available. Targeting or hovering over
+the same player can fill in the name without adding another encounter. This
+also completes older half-name records. New manual entries require both names.
+
+Visible player nameplates show the nonzero counters in a centered row directly
+above the name. When the name is hidden, the row sits just above the visible
+health bar. Plates whose identity is restricted do not show counters.
