@@ -4,11 +4,11 @@ function CreateFrame()
     return { RegisterEvent = function() end, SetScript = function() end }
 end
 
-local totalLines = 0
+local tooltipLines = {}
 GameTooltip = {
     AddLine = function(_, text)
         assert(type(text) == "string" and text ~= "")
-        totalLines = totalLines + 1
+        table.insert(tooltipLines, text)
     end,
 }
 Enum = { TooltipDataType = { Unit = 2 } }
@@ -41,9 +41,15 @@ callback(GameTooltip, { guid = secret })
 callback(GameTooltip, { guid = "Player-unknown" })
 callback(GameTooltip, { guid = "Player-empty" })
 callback({}, { guid = "Player-test" })
-assert(totalLines == 0)
+assert(#tooltipLines == 0)
 callback(GameTooltip, { guid = "Player-test" })
-assert(totalLines == 2)
+assert(#tooltipLines == 3)
+assert(tooltipLines[1] == " ")
+assert(tooltipLines[2] == addon.title)
+local art = "|TInterface\\AddOns\\NamesInRed\\Art\\"
+local victory = art .. "TooltipVictory.tga:16:16|t"
+local death = art .. "TooltipGravestone.tga:16:16|t"
+assert(tooltipLines[3] == victory .. " 2    " .. death .. " 1")
 print("Rival tooltip and locale checks passed")
 
 assert(loadfile("NamesInRed/Ledger.lua"))("NamesInRed", addon)
@@ -59,9 +65,9 @@ assert(id == "Player-target")
 assert(addon.db.rivals[id].addedManually and addon.db.rivals[id].killsAgainstThem == 1)
 assert(addon.AddManualEncounter("Different Rival", "deathsToThem", target) == "manual:different rival")
 callback(GameTooltip, { guid = "Player-target" })
-assert(totalLines == 4)
+assert(#tooltipLines == 6)
 callback(GameTooltip, { guid = "Player-other" })
-assert(totalLines == 4)
+assert(#tooltipLines == 6)
 targetGUID = secret
 assert(addon.ManualTarget() == nil)
 targetGUID = "Player-self"
@@ -78,17 +84,18 @@ local manualID = assert(addon.AddManualEncounter("Айро\194\160Топичмо
 local manualRival = addon.db.rivals[manualID]
 function GameTooltip:GetUnit() return "Айро", "mouseover", "Player-ayro" end
 callback(GameTooltip, { guid = "Player-ayro" })
-assert(totalLines == 6)
+assert(#tooltipLines == 9)
+assert(tooltipLines[9] == victory .. " 0    " .. death .. " 1")
 assert(addon.db.rivals[manualID] == manualRival and manualRival.deathsToThem == 1)
 assert(addon.db.rivals["Player-ayro"] == nil)
 surname = nil
 callback(GameTooltip, { guid = "Player-ayro" })
-assert(totalLines == 6)
+assert(#tooltipLines == 9)
 surname = "Топичмолоток"
 addon.db.rivals["Player-namesake"] = { displayName = "Айро Топичмолоток", killsAgainstThem = 2, deathsToThem = 0 }
 callback(GameTooltip, { guid = "Player-ayro" })
-assert(totalLines == 6)
+assert(#tooltipLines == 9)
 assert(addon.AddManualEncounter(addon.ManualTarget().name, "killsAgainstThem", addon.ManualTarget()) == "Player-ayro")
 callback(GameTooltip, { guid = secret })
-assert(totalLines == 8)
+assert(#tooltipLines == 12)
 print("Full-name manual tooltip checks passed")

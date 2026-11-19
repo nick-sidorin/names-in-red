@@ -1,15 +1,13 @@
 local _, addon = ...
 local L, Readable = addon.L, addon.Readable
 local iconPath = "Interface\\Icons\\INV_Misc_Book_11"
+local victoryGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipVictory.tga:16:16|t"
+local deathGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipGravestone.tga:16:16|t"
 local window, names, details, heading, portrait, summary, wins, losses, status, selected, empty
 local search, remove
 local deletePopup = "NAMES_IN_RED_DELETE_RIVAL"
 local lower = strlower or string.lower
 local buttons, lines = {}, {}
-
-local function Counts(rival)
-    return ("%s: %d    %s: %d"):format(L.kills, rival.killsAgainstThem, L.deaths, rival.deathsToThem)
-end
 
 local function Scroll(parent, x, y, width, height, minimal)
     local template = minimal and "ScrollFrameTemplate" or "UIPanelScrollFrameTemplate"
@@ -345,7 +343,9 @@ local function ToggleBook()
         local listArt = left:CreateTexture(nil, "BACKGROUND")
         listArt:SetAllPoints()
         addon.ApplyAtlas(listArt, "Professions-background-summarylist")
-        local right = Pane(window, 312, -65, 383, 450)
+        local contentTop, footerInset, removeHeight = 65, 10, 28
+        local rightHeight = window:GetHeight() - contentTop - removeHeight - 2 * footerInset
+        local right = Pane(window, 312, -contentTop, 383, rightHeight)
         DetailBackground(right)
         names = Scroll(left, 9, -42, 273, 431, true)
         details = Scroll(right, 25, -219, 318, 215)
@@ -424,8 +424,8 @@ local function ToggleBook()
             end,
         }
         remove = CreateFrame("Button", nil, window, "SharedButtonSmallTemplate")
-        remove:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -10, 8)
-        remove:SetSize(128, 28)
+        remove:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -footerInset, footerInset)
+        remove:SetSize(128, removeHeight)
         remove:SetText(DELETE)
         remove:SetScript("OnClick", function()
             local rival = selected and addon.Ledger.Find(addon.db, selected)
@@ -557,8 +557,10 @@ if TooltipDataProcessor and Enum and Enum.TooltipDataType then
         if tooltip ~= GameTooltip or not addon.db then return end
         local rival = TooltipRival(tooltip, data)
         if rival and (rival.killsAgainstThem > 0 or rival.deathsToThem > 0) then
+            tooltip:AddLine(" ")
             tooltip:AddLine(addon.title, 1, 0.82, 0)
-            tooltip:AddLine(Counts(rival), 1, 1, 1)
+            local counts = ("%s %d    %s %d"):format(victoryGlyph, rival.killsAgainstThem, deathGlyph, rival.deathsToThem)
+            tooltip:AddLine(counts, 1, 1, 1)
         end
     end)
 end

@@ -12,6 +12,8 @@ assets = {
     "Art/Victory.tga": (128, 24),
     "Art/Gravestone.tga": (128, 24),
     "Art/BackdropFade.tga": (64, 32),
+    "Art/TooltipVictory.tga": (64, 32),
+    "Art/TooltipGravestone.tga": (64, 32),
 }
 actual = {
     path.relative_to(root).as_posix()

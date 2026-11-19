@@ -85,7 +85,8 @@ remove only the sample roster. Your real and manually added records are kept.
 
 Target another player, open Add an encounter, keep the prefilled name, and
 confirm an outcome. The form includes the surname when available, and the entry
-uses the selected player's GUID. Hover over the player to see the ledger counts
-in the standard unit tooltip. An existing name-only entry can also appear when
+uses the selected player's GUID. Hover over the player to see the counts beside
+crossed swords and a gravestone below a blank line in the standard unit tooltip.
+An existing name-only entry can also appear when
 the player's full name is readable and matches exactly one ledger record.
 You can delete the test record afterward in the book.
