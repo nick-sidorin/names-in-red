@@ -91,23 +91,35 @@ function addon.ManualName(input)
     if type(input) ~= "string" or input:find("[%c|]") then
         return nil
     end
-    local name = input:match("^%s*(.-)%s*$"):gsub(" +", " ")
+    local name = input:gsub("\194\160", " "):match("^%s*(.-)%s*$"):gsub(" +", " ")
     if name == "" or #name > 96 then
         return nil
     end
     return name
 end
 
+function addon.UnitPlayerName(unit)
+    if SafeRead(UnitIsPlayer, unit) ~= true then return end
+    local given, surname = SafeRead(UnitName, unit)
+    local name = addon.ManualName(given)
+    if not name then return end
+    if not name:find(" ", 1, true) then
+        local family = addon.ManualName(surname)
+        if family then name = addon.ManualName(name .. " " .. family) end
+    end
+    return name
+end
+
 function addon.ManualTarget()
-    if SafeRead(UnitIsPlayer, "target") ~= true then return end
+    local name = addon.UnitPlayerName("target")
+    if not name then return end
     local guid = SafeRead(UnitGUID, "target")
     local playerGUID = SafeRead(UnitGUID, "player")
     if type(guid) ~= "string" or not guid:match("^Player%-.+")
         or type(playerGUID) ~= "string" or guid == playerGUID then
         return
     end
-    local name = addon.ManualName(SafeRead(UnitName, "target"))
-    if name then return { guid = guid, name = name } end
+    return { guid = guid, name = name }
 end
 
 function addon.AddManualEncounter(input, direction, target)

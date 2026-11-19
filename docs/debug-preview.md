@@ -84,6 +84,8 @@ remove only the sample roster. Your real and manually added records are kept.
 ## Testing the player tooltip
 
 Target another player, open Add an encounter, keep the prefilled name, and
-confirm an outcome. The entry uses the selected player's GUID and can appear
-in their standard unit tooltip. Typed names without a matching target snapshot
-remain name-only records. You can delete the test record afterward in the book.
+confirm an outcome. The form includes the surname when available, and the entry
+uses the selected player's GUID. Hover over the player to see the ledger counts
+in the standard unit tooltip. An existing name-only entry can also appear when
+the player's full name is readable and matches exactly one ledger record.
+You can delete the test record afterward in the book.

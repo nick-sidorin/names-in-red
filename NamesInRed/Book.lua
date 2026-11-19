@@ -515,13 +515,47 @@ frame:SetScript("OnEvent", function(self)
     if addon.db then CreateShortcut() end
 end)
 
+local function TooltipRival(tooltip, data)
+    data = Readable(data)
+    local guid
+    if type(data) == "table" and (not canaccesstable or canaccesstable(data)) then
+        guid = Readable(data.guid)
+    end
+    local rivals = addon.db.rivals
+    if type(guid) == "string" and rivals[guid] then return rivals[guid] end
+
+    local unit
+    if tooltip.GetUnit then
+        local ok, _, token, unitGUID = pcall(tooltip.GetUnit, tooltip)
+        if ok then
+            unit = Readable(token)
+            unitGUID = Readable(unitGUID)
+            if guid and unitGUID and guid ~= unitGUID then return end
+            guid = guid or unitGUID
+        end
+    end
+    if type(guid) == "string" and rivals[guid] then return rivals[guid] end
+    if type(unit) ~= "string" then return end
+
+    local name = addon.UnitPlayerName(unit)
+    if not name or not name:find(" ", 1, true) then return end
+
+    -- Name-only records are eligible for display, without linking or merging them.
+    local matched
+    for id, rival in pairs(rivals) do
+        local stored = not id:match("^seed:") and addon.ManualName(rival.displayName)
+        if stored and (lower(stored) == lower(name) or (strcmputf8i and strcmputf8i(stored, name) == 0)) then
+            if matched or not id:match("^manual:") then return end
+            matched = rival
+        end
+    end
+    return matched
+end
+
 if TooltipDataProcessor and Enum and Enum.TooltipDataType then
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, function(tooltip, data)
         if tooltip ~= GameTooltip or not addon.db then return end
-        data = Readable(data)
-        if type(data) ~= "table" or (canaccesstable and not canaccesstable(data)) then return end
-        local guid = Readable(data.guid)
-        local rival = type(guid) == "string" and addon.db.rivals[guid]
+        local rival = TooltipRival(tooltip, data)
         if rival and (rival.killsAgainstThem > 0 or rival.deathsToThem > 0) then
             tooltip:AddLine(addon.title, 1, 0.82, 0)
             tooltip:AddLine(Counts(rival), 1, 1, 1)

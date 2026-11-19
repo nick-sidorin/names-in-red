@@ -67,3 +67,28 @@ assert(addon.ManualTarget() == nil)
 targetGUID = "Player-self"
 assert(addon.ManualTarget() == nil)
 print("Target-linked manual tooltip checks passed")
+
+function UnitIsPlayer(unit) return unit == "target" or unit == "mouseover" end
+local surname = "Топичмолоток"
+function UnitName() return "Айро", surname end
+targetGUID = "Player-ayro"
+assert(addon.ManualTarget().name == "Айро Топичмолоток")
+
+local manualID = assert(addon.AddManualEncounter("Айро\194\160Топичмолоток", "deathsToThem"))
+local manualRival = addon.db.rivals[manualID]
+function GameTooltip:GetUnit() return "Айро", "mouseover", "Player-ayro" end
+callback(GameTooltip, { guid = "Player-ayro" })
+assert(totalLines == 6)
+assert(addon.db.rivals[manualID] == manualRival and manualRival.deathsToThem == 1)
+assert(addon.db.rivals["Player-ayro"] == nil)
+surname = nil
+callback(GameTooltip, { guid = "Player-ayro" })
+assert(totalLines == 6)
+surname = "Топичмолоток"
+addon.db.rivals["Player-namesake"] = { displayName = "Айро Топичмолоток", killsAgainstThem = 2, deathsToThem = 0 }
+callback(GameTooltip, { guid = "Player-ayro" })
+assert(totalLines == 6)
+assert(addon.AddManualEncounter(addon.ManualTarget().name, "killsAgainstThem", addon.ManualTarget()) == "Player-ayro")
+callback(GameTooltip, { guid = secret })
+assert(totalLines == 8)
+print("Full-name manual tooltip checks passed")
