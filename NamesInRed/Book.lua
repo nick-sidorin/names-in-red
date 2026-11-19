@@ -65,18 +65,20 @@ local function Stat(parent, y, art, tooltipText)
     if not addon.ApplyAtlas(background, "Professions-Slot-bg") then
         background:SetColorTexture(0.04, 0.03, 0.025)
     end
-    local icon = slot:CreateTexture(nil, "ARTWORK")
-    icon:SetPoint("TOPLEFT", 5, -5)
-    icon:SetPoint("BOTTOMRIGHT", -5, 5)
-    icon:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\" .. art .. ".tga")
-    local border = slot:CreateTexture(nil, "OVERLAY")
+    local border = slot:CreateTexture(nil, "BORDER")
     border:SetAllPoints()
     if not addon.ApplyAtlas(border, "Professions-Slot-Frame") then
         border:SetTexture("Interface\\Buttons\\UI-Quickslot2")
     end
+    -- The frame is painted behind the icon so the bevel cannot cover its edges.
+    local inset = 5
+    local icon = slot:CreateTexture(nil, "ARTWORK")
+    icon:SetPoint("TOPLEFT", border, "TOPLEFT", inset, -inset)
+    icon:SetPoint("BOTTOMRIGHT", border, "BOTTOMRIGHT", -inset, inset)
+    icon:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\" .. art .. ".tga")
+    icon:SetTexCoord(0, 1, 0, 1)
     local highlight = slot:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetPoint("TOPLEFT", 2, -2)
-    highlight:SetPoint("BOTTOMRIGHT", -2, 2)
+    highlight:SetAllPoints(icon)
     highlight:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
     highlight:SetBlendMode("ADD")
     highlight:SetVertexColor(0.52, 0.73, 1)
@@ -362,7 +364,7 @@ local function ToggleBook()
         local rim
         portrait, rim = addon.CreateRoundIcon(summary)
         rim:SetPoint("TOPLEFT", 17.5, -17.5)
-        local badgeSize = 30
+        local badgeSize = 24
         local badge = CreateFrame("Frame", nil, summary)
         badge:SetSize(badgeSize, badgeSize)
         badge:SetPoint("CENTER", rim, "BOTTOMLEFT", 12, 12)
