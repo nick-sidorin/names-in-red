@@ -152,9 +152,7 @@ Camelot's profession overrides in `Blizzard_ProfessionsFrame.lua` and
 schematic NineSlice anchors. The book follows that treatment and uses the
 recipe atlas for the right panel's ornamental frame.
 
-The header strip samples the top of Camelot's `Profession-Background-Template2`
-atlas. The right pane prefers the Blacksmithing recipe background and falls back
-to Engineering. The profession code does not expose separate filigree corners,
-so the book composes them with Blizzard's `Garr_InfoBoxBorder-FiligreeCorner`
-atlas. Buttons use Camelot's `SharedButtonSmallTemplate`. Check all of this art
-in the target client, including the availability and color of the corners.
+The book uses Camelot's full `Profession-Background-Template2` art, including
+its header edge. Blacksmithing and Engineering artwork stays at its original
+aspect ratio. The centered fallback portrait and its circular mask resize
+together. Verify the header, artwork and fallback portrait in Forever.

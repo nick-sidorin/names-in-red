@@ -51,7 +51,7 @@ local function UpdatePortrait(rival)
     else
         portrait:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
         portrait:SetTexCoord(0, 1, 0, 1)
-        portrait:SetSize(38, 38)
+        portrait:SetSize(43, 43)
     end
 end
 
@@ -179,59 +179,48 @@ function addon.RefreshBook()
     ShowDetails()
 end
 
-local function HeaderArt(parent)
-    local strip = parent:CreateTexture(nil, "BACKGROUND", nil, -3)
-    strip:SetPoint("TOPLEFT", 3, -21)
-    strip:SetPoint("BOTTOMRIGHT", parent, "TOPRIGHT", -3, -63)
+local function ProfessionBackdrop(parent)
     local atlas = "Profession-Background-Template2"
     local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas)
-    if info and info.height > 0 then
-        strip:SetAtlas(atlas)
-        local fraction = math.min(1, 42 / info.height)
-        strip:SetTexCoord(info.leftTexCoord, info.rightTexCoord, info.topTexCoord,
-            info.topTexCoord + fraction * (info.bottomTexCoord - info.topTexCoord))
-    else
-        strip:SetColorTexture(0.12, 0.09, 0.065, 1)
-    end
-    local edge = parent:CreateTexture(nil, "BORDER")
-    edge:SetPoint("TOPLEFT", 4, -61)
-    edge:SetPoint("TOPRIGHT", -4, -61)
-    edge:SetHeight(4)
-    if not addon.ApplyAtlas(edge, "Options_HorizontalDivider") then
-        edge:SetColorTexture(0.35, 0.26, 0.16, 1)
+    if not info or info.width <= 0 or info.height <= 0 then return end
+
+    -- Use the entire crafting background, including its own header edge.
+    local width = parent:GetWidth() - 6
+    local fullHeight = info.height * width / info.width
+    local height = math.min(fullHeight, parent:GetHeight() - 24)
+    local art = parent:CreateTexture(nil, "BACKGROUND", nil, -3)
+    art:SetPoint("TOPLEFT", 3, -21)
+    art:SetSize(width, height)
+    art:SetAtlas(atlas)
+    if height < fullHeight then
+        art:SetTexCoord(info.leftTexCoord, info.rightTexCoord, info.topTexCoord,
+            info.topTexCoord + height / fullHeight * (info.bottomTexCoord - info.topTexCoord))
     end
 end
 
-local function DetailCorners(parent)
-    local atlas = "Garr_InfoBoxBorder-FiligreeCorner"
-    local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas)
-    if not info then return end
-    for _, point in ipairs({ "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }) do
-        local corner = parent:CreateTexture(nil, "OVERLAY")
-        corner:SetPoint(point)
-        corner:SetAtlas(atlas)
-        local left, right = info.leftTexCoord, info.rightTexCoord
-        local top, bottom = info.topTexCoord, info.bottomTexCoord
-        if point:find("RIGHT", 1, true) then left, right = right, left end
-        if point:find("BOTTOM", 1, true) then top, bottom = bottom, top end
-        corner:SetTexCoord(left, right, top, bottom)
-        corner:SetSize(23, 23 * info.height / info.width)
-        corner:SetAlpha(0.75)
-    end
-end
-
-local function Pane(parent, x, y, width, height, atlas, alternateAtlas)
+local function Pane(parent, x, y, width, height)
     local frame = CreateFrame("Frame", nil, parent)
     frame:SetPoint("TOPLEFT", x, y)
     frame:SetSize(width, height)
-    local art = frame:CreateTexture(nil, "BACKGROUND")
-    art:SetAllPoints()
-    if not addon.ApplyAtlas(art, atlas)
-        and not (alternateAtlas and addon.ApplyAtlas(art, alternateAtlas))
-        and not addon.ApplyAtlas(art, "Professions-Recipe-Background") then
-        art:SetColorTexture(0.07, 0.048, 0.034, 1)
-    end
     return frame
+end
+
+local function DetailBackground(parent, width, height)
+    for _, atlas in ipairs({
+        "Professions-Recipe-Background-Blacksmithing",
+        "Professions-Recipe-Background-Engineering",
+        "Professions-Recipe-Background",
+    }) do
+        local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas)
+        if info and info.width > 0 and info.height > 0 then
+            local scale = math.min(width / info.width, height / info.height)
+            local art = parent:CreateTexture(nil, "BACKGROUND")
+            art:SetAtlas(atlas)
+            art:SetSize(info.width * scale, info.height * scale)
+            art:SetPoint("BOTTOMRIGHT")
+            return
+        end
+    end
 end
 
 local function MakeDraggable(frame)
@@ -284,11 +273,13 @@ local function ToggleBook()
             if window.TopTileStreaks then window.TopTileStreaks:Hide() end
         end
 
-        HeaderArt(window)
-        local left = Pane(window, 12, -65, 300, 451, "Professions-background-summarylist")
-        local right = Pane(window, 318, -65, 370, 451, "Professions-Recipe-Background-Blacksmithing",
-            "Professions-Recipe-Background-Engineering")
-        DetailCorners(right)
+        ProfessionBackdrop(window)
+        local left = Pane(window, 12, -65, 300, 451)
+        local listArt = left:CreateTexture(nil, "BACKGROUND")
+        listArt:SetAllPoints()
+        addon.ApplyAtlas(listArt, "Professions-background-summarylist")
+        local right = Pane(window, 318, -65, 370, 451)
+        DetailBackground(right, 370, 451)
         names = Scroll(left, 7, -12, 273, 425, true)
         details = Scroll(right, 25, -219, 318, 210)
         summary = CreateFrame("Frame", nil, right)
@@ -296,13 +287,12 @@ local function ToggleBook()
         portrait = summary:CreateTexture(nil, "ARTWORK")
         portrait:SetSize(53, 53)
         local mask = summary:CreateMaskTexture()
-        mask:SetSize(53, 53)
+        mask:SetAllPoints(portrait)
         mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
         portrait:AddMaskTexture(mask)
         local rim = summary:CreateTexture(nil, "OVERLAY")
         rim:SetPoint("TOPLEFT", 15.5, -15.5)
         portrait:SetPoint("CENTER", rim)
-        mask:SetPoint("CENTER", rim)
         rim:SetSize(68, 68)
         if not addon.ApplyAtlas(rim, "auctionhouse-itemicon-border-white") then
             addon.ApplyAtlas(rim, "Mode-Selection-Ring")
