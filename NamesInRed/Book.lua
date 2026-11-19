@@ -42,6 +42,7 @@ local function UpdatePortrait(rival)
     end
     if race and (sex == 2 or sex == 3) and GetRaceAtlas
         and addon.ApplyAtlas(portrait, GetRaceAtlas(race, sex == 3 and "female" or "male")) then
+        portrait:SetSize(44, 44)
         return
     end
     local coords = CLASS_ICON_TCOORDS and class and CLASS_ICON_TCOORDS[class]
@@ -362,7 +363,7 @@ local function ToggleBook()
         summary = CreateFrame("Frame", nil, right)
         summary:SetAllPoints()
         local rim
-        portrait, rim = addon.CreateRoundIcon(summary)
+        portrait, rim = addon.CreateRoundIcon(summary, true)
         rim:SetPoint("TOPLEFT", 17.5, -17.5)
         local badgeSize = 24
         local badge = CreateFrame("Frame", nil, summary)

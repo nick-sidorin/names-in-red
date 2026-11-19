@@ -8,18 +8,27 @@ function addon.ApplyAtlas(texture, atlas)
     end
 end
 
-function addon.CreateRoundIcon(parent)
+function addon.CreateRoundIcon(parent, withBackdrop)
     local icon = parent:CreateTexture(nil, "ARTWORK")
     icon:SetSize(52, 52)
+    local ring = parent:CreateTexture(nil, "OVERLAY")
+    ring:SetSize(64, 64)
+    icon:SetPoint("CENTER", ring)
     local mask = parent:CreateMaskTexture()
-    mask:SetAllPoints(icon)
     if not addon.ApplyAtlas(mask, "CircleMask") then
         mask:SetTexture("Interface\\CHARACTERFRAME\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
     end
     icon:AddMaskTexture(mask)
-    local ring = parent:CreateTexture(nil, "OVERLAY")
-    ring:SetSize(64, 64)
-    icon:SetPoint("CENTER", ring)
+    if withBackdrop then
+        local backdrop = parent:CreateTexture(nil, "BACKGROUND")
+        backdrop:SetSize(52, 52)
+        backdrop:SetPoint("CENTER", ring)
+        backdrop:SetColorTexture(0.035, 0.025, 0.02, 1)
+        mask:SetAllPoints(backdrop)
+        backdrop:AddMaskTexture(mask)
+    else
+        mask:SetAllPoints(icon)
+    end
     if not addon.ApplyAtlas(ring, "Mode-Selection-Ring") then
         ring:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
         ring:SetTexCoord(0, 0.68, 0, 0.68)
