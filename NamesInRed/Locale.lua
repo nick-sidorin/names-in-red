@@ -70,3 +70,23 @@ statisticsStrings.enGB = statisticsStrings.enUS
 statisticsStrings.esMX = statisticsStrings.esES
 local statistics = statisticsStrings[GetLocale()] or statisticsStrings.enUS
 addon.L.statistics, addon.L.winTooltip, addon.L.lossTooltip = statistics[1], statistics[2], statistics[3]
+
+-- Info tab, history tab, last encounter, map action, unknown location, levels, map error, empty history.
+local encounterStrings = {
+    enUS = { "Information", "Skirmishes", "Last skirmish", "Show on map", "Location unknown", "My level", "Rival’s level", "The map waypoint could not be placed.", "No skirmishes recorded." },
+    ruRU = { "Информация", "Стычки", "Последняя стычка", "Показать на карте", "Место неизвестно", "Мой уровень", "Уровень соперника", "Не удалось поставить метку на карте.", "Стычек пока нет." },
+    deDE = { "Informationen", "Gefechte", "Letztes Gefecht", "Auf Karte zeigen", "Unbekannter Ort", "Meine Stufe", "Stufe des Rivalen", "Die Kartenmarkierung konnte nicht gesetzt werden.", "Noch keine Gefechte erfasst." },
+    frFR = { "Informations", "Escarmouches", "Dernière escarmouche", "Voir sur la carte", "Lieu inconnu", "Mon niveau", "Niveau du rival", "Impossible de placer le repère sur la carte.", "Aucune escarmouche enregistrée." },
+    esES = { "Información", "Escaramuzas", "Última escaramuza", "Mostrar en el mapa", "Lugar desconocido", "Mi nivel", "Nivel del rival", "No se pudo colocar el marcador en el mapa.", "No hay escaramuzas registradas." },
+    itIT = { "Informazioni", "Schermaglie", "Ultima schermaglia", "Mostra sulla mappa", "Luogo sconosciuto", "Il mio livello", "Livello del rivale", "Impossibile posizionare l’indicatore sulla mappa.", "Nessuna schermaglia registrata." },
+    ptBR = { "Informações", "Escaramuças", "Última escaramuça", "Mostrar no mapa", "Local desconhecido", "Meu nível", "Nível do rival", "Não foi possível posicionar o marcador no mapa.", "Nenhuma escaramuça registrada." },
+    koKR = { "정보", "교전 기록", "최근 교전", "지도에 표시", "알 수 없는 위치", "내 레벨", "상대 레벨", "지도에 위치를 표시할 수 없습니다.", "기록된 교전이 없습니다." },
+    zhCN = { "信息", "交锋", "最近一次交锋", "在地图上显示", "地点未知", "我的等级", "对手等级", "无法在地图上设置标记。", "暂无交锋记录。" },
+    zhTW = { "資訊", "交鋒", "最近一次交鋒", "在地圖上顯示", "地點未知", "我的等級", "對手等級", "無法在地圖上設定標記。", "暫無交鋒紀錄。" },
+}
+encounterStrings.enGB = encounterStrings.enUS
+encounterStrings.esMX = encounterStrings.esES
+local encounter = encounterStrings[GetLocale()] or encounterStrings.enUS
+addon.L.infoTab, addon.L.historyTab, addon.L.latestEncounter, addon.L.showOnMap = unpack(encounter, 1, 4)
+addon.L.unknownLocation, addon.L.myLevel, addon.L.rivalLevel, addon.L.waypointError = unpack(encounter, 5, 8)
+addon.L.noSkirmishes = encounter[9]

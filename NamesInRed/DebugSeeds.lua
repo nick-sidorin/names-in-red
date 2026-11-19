@@ -74,7 +74,8 @@ function addon.AddDebugSeeds(now)
                 row.manual = true
             else
                 row.time = now - index * 173 - encounter * 3617
-                row.zone = zoneNames[(index + encounter - 2) % #zones + 1]
+                local zone = (index + encounter - 2) % #zones + 1
+                row.mapID, row.zone = zones[zone][1], zoneNames[zone]
                 row.x = (20 + (index * 13 + encounter * 7) % 61) / 100
                 row.y = (18 + (index * 9 + encounter * 11) % 65) / 100
                 row.playerLevel = 48 + (index + encounter) % 13

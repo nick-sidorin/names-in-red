@@ -44,10 +44,11 @@ replayed into the ledger.
 
 ## Rival Book preview
 
-The minimap book icon opens the Rival Book and can be dragged around the
-minimap. Select a name to see counts and the latest 20 encounters. Existing
-totals load without needing saved encounter details. The standard GameTooltip
-gets a history section for recognized rivals with nonzero counts.
+The minimap skull icon opens the Rival Book and can be dragged around the
+minimap. Select a name to see totals and the last skirmish in Information.
+Skirmishes shows all saved cards in newest-first order. Existing totals load
+without needing saved encounter details. The standard GameTooltip gets a
+history section for recognized rivals with nonzero counts.
 
 The preview records single-attacker world deaths when the first recap row is
 a fresh lethal hit from an identifiable hostile player and all other recap rows
@@ -55,7 +56,10 @@ identify the same player. A saved lethal-hit timestamp prevents double counts
 from duplicate PLAYER_DEAD signals or the same recap after reload. Earlier
 debug captures are preserved as evidence and left out of the live totals.
 
-Encounter metadata uses the local character's map position at capture time.
+Encounter metadata uses the local character's map position and map ID at
+capture time. Show on Map opens the world map with the native user waypoint.
+Older records without a map ID still show their coordinates as text. The
+previous twenty-record cap cannot recover data already discarded.
 The rival's level is included only when a readable target or mouseover GUID
 matches. Party encounters and battlegrounds remain diagnostic.
 

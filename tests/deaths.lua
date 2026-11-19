@@ -51,7 +51,7 @@ local rival = assert(addon.db.rivals["Player-rival"])
 assert(rival.displayName == "Rival Emberfang")
 assert(rival.deathsToThem == 1 and rival.killsAgainstThem == 0)
 assert(#rival.encounters == 1 and rival.encounters[1].rivalLevel == 30)
-assert(rival.encounters[1].x == 0.4 and rival.encounters[1].y == 0.6)
+assert(rival.encounters[1].mapID == 123 and rival.encounters[1].x == 0.4 and rival.encounters[1].y == 0.6)
 assert(rival.encounters[1].playerLevel == 25 and rival.encounters[1].zone == "Test Zone")
 
 Setup(addon.db)
@@ -95,3 +95,11 @@ addon.RecordEncounter("Player-rival", "Rival", "killsAgainstThem", {})
 assert(rival.race == "orc" and rival.sex == 2 and rival.class == "WARRIOR")
 assert(addon.RivalAppearance("manual:rival") == nil)
 print("Rival portrait metadata checks passed")
+
+local oldest = rival.encounters[#rival.encounters]
+for timestamp = 1011, 1040 do
+    addon.RecordEncounter("Player-rival", "Rival Emberfang", "killsAgainstThem", { time = timestamp })
+end
+assert(#rival.encounters == 34 and rival.encounters[1].time == 1040)
+assert(rival.encounters[30].time == 1011 and rival.encounters[34] == oldest)
+print("Complete newest-first encounter history checks passed")

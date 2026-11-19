@@ -188,3 +188,21 @@ The statistics section follows the reagent slots in
 `Blizzard_ProfessionsRecipeReagentSlotBase.lua`. It uses a 39-unit slot,
 the native square hover texture, and the reagent heading font. The book owns
 its controls and shows short localized GameTooltip descriptions.
+
+## Skirmish cards and the world map
+
+The book uses `PanelTopTabButtonTemplate` from Forever
+`Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml`. History uses the
+same `ScrollFrameTemplate` as the roster, with cards reused as the viewport
+scrolls. Check both tabs on 1.60.1 with empty, legacy, manual and seeded
+histories. Scroll through a long history, then switch rivals while scrolled.
+
+For the map diamond, see `WaypointLocationDataProviderMixin:HandleClick` and
+the MAPPIN slash command in
+`Blizzard_SharedMapDataProviders/WaypointLocationDataProvider.lua`. The book
+uses the command's waypoint flow, including `OpenMapToUserWaypoint` from
+`Blizzard_WorldMap/Blizzard_WorldMap.lua`. Test with a seeded card from a
+different zone. Check that the world map opens on that zone, places its
+standard user pin at the displayed coordinates and replaces any previous user
+pin. Check that a legacy card with coordinates but no map ID has no map
+button, and that a rejected waypoint leaves the book open.

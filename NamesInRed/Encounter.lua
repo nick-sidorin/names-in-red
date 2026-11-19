@@ -40,7 +40,7 @@ function addon.EncounterContext(unit)
             end)
             if type(x) == "number" and type(y) == "number" and x >= 0 and x <= 1
                 and y >= 0 and y <= 1 and (x ~= 0 or y ~= 0) then
-                result.x, result.y = x, y
+                result.mapID, result.x, result.y = mapID, x, y
             end
         end
     end
@@ -92,9 +92,6 @@ function addon.RecordEncounter(guid, name, direction, context, appearance)
     rival.encounters = rival.encounters or {}
     context.direction = direction
     table.insert(rival.encounters, 1, context)
-    if #rival.encounters > 20 then
-        table.remove(rival.encounters)
-    end
     if addon.RefreshBook then
         addon.RefreshBook()
     end

@@ -3,10 +3,14 @@ local L, Readable = addon.L, addon.Readable
 local victoryGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipVictory.tga:14:14:0:1|t"
 local deathGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipSkull.tga:14:14:0:1|t"
 local window, names, details, heading, portrait, summary, wins, losses, status, selected, empty
-local search, remove, levelBadge
+local search, remove, levelBadge, tabBar, latestCard, latestEmpty, historyTitle, historyEmpty
 local deletePopup = "NAMES_IN_RED_DELETE_RIVAL"
 local lower = strlower or string.lower
-local buttons, lines = {}, {}
+local buttons, cards = {}, {}
+local history = {}
+local infoTab, historyTab = 1, 2
+local cardStride = addon.encounterCardHeight + 8
+local cardWidth = 332
 
 function addon.RivalCounters(rival, hideZero)
     local wins, losses
@@ -102,10 +106,38 @@ local function Stat(parent, y, art, tooltipText)
     return label
 end
 
+local function CloseForMap()
+    window:Hide()
+end
+
+local function RenderHistory()
+    local scroll = details:GetParent()
+    if not scroll:IsShown() then return end
+
+    local first = math.floor(scroll:GetVerticalScroll() / cardStride) + 1
+    local visibleCount = math.ceil(scroll:GetHeight() / cardStride) + 1
+    local count = math.max(0, math.min(visibleCount, #history - first + 1))
+    for index = 1, count do
+        local card = cards[index]
+        if not card then
+            card = addon.CreateEncounterCard(details, cardWidth, CloseForMap)
+            cards[index] = card
+        end
+        local itemIndex = first + index - 1
+        card:SetPoint("TOPLEFT", 0, -(itemIndex - 1) * cardStride)
+        card:SetEncounter(history[itemIndex])
+    end
+    for index = count + 1, #cards do cards[index]:SetEncounter(nil) end
+end
+
 local function ShowDetails()
     local rival = selected and addon.db.rivals[selected]
-    summary:SetShown(rival ~= nil)
-    if rival then
+    local activeTab = PanelTemplates_GetSelectedTab(tabBar)
+    local showInfo = rival ~= nil and activeTab == infoTab
+    local showHistory = rival ~= nil and activeTab == historyTab
+    summary:SetShown(showInfo)
+    history = rival and rival.encounters or {}
+    if showInfo then
         heading:SetText(rival.displayName)
         local manual = rival.addedManually or selected:match("^manual:") or selected:match("^seed:manual:")
         local description = {}
@@ -120,57 +152,27 @@ local function ShowDetails()
         wins:SetText(("%s: %d"):format(L.kills, rival.killsAgainstThem))
         losses:SetText(("%s: %d"):format(L.deaths, rival.deathsToThem))
         UpdatePortrait(rival)
-    end
-    empty:SetShown(rival == nil)
-    local encounters = rival and rival.encounters or {}
-    local offset, count = 0, 0
-    local lastLevel
-    for _, encounter in ipairs(encounters) do
-        if not lastLevel and type(encounter.rivalLevel) == "number" and encounter.rivalLevel > 0 then
-            lastLevel = encounter.rivalLevel
+        latestCard:SetEncounter(history[1])
+        latestEmpty:SetShown(history[1] == nil)
+        local lastLevel
+        for _, encounter in ipairs(history) do
+            if type(encounter.rivalLevel) == "number" and encounter.rivalLevel > 0 then
+                lastLevel = encounter.rivalLevel
+                break
+            end
         end
-        if not encounter.manual then
-            count = count + 1
-            local row = lines[count]
-            if not row then
-                row = CreateFrame("Frame", nil, details)
-                row:SetWidth(315)
-                row.icon = row:CreateTexture(nil, "ARTWORK")
-                row.icon:SetSize(20, 20)
-                row.icon:SetPoint("TOPLEFT")
-                row.label = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-                row.label:SetPoint("TOPLEFT", 28, -2)
-                row.label:SetWidth(287)
-                row.label:SetJustifyH("LEFT")
-                lines[count] = row
-            end
-            local art = encounter.direction == "killsAgainstThem" and "CrossedSwords" or "Skull"
-            row.icon:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\" .. art .. ".tga")
-            local info = {}
-            if encounter.time then info[#info + 1] = date("%x %H:%M", encounter.time) end
-            local place = encounter.zone or ""
-            if encounter.x and encounter.y then
-                place = ("%s (%.1f, %.1f)"):format(place, encounter.x * 100, encounter.y * 100)
-            end
-            if place ~= "" then info[#info + 1] = place end
-            if encounter.playerLevel or encounter.rivalLevel then
-                info[#info + 1] = ("%s: %s / %s"):format(L.level, encounter.playerLevel or "?", encounter.rivalLevel or "?")
-            end
-            row.label:SetText(table.concat(info, "\n"))
-            local height = math.max(20, row.label:GetStringHeight() + 2)
-            row:SetHeight(height)
-            row:SetPoint("TOPLEFT", 2, -offset)
-            row:Show()
-            offset = offset + height + 10
-        end
-    end
-    if levelBadge then
-        levelBadge:SetShown(type(lastLevel) == "number" and lastLevel > 0)
+        levelBadge:SetShown(lastLevel ~= nil)
         levelBadge.label:SetText(lastLevel)
     end
-    for index = count + 1, #lines do lines[index]:Hide() end
-    details:SetHeight(math.max(1, offset))
-    details:GetParent():SetShown(count > 0)
+    empty:SetShown(rival == nil)
+
+    historyTitle:SetShown(showHistory)
+    if showHistory then historyTitle:SetText(rival.displayName) end
+    historyEmpty:SetShown(showHistory and #history == 0)
+    local scroll = details:GetParent()
+    scroll:SetShown(showHistory and #history > 0)
+    details:SetHeight(math.max(1, #history * cardStride - 8))
+    RenderHistory()
 end
 
 local function NameMatches(name, query)
@@ -367,10 +369,37 @@ local function ToggleBook()
         local right = Pane(window, 312, -contentTop, 383, rightHeight)
         DetailBackground(right)
         names = Scroll(left, 9, -42, 273, 431, false)
-        local historyTop = 219
-        details = Scroll(right, 25, -historyTop, 332, rightHeight - historyTop - 8, true)
+        tabBar = CreateFrame("Frame", nil, right)
+        tabBar:SetPoint("TOPLEFT", 24, -9)
+        tabBar:SetPoint("TOPRIGHT", -24, -9)
+        tabBar:SetHeight(32)
+        for id, label in ipairs({ L.infoTab, L.historyTab }) do
+            local tab = CreateFrame("Button", nil, tabBar, "PanelTopTabButtonTemplate")
+            tab:SetID(id)
+            if id == infoTab then tab:SetPoint("TOPLEFT") end
+            tab:SetText(label)
+            PanelTemplates_TabResize(tab, 0, 143)
+            tab:SetScript("OnClick", function(self)
+                PanelTemplates_SetTab(tabBar, self:GetID())
+                ShowDetails()
+            end)
+        end
+        PanelTemplates_SetNumTabs(tabBar, 2)
+        PanelTemplates_SetTab(tabBar, infoTab)
+
+        local historyTop = 75
+        local historyScroll
+        details, historyScroll = Scroll(right, 25, -historyTop, cardWidth, rightHeight - historyTop - 12, true)
+        historyScroll:HookScript("OnVerticalScroll", RenderHistory)
+        historyTitle = right:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        historyTitle:SetPoint("TOPLEFT", 25, -53)
+        historyEmpty = right:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        historyEmpty:SetPoint("CENTER", 0, 5)
+        historyEmpty:SetText(L.noSkirmishes)
+
         summary = CreateFrame("Frame", nil, right)
-        summary:SetAllPoints()
+        summary:SetPoint("TOPLEFT", 0, -39)
+        summary:SetPoint("BOTTOMRIGHT")
         local rim
         portrait, rim = addon.CreateRoundIcon(summary)
         rim:SetPoint("TOPLEFT", 17.5, -17.5)
@@ -406,6 +435,14 @@ local function ToggleBook()
         end
         wins = Stat(summary, -112, "CrossedSwords", L.winTooltip)
         losses = Stat(summary, -162, "Skull", L.lossTooltip)
+        local latestHeading = summary:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        latestHeading:SetPoint("TOPLEFT", 25, -215)
+        latestHeading:SetText(L.latestEncounter)
+        latestEmpty = summary:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        latestEmpty:SetPoint("TOPLEFT", 25, -240)
+        latestEmpty:SetText(L.noSkirmishes)
+        latestCard = addon.CreateEncounterCard(summary, cardWidth, CloseForMap)
+        latestCard:SetPoint("TOPLEFT", 25, -234)
         empty = right:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         empty:SetPoint("CENTER", 0, 5)
         empty:SetWidth(305)
@@ -443,6 +480,7 @@ local function ToggleBook()
             if not openDialog then
                 openDialog = addon.CreateManualDialog(window, function(id)
                     selected = id
+                    PanelTemplates_SetTab(tabBar, infoTab)
                     search:SetText("")
                     details:GetParent():SetVerticalScroll(0)
                     addon.RefreshBook()

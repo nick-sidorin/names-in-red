@@ -1,0 +1,133 @@
+local _, addon = ...
+local L = addon.L
+local artPath = "Interface\\AddOns\\NamesInRed\\Art\\"
+
+addon.encounterCardHeight = 136
+
+local function HasCoordinates(encounter)
+    local x, y = encounter.x, encounter.y
+    return type(x) == "number" and type(y) == "number"
+        and x >= 0 and x <= 1 and y >= 0 and y <= 1
+        and (x ~= 0 or y ~= 0)
+end
+
+local function HasWaypoint(encounter)
+    local mapID = encounter.mapID
+    return type(mapID) == "number" and mapID > 0 and mapID < math.huge
+        and mapID == math.floor(mapID) and HasCoordinates(encounter)
+end
+
+local function PlaceWaypoint(encounter)
+    if not HasWaypoint(encounter) or not C_Map or not UiMapPoint or not OpenMapToUserWaypoint then return end
+    local rules = Enum and Enum.GameRule
+    if rules and C_GameRules and C_GameRules.IsGameRuleActive then
+        if (rules.WorldMapDisabled and C_GameRules.IsGameRuleActive(rules.WorldMapDisabled))
+            or (rules.WorldMapTrackingPinDisabled and C_GameRules.IsGameRuleActive(rules.WorldMapTrackingPinDisabled)) then
+            return
+        end
+    end
+    local mapID = encounter.mapID
+    if not addon.Readable(C_Map.CanSetUserWaypointOnMap(mapID)) then return end
+    local point = UiMapPoint.CreateFromCoordinates(mapID, encounter.x, encounter.y)
+    if not addon.Readable(C_Map.SetUserWaypoint(point)) then return end
+    OpenMapToUserWaypoint()
+    return true
+end
+
+function addon.ShowEncounterWaypoint(encounter)
+    local ok, opened = pcall(PlaceWaypoint, encounter)
+    return ok and opened == true
+end
+
+local function Label(parent, font, point, x, y, width)
+    local label = parent:CreateFontString(nil, "OVERLAY", font)
+    label:SetPoint(point, x, y)
+    label:SetWidth(width)
+    label:SetJustifyH(point == "TOPRIGHT" and "RIGHT" or "LEFT")
+    label:SetWordWrap(false)
+    return label
+end
+
+local function LevelText(level)
+    return type(level) == "number" and level > 0 and level or "—"
+end
+
+local function EncounterDate(encounter)
+    if not encounter.time then return encounter.manual and L.manual or "—", "" end
+    local calendar = date("*t", encounter.time)
+    local day = FormatShortDate and FormatShortDate(calendar.day, calendar.month, calendar.year)
+        or date("%x", encounter.time)
+    local time = GameTime_GetFormattedTime and GameTime_GetFormattedTime(calendar.hour, calendar.min, true)
+        or date("%H:%M", encounter.time)
+    return day, time
+end
+
+function addon.CreateEncounterCard(parent, width, onMapShown)
+    local card = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    card:SetSize(width, addon.encounterCardHeight)
+    card:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    card:SetBackdropColor(0.085, 0.06, 0.04, 0.72)
+    card:SetBackdropBorderColor(0.56, 0.42, 0.27, 0.9)
+
+    local icon = card:CreateTexture(nil, "ARTWORK")
+    icon:SetPoint("TOPLEFT", 12, -11)
+    icon:SetSize(28, 28)
+    local outcome = Label(card, "GameFontNormal", "TOPLEFT", 48, -18, width - 181)
+    local day = Label(card, "GameFontHighlightSmall", "TOPRIGHT", -13, -12, 120)
+    local time = Label(card, "GameFontHighlightSmall", "TOPRIGHT", -13, -26, 120)
+    local divider = card:CreateTexture(nil, "ARTWORK")
+    divider:SetPoint("TOPLEFT", 12, -45)
+    divider:SetPoint("TOPRIGHT", -12, -45)
+    divider:SetHeight(1)
+    divider:SetColorTexture(0.56, 0.42, 0.27, 0.45)
+
+    local zone = Label(card, "GameFontHighlight", "TOPLEFT", 13, -54, width - 26)
+    local coords = Label(card, "GameFontHighlightSmall", "TOPLEFT", 13, -73, width - 26)
+    time:SetTextColor(0.77, 0.71, 0.61)
+    coords:SetTextColor(0.77, 0.71, 0.61)
+
+    local myCaption = Label(card, "GameFontNormalSmall", "TOPLEFT", 13, -96, 79)
+    myCaption:SetText(L.myLevel)
+    local rivalCaption = Label(card, "GameFontNormalSmall", "TOPLEFT", 98, -96, 107)
+    rivalCaption:SetText(L.rivalLevel)
+    local myLevel = Label(card, "GameFontHighlight", "TOPLEFT", 13, -110, 79)
+    local rivalLevel = Label(card, "GameFontHighlight", "TOPLEFT", 98, -110, 107)
+    local map = CreateFrame("Button", nil, card, "SharedButtonSmallTemplate")
+    map:SetPoint("BOTTOMRIGHT", -11, 13)
+    map:SetSize(width - 214, 23)
+    map:SetText(L.showOnMap)
+
+    map:SetScript("OnClick", function()
+        if addon.ShowEncounterWaypoint(card.encounter) then
+            onMapShown()
+        elseif UIErrorsFrame then
+            UIErrorsFrame:AddMessage(L.waypointError, 1, 0.25, 0.25)
+        end
+    end)
+
+    function card:SetEncounter(encounter)
+        self.encounter = encounter
+        self:SetShown(encounter ~= nil)
+        if not encounter then return end
+
+        local victory = encounter.direction == "killsAgainstThem"
+        icon:SetTexture(artPath .. (victory and "CrossedSwords.tga" or "Skull.tga"))
+        outcome:SetText(victory and L.win or L.loss)
+        if victory then outcome:SetTextColor(0.65, 0.83, 1) else outcome:SetTextColor(1, 0.61, 0.52) end
+        local encounterDay, encounterTime = EncounterDate(encounter)
+        day:SetText(encounterDay)
+        time:SetText(encounterTime)
+        zone:SetText(encounter.zone and encounter.zone ~= "" and encounter.zone or L.unknownLocation)
+        coords:SetText(HasCoordinates(encounter) and ("%.1f, %.1f"):format(encounter.x * 100, encounter.y * 100) or "")
+        myLevel:SetText(LevelText(encounter.playerLevel))
+        rivalLevel:SetText(LevelText(encounter.rivalLevel))
+        map:SetShown(HasWaypoint(encounter))
+    end
+
+    return card
+end
