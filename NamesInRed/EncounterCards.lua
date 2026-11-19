@@ -1,6 +1,8 @@
 local _, addon = ...
 local L = addon.L
 local artPath = "Interface\\AddOns\\NamesInRed\\Art\\"
+local azerothMapID = 947
+local mapsByName
 
 addon.encounterCardHeight = 136
 
@@ -11,14 +13,43 @@ local function HasCoordinates(encounter)
         and (x ~= 0 or y ~= 0)
 end
 
-local function HasWaypoint(encounter)
-    local mapID = encounter.mapID
+local function IsMapID(mapID)
     return type(mapID) == "number" and mapID > 0 and mapID < math.huge
-        and mapID == math.floor(mapID) and HasCoordinates(encounter)
+        and mapID == math.floor(mapID)
+end
+
+local function IndexZoneMaps()
+    local mapTypes = Enum and Enum.UIMapType
+    if not mapTypes or not C_Map or not C_Map.GetMapChildrenInfo then return end
+    local zones = C_Map.GetMapChildrenInfo(azerothMapID, mapTypes.Zone, true)
+    if not zones or #zones == 0 then return end
+    local index = {}
+    for _, zone in ipairs(zones) do
+        if index[zone.name] == nil then
+            index[zone.name] = zone.mapID
+        elseif index[zone.name] ~= zone.mapID then
+            index[zone.name] = false
+        end
+    end
+    return index
+end
+
+local function WaypointMap(encounter)
+    if not encounter or not HasCoordinates(encounter) then return end
+    if IsMapID(encounter.mapID) then return encounter.mapID end
+    if encounter.mapID ~= nil or type(encounter.zone) ~= "string" or encounter.zone == "" then return end
+    -- Legacy world encounters saved the localized zone name and coordinates.
+    if not mapsByName then
+        local ok, index = pcall(IndexZoneMaps)
+        if ok then mapsByName = index end
+    end
+    local mapID = mapsByName and mapsByName[encounter.zone]
+    if IsMapID(mapID) then return mapID end
 end
 
 local function PlaceWaypoint(encounter)
-    if not HasWaypoint(encounter) or not C_Map or not UiMapPoint or not OpenMapToUserWaypoint then return end
+    local mapID = WaypointMap(encounter)
+    if not mapID or not C_Map or not UiMapPoint or not OpenMapToUserWaypoint then return end
     local rules = Enum and Enum.GameRule
     if rules and C_GameRules and C_GameRules.IsGameRuleActive then
         if (rules.WorldMapDisabled and C_GameRules.IsGameRuleActive(rules.WorldMapDisabled))
@@ -26,7 +57,6 @@ local function PlaceWaypoint(encounter)
             return
         end
     end
-    local mapID = encounter.mapID
     if not addon.Readable(C_Map.CanSetUserWaypointOnMap(mapID)) then return end
     local point = UiMapPoint.CreateFromCoordinates(mapID, encounter.x, encounter.y)
     if not addon.Readable(C_Map.SetUserWaypoint(point)) then return end
@@ -98,10 +128,21 @@ function addon.CreateEncounterCard(parent, width, onMapShown)
     local myLevel = Label(card, "GameFontHighlight", "TOPLEFT", 13, -110, 79)
     local rivalLevel = Label(card, "GameFontHighlight", "TOPLEFT", 98, -110, 107)
     local map = CreateFrame("Button", nil, card, "SharedButtonSmallTemplate")
-    map:SetPoint("BOTTOMRIGHT", -11, 13)
-    map:SetSize(width - 214, 23)
+    local mapButtonWidth = 130
+    map:SetPoint("TOPRIGHT", -12, -53)
+    map:SetSize(mapButtonWidth, 25)
     map:SetText(L.showOnMap)
 
+    local function HideCoordinates(self)
+        if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
+    end
+    map:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(card.coordinateText)
+        GameTooltip:Show()
+    end)
+    map:SetScript("OnLeave", HideCoordinates)
+    map:HookScript("OnHide", HideCoordinates)
     map:SetScript("OnClick", function()
         if addon.ShowEncounterWaypoint(card.encounter) then
             onMapShown()
@@ -111,6 +152,7 @@ function addon.CreateEncounterCard(parent, width, onMapShown)
     end)
 
     function card:SetEncounter(encounter)
+        if self.encounter ~= encounter then HideCoordinates(map) end
         self.encounter = encounter
         self:SetShown(encounter ~= nil)
         if not encounter then return end
@@ -122,11 +164,15 @@ function addon.CreateEncounterCard(parent, width, onMapShown)
         local encounterDay, encounterTime = EncounterDate(encounter)
         day:SetText(encounterDay)
         time:SetText(encounterTime)
+        local hasWaypoint = WaypointMap(encounter) ~= nil
+        zone:SetWidth(hasWaypoint and width - 33 - mapButtonWidth or width - 26)
         zone:SetText(encounter.zone and encounter.zone ~= "" and encounter.zone or L.unknownLocation)
-        coords:SetText(HasCoordinates(encounter) and ("%.1f, %.1f"):format(encounter.x * 100, encounter.y * 100) or "")
+        self.coordinateText = HasCoordinates(encounter)
+            and ("%.1f, %.1f"):format(encounter.x * 100, encounter.y * 100) or ""
+        coords:SetText(hasWaypoint and "" or self.coordinateText)
         myLevel:SetText(LevelText(encounter.playerLevel))
         rivalLevel:SetText(LevelText(encounter.rivalLevel))
-        map:SetShown(HasWaypoint(encounter))
+        map:SetShown(hasWaypoint)
     end
 
     return card

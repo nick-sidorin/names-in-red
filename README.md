@@ -9,8 +9,8 @@ per-character totals for confirmed personal killing blows and single-attacker
 deaths in open-world PvP. Click the skull icon on the minimap to browse rivals.
 Information shows totals and the latest skirmish. Skirmishes lists the complete
 recorded history, newest first. Cards show the date, zone, coordinates and levels
-when available. Show on Map opens the world map with a waypoint for a skirmish
-with a saved map ID. Drag the window by its title.
+when available. Show on Map opens the world map with a waypoint when the
+recorded location maps to a zone. Drag the window by its title.
 Use Add to enter a full character name and select who won. A manual entry
 keeps its chosen outcome and has no inferred battle details. Known rivals also have
 history appended to the standard unit tooltip.

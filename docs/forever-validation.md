@@ -204,5 +204,10 @@ uses the command's waypoint flow, including `OpenMapToUserWaypoint` from
 `Blizzard_WorldMap/Blizzard_WorldMap.lua`. Test with a seeded card from a
 different zone. Check that the world map opens on that zone, places its
 standard user pin at the displayed coordinates and replaces any previous user
-pin. Check that a legacy card with coordinates but no map ID has no map
-button, and that a rejected waypoint leaves the book open.
+pin. The map action uses `SharedButtonSmallTemplate` from
+`Blizzard_SharedXML/Shared/Button/ThreeSliceButtonTemplate.xml`.
+For legacy cards the addon uses `C_Map.GetMapChildrenInfo` from
+`Blizzard_APIDocumentationGenerated/MapDocumentation.lua` to index Azeroth's
+zone maps by localized name. Check older Hillsbrad and Stranglethorn cards
+like the owner's screenshots, plus an unresolved zone. Verify coordinates
+on button hover and that a rejected waypoint leaves the book open.

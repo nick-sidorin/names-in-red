@@ -11,6 +11,7 @@ local history = {}
 local infoTab, historyTab = 1, 2
 local cardStride = addon.encounterCardHeight + 8
 local cardWidth = 332
+local sectionFont = "GameFontNormal"
 
 function addon.RivalCounters(rival, hideZero)
     local wins, losses
@@ -427,7 +428,7 @@ local function ToggleBook()
         status:SetWidth(275)
         status:SetJustifyH("LEFT")
         status:SetTextColor(0.72, 0.67, 0.59)
-        local statsTitle = summary:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        local statsTitle = summary:CreateFontString(nil, "OVERLAY", sectionFont)
         statsTitle:SetPoint("TOPLEFT", 25, -92)
         statsTitle:SetText(L.statistics)
         if not ProfessionsButtonMixin and C_AddOns and C_AddOns.LoadAddOn then
@@ -435,7 +436,7 @@ local function ToggleBook()
         end
         wins = Stat(summary, -112, "CrossedSwords", L.winTooltip)
         losses = Stat(summary, -162, "Skull", L.lossTooltip)
-        local latestHeading = summary:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        local latestHeading = summary:CreateFontString(nil, "OVERLAY", sectionFont)
         latestHeading:SetPoint("TOPLEFT", 25, -215)
         latestHeading:SetText(L.latestEncounter)
         latestEmpty = summary:CreateFontString(nil, "OVERLAY", "GameFontHighlight")

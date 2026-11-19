@@ -58,8 +58,10 @@ debug captures are preserved as evidence and left out of the live totals.
 
 Encounter metadata uses the local character's map position and map ID at
 capture time. Show on Map opens the world map with the native user waypoint.
-Older records without a map ID still show their coordinates as text. The
-previous twenty-record cap cannot recover data already discarded.
+Hover over Show on Map to see the recorded coordinates. Older records can
+also open the map when their saved zone name matches exactly one localized
+Azeroth zone map. Coordinates for unresolved zones stay visible on the card.
+The previous twenty-record cap cannot recover data already discarded.
 The rival's level is included only when a readable target or mouseover GUID
 matches. Party encounters and battlegrounds remain diagnostic.
 
