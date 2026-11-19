@@ -1,6 +1,5 @@
 local _, addon = ...
 local L, Readable = addon.L, addon.Readable
-local iconPath = "Interface\\Icons\\INV_Misc_Book_11"
 local victoryGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipVictory.tga:14:14:0:1|t"
 local deathGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipSkull.tga:14:14:0:1|t"
 local window, names, details, heading, portrait, summary, wins, losses, status, selected, empty
@@ -337,7 +336,7 @@ local function ToggleBook()
         window:EnableMouse(true)
         window:SetClampedToScreen(true)
         window:SetTitle(addon.title)
-        if window.SetPortraitToAsset then window:SetPortraitToAsset(iconPath) end
+        if window.SetPortraitToAsset then window:SetPortraitToAsset(addon.iconPath) end
         window.onCloseCallback = function() window:Hide(); return false end
         MakeDraggable(window)
         tinsert(UISpecialFrames, window:GetName())
@@ -485,7 +484,7 @@ local function CreateShortcut()
     background:SetSize(24, 24)
     background:SetPoint("TOPLEFT", 3, -3)
     local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetTexture(iconPath)
+    icon:SetTexture(addon.iconPath)
     icon:SetSize(20, 20)
     icon:SetPoint("TOPLEFT", 7, -5)
     local mask = button:CreateMaskTexture()

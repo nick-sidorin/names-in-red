@@ -83,7 +83,7 @@ function addon.CreateManualDialog(parent, onAdded)
     dialog:SetPoint("CENTER", parent)
     dialog:SetClampedToScreen(true)
     dialog:SetTitle(L.addTitle)
-    dialog:SetPortraitToAsset("Interface\\Icons\\INV_Misc_Book_11")
+    dialog:SetPortraitToAsset(addon.iconPath)
     dialog.onCloseCallback = function() shield:Hide(); return false end
 
     local label = dialog:CreateFontString(nil, "ARTWORK", "GameFontNormal")

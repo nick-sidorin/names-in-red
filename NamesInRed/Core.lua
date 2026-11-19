@@ -1,4 +1,6 @@
 local addonName, addon = ...
+addon.iconPath = "Interface\\AddOns\\NamesInRed\\Art\\RivalLedger.tga"
+
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, loadedName)
