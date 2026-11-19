@@ -1,7 +1,8 @@
 ## Interface: 16001
 ## Title: Names in Red (Debug)
 ## Notes: PvP diagnostics preview
-## Version: 0.0.28-debug
+## Version: 0.0.29-debug
+## IconTexture: Interface\AddOns\NamesInRed\Art\RivalLedger.tga
 ## SavedVariablesPerCharacter: NamesInRedDB, NamesInRedDebugDB
 
 Locale.lua

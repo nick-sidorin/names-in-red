@@ -12,7 +12,9 @@ assets = {
     "Art/RivalLedger.tga": (128, 32),
     "Art/Victory.tga": (128, 24),
     "Art/Gravestone.tga": (128, 24),
-    "Art/BackdropFade.tga": (64, 32),
+    "Art/Battlefield.tga": (256, 32),
+    "Art/CrossedSwords.tga": (128, 24),
+    "Art/Skull.tga": (128, 24),
     "Art/TooltipVictory.tga": (64, 32),
     "Art/TooltipSkull.tga": (64, 32),
 }
@@ -41,6 +43,6 @@ for name, (size, depth) in sorted(assets.items()):
     if path.is_symlink() or path.parent.is_symlink() or (
         len(data) < 18 + size * size * (depth // 8)
         or data[:3] != bytes((0, 0, 2))
-        or data[12:17] != bytes((size, 0, size, 0, depth))
+        or data[12:17] != size.to_bytes(2, "little") * 2 + bytes((depth,))
     ):
         raise SystemExit(f"Expected an uncompressed {size}x{size} {depth}-bit TGA in {name}")

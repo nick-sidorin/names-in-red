@@ -16,28 +16,20 @@ function addon.RivalCounters(rival, hideZero)
     return wins or losses
 end
 
-local function Scroll(parent, x, y, width, height, minimal)
-    local template = minimal and "ScrollFrameTemplate" or "UIPanelScrollFrameTemplate"
-    local frame = CreateFrame("ScrollFrame", nil, parent, template)
+local function Scroll(parent, x, y, width, height, hideIfUnscrollable)
+    local frame = CreateFrame("ScrollFrame", nil, parent, "ScrollFrameTemplate")
     frame:SetPoint("TOPLEFT", x, y)
     frame:SetSize(width, height)
     local child = CreateFrame("Frame", nil, frame)
     child:SetSize(width, 1)
     frame:SetScrollChild(child)
-    if minimal then
-        frame:EnableMouseWheel(true)
-        local bar = frame.ScrollBar
-        bar:ClearAllPoints()
-        bar:SetPoint("TOPLEFT", frame, "TOPRIGHT", 4, 0)
-        bar:SetPoint("BOTTOMLEFT", frame, "BOTTOMRIGHT", 4, 0)
-        bar:SetHideIfUnscrollable(false)
-        bar:SetHideTrackIfThumbExceedsTrack(false)
-    else
-        frame.ScrollBar:Hide()
-        frame:HookScript("OnScrollRangeChanged", function(self, _, verticalRange)
-            self.ScrollBar:SetShown(verticalRange > 0)
-        end)
-    end
+    frame:EnableMouseWheel(true)
+    local bar = frame.ScrollBar
+    bar:ClearAllPoints()
+    bar:SetPoint("TOPLEFT", frame, "TOPRIGHT", 4, 0)
+    bar:SetPoint("BOTTOMLEFT", frame, "BOTTOMRIGHT", 4, 0)
+    bar:SetHideIfUnscrollable(hideIfUnscrollable)
+    bar:SetHideTrackIfThumbExceedsTrack(hideIfUnscrollable)
     return child, frame
 end
 
@@ -135,7 +127,7 @@ local function ShowDetails()
                 row.label:SetJustifyH("LEFT")
                 lines[count] = row
             end
-            local art = encounter.direction == "killsAgainstThem" and "Victory" or "Gravestone"
+            local art = encounter.direction == "killsAgainstThem" and "CrossedSwords" or "Skull"
             row.icon:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\" .. art .. ".tga")
             local info = {}
             if encounter.time then info[#info + 1] = date("%x %H:%M", encounter.time) end
@@ -282,20 +274,11 @@ local function DetailBackground(parent)
         background:SetColorTexture(0.07, 0.048, 0.034, 1)
     end
 
-    local atlas = "Professions-Recipe-Background-Engineering"
-    local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas)
-    if info and info.width > 0 and info.height > 0 then
-        local illustration = parent:CreateTexture(nil, "BACKGROUND", nil, 1)
-        local scale = math.min(parent:GetWidth() * 0.80 / info.width, parent:GetHeight() * 0.65 / info.height)
-        illustration:SetAtlas(atlas)
-        illustration:SetSize(info.width * scale, info.height * scale)
-        illustration:SetPoint("BOTTOMRIGHT", -6, 6)
-        local fade = parent:CreateMaskTexture()
-        fade:SetAllPoints(illustration)
-        fade:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\BackdropFade.tga",
-            "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-        illustration:AddMaskTexture(fade)
-    end
+    local illustration = parent:CreateTexture(nil, "BACKGROUND", nil, 1)
+    local size = math.min(parent:GetWidth() * 0.80, parent:GetHeight() * 0.65)
+    illustration:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\Battlefield.tga")
+    illustration:SetSize(size, size)
+    illustration:SetPoint("BOTTOMRIGHT", -6, 6)
 
     local trim = parent:CreateTexture(nil, "BORDER")
     trim:SetAllPoints()
@@ -358,11 +341,13 @@ local function ToggleBook()
         listArt:SetAllPoints()
         addon.ApplyAtlas(listArt, "Professions-background-summarylist")
         local contentTop, footerInset, removeHeight = 65, 10, 28
-        local rightHeight = window:GetHeight() - contentTop - removeHeight - 2 * footerInset
+        local panelGap = 4
+        local rightHeight = window:GetHeight() - contentTop - removeHeight - footerInset - panelGap
         local right = Pane(window, 312, -contentTop, 383, rightHeight)
         DetailBackground(right)
-        names = Scroll(left, 9, -42, 273, 431, true)
-        details = Scroll(right, 25, -219, 318, 215)
+        names = Scroll(left, 9, -42, 273, 431, false)
+        local historyTop = 219
+        details = Scroll(right, 25, -historyTop, 332, rightHeight - historyTop - 8, true)
         summary = CreateFrame("Frame", nil, right)
         summary:SetAllPoints()
         local rim
@@ -377,8 +362,7 @@ local function ToggleBook()
         if addon.ApplyAtlas(circle, "UI-HUD-UnitFrame-SmallCircle") then
             levelBadge = badge
             badge.label = badge:CreateFontString(nil, "OVERLAY", "WhiteNormalNumberFont")
-            -- Compensate for the numeral glyphs sitting low and left in this atlas.
-            badge.label:SetPoint("CENTER", circle, "CENTER", 1.5, 1)
+            badge.label:SetAllPoints(badge)
             badge.label:SetJustifyH("CENTER")
             badge.label:SetJustifyV("MIDDLE")
         end
@@ -392,8 +376,8 @@ local function ToggleBook()
         local statsTitle = summary:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         statsTitle:SetPoint("TOPLEFT", 25, -92)
         statsTitle:SetText(L.statistics)
-        wins = Stat(summary, -112, "Victory", L.winTooltip)
-        losses = Stat(summary, -162, "Gravestone", L.lossTooltip)
+        wins = Stat(summary, -112, "CrossedSwords", L.winTooltip)
+        losses = Stat(summary, -162, "Skull", L.lossTooltip)
         empty = right:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         empty:SetPoint("CENTER", 0, 5)
         empty:SetWidth(305)
