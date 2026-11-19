@@ -20,6 +20,6 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/feature/profession-style-book'
         uses: actions/upload-artifact@v4
         with:
-          name: NamesInRed-0.0.14-debug
+          name: NamesInRed-0.0.15-debug
           path: preview/
           if-no-files-found: error

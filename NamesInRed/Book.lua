@@ -205,13 +205,27 @@ local function Pane(parent, x, y, width, height)
 end
 
 local function DetailBackground(parent)
-    -- The Camelot schematic pairs a full recipe backdrop with separate trim.
-    local art = parent:CreateTexture(nil, "BACKGROUND")
-    art:SetAllPoints()
-    if not addon.ApplyAtlas(art, "Professions-Recipe-Background-Engineering")
-        and not addon.ApplyAtlas(art, "Professions-Recipe-Background") then
-        art:SetColorTexture(0.07, 0.048, 0.034, 1)
+    local background = parent:CreateTexture(nil, "BACKGROUND")
+    background:SetAllPoints()
+    if not addon.ApplyAtlas(background, "Professions-Recipe-Background") then
+        background:SetColorTexture(0.07, 0.048, 0.034, 1)
     end
+
+    local atlas = "Professions-Recipe-Background-Engineering"
+    local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas)
+    if info and info.width > 0 and info.height > 0 then
+        local illustration = parent:CreateTexture(nil, "BACKGROUND", nil, 1)
+        local scale = math.min(parent:GetWidth() * 0.80 / info.width, parent:GetHeight() * 0.65 / info.height)
+        illustration:SetAtlas(atlas)
+        illustration:SetSize(info.width * scale, info.height * scale)
+        illustration:SetPoint("BOTTOMRIGHT", -6, 6)
+        local fade = parent:CreateMaskTexture()
+        fade:SetAllPoints(illustration)
+        fade:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\BackdropFade.tga",
+            "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        illustration:AddMaskTexture(fade)
+    end
+
     local trim = parent:CreateTexture(nil, "BORDER")
     trim:SetAllPoints()
     addon.ApplyAtlas(trim, "common-insideframe")

@@ -153,7 +153,8 @@ schematic NineSlice anchors. The book follows that treatment and uses the
 recipe atlas for the right panel's ornamental frame.
 
 The book uses the top band of Camelot's `Profession-Background-Template2`
-atlas, including its lower edge. The details panel uses the full Engineering recipe atlas and the separate
-`common-insideframe` trim from Camelot's schematic XML. The portrait uses the
+atlas, including its lower edge. The details panel uses a plain recipe backdrop,
+a proportional Engineering illustration with feathered edges in the lower right,
+and the separate `common-insideframe` trim from Camelot's schematic XML. The portrait uses the
 add dialog's circle mask and rim. UV insets remove the inventory bevel from
 the fallback icon. Verify these surfaces in Forever.
