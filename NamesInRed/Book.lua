@@ -275,10 +275,14 @@ local function DetailBackground(parent)
     end
 
     local illustration = parent:CreateTexture(nil, "BACKGROUND", nil, 1)
-    local size = math.min(parent:GetWidth() * 0.80, parent:GetHeight() * 0.65)
+    local aspect = 341 / 512
+    local height = math.min(parent:GetHeight() - 12, (parent:GetWidth() - 12) / aspect)
     illustration:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\Battlefield.tga")
-    illustration:SetSize(size, size)
+    -- The tall painting is stored in a square texture with padding on the left.
+    illustration:SetTexCoord(1 - aspect, 1, 0, 1)
+    illustration:SetSize(height * aspect, height)
     illustration:SetPoint("BOTTOMRIGHT", -6, 6)
+    illustration:SetAlpha(0.88)
 
     local trim = parent:CreateTexture(nil, "BORDER")
     trim:SetAllPoints()
