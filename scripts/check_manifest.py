@@ -9,7 +9,6 @@ entries = [
     if line.strip() and not line.lstrip().startswith("#")
 ]
 assets = {
-    "Art/RivalLedger.tga": (128, 24),
     "Art/Victory.tga": (128, 24),
     "Art/Gravestone.tga": (128, 24),
     "Art/Battlefield.tga": (512, 32),
