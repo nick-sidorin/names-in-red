@@ -38,10 +38,13 @@ frame:SetScript("OnEvent", function(_, _, attacker, victim)
     end
 
     local name, unit = RivalName("target", victim, faction)
-    if not name then
-        name, unit = RivalName("mouseover", victim, faction)
+    if not addon.HasFullName(name) then
+        local hoveredName, hoveredUnit = RivalName("mouseover", victim, faction)
+        if not unit or addon.HasFullName(hoveredName) then
+            name, unit = hoveredName, unit or hoveredUnit
+        end
     end
-    if type(name) == "string" and name ~= "" then
+    if unit then
         addon.RecordEncounter(victim, name, "killsAgainstThem", addon.EncounterContext(unit))
     end
 end)

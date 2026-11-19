@@ -33,7 +33,7 @@ local function Record(death)
     local name = Readable(first.sourceName)
     local flags = Readable(first.sourceFlags)
     if type(guid) ~= "string" or not guid:match("^Player%-.+")
-        or guid == Readable(UnitGUID("player")) or type(name) ~= "string" or name == ""
+        or guid == Readable(UnitGUID("player"))
         or type(flags) ~= "number" or not bit or bit.band(flags, 0x440) ~= 0x440 then
         return
     end
@@ -76,7 +76,7 @@ frame:SetScript("OnEvent", function()
         if type(guid) == "string" and guid:match("^Player%-.+") then
             local observed = death.units[guid] or {}
             local name = addon.UnitPlayerName(unit)
-            if name and name:find(" ", 1, true) then observed.fullName = name end
+            if addon.HasFullName(name) then observed.fullName = name end
             if type(level) == "number" and level > 0 then observed.level = level end
             death.units[guid] = observed
         end

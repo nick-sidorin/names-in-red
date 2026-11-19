@@ -35,11 +35,13 @@ local secret = {}
 function issecretvalue(value) return value == secret end
 assert(loadfile("NamesInRed/Encounter.lua"))("NamesInRed", addon)
 assert(loadfile("NamesInRed/Book.lua"))("NamesInRed", addon)
-addon.db.rivals["Player-test"] = { killsAgainstThem = 2, deathsToThem = 1 }
-addon.db.rivals["Player-empty"] = { killsAgainstThem = 0, deathsToThem = 0 }
+addon.db.rivals["Player-test"] = { displayName = "Test Rival", killsAgainstThem = 2, deathsToThem = 1 }
+addon.db.rivals["Player-empty"] = { displayName = "Empty Rival", killsAgainstThem = 0, deathsToThem = 0 }
+addon.db.rivals["Player-partial"] = { displayName = "Rival", killsAgainstThem = 1, deathsToThem = 0 }
 callback(GameTooltip, { guid = secret })
 callback(GameTooltip, { guid = "Player-unknown" })
 callback(GameTooltip, { guid = "Player-empty" })
+callback(GameTooltip, { guid = "Player-partial" })
 callback({}, { guid = "Player-test" })
 assert(#tooltipLines == 0)
 callback(GameTooltip, { guid = "Player-test" })
@@ -47,9 +49,9 @@ assert(#tooltipLines == 3)
 assert(tooltipLines[1] == " ")
 assert(tooltipLines[2] == addon.title)
 local art = "|TInterface\\AddOns\\NamesInRed\\Art\\"
-local victory = art .. "TooltipVictory.tga:16:16|t"
-local death = art .. "TooltipGravestone.tga:16:16|t"
-assert(tooltipLines[3] == victory .. " 2    " .. death .. " 1")
+local victory = art .. "TooltipVictory.tga:14:14:0:1|t"
+local death = art .. "TooltipGravestone.tga:14:14:0:1|t"
+assert(tooltipLines[3] == victory .. "  2     " .. death .. "  1")
 print("Rival tooltip and locale checks passed")
 
 assert(loadfile("NamesInRed/Ledger.lua"))("NamesInRed", addon)
@@ -85,7 +87,7 @@ local manualRival = addon.db.rivals[manualID]
 function GameTooltip:GetUnit() return "Айро", "mouseover", "Player-ayro" end
 callback(GameTooltip, { guid = "Player-ayro" })
 assert(#tooltipLines == 9)
-assert(tooltipLines[9] == victory .. " 0    " .. death .. " 1")
+assert(tooltipLines[9] == victory .. "  0     " .. death .. "  1")
 assert(addon.db.rivals[manualID] == manualRival and manualRival.deathsToThem == 1)
 assert(addon.db.rivals["Player-ayro"] == nil)
 surname = nil

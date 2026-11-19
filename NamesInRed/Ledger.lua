@@ -17,7 +17,10 @@ function Ledger.Find(db, id)
 end
 
 function Ledger.Add(db, id, displayName)
-    if type(id) ~= "string" or id == "" or type(displayName) ~= "string" or displayName == "" then
+    if type(id) ~= "string" or id == "" then return end
+    if displayName == nil and id:match("^Player%-.+") then
+        displayName = ""
+    elseif type(displayName) ~= "string" or displayName == "" then
         return nil
     end
     if not db.rivals[id] then

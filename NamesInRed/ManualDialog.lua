@@ -119,7 +119,7 @@ function addon.CreateManualDialog(parent, onAdded)
     local function Update()
         win:SetSelected(selected == "killsAgainstThem")
         loss:SetSelected(selected == "deathsToThem")
-        add:SetEnabled(selected ~= nil and addon.ManualName(edit:GetText()) ~= nil)
+        add:SetEnabled(selected ~= nil and addon.HasFullName(addon.ManualName(edit:GetText())))
     end
     local function Choose(direction)
         selected = direction

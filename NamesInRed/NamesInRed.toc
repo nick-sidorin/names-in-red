@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: Names in Red (Debug)
 ## Notes: PvP diagnostics preview
-## Version: 0.0.23-debug
+## Version: 0.0.24-debug
 ## SavedVariablesPerCharacter: NamesInRedDB, NamesInRedDebugDB
 
 Locale.lua

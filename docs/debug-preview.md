@@ -93,3 +93,9 @@ You can delete the test record afterward in the book.
 
 The book portrait shows the rival's level from the latest recorded automatic
 encounter when that encounter includes a readable level.
+
+Automatic encounters are stored by player GUID. If the client exposes only a
+first name or no name, the encounter is saved and its rival stays out of the
+book and tooltip until the full name is available. Targeting or hovering over
+the same player can fill in the name without adding another encounter. This
+also completes older half-name records. New manual entries require both names.

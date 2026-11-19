@@ -1,8 +1,8 @@
 local _, addon = ...
 local L, Readable = addon.L, addon.Readable
 local iconPath = "Interface\\Icons\\INV_Misc_Book_11"
-local victoryGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipVictory.tga:16:16|t"
-local deathGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipGravestone.tga:16:16|t"
+local victoryGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipVictory.tga:14:14:0:1|t"
+local deathGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipGravestone.tga:14:14:0:1|t"
 local window, names, details, heading, portrait, summary, wins, losses, status, selected, empty
 local search, remove, levelBadge
 local deletePopup = "NAMES_IN_RED_DELETE_RIVAL"
@@ -187,7 +187,8 @@ function addon.RefreshBook(resetSearch)
     local query = lower(search:GetText():match("^%s*(.-)%s*$"))
     local ids, selectionVisible = {}, false
     for guid, rival in pairs(addon.db.rivals) do
-        if NameMatches(rival.displayName, query) then
+        if (not guid:match("^Player%-") or addon.HasFullName(rival.displayName))
+            and NameMatches(rival.displayName, query) then
             ids[#ids + 1] = guid
             if guid == selected then selectionVisible = true end
         end
@@ -368,7 +369,7 @@ local function ToggleBook()
         badge:Hide()
         if addon.ApplyAtlas(circle, "UI-HUD-UnitFrame-SmallCircle") then
             levelBadge = badge
-            badge.label = badge:CreateFontString(nil, "OVERLAY", "WhiteLargeNumberFont")
+            badge.label = badge:CreateFontString(nil, "OVERLAY", "WhiteNormalNumberFont")
             badge.label:SetPoint("CENTER", 0, -0.5)
         end
         heading = summary:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
@@ -539,7 +540,10 @@ local function TooltipRival(tooltip, data)
         guid = Readable(data.guid)
     end
     local rivals = addon.db.rivals
-    if type(guid) == "string" and rivals[guid] then return rivals[guid] end
+    if type(guid) == "string" and rivals[guid] then
+        local rival = rivals[guid]
+        return addon.HasFullName(rival.displayName) and rival or nil
+    end
 
     local unit
     if tooltip.GetUnit then
@@ -551,11 +555,14 @@ local function TooltipRival(tooltip, data)
             guid = guid or unitGUID
         end
     end
-    if type(guid) == "string" and rivals[guid] then return rivals[guid] end
+    if type(guid) == "string" and rivals[guid] then
+        local rival = rivals[guid]
+        return addon.HasFullName(rival.displayName) and rival or nil
+    end
     if type(unit) ~= "string" then return end
 
     local name = addon.UnitPlayerName(unit)
-    if not name or not name:find(" ", 1, true) then return end
+    if not addon.HasFullName(name) then return end
 
     -- Name-only records are eligible for display, without linking or merging them.
     local matched
@@ -576,7 +583,7 @@ if TooltipDataProcessor and Enum and Enum.TooltipDataType then
         if rival and (rival.killsAgainstThem > 0 or rival.deathsToThem > 0) then
             tooltip:AddLine(" ")
             tooltip:AddLine(addon.title, 1, 0.82, 0)
-            local counts = ("%s %d    %s %d"):format(victoryGlyph, rival.killsAgainstThem, deathGlyph, rival.deathsToThem)
+            local counts = ("%s  %d     %s  %d"):format(victoryGlyph, rival.killsAgainstThem, deathGlyph, rival.deathsToThem)
             tooltip:AddLine(counts, 1, 1, 1)
         end
     end)

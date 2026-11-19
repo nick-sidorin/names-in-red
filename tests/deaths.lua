@@ -73,9 +73,10 @@ assert(rival.deathsToThem == 2 and #rival.encounters == 2)
 print("Confirmed world death checks passed")
 
 assert(addon.AddManualEncounter("   ", "killsAgainstThem") == nil)
+assert(addon.AddManualEncounter("Rival", "killsAgainstThem") == nil)
 assert(addon.AddManualEncounter("Rival", "invalid") == nil)
-local manualID = assert(addon.AddManualEncounter(" Rival ", "killsAgainstThem"))
-assert(addon.AddManualEncounter("rival", "deathsToThem") == manualID)
+local manualID = assert(addon.AddManualEncounter(" Rival Emberfang ", "killsAgainstThem"))
+assert(addon.AddManualEncounter("rival emberfang", "deathsToThem") == manualID)
 local manual = addon.db.rivals[manualID]
 assert(manual ~= rival and manual.killsAgainstThem == 1 and manual.deathsToThem == 1)
 assert(manual.encounters[1].manual and manual.encounters[1].time == nil and manual.encounters[1].zone == nil)
