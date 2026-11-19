@@ -12,7 +12,7 @@ local units = {
 function issecretvalue(value) return value == secret end
 function UnitGUID(unit) return units[unit].guid end
 function UnitFactionGroup(unit) return units[unit].faction end
-function UnitName(unit) return units[unit].name end
+function UnitName(unit) return units[unit].name, units[unit].surname end
 function UnitIsPlayer(unit) return units[unit].guid ~= nil end
 function UnitCanAttack(_, unit) return units[unit].attackable end
 function IsInInstance() return context ~= "none", context end
@@ -61,6 +61,10 @@ assert(rival.displayName == "Rival" and rival.killsAgainstThem == 1 and rival.de
 addon.db = assert(addon.Ledger.Open(addon.db))
 units.target = {}
 units.mouseover = target
+target.surname = "Emberfang"
 Kill("Player-self", "Player-rival")
-assert(addon.Ledger.Find(addon.db, "Player-rival").killsAgainstThem == 2)
+assert(rival.displayName == "Rival Emberfang" and rival.killsAgainstThem == 2)
+target.surname = secret
+Kill("Player-self", "Player-rival")
+assert(rival.displayName == "Rival Emberfang" and rival.killsAgainstThem == 3)
 print("Confirmed world kill checks passed")

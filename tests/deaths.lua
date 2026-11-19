@@ -14,6 +14,8 @@ function UnitGUID(unit)
     if unit == "target" then return "Player-rival" end
 end
 function UnitLevel(unit) return unit == "player" and 25 or 30 end
+function UnitIsPlayer(unit) return unit == "target" end
+function UnitName() return "Rival", "Emberfang" end
 function GetRealZoneText() return "Test Zone" end
 function GetServerTime() return now end
 C_Map = {
@@ -46,6 +48,7 @@ rows = { Hit(1000.848, 87), Hit(999, -1), Hit(998, -1) }
 onEvent()
 onEvent()
 local rival = assert(addon.db.rivals["Player-rival"])
+assert(rival.displayName == "Rival Emberfang")
 assert(rival.deathsToThem == 1 and rival.killsAgainstThem == 0)
 assert(#rival.encounters == 1 and rival.encounters[1].rivalLevel == 30)
 assert(rival.encounters[1].x == 0.4 and rival.encounters[1].y == 0.6)

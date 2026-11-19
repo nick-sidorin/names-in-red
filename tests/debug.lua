@@ -11,6 +11,7 @@ function GetServerTime() return 100 end
 function GetTime() return 15 end
 function IsInInstance() return true, "pvp" end
 function UnitGUID(unit) return unit == "player" and "Player-test" or secret end
+function UnitName(unit) if unit == "player" then return "Test", "Rival" end end
 function GetPVPSessionStats() return 2 end
 
 C_PvP = { GetScoreInfoByPlayerGuid = function() return { killingBlows = secret } end }
@@ -66,9 +67,11 @@ assert(db.rows[8].events[2].sourceGUID == nil)
 
 Event("PARTY_KILL", "Player-test", secret)
 assert(db.rows[9].attacker == "Player-test")
+assert(db.rows[9].player.name == "Test" and db.rows[9].player.surname == "Rival")
 assert(db.rows[9].victim == nil and db.rows[9].status.victim == "secret")
-Event("CHAT_MSG_COMBAT_HONOR_GAIN", "Test message")
+Event("CHAT_MSG_COMBAT_HONOR_GAIN", "Test message", nil, nil, nil, nil, nil, nil, nil, nil, nil, 42, secret)
 assert(db.rows[10].message == "Test message")
+assert(db.rows[10].lineID == 42 and db.rows[10].status.chatGUID == "secret")
 Event("PARTY_KILL", "Player-test", "Creature-test")
 assert(#db.rows == 10)
 for _ = 1, 1000 do Event("PLAYER_PVP_KILLS_CHANGED", "player") end

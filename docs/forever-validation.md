@@ -102,6 +102,12 @@ only. The preview adds an explicit opposing-faction requirement, which was
 not captured by the earlier build. Validate this requirement in the next
 live sample. Assists, recap coverage, and battleground attribution are pending.
 
+Another ruRU sample confirmed a personal killing blow against an opposing
+player. An unnamed nine-honor message followed 1.012 seconds after `PARTY_KILL`.
+The same session also recorded an unnamed one-honor message before the fight.
+`CHAT_MSG_COMBAT_HONOR_GAIN` exposes general chat metadata and no documented
+victim identifier. The preview keeps the raw messages in diagnostics and does
+not assign a reward to an encounter based on timing alone.
 
 ## Live death evidence and first UI
 

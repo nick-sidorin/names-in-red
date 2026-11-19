@@ -69,7 +69,10 @@ function addon.RecordEncounter(guid, name, direction, context)
         rival = addon.Ledger.Add(addon.db, guid, name)
         if context.manual then rival.addedManually = true end
     end
-    rival.displayName = name
+    -- Later sightings can complete a name even when an earlier event only exposed its first part.
+    if name:find(" ", 1, true) or not rival.displayName:find(" ", 1, true) then
+        rival.displayName = name
+    end
     local race, sex, class, raceLabel, classLabel = addon.RivalAppearance(guid)
     if race then rival.race, rival.sex = race, sex end
     if class then rival.class = class end

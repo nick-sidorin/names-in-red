@@ -4,7 +4,7 @@ local iconPath = "Interface\\Icons\\INV_Misc_Book_11"
 local victoryGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipVictory.tga:16:16|t"
 local deathGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipGravestone.tga:16:16|t"
 local window, names, details, heading, portrait, summary, wins, losses, status, selected, empty
-local search, remove
+local search, remove, levelBadge
 local deletePopup = "NAMES_IN_RED_DELETE_RIVAL"
 local lower = strlower or string.lower
 local buttons, lines = {}, {}
@@ -110,9 +110,11 @@ local function ShowDetails()
     empty:SetShown(rival == nil)
     local encounters = rival and rival.encounters or {}
     local offset, count = 0, 0
+    local lastLevel
     for _, encounter in ipairs(encounters) do
         if not encounter.manual then
             count = count + 1
+            if count == 1 then lastLevel = encounter.rivalLevel end
             local row = lines[count]
             if not row then
                 row = CreateFrame("Frame", nil, details)
@@ -145,6 +147,10 @@ local function ShowDetails()
             row:Show()
             offset = offset + height + 10
         end
+    end
+    if levelBadge then
+        levelBadge:SetShown(type(lastLevel) == "number" and lastLevel > 0)
+        levelBadge.label:SetText(lastLevel)
     end
     for index = count + 1, #lines do lines[index]:Hide() end
     details:SetHeight(math.max(1, offset))
@@ -354,6 +360,17 @@ local function ToggleBook()
         local rim
         portrait, rim = addon.CreateRoundIcon(summary)
         rim:SetPoint("TOPLEFT", 17.5, -17.5)
+        local badge = CreateFrame("Frame", nil, summary)
+        badge:SetSize(30, 30)
+        badge:SetPoint("CENTER", rim, "BOTTOMLEFT", 12, 12)
+        local circle = badge:CreateTexture(nil, "ARTWORK")
+        circle:SetAllPoints()
+        badge:Hide()
+        if addon.ApplyAtlas(circle, "UI-HUD-UnitFrame-SmallCircle") then
+            levelBadge = badge
+            badge.label = badge:CreateFontString(nil, "OVERLAY", "WhiteLargeNumberFont")
+            badge.label:SetPoint("CENTER", 0, -0.5)
+        end
         heading = summary:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
         heading:SetPoint("TOPLEFT", 90, -26)
         heading:SetWidth(250)

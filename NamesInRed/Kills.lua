@@ -10,7 +10,7 @@ local function RivalName(unit, victim, faction)
 
     local rivalFaction = Readable(UnitFactionGroup(unit))
     if (rivalFaction == "Alliance" or rivalFaction == "Horde") and rivalFaction ~= faction then
-        return Readable(UnitName(unit)), unit
+        return addon.UnitPlayerName(unit), unit
     end
 end
 

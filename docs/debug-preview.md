@@ -90,3 +90,6 @@ crossed swords and a gravestone below a blank line in the standard unit tooltip.
 An existing name-only entry can also appear when
 the player's full name is readable and matches exactly one ledger record.
 You can delete the test record afterward in the book.
+
+The book portrait shows the rival's level from the latest recorded automatic
+encounter when that encounter includes a readable level.

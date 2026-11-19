@@ -47,9 +47,10 @@ local function Record(death)
     end
 
     death.context.time = math.floor(stamp)
-    death.context.rivalLevel = death.levels[guid]
+    local observed = death.units[guid]
+    death.context.rivalLevel = observed and observed.level
     addon.db.lastDeathTimestamp = stamp
-    addon.RecordEncounter(guid, name, "deathsToThem", death.context)
+    addon.RecordEncounter(guid, observed and observed.fullName or name, "deathsToThem", death.context)
     return true
 end
 
@@ -68,12 +69,16 @@ frame:SetScript("OnEvent", function()
     if type(context.time) ~= "number" then
         return
     end
-    local death = { sequence = sequence, context = context, levels = {} }
+    local death = { sequence = sequence, context = context, units = {} }
     for _, unit in ipairs({ "target", "mouseover" }) do
         local guid = Readable(UnitGUID(unit))
         local level = Readable(UnitLevel(unit))
-        if type(guid) == "string" and type(level) == "number" and level > 0 then
-            death.levels[guid] = level
+        if type(guid) == "string" and guid:match("^Player%-.+") then
+            local observed = death.units[guid] or {}
+            local name = addon.UnitPlayerName(unit)
+            if name and name:find(" ", 1, true) then observed.fullName = name end
+            if type(level) == "number" and level > 0 then observed.level = level end
+            death.units[guid] = observed
         end
     end
     if Record(death) then
