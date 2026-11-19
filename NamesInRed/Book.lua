@@ -60,9 +60,14 @@ local function Stat(parent, y, art, tooltipText)
     local slot = CreateFrame("Button", nil, parent)
     slot:SetPoint("TOPLEFT", 25, y)
     slot:SetSize(43, 43)
+    local background = slot:CreateTexture(nil, "BACKGROUND")
+    background:SetAllPoints()
+    if not addon.ApplyAtlas(background, "Professions-Slot-bg") then
+        background:SetColorTexture(0.04, 0.03, 0.025)
+    end
     local icon = slot:CreateTexture(nil, "ARTWORK")
-    icon:SetPoint("TOPLEFT", 2, -2)
-    icon:SetPoint("BOTTOMRIGHT", -2, 2)
+    icon:SetPoint("TOPLEFT", 5, -5)
+    icon:SetPoint("BOTTOMRIGHT", -5, 5)
     icon:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\" .. art .. ".tga")
     local border = slot:CreateTexture(nil, "OVERLAY")
     border:SetAllPoints()
@@ -323,7 +328,7 @@ local function ToggleBook()
         window:EnableMouse(true)
         window:SetClampedToScreen(true)
         window:SetTitle(addon.title)
-        if window.SetPortraitToAsset then window:SetPortraitToAsset(addon.iconPath) end
+        if window.SetPortraitToAsset then window:SetPortraitToAsset(addon.windowIconPath) end
         window.onCloseCallback = function() window:Hide(); return false end
         MakeDraggable(window)
         tinsert(UISpecialFrames, window:GetName())
@@ -357,19 +362,21 @@ local function ToggleBook()
         local rim
         portrait, rim = addon.CreateRoundIcon(summary)
         rim:SetPoint("TOPLEFT", 17.5, -17.5)
+        local badgeSize = 30
         local badge = CreateFrame("Frame", nil, summary)
-        badge:SetSize(30, 30)
+        badge:SetSize(badgeSize, badgeSize)
         badge:SetPoint("CENTER", rim, "BOTTOMLEFT", 12, 12)
         local circle = badge:CreateTexture(nil, "ARTWORK")
         circle:SetAllPoints()
+        circle:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\LevelBadge.tga")
+        badge.label = badge:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        badge.label:SetPoint("CENTER", badge, "CENTER")
+        badge.label:SetSize(badgeSize, badgeSize)
+        badge.label:SetJustifyH("CENTER")
+        badge.label:SetJustifyV("MIDDLE")
+        badge.label:SetShadowOffset(0, 0)
         badge:Hide()
-        if addon.ApplyAtlas(circle, "UI-HUD-UnitFrame-SmallCircle") then
-            levelBadge = badge
-            badge.label = badge:CreateFontString(nil, "OVERLAY", "WhiteNormalNumberFont")
-            badge.label:SetAllPoints(badge)
-            badge.label:SetJustifyH("CENTER")
-            badge.label:SetJustifyV("MIDDLE")
-        end
+        levelBadge = badge
         heading = summary:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
         heading:SetPoint("TOPLEFT", 90, -26)
         heading:SetWidth(250)
