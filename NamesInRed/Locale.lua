@@ -55,16 +55,16 @@ local search = searchStrings[GetLocale()] or searchStrings.enUS
 addon.L.noMatches, addon.L.deleteConfirm = search[1], search[2]
 
 local statisticsStrings = {
-    enUS = { "Statistics", "How many times I killed them", "How many times they killed me" },
-    ruRU = { "Статистика", "сколько раз я убил его", "сколько раз он убил меня" },
-    deDE = { "Statistik", "Wie oft ich den Rivalen getötet habe", "Wie oft der Rivale mich getötet hat" },
-    frFR = { "Statistiques", "Combien de fois j’ai tué ce rival", "Combien de fois ce rival m’a tué" },
-    esES = { "Estadísticas", "Cuántas veces maté al rival", "Cuántas veces me mató el rival" },
-    itIT = { "Statistiche", "Quante volte ho ucciso il rivale", "Quante volte il rivale mi ha ucciso" },
-    ptBR = { "Estatísticas", "Quantas vezes matei o rival", "Quantas vezes o rival me matou" },
-    koKR = { "통계", "내가 상대를 처치한 횟수", "상대가 나를 처치한 횟수" },
-    zhCN = { "统计", "我击杀了对手多少次", "对手击杀了我多少次" },
-    zhTW = { "統計", "我擊殺了對手多少次", "對手擊殺了我多少次" },
+    enUS = { "Statistics:", "My wins against this player", "This player’s wins against me" },
+    ruRU = { "Статистика:", "Мои победы над игроком", "Победы игрока надо мной" },
+    deDE = { "Statistik:", "Meine Siege gegen diesen Spieler", "Siege dieses Spielers gegen mich" },
+    frFR = { "Statistiques :", "Mes victoires contre ce joueur", "Les victoires de ce joueur contre moi" },
+    esES = { "Estadísticas:", "Mis victorias contra este jugador", "Victorias de este jugador contra mí" },
+    itIT = { "Statistiche:", "Le mie vittorie contro questo giocatore", "Le vittorie di questo giocatore contro di me" },
+    ptBR = { "Estatísticas:", "Minhas vitórias contra este jogador", "Vitórias deste jogador contra mim" },
+    koKR = { "통계:", "이 플레이어에게 거둔 승리", "이 플레이어가 나에게 거둔 승리" },
+    zhCN = { "统计：", "我战胜该玩家的次数", "该玩家战胜我的次数" },
+    zhTW = { "統計：", "我戰勝該玩家的次數", "該玩家戰勝我的次數" },
 }
 statisticsStrings.enGB = statisticsStrings.enUS
 statisticsStrings.esMX = statisticsStrings.esES

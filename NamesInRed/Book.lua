@@ -62,7 +62,7 @@ end
 local function Stat(parent, y, art, tooltipText)
     local slot = CreateFrame("Button", nil, parent)
     slot:SetPoint("TOPLEFT", 25, y)
-    slot:SetSize(39, 39)
+    slot:SetSize(43, 43)
     local icon = slot:CreateTexture(nil, "ARTWORK")
     icon:SetPoint("TOPLEFT", 2, -2)
     icon:SetPoint("BOTTOMRIGHT", -2, 2)
@@ -100,7 +100,11 @@ local function ShowDetails()
     summary:SetShown(rival ~= nil)
     if rival then
         heading:SetText(rival.displayName)
-        status:SetShown(selected:match("^manual:") ~= nil)
+        local manual = selected:match("^manual:") or selected:match("^seed:manual:")
+        local description = {}
+        if rival.raceLabel then description[#description + 1] = rival.raceLabel end
+        if rival.classLabel then description[#description + 1] = rival.classLabel end
+        status:SetText(manual and L.manual or table.concat(description, " / "))
         wins:SetText(("%s: %d"):format(L.kills, rival.killsAgainstThem))
         losses:SetText(("%s: %d"):format(L.deaths, rival.deathsToThem))
         UpdatePortrait(rival)
@@ -168,7 +172,11 @@ local function NameMatches(name, query)
     return false
 end
 
-function addon.RefreshBook()
+function addon.RefreshBook(resetSearch)
+    if resetSearch and search and search:GetText() ~= "" then
+        search:SetText("")
+        return
+    end
     if not window or not window:IsShown() then
         return
     end
@@ -353,12 +361,11 @@ local function ToggleBook()
         status = summary:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         status:SetPoint("TOPLEFT", heading, "BOTTOMLEFT", 0, -5)
         status:SetTextColor(0.72, 0.67, 0.59)
-        status:SetText(L.manual)
         local statsTitle = summary:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         statsTitle:SetPoint("TOPLEFT", 25, -92)
         statsTitle:SetText(L.statistics)
         wins = Stat(summary, -112, "Victory", L.winTooltip)
-        losses = Stat(summary, -160, "Gravestone", L.lossTooltip)
+        losses = Stat(summary, -162, "Gravestone", L.lossTooltip)
         empty = right:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         empty:SetPoint("CENTER", 0, 5)
         empty:SetWidth(305)
@@ -417,7 +424,7 @@ local function ToggleBook()
             end,
         }
         remove = CreateFrame("Button", nil, window, "SharedButtonSmallTemplate")
-        remove:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -10, 10)
+        remove:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -10, 8)
         remove:SetSize(128, 28)
         remove:SetText(DELETE)
         remove:SetScript("OnClick", function()

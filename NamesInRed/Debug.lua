@@ -1,4 +1,4 @@
-local addonName = ...
+local addonName, addon = ...
 local frame = CreateFrame("Frame")
 local db
 local deathSequence = 0
@@ -236,6 +236,18 @@ frame:SetScript("OnEvent", function(self, event, ...)
 
     SLASH_NAMESINREDDEBUG1 = "/nirdebug"
     SlashCmdList.NAMESINREDDEBUG = function(message)
+        if message == "seed" or message == "clear-seed" then
+            if not addon or not addon.db then return end
+            local count
+            if message == "seed" then
+                count = addon.AddDebugSeeds(GetServerTime())
+            else
+                count = addon.ClearDebugSeeds()
+            end
+            if addon.RefreshBook then addon.RefreshBook(message == "seed") end
+            print("NamesInRed", message, count)
+            return
+        end
         if message == "sample" then
             Sample(Add("MANUAL_SAMPLE"))
         end

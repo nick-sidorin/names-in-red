@@ -72,3 +72,11 @@ entries are identified in the encounter details. Repeating a manual entry for th
 its totals. Name-only records are separate from GUID-backed rivals and do
 not create tooltip matches. Manual entries store the selected outcome
 without a battle date, levels, zone or coordinates.
+
+## Sample roster
+
+Run `/nirdebug seed` to load 30 fictional rivals into the current character's
+book. Twenty-four have race and class information and several dated encounters
+with levels, zones and coordinates. Six are sample manual records. Running the
+command again refreshes those sample entries. Run `/nirdebug clear-seed` to
+remove only the sample roster. Your real and manually added records are kept.
