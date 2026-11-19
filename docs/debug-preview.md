@@ -69,9 +69,10 @@ use the same atlases as profession recipe rows.
 Add opens a name field and two outcome choices. The native mail autocomplete
 suggests names known to the client. Free-form names remain valid. Manual
 entries are identified in the encounter details. Repeating a manual entry for the same name adds to
-its totals. Name-only records are separate from GUID-backed rivals and do
-not create tooltip matches. Manual entries store the selected outcome
-without a battle date, levels, zone or coordinates.
+its totals. A matching selected target also supplies its readable level, race,
+sex, class and faction when the form opens. Manual entries have no battle date,
+zone or coordinates. A typed name without a matching target supplies no target
+details.
 
 ## Sample roster
 
@@ -91,8 +92,8 @@ An existing name-only entry can also appear when
 the player's full name is readable and matches exactly one ledger record.
 You can delete the test record afterward in the book.
 
-The book portrait shows the rival's level from the latest recorded automatic
-encounter when that encounter includes a readable level.
+The book portrait shows the latest recorded rival level from an automatic
+encounter or a manual entry linked to a selected target.
 
 Automatic encounters are stored by player GUID. If the client exposes only a
 first name or no name, the encounter is saved and its rival stays out of the

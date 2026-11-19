@@ -59,13 +59,27 @@ function UnitIsPlayer(unit) return unit == "target" end
 function UnitName() return "Test Rival" end
 local targetGUID = "Player-target"
 function UnitGUID(unit) return unit == "target" and targetGUID or "Player-self" end
+local targetLevel = 42
+function UnitLevel() return targetLevel end
+function UnitRace() return "Human", "Human" end
+function UnitSex() return 3 end
+function UnitClass() return "Mage", "MAGE" end
+function UnitFactionGroup() return "Alliance", "Alliance" end
 
 local target = assert(addon.ManualTarget())
 targetGUID = "Player-other"
+targetLevel = 77
 local id = addon.AddManualEncounter(target.name, "killsAgainstThem", target)
 assert(id == "Player-target")
-assert(addon.db.rivals[id].addedManually and addon.db.rivals[id].killsAgainstThem == 1)
-assert(addon.AddManualEncounter("Different Rival", "deathsToThem", target) == "manual:different rival")
+local linked = addon.db.rivals[id]
+assert(linked.addedManually and linked.killsAgainstThem == 1)
+assert(linked.race == "human" and linked.raceLabel == "Human" and linked.sex == 3)
+assert(linked.class == "MAGE" and linked.classLabel == "Mage" and linked.factionLabel == "Alliance")
+assert(linked.encounters[1].rivalLevel == 42 and linked.encounters[1].time == nil)
+local differentID = addon.AddManualEncounter("Different Rival", "deathsToThem", target)
+assert(differentID == "manual:different rival")
+local different = addon.db.rivals[differentID]
+assert(not different.race and not different.class and not different.factionLabel and not different.encounters[1].rivalLevel)
 callback(GameTooltip, { guid = "Player-target" })
 assert(#tooltipLines == 6)
 callback(GameTooltip, { guid = "Player-other" })
@@ -74,6 +88,8 @@ targetGUID = secret
 assert(addon.ManualTarget() == nil)
 targetGUID = "Player-self"
 assert(addon.ManualTarget() == nil)
+targetGUID, targetLevel = "Player-restricted", secret
+assert(addon.ManualTarget().level == nil)
 print("Target-linked manual tooltip checks passed")
 
 function UnitIsPlayer(unit) return unit == "target" or unit == "mouseover" end

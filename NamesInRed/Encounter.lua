@@ -63,7 +63,7 @@ function addon.RivalAppearance(guid)
     return race, sex, class, addon.Readable(raceLabel), addon.Readable(classLabel)
 end
 
-function addon.RecordEncounter(guid, name, direction, context)
+function addon.RecordEncounter(guid, name, direction, context, appearance)
     name = addon.ManualName(name)
     local fullName = addon.HasFullName(name) and name or nil
     local rival = addon.Ledger.Find(addon.db, guid)
@@ -76,6 +76,14 @@ function addon.RecordEncounter(guid, name, direction, context)
         rival.displayName = fullName
     end
     local race, sex, class, raceLabel, classLabel = addon.RivalAppearance(guid)
+    if appearance then
+        if appearance.race and appearance.sex then
+            race, sex = appearance.race, appearance.sex
+        end
+        raceLabel = appearance.raceLabel or raceLabel
+        class, classLabel = appearance.class or class, appearance.classLabel or classLabel
+        rival.factionLabel = appearance.factionLabel or rival.factionLabel
+    end
     if race then rival.race, rival.sex = race, sex end
     if class then rival.class = class end
     if type(raceLabel) == "string" and raceLabel ~= "" then rival.raceLabel = raceLabel end
@@ -172,7 +180,21 @@ function addon.ManualTarget()
         or type(playerGUID) ~= "string" or guid == playerGUID then
         return
     end
-    return { guid = guid, name = name }
+    local raceLabel, race = SafeRead(UnitRace, "target")
+    local classLabel, class = SafeRead(UnitClass, "target")
+    local sex = SafeRead(UnitSex, "target")
+    local _, factionLabel = SafeRead(UnitFactionGroup, "target")
+    return {
+        guid = guid,
+        name = name,
+        level = Level("target"),
+        race = type(race) == "string" and race ~= "" and race:lower() or nil,
+        raceLabel = raceLabel,
+        sex = (sex == 2 or sex == 3) and sex or nil,
+        class = type(class) == "string" and class ~= "" and class or nil,
+        classLabel = classLabel,
+        factionLabel = type(factionLabel) == "string" and factionLabel ~= "" and factionLabel or nil,
+    }
 end
 
 function addon.AddManualEncounter(input, direction, target)
@@ -181,8 +203,9 @@ function addon.AddManualEncounter(input, direction, target)
         return nil
     end
     -- Bind only the name supplied by the target snapshot.
-    local id = target and target.name == name and target.guid
+    local snapshot = target and target.name == name and target
+    local id = snapshot and snapshot.guid
         or ("manual:" .. (strlower or string.lower)(name))
-    addon.RecordEncounter(id, name, direction, { manual = true })
+    addon.RecordEncounter(id, name, direction, { manual = true, rivalLevel = snapshot and snapshot.level or nil }, snapshot)
     return id
 end

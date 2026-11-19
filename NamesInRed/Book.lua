@@ -57,9 +57,10 @@ local function UpdatePortrait(rival)
 end
 
 local function Stat(parent, y, art, tooltipText)
+    local slotSize, iconSize = 43, 33
     local slot = CreateFrame("Button", nil, parent)
     slot:SetPoint("TOPLEFT", 25, y)
-    slot:SetSize(43, 43)
+    slot:SetSize(slotSize, slotSize)
     local background = slot:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
     if not addon.ApplyAtlas(background, "Professions-Slot-bg") then
@@ -70,19 +71,16 @@ local function Stat(parent, y, art, tooltipText)
     if not addon.ApplyAtlas(border, "Professions-Slot-Frame") then
         border:SetTexture("Interface\\Buttons\\UI-Quickslot2")
     end
-    -- The professions border extends one unit past its artwork at the bottom and right.
-    local inset = 5
     local icon = slot:CreateTexture(nil, "ARTWORK")
-    icon:SetPoint("TOPLEFT", border, "TOPLEFT", inset, -inset)
-    icon:SetPoint("BOTTOMRIGHT", border, "BOTTOMRIGHT", -inset - 1, inset + 1)
+    icon:SetPoint("CENTER", slot, "CENTER")
+    icon:SetSize(iconSize, iconSize)
     icon:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\" .. art .. ".tga")
     icon:SetTexCoord(0, 1, 0, 1)
     local highlight = slot:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetPoint("CENTER", icon, "CENTER")
-    highlight:SetSize(48, 48)
-    addon.ApplyAtlas(highlight, "bags-newitem")
-    highlight:SetBlendMode("ADD")
-    highlight:SetAlpha(0.5)
+    highlight:SetAllPoints(slot)
+    highlight:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\StatHover.tga")
+    highlight:SetBlendMode("BLEND")
+    highlight:SetAlpha(0.65)
 
     slot:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -109,7 +107,12 @@ local function ShowDetails()
         local description = {}
         if rival.raceLabel then description[#description + 1] = rival.raceLabel end
         if rival.classLabel then description[#description + 1] = rival.classLabel end
-        status:SetText(manual and L.manual or table.concat(description, " / "))
+        if rival.factionLabel then description[#description + 1] = rival.factionLabel end
+        local profile = table.concat(description, " / ")
+        if manual then
+            profile = profile ~= "" and profile .. "\n" .. L.manual or L.manual
+        end
+        status:SetText(profile)
         wins:SetText(("%s: %d"):format(L.kills, rival.killsAgainstThem))
         losses:SetText(("%s: %d"):format(L.deaths, rival.deathsToThem))
         UpdatePortrait(rival)
@@ -119,9 +122,11 @@ local function ShowDetails()
     local offset, count = 0, 0
     local lastLevel
     for _, encounter in ipairs(encounters) do
+        if not lastLevel and type(encounter.rivalLevel) == "number" and encounter.rivalLevel > 0 then
+            lastLevel = encounter.rivalLevel
+        end
         if not encounter.manual then
             count = count + 1
-            if count == 1 then lastLevel = encounter.rivalLevel end
             local row = lines[count]
             if not row then
                 row = CreateFrame("Frame", nil, details)
@@ -373,7 +378,7 @@ local function ToggleBook()
         circle:SetAllPoints()
         circle:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\LevelBadge.tga")
         badge.label = badge:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        badge.label:SetPoint("CENTER", badge, "CENTER", 0, -1)
+        badge.label:SetPoint("CENTER", badge, "CENTER", 0, -0.5)
         badge.label:SetSize(badgeSize, badgeSize)
         badge.label:SetJustifyH("CENTER")
         badge.label:SetJustifyV("MIDDLE")
@@ -386,6 +391,8 @@ local function ToggleBook()
         heading:SetJustifyH("LEFT")
         status = summary:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         status:SetPoint("TOPLEFT", heading, "BOTTOMLEFT", 0, -5)
+        status:SetWidth(275)
+        status:SetJustifyH("LEFT")
         status:SetTextColor(0.72, 0.67, 0.59)
         local statsTitle = summary:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         statsTitle:SetPoint("TOPLEFT", 25, -92)

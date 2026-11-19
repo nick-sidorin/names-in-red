@@ -15,6 +15,7 @@ assets = {
     "Art/CrossedSwords.tga": (128, 24),
     "Art/Skull.tga": (128, 24),
     "Art/StatSkull.tga": (128, 24),
+    "Art/StatHover.tga": (64, 32),
     "Art/WindowSkull.tga": (128, 24),
     "Art/LevelBadge.tga": (64, 32),
     "Art/TooltipVictory.tga": (64, 32),
