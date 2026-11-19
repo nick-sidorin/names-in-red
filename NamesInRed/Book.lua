@@ -50,8 +50,9 @@ local function UpdatePortrait(rival)
         portrait:SetTexCoord(unpack(coords))
     else
         portrait:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
-        portrait:SetTexCoord(0, 1, 0, 1)
-        portrait:SetSize(46, 46)
+        -- The inventory icon includes a light bevel inside the texture.
+        portrait:SetTexCoord(0.12, 0.88, 0.12, 0.88)
+        portrait:SetSize(44, 44)
     end
 end
 
@@ -203,30 +204,17 @@ local function Pane(parent, x, y, width, height)
     return frame
 end
 
-local function DetailBackground(parent, width, height)
-    for _, atlas in ipairs({
-        "Professions-Recipe-Background-Blacksmithing",
-        "Professions-Recipe-Background-Engineering",
-        "Professions-Recipe-Background",
-    }) do
-        local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas)
-        if info and info.width > 0 and info.height > 0 then
-            local scale = math.max(width / info.width, height / info.height)
-            local art = parent:CreateTexture(nil, "BACKGROUND")
-            art:SetAtlas(atlas)
-            -- Crop from the top and left to keep the bottom-right illustration
-            -- anchored while filling the pane at the atlas's aspect ratio.
-            art:SetAllPoints()
-            local horizontal = width / (info.width * scale)
-            local vertical = height / (info.height * scale)
-            art:SetTexCoord(
-                info.rightTexCoord - horizontal * (info.rightTexCoord - info.leftTexCoord),
-                info.rightTexCoord,
-                info.bottomTexCoord - vertical * (info.bottomTexCoord - info.topTexCoord),
-                info.bottomTexCoord)
-            return
-        end
+local function DetailBackground(parent)
+    -- The Camelot schematic pairs a full recipe backdrop with separate trim.
+    local art = parent:CreateTexture(nil, "BACKGROUND")
+    art:SetAllPoints()
+    if not addon.ApplyAtlas(art, "Professions-Recipe-Background-Engineering")
+        and not addon.ApplyAtlas(art, "Professions-Recipe-Background") then
+        art:SetColorTexture(0.07, 0.048, 0.034, 1)
     end
+    local trim = parent:CreateTexture(nil, "BORDER")
+    trim:SetAllPoints()
+    addon.ApplyAtlas(trim, "common-insideframe")
 end
 
 local function MakeDraggable(frame)
@@ -285,7 +273,7 @@ local function ToggleBook()
         listArt:SetAllPoints()
         addon.ApplyAtlas(listArt, "Professions-background-summarylist")
         local right = Pane(window, 318, -65, 370, 451)
-        DetailBackground(right, 370, 451)
+        DetailBackground(right)
         names = Scroll(left, 7, -12, 273, 425, true)
         details = Scroll(right, 25, -219, 318, 210)
         summary = CreateFrame("Frame", nil, right)
