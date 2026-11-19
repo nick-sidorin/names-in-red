@@ -195,9 +195,17 @@ The book uses `PanelTopTabButtonTemplate` from Forever
 `Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml`. The tab textures are
 bottom-anchored by `PanelTopTabButtonMixin:OnLoad`. The book places the tabs
 above a sibling pane whose `common-insideframe` trim covers their lower edge.
+The settings reference is `GameTab` and `AddOnsTab` in
+`Blizzard_SettingsPanel.xml`. Their `MinimalTabTemplate` swaps to
+`Options_Tab_Active_*` via `MinimalTabMixin:UpdateAtlas`. The book keeps its
+three active `uiframe-activetab` slices and lowers their brightness.
 Camelot's `SchematicFormCraftingTemplate` in
 `Blizzard_ProfessionsRecipeSchematicForm.xml` uses that same rim on the BORDER
-layer. The book fades the left side of its illustration into the recipe
+layer. The full right column uses the same `Professions-background-summarylist`
+atlas as the roster and `Blizzard_ProfessionsRecipeList.xml`. Check it behind
+the tabs and the Delete button. Delete confirmation uses the client's shared
+`StaticPopupButtonTemplate` from `Blizzard_StaticPopup_Game/GameDialog.xml`.
+The book fades the left side of its illustration into the recipe
 background using the texture gradient API. Check that the upper rim is
 continuous in both tab states and that the illustration has no visible seam
 at its left edge, including at non-default UI scales.

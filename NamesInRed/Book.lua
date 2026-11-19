@@ -3,7 +3,7 @@ local L, Readable = addon.L, addon.Readable
 local victoryGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipVictory.tga:14:14:0:1|t"
 local deathGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipSkull.tga:14:14:0:1|t"
 local window, names, details, heading, portrait, summary, wins, losses, status, selected, empty
-local search, remove, levelBadge, tabBar, latestCard, latestEmpty, historyTitle, historyEmpty
+local search, remove, levelBadge, tabBar, latestCard, latestEmpty, historyEmpty
 local deletePopup = "NAMES_IN_RED_DELETE_RIVAL"
 local lower = strlower or string.lower
 local buttons, cards = {}, {}
@@ -167,8 +167,6 @@ local function ShowDetails()
     end
     empty:SetShown(rival == nil)
 
-    historyTitle:SetShown(showHistory)
-    if showHistory then historyTitle:SetText(rival.displayName) end
     historyEmpty:SetShown(showHistory and #history == 0)
     local scroll = details:GetParent()
     scroll:SetShown(showHistory and #history > 0)
@@ -287,6 +285,12 @@ local function Pane(parent, x, y, width, height)
     return frame
 end
 
+local function ListBackground(parent)
+    local texture = parent:CreateTexture(nil, "BACKGROUND")
+    texture:SetAllPoints()
+    addon.ApplyAtlas(texture, "Professions-background-summarylist")
+end
+
 local function DetailBackground(parent)
     local background = parent:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
@@ -370,20 +374,24 @@ local function ToggleBook()
         end
 
         ProfessionBackdrop(window)
-        local left = Pane(window, 5, -65, 307, 485)
-        local listArt = left:CreateTexture(nil, "BACKGROUND")
-        listArt:SetAllPoints()
-        addon.ApplyAtlas(listArt, "Professions-background-summarylist")
         local contentTop, footerInset, removeHeight = 65, 10, 28
+        local bodyHeight = window:GetHeight() - contentTop - 5
+        local rightX, rightWidth = 312, 383
+        local left = Pane(window, 5, -contentTop, rightX - 5, bodyHeight)
+        ListBackground(left)
+        ListBackground(Pane(window, rightX, -contentTop, rightWidth, bodyHeight))
+
         local panelGap = 4
         local rightTop = contentTop + 30
         local rightHeight = window:GetHeight() - rightTop - removeHeight - footerInset - panelGap
-        local right = Pane(window, 312, -rightTop, 383, rightHeight)
+        local right = Pane(window, rightX, -rightTop, rightWidth, rightHeight)
         DetailBackground(right)
         names = Scroll(left, 9, -42, 273, 431, false)
         tabBar = CreateFrame("Frame", nil, window)
-        tabBar:SetPoint("BOTTOMLEFT", right, "TOPLEFT", 24, -4)
-        tabBar:SetPoint("BOTTOMRIGHT", right, "TOPRIGHT", -24, -4)
+        local onePixel = PixelUtil.GetPixelToUIUnitFactor() / tabBar:GetEffectiveScale()
+        local tabOverlap = onePixel - 4
+        tabBar:SetPoint("BOTTOMLEFT", right, "TOPLEFT", 24, tabOverlap)
+        tabBar:SetPoint("BOTTOMRIGHT", right, "TOPRIGHT", -24, tabOverlap)
         tabBar:SetHeight(32)
         -- The pane draws over the bottom of the tabs where they meet its trim.
         right:SetFrameLevel(tabBar:GetFrameLevel() + 2)
@@ -393,6 +401,9 @@ local function ToggleBook()
             if id == infoTab then tab:SetPoint("TOPLEFT") end
             tab:SetText(label)
             PanelTemplates_TabResize(tab, 0, 143)
+            for _, texture in ipairs({ tab.LeftActive, tab.MiddleActive, tab.RightActive }) do
+                texture:SetVertexColor(0.68, 0.68, 0.68)
+            end
             tab:SetScript("OnClick", function(self)
                 PanelTemplates_SetTab(tabBar, self:GetID())
                 ShowDetails()
@@ -401,12 +412,10 @@ local function ToggleBook()
         PanelTemplates_SetNumTabs(tabBar, 2)
         PanelTemplates_SetTab(tabBar, infoTab)
 
-        local historyTop = 45
+        local historyTop = 16
         local historyScroll
         details, historyScroll = Scroll(right, 25, -historyTop, cardWidth, rightHeight - historyTop - 12, true)
         historyScroll:HookScript("OnVerticalScroll", RenderHistory)
-        historyTitle = right:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-        historyTitle:SetPoint("TOPLEFT", 25, -23)
         historyEmpty = right:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         historyEmpty:SetPoint("CENTER", 0, 5)
         historyEmpty:SetText(L.noSkirmishes)
