@@ -36,3 +36,20 @@ manualStrings.esMX = manualStrings.esES
 local manual = manualStrings[GetLocale()] or manualStrings.enUS
 addon.L.add, addon.L.addTitle, addon.L.fullName = manual[1], manual[2], manual[3]
 addon.L.win, addon.L.loss, addon.L.manual = manual[4], manual[5], manual[6]
+
+local searchStrings = {
+    enUS = { "No matching rivals.", "Delete %s and all encounters with this rival?" },
+    ruRU = { "Соперники не найдены.", "Удалить %s и все встречи с этим соперником?" },
+    deDE = { "Keine passenden Rivalen.", "%s und alle Begegnungen mit diesem Rivalen löschen?" },
+    frFR = { "Aucun rival correspondant.", "Supprimer %s et toutes les rencontres avec ce rival ?" },
+    esES = { "No se encontraron rivales.", "¿Eliminar a %s y todos los encuentros con este rival?" },
+    itIT = { "Nessun rivale corrispondente.", "Eliminare %s e tutti gli incontri con questo rivale?" },
+    ptBR = { "Nenhum rival encontrado.", "Excluir %s e todos os encontros com esse rival?" },
+    koKR = { "일치하는 라이벌이 없습니다.", "%s 및 이 라이벌과의 모든 기록을 삭제하시겠습니까?" },
+    zhCN = { "未找到匹配的对手。", "删除%s及与此对手的全部交锋记录？" },
+    zhTW = { "未找到符合的對手。", "刪除%s及與此對手的所有交鋒記錄？" },
+}
+searchStrings.enGB = searchStrings.enUS
+searchStrings.esMX = searchStrings.esES
+local search = searchStrings[GetLocale()] or searchStrings.enUS
+addon.L.noMatches, addon.L.deleteConfirm = search[1], search[2]

@@ -2,6 +2,9 @@ local _, addon = ...
 local L, Readable = addon.L, addon.Readable
 local iconPath = "Interface\\Icons\\INV_Misc_Book_11"
 local window, names, details, heading, portrait, summary, wins, losses, status, selected, empty
+local search, remove
+local deletePopup = "NAMES_IN_RED_DELETE_RIVAL"
+local lower = strlower or string.lower
 local buttons, lines = {}, {}
 
 local function Counts(rival)
@@ -126,20 +129,48 @@ local function ShowDetails()
     details:GetParent():SetShown(count > 0)
 end
 
+local function NameMatches(name, query)
+    if query == "" or lower(name):find(query, 1, true) then return true end
+    if not strcmputf8i or not (name:find("[\128-\255]") or query:find("[\128-\255]")) then return false end
+
+    -- Compare only complete UTF-8 characters when the case differs.
+    local starts = {}
+    for position in name:gmatch("()[^\128-\191]") do
+        starts[#starts + 1] = position
+    end
+    starts[#starts + 1] = #name + 1
+    local _, characters = query:gsub("[^\128-\191]", "")
+    for index = 1, #starts - characters do
+        if strcmputf8i(name:sub(starts[index], starts[index + characters] - 1), query) == 0 then
+            return true
+        end
+    end
+    return false
+end
+
 function addon.RefreshBook()
     if not window or not window:IsShown() then
         return
     end
-    local ids = {}
-    for guid in pairs(addon.db.rivals) do
-        ids[#ids + 1] = guid
+    local query = lower(search:GetText():match("^%s*(.-)%s*$"))
+    local ids, selectionVisible = {}, false
+    for guid, rival in pairs(addon.db.rivals) do
+        if NameMatches(rival.displayName, query) then
+            ids[#ids + 1] = guid
+            if guid == selected then selectionVisible = true end
+        end
     end
     table.sort(ids, function(a, b)
         local first, second = addon.db.rivals[a].displayName, addon.db.rivals[b].displayName
         if first == second then return a < b end
         return first < second
     end)
-    if not selected or not addon.db.rivals[selected] then selected = ids[1] end
+    if not selectionVisible then
+        selected = ids[1]
+        details:GetParent():SetVerticalScroll(0)
+    end
+    remove:SetEnabled(selected ~= nil)
+    empty:SetText(query ~= "" and L.noMatches or L.empty)
     for index, guid in ipairs(ids) do
         local button = buttons[index]
         if not button then
@@ -282,14 +313,14 @@ local function ToggleBook()
         end
 
         ProfessionBackdrop(window)
-        local left = Pane(window, 12, -65, 300, 451)
+        local left = Pane(window, 5, -65, 307, 485)
         local listArt = left:CreateTexture(nil, "BACKGROUND")
         listArt:SetAllPoints()
         addon.ApplyAtlas(listArt, "Professions-background-summarylist")
-        local right = Pane(window, 312, -65, 376, 451)
+        local right = Pane(window, 312, -65, 383, 454)
         DetailBackground(right)
-        names = Scroll(left, 7, -12, 273, 425, true)
-        details = Scroll(right, 25, -219, 318, 210)
+        names = Scroll(left, 9, -42, 273, 431, true)
+        details = Scroll(right, 25, -219, 318, 215)
         summary = CreateFrame("Frame", nil, right)
         summary:SetAllPoints()
         local rim
@@ -310,20 +341,71 @@ local function ToggleBook()
         empty:SetWidth(305)
         empty:SetText(L.empty)
 
+        search = CreateFrame("EditBox", nil, left, "SearchBoxTemplate")
+        search:SetSize(245, 22)
+        search:SetPoint("TOPLEFT", 13, -12)
+        search:SetMaxLetters(96)
+        search:HookScript("OnTextChanged", function()
+            names:GetParent():SetVerticalScroll(0)
+            addon.RefreshBook()
+        end)
+
         local openDialog
-        local add = CreateFrame("Button", nil, window, "SharedButtonSmallTemplate")
-        add:SetPoint("TOP", left, "BOTTOM", 0, -6)
-        add:SetSize(162, 28)
-        add:SetText(L.add)
+        local add = CreateFrame("Button", nil, left, "SharedButtonSmallTemplate")
+        add:SetPoint("LEFT", search, "RIGHT", 8, 0)
+        add:SetSize(23, 23)
+        local addIcon = add:CreateTexture(nil, "OVERLAY")
+        addIcon:SetPoint("CENTER")
+        addIcon:SetSize(16, 16)
+        if not addon.ApplyAtlas(addIcon, "friends-icon-addFriend") then
+            add:SetText("+")
+        end
+        add:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(L.addTitle)
+            GameTooltip:Show()
+        end)
+        add:SetScript("OnLeave", function(self)
+            if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
+        end)
         add:SetScript("OnClick", function()
+            StaticPopup_Hide(deletePopup)
             if not openDialog then
                 openDialog = addon.CreateManualDialog(window, function(id)
                     selected = id
+                    search:SetText("")
                     details:GetParent():SetVerticalScroll(0)
                     addon.RefreshBook()
                 end)
             end
             openDialog()
+        end)
+
+        StaticPopupDialogs[deletePopup] = {
+            text = L.deleteConfirm,
+            button1 = DELETE,
+            button2 = CANCEL,
+            timeout = 0,
+            whileDead = true,
+            hideOnEscape = true,
+            OnAccept = function(_, id)
+                addon.Ledger.Remove(addon.db, id)
+                addon.RefreshBook()
+            end,
+        }
+        remove = CreateFrame("Button", nil, window, "SharedButtonSmallTemplate")
+        remove:SetPoint("TOPRIGHT", right, "BOTTOMRIGHT", -5, -3)
+        remove:SetSize(128, 28)
+        remove:SetText(DELETE)
+        remove:SetScript("OnClick", function()
+            local rival = selected and addon.Ledger.Find(addon.db, selected)
+            if rival then
+                StaticPopup_Show(deletePopup, rival.displayName, nil, selected)
+            end
+        end)
+        window:HookScript("OnHide", function()
+            search:ClearFocus()
+            StaticPopup_Hide(deletePopup)
         end)
     elseif window:IsShown() then
         window:Hide()

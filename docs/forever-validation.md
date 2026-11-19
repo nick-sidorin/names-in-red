@@ -158,3 +158,10 @@ a proportional Engineering illustration with feathered edges in the lower right,
 and the separate `common-insideframe` trim from Camelot's schematic XML. The portrait uses the
 add dialog's circle mask and rim. UV insets remove the inventory bevel from
 the fallback icon. Verify these surfaces in Forever.
+
+The roster toolbar uses the professions search box and the native Friends
+add icon. Check UTF-8 name filtering and clearing, selecting the first result,
+and adding a manual rival while filtered. The native delete confirmation names
+the selected rival and captures its ID when opened. Verify that cancel leaves
+the record intact and accepting removes only that record, including when two
+rivals share a display name.
