@@ -192,10 +192,20 @@ its controls and shows short localized GameTooltip descriptions.
 ## Skirmish cards and the world map
 
 The book uses `PanelTopTabButtonTemplate` from Forever
-`Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml`. History uses the
-same `ScrollFrameTemplate` as the roster, with cards reused as the viewport
-scrolls. Check both tabs on 1.60.1 with empty, legacy, manual and seeded
-histories. Scroll through a long history, then switch rivals while scrolled.
+`Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml`. The tab textures are
+bottom-anchored by `PanelTopTabButtonMixin:OnLoad`. The book places the tabs
+above a sibling pane whose `common-insideframe` trim covers their lower edge.
+Camelot's `SchematicFormCraftingTemplate` in
+`Blizzard_ProfessionsRecipeSchematicForm.xml` uses that same rim on the BORDER
+layer. The book fades the left side of its illustration into the recipe
+background using the texture gradient API. Check that the upper rim is
+continuous in both tab states and that the illustration has no visible seam
+at its left edge, including at non-default UI scales.
+
+History uses the same `ScrollFrameTemplate` as the roster, with cards reused
+as the viewport scrolls. Check both tabs on 1.60.1 with empty, legacy, manual
+and seeded histories. Scroll through a long history, then switch rivals while
+scrolled.
 
 For the map diamond, see `WaypointLocationDataProviderMixin:HandleClick` and
 the MAPPIN slash command in

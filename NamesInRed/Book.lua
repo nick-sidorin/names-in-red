@@ -294,15 +294,25 @@ local function DetailBackground(parent)
         background:SetColorTexture(0.07, 0.048, 0.034, 1)
     end
 
-    local illustration = parent:CreateTexture(nil, "BACKGROUND", nil, 1)
-    local aspect = 341 / 512
+    local sourceWidth = 512
+    local leftEdge, fadeEnd = 171, 265
+    local aspect = (sourceWidth - leftEdge) / sourceWidth
     local height = math.min(parent:GetHeight() - 12, (parent:GetWidth() - 12) / aspect)
-    illustration:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\Battlefield.tga")
-    -- The tall painting is stored in a square texture with padding on the left.
-    illustration:SetTexCoord(1 - aspect, 1, 0, 1)
-    illustration:SetSize(height * aspect, height)
+    local function PaintingSlice(first, last)
+        local texture = parent:CreateTexture(nil, "BACKGROUND", nil, 1)
+        texture:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\Battlefield.tga")
+        texture:SetTexCoord(first / sourceWidth, last / sourceWidth, 0, 1)
+        texture:SetSize(height * (last - first) / sourceWidth, height)
+        texture:SetAlpha(0.88)
+        return texture
+    end
+
+    local illustration = PaintingSlice(fadeEnd, sourceWidth)
     illustration:SetPoint("BOTTOMRIGHT", -6, 6)
-    illustration:SetAlpha(0.88)
+    -- Feather the painted underlay into the recipe background.
+    local leftFade = PaintingSlice(leftEdge, fadeEnd)
+    leftFade:SetPoint("BOTTOMRIGHT", illustration, "BOTTOMLEFT")
+    leftFade:SetGradient("HORIZONTAL", CreateColor(1, 1, 1, 0), CreateColor(1, 1, 1, 1))
 
     local trim = parent:CreateTexture(nil, "BORDER")
     trim:SetAllPoints()
@@ -366,14 +376,17 @@ local function ToggleBook()
         addon.ApplyAtlas(listArt, "Professions-background-summarylist")
         local contentTop, footerInset, removeHeight = 65, 10, 28
         local panelGap = 4
-        local rightHeight = window:GetHeight() - contentTop - removeHeight - footerInset - panelGap
-        local right = Pane(window, 312, -contentTop, 383, rightHeight)
+        local rightTop = contentTop + 30
+        local rightHeight = window:GetHeight() - rightTop - removeHeight - footerInset - panelGap
+        local right = Pane(window, 312, -rightTop, 383, rightHeight)
         DetailBackground(right)
         names = Scroll(left, 9, -42, 273, 431, false)
-        tabBar = CreateFrame("Frame", nil, right)
-        tabBar:SetPoint("TOPLEFT", 24, -9)
-        tabBar:SetPoint("TOPRIGHT", -24, -9)
+        tabBar = CreateFrame("Frame", nil, window)
+        tabBar:SetPoint("BOTTOMLEFT", right, "TOPLEFT", 24, -4)
+        tabBar:SetPoint("BOTTOMRIGHT", right, "TOPRIGHT", -24, -4)
         tabBar:SetHeight(32)
+        -- The pane draws over the bottom of the tabs where they meet its trim.
+        right:SetFrameLevel(tabBar:GetFrameLevel() + 2)
         for id, label in ipairs({ L.infoTab, L.historyTab }) do
             local tab = CreateFrame("Button", nil, tabBar, "PanelTopTabButtonTemplate")
             tab:SetID(id)
@@ -388,18 +401,18 @@ local function ToggleBook()
         PanelTemplates_SetNumTabs(tabBar, 2)
         PanelTemplates_SetTab(tabBar, infoTab)
 
-        local historyTop = 75
+        local historyTop = 45
         local historyScroll
         details, historyScroll = Scroll(right, 25, -historyTop, cardWidth, rightHeight - historyTop - 12, true)
         historyScroll:HookScript("OnVerticalScroll", RenderHistory)
         historyTitle = right:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-        historyTitle:SetPoint("TOPLEFT", 25, -53)
+        historyTitle:SetPoint("TOPLEFT", 25, -23)
         historyEmpty = right:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         historyEmpty:SetPoint("CENTER", 0, 5)
         historyEmpty:SetText(L.noSkirmishes)
 
         summary = CreateFrame("Frame", nil, right)
-        summary:SetPoint("TOPLEFT", 0, -39)
+        summary:SetPoint("TOPLEFT", 0, -9)
         summary:SetPoint("BOTTOMRIGHT")
         local rim
         portrait, rim = addon.CreateRoundIcon(summary)
