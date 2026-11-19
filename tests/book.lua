@@ -45,3 +45,25 @@ assert(totalLines == 0)
 callback(GameTooltip, { guid = "Player-test" })
 assert(totalLines == 2)
 print("Rival tooltip and locale checks passed")
+
+assert(loadfile("NamesInRed/Ledger.lua"))("NamesInRed", addon)
+function UnitIsPlayer(unit) return unit == "target" end
+function UnitName() return "Test Rival" end
+local targetGUID = "Player-target"
+function UnitGUID(unit) return unit == "target" and targetGUID or "Player-self" end
+
+local target = assert(addon.ManualTarget())
+targetGUID = "Player-other"
+local id = addon.AddManualEncounter(target.name, "killsAgainstThem", target)
+assert(id == "Player-target")
+assert(addon.db.rivals[id].addedManually and addon.db.rivals[id].killsAgainstThem == 1)
+assert(addon.AddManualEncounter("Different Rival", "deathsToThem", target) == "manual:different rival")
+callback(GameTooltip, { guid = "Player-target" })
+assert(totalLines == 4)
+callback(GameTooltip, { guid = "Player-other" })
+assert(totalLines == 4)
+targetGUID = secret
+assert(addon.ManualTarget() == nil)
+targetGUID = "Player-self"
+assert(addon.ManualTarget() == nil)
+print("Target-linked manual tooltip checks passed")

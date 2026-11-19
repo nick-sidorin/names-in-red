@@ -100,7 +100,7 @@ local function ShowDetails()
     summary:SetShown(rival ~= nil)
     if rival then
         heading:SetText(rival.displayName)
-        local manual = selected:match("^manual:") or selected:match("^seed:manual:")
+        local manual = rival.addedManually or selected:match("^manual:") or selected:match("^seed:manual:")
         local description = {}
         if rival.raceLabel then description[#description + 1] = rival.raceLabel end
         if rival.classLabel then description[#description + 1] = rival.classLabel end

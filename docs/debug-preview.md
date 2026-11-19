@@ -80,3 +80,10 @@ book. Twenty-four have race and class information and several dated encounters
 with levels, zones and coordinates. Six are sample manual records. Running the
 command again refreshes those sample entries. Run `/nirdebug clear-seed` to
 remove only the sample roster. Your real and manually added records are kept.
+
+## Testing the player tooltip
+
+Target another player, open Add an encounter, keep the prefilled name, and
+confirm an outcome. The entry uses the selected player's GUID and can appear
+in their standard unit tooltip. Typed names without a matching target snapshot
+remain name-only records. You can delete the test record afterward in the book.

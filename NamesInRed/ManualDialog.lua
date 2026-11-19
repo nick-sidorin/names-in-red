@@ -115,7 +115,7 @@ function addon.CreateManualDialog(parent, onAdded)
     cancel:SetSize(150, 28)
     cancel:SetText(CANCEL)
 
-    local selected, win, loss
+    local selected, target, win, loss
     local function Update()
         win:SetSelected(selected == "killsAgainstThem")
         loss:SetSelected(selected == "deathsToThem")
@@ -128,7 +128,7 @@ function addon.CreateManualDialog(parent, onAdded)
     win = Choice(dialog, 24, L.win, "Interface\\AddOns\\NamesInRed\\Art\\Victory.tga", "killsAgainstThem", Choose)
     loss = Choice(dialog, 186, L.loss, "Interface\\AddOns\\NamesInRed\\Art\\Gravestone.tga", "deathsToThem", Choose)
     local function Save()
-        local id = addon.AddManualEncounter(edit:GetText(), selected)
+        local id = addon.AddManualEncounter(edit:GetText(), selected, target)
         if id then
             shield:Hide()
             onAdded(id)
@@ -154,7 +154,8 @@ function addon.CreateManualDialog(parent, onAdded)
 
     return function()
         selected = nil
-        edit:SetText("")
+        target = addon.ManualTarget()
+        edit:SetText(target and target.name or "")
         Update()
         shield:Show()
         dialog:Show()

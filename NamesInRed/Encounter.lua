@@ -64,7 +64,11 @@ function addon.RivalAppearance(guid)
 end
 
 function addon.RecordEncounter(guid, name, direction, context)
-    local rival = addon.Ledger.Add(addon.db, guid, name)
+    local rival = addon.Ledger.Find(addon.db, guid)
+    if not rival then
+        rival = addon.Ledger.Add(addon.db, guid, name)
+        if context.manual then rival.addedManually = true end
+    end
     rival.displayName = name
     local race, sex, class, raceLabel, classLabel = addon.RivalAppearance(guid)
     if race then rival.race, rival.sex = race, sex end
@@ -94,13 +98,26 @@ function addon.ManualName(input)
     return name
 end
 
-function addon.AddManualEncounter(input, direction)
+function addon.ManualTarget()
+    if SafeRead(UnitIsPlayer, "target") ~= true then return end
+    local guid = SafeRead(UnitGUID, "target")
+    local playerGUID = SafeRead(UnitGUID, "player")
+    if type(guid) ~= "string" or not guid:match("^Player%-.+")
+        or type(playerGUID) ~= "string" or guid == playerGUID then
+        return
+    end
+    local name = addon.ManualName(SafeRead(UnitName, "target"))
+    if name then return { guid = guid, name = name } end
+end
+
+function addon.AddManualEncounter(input, direction, target)
     local name = addon.ManualName(input)
     if not name or (direction ~= "killsAgainstThem" and direction ~= "deathsToThem") then
         return nil
     end
-    -- A typed name alone cannot identify a GUID or its realm.
-    local id = "manual:" .. (strlower or string.lower)(name)
+    -- Bind only the name supplied by the target snapshot.
+    local id = target and target.name == name and target.guid
+        or ("manual:" .. (strlower or string.lower)(name))
     addon.RecordEncounter(id, name, direction, { manual = true })
     return id
 end
