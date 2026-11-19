@@ -40,10 +40,12 @@ local function UpdatePortrait(rival)
         local knownRace, knownSex, knownClass = addon.RivalAppearance(selected)
         race, sex, class = knownRace, knownSex, class or knownClass
     end
-    if race and (sex == 2 or sex == 3) and GetRaceAtlas
-        and addon.ApplyAtlas(portrait, GetRaceAtlas(race, sex == 3 and "female" or "male")) then
-        portrait:SetSize(44, 44)
-        return
+    if race and (sex == 2 or sex == 3) and GetRaceAtlas then
+        local gender = sex == 3 and "female" or "male"
+        if addon.ApplyAtlas(portrait, GetRaceAtlas(race, gender, true))
+            or addon.ApplyAtlas(portrait, GetRaceAtlas(race, gender)) then
+            return
+        end
     end
     local coords = CLASS_ICON_TCOORDS and class and CLASS_ICON_TCOORDS[class]
     if coords then
@@ -58,24 +60,31 @@ local function UpdatePortrait(rival)
 end
 
 local function Stat(parent, y, art, tooltipText)
-    local slot = CreateFrame("Button", nil, parent)
+    local slot
+    if ProfessionsButtonMixin then
+        local ok, button = pcall(CreateFrame, "ItemButton", nil, parent, "ProfessionsButtonTemplate")
+        if ok then slot = button end
+    end
+    if not slot then
+        slot = CreateFrame("Button", nil, parent)
+        local background = slot:CreateTexture(nil, "BACKGROUND")
+        background:SetAllPoints(slot)
+        addon.ApplyAtlas(background, "Professions-Slot-bg")
+        slot.Icon = slot:CreateTexture(nil, "ARTWORK")
+        slot.IconBorder = slot:CreateTexture(nil, "OVERLAY")
+        addon.ApplyAtlas(slot.IconBorder, "Professions-Slot-Frame")
+    end
     slot:SetPoint("TOPLEFT", 25, y)
-    slot:SetSize(43, 43)
-    local border = slot:CreateTexture(nil, "BORDER")
-    border:SetAllPoints(slot)
-    border:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\StatFrame.tga")
-    border:SetSnapToPixelGrid(false)
-    local icon = slot:CreateTexture(nil, "ARTWORK")
-    icon:SetPoint("TOPLEFT", border, "TOPLEFT", 5, -5)
-    icon:SetPoint("BOTTOMRIGHT", border, "BOTTOMRIGHT", -5, 5)
-    icon:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\" .. art .. ".tga")
-    icon:SetSnapToPixelGrid(false)
-    local highlight = slot:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetAllPoints(border)
-    highlight:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\StatHover.tga")
-    highlight:SetSnapToPixelGrid(false)
-    highlight:SetBlendMode("BLEND")
-    highlight:SetAlpha(0.65)
+    slot:SetSize(39, 39)
+    slot.Icon:ClearAllPoints()
+    slot.Icon:SetAllPoints(slot)
+    slot.Icon:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\" .. art .. ".tga")
+    slot.IconBorder:ClearAllPoints()
+    slot.IconBorder:SetPoint("TOPLEFT", slot.Icon, "TOPLEFT")
+    slot.IconBorder:SetPoint("BOTTOMRIGHT", slot.Icon, "BOTTOMRIGHT", 1, -1)
+    slot.IconBorder:Show()
+    -- Match the ordinary reagent hover; bags-newitem is reserved for allocation state.
+    slot:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
 
     slot:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -363,7 +372,7 @@ local function ToggleBook()
         summary = CreateFrame("Frame", nil, right)
         summary:SetAllPoints()
         local rim
-        portrait, rim = addon.CreateRoundIcon(summary, true)
+        portrait, rim = addon.CreateRoundIcon(summary)
         rim:SetPoint("TOPLEFT", 17.5, -17.5)
         local badgeSize = 24
         local badge = CreateFrame("Frame", nil, summary)
@@ -392,8 +401,11 @@ local function ToggleBook()
         local statsTitle = summary:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         statsTitle:SetPoint("TOPLEFT", 25, -92)
         statsTitle:SetText(L.statistics)
+        if not ProfessionsButtonMixin and C_AddOns and C_AddOns.LoadAddOn then
+            pcall(C_AddOns.LoadAddOn, "Blizzard_ProfessionsTemplates")
+        end
         wins = Stat(summary, -112, "CrossedSwords", L.winTooltip)
-        losses = Stat(summary, -162, "StatSkull", L.lossTooltip)
+        losses = Stat(summary, -162, "Skull", L.lossTooltip)
         empty = right:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         empty:SetPoint("CENTER", 0, 5)
         empty:SetWidth(305)
