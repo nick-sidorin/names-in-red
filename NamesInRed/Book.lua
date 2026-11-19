@@ -34,7 +34,7 @@ local function Scroll(parent, x, y, width, height, minimal)
 end
 
 local function UpdatePortrait(rival)
-    portrait:SetSize(53, 53)
+    portrait:SetSize(52, 52)
     local race, sex, class = rival.race, rival.sex, rival.class
     if not race then
         local knownRace, knownSex, knownClass = addon.RivalAppearance(selected)
@@ -51,7 +51,7 @@ local function UpdatePortrait(rival)
     else
         portrait:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
         portrait:SetTexCoord(0, 1, 0, 1)
-        portrait:SetSize(43, 43)
+        portrait:SetSize(46, 46)
     end
 end
 
@@ -184,18 +184,16 @@ local function ProfessionBackdrop(parent)
     local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas)
     if not info or info.width <= 0 or info.height <= 0 then return end
 
-    -- Use the entire crafting background, including its own header edge.
+    -- Compress the original top band, including its lower edge, into the book header.
     local width = parent:GetWidth() - 6
     local fullHeight = info.height * width / info.width
-    local height = math.min(fullHeight, parent:GetHeight() - 24)
+    local sourceBand = math.min(1, 98 / fullHeight)
     local art = parent:CreateTexture(nil, "BACKGROUND", nil, -3)
     art:SetPoint("TOPLEFT", 3, -21)
-    art:SetSize(width, height)
+    art:SetSize(width, 44)
     art:SetAtlas(atlas)
-    if height < fullHeight then
-        art:SetTexCoord(info.leftTexCoord, info.rightTexCoord, info.topTexCoord,
-            info.topTexCoord + height / fullHeight * (info.bottomTexCoord - info.topTexCoord))
-    end
+    art:SetTexCoord(info.leftTexCoord, info.rightTexCoord, info.topTexCoord,
+        info.topTexCoord + sourceBand * (info.bottomTexCoord - info.topTexCoord))
 end
 
 local function Pane(parent, x, y, width, height)
@@ -213,11 +211,19 @@ local function DetailBackground(parent, width, height)
     }) do
         local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas)
         if info and info.width > 0 and info.height > 0 then
-            local scale = math.min(width / info.width, height / info.height)
+            local scale = math.max(width / info.width, height / info.height)
             local art = parent:CreateTexture(nil, "BACKGROUND")
             art:SetAtlas(atlas)
-            art:SetSize(info.width * scale, info.height * scale)
-            art:SetPoint("BOTTOMRIGHT")
+            -- Crop from the top and left to keep the bottom-right illustration
+            -- anchored while filling the pane at the atlas's aspect ratio.
+            art:SetAllPoints()
+            local horizontal = width / (info.width * scale)
+            local vertical = height / (info.height * scale)
+            art:SetTexCoord(
+                info.rightTexCoord - horizontal * (info.rightTexCoord - info.leftTexCoord),
+                info.rightTexCoord,
+                info.bottomTexCoord - vertical * (info.bottomTexCoord - info.topTexCoord),
+                info.bottomTexCoord)
             return
         end
     end
@@ -284,21 +290,9 @@ local function ToggleBook()
         details = Scroll(right, 25, -219, 318, 210)
         summary = CreateFrame("Frame", nil, right)
         summary:SetAllPoints()
-        portrait = summary:CreateTexture(nil, "ARTWORK")
-        portrait:SetSize(53, 53)
-        local mask = summary:CreateMaskTexture()
-        mask:SetPoint("TOPLEFT", portrait, "TOPLEFT", 3, -3)
-        mask:SetPoint("BOTTOMRIGHT", portrait, "BOTTOMRIGHT", -3, 3)
-        mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-        portrait:AddMaskTexture(mask)
-        local rim = summary:CreateTexture(nil, "OVERLAY")
-        rim:SetPoint("TOPLEFT", 15.5, -15.5)
-        portrait:SetPoint("CENTER", rim)
-        rim:SetSize(68, 68)
-        if not addon.ApplyAtlas(rim, "auctionhouse-itemicon-border-white") then
-            addon.ApplyAtlas(rim, "Mode-Selection-Ring")
-        end
-        rim:SetVertexColor(0.81, 0.66, 0.48)
+        local rim
+        portrait, rim = addon.CreateRoundIcon(summary)
+        rim:SetPoint("TOPLEFT", 17.5, -17.5)
         heading = summary:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
         heading:SetPoint("TOPLEFT", 90, -26)
         heading:SetWidth(250)

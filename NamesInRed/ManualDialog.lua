@@ -8,28 +8,33 @@ function addon.ApplyAtlas(texture, atlas)
     end
 end
 
-local function Choice(parent, x, title, texture, direction, choose)
-    local button = CreateFrame("Button", nil, parent)
-    button:SetSize(150, 102)
-    button:SetPoint("TOPLEFT", x, -111)
-
-    local icon = button:CreateTexture(nil, "ARTWORK")
+function addon.CreateRoundIcon(parent)
+    local icon = parent:CreateTexture(nil, "ARTWORK")
     icon:SetSize(52, 52)
-    icon:SetPoint("TOP", 0, -9)
-    icon:SetTexture(texture)
-    local mask = button:CreateMaskTexture()
+    local mask = parent:CreateMaskTexture()
     mask:SetAllPoints(icon)
     if not addon.ApplyAtlas(mask, "CircleMask") then
         mask:SetTexture("Interface\\CHARACTERFRAME\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
     end
     icon:AddMaskTexture(mask)
-    local ring = button:CreateTexture(nil, "OVERLAY")
+    local ring = parent:CreateTexture(nil, "OVERLAY")
     ring:SetSize(64, 64)
-    ring:SetPoint("CENTER", icon)
+    icon:SetPoint("CENTER", ring)
     if not addon.ApplyAtlas(ring, "Mode-Selection-Ring") then
         ring:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
         ring:SetTexCoord(0, 0.68, 0, 0.68)
     end
+    return icon, ring
+end
+
+local function Choice(parent, x, title, texture, direction, choose)
+    local button = CreateFrame("Button", nil, parent)
+    button:SetSize(150, 102)
+    button:SetPoint("TOPLEFT", x, -111)
+
+    local icon, ring = addon.CreateRoundIcon(button)
+    ring:SetPoint("TOP", 0, -3)
+    icon:SetTexture(texture)
     local glow = button:CreateTexture(nil, "OVERLAY", nil, 1)
     glow:SetSize(69, 69)
     glow:SetPoint("CENTER", icon)

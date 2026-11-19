@@ -152,7 +152,7 @@ Camelot's profession overrides in `Blizzard_ProfessionsFrame.lua` and
 schematic NineSlice anchors. The book follows that treatment and uses the
 recipe atlas for the right panel's ornamental frame.
 
-The book uses Camelot's full `Profession-Background-Template2` art, including
-its header edge. Blacksmithing and Engineering artwork stays at its original
-aspect ratio. The centered fallback portrait and its circular mask resize
-together. Verify the header, artwork and fallback portrait in Forever.
+The book uses the top band of Camelot's `Profession-Background-Template2`
+atlas, including its lower edge. The recipe artwork fills the details panel
+with a bottom-right crop at the original aspect ratio. The portrait uses the
+same circle mask and rim as the add dialog. Verify these surfaces in Forever.
