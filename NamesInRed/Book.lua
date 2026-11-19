@@ -57,28 +57,22 @@ local function UpdatePortrait(rival)
 end
 
 local function Stat(parent, y, art, tooltipText)
-    local slotSize, iconSize = 43, 33
     local slot = CreateFrame("Button", nil, parent)
     slot:SetPoint("TOPLEFT", 25, y)
-    slot:SetSize(slotSize, slotSize)
-    local background = slot:CreateTexture(nil, "BACKGROUND")
-    background:SetAllPoints()
-    if not addon.ApplyAtlas(background, "Professions-Slot-bg") then
-        background:SetColorTexture(0.04, 0.03, 0.025)
-    end
+    slot:SetSize(43, 43)
     local border = slot:CreateTexture(nil, "BORDER")
-    border:SetAllPoints()
-    if not addon.ApplyAtlas(border, "Professions-Slot-Frame") then
-        border:SetTexture("Interface\\Buttons\\UI-Quickslot2")
-    end
+    border:SetAllPoints(slot)
+    border:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\StatFrame.tga")
+    border:SetSnapToPixelGrid(false)
     local icon = slot:CreateTexture(nil, "ARTWORK")
-    icon:SetPoint("CENTER", slot, "CENTER")
-    icon:SetSize(iconSize, iconSize)
+    icon:SetPoint("TOPLEFT", border, "TOPLEFT", 5, -5)
+    icon:SetPoint("BOTTOMRIGHT", border, "BOTTOMRIGHT", -5, 5)
     icon:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\" .. art .. ".tga")
-    icon:SetTexCoord(0, 1, 0, 1)
+    icon:SetSnapToPixelGrid(false)
     local highlight = slot:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetAllPoints(slot)
+    highlight:SetAllPoints(border)
     highlight:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\StatHover.tga")
+    highlight:SetSnapToPixelGrid(false)
     highlight:SetBlendMode("BLEND")
     highlight:SetAlpha(0.65)
 
