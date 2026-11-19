@@ -92,6 +92,15 @@ published evidence.
 
 ## First live evidence
 
+For the nameplate preview, Camelot places the raid marker left of the health
+bar and the level on its right. BigDebuffs attaches side indicators outside
+the visible bar or name. Names in Red anchors its own label just beyond the
+rightmost level badge to leave the name, aura row and raid marker clear.
+See the [Camelot level template](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_NamePlates/Camelot/Blizzard_NamePlateLevelFrame.xml)
+and [BigDebuffs attachment code](https://github.com/jordonwow/bigdebuffs/blob/38690ed9d782c01c137779b7998dbe905c740fda/BigDebuffs.lua#L1596-L1630).
+
+### Open-world killing blows
+
 A 1.60.1.70959 open-world sample on ruRU exposed both PARTY_KILL GUIDs in
 combat. The attacker matched the local player and the victim matched an
 attackable player on the target token. The HK total increased from 0 to 1

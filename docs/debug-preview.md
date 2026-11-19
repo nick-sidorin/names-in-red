@@ -99,3 +99,7 @@ first name or no name, the encounter is saved and its rival stays out of the
 book and tooltip until the full name is available. Targeting or hovering over
 the same player can fill in the name without adding another encounter. This
 also completes older half-name records. New manual entries require both names.
+
+Visible player nameplates show the nonzero counters just to the right of the
+level badge, or beside the bar or name when no level badge is shown. Plates
+whose identity is restricted do not show counters.

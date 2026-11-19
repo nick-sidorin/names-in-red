@@ -9,6 +9,14 @@ local deletePopup = "NAMES_IN_RED_DELETE_RIVAL"
 local lower = strlower or string.lower
 local buttons, lines = {}, {}
 
+function addon.RivalCounters(rival, hideZero)
+    local wins, losses
+    if not hideZero or rival.killsAgainstThem > 0 then wins = victoryGlyph .. " " .. rival.killsAgainstThem end
+    if not hideZero or rival.deathsToThem > 0 then losses = deathGlyph .. " " .. rival.deathsToThem end
+    if wins and losses then return wins .. "   " .. losses end
+    return wins or losses
+end
+
 local function Scroll(parent, x, y, width, height, minimal)
     local template = minimal and "ScrollFrameTemplate" or "UIPanelScrollFrameTemplate"
     local frame = CreateFrame("ScrollFrame", nil, parent, template)
@@ -370,7 +378,9 @@ local function ToggleBook()
         if addon.ApplyAtlas(circle, "UI-HUD-UnitFrame-SmallCircle") then
             levelBadge = badge
             badge.label = badge:CreateFontString(nil, "OVERLAY", "WhiteNormalNumberFont")
-            badge.label:SetPoint("CENTER", 0, -0.5)
+            badge.label:SetAllPoints(circle)
+            badge.label:SetJustifyH("CENTER")
+            badge.label:SetJustifyV("MIDDLE")
         end
         heading = summary:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
         heading:SetPoint("TOPLEFT", 90, -26)
@@ -439,6 +449,7 @@ local function ToggleBook()
             OnAccept = function(_, id)
                 addon.Ledger.Remove(addon.db, id)
                 addon.RefreshBook()
+                if addon.RefreshNameplates then addon.RefreshNameplates() end
             end,
         }
         remove = CreateFrame("Button", nil, window, "SharedButtonSmallTemplate")
@@ -539,10 +550,8 @@ local function TooltipRival(tooltip, data)
     if type(data) == "table" and (not canaccesstable or canaccesstable(data)) then
         guid = Readable(data.guid)
     end
-    local rivals = addon.db.rivals
-    if type(guid) == "string" and rivals[guid] then
-        local rival = rivals[guid]
-        return addon.HasFullName(rival.displayName) and rival or nil
+    if type(guid) == "string" and addon.db.rivals[guid] then
+        return addon.FindVisibleRival(guid)
     end
 
     local unit
@@ -555,25 +564,7 @@ local function TooltipRival(tooltip, data)
             guid = guid or unitGUID
         end
     end
-    if type(guid) == "string" and rivals[guid] then
-        local rival = rivals[guid]
-        return addon.HasFullName(rival.displayName) and rival or nil
-    end
-    if type(unit) ~= "string" then return end
-
-    local name = addon.UnitPlayerName(unit)
-    if not addon.HasFullName(name) then return end
-
-    -- Name-only records are eligible for display, without linking or merging them.
-    local matched
-    for id, rival in pairs(rivals) do
-        local stored = not id:match("^seed:") and addon.ManualName(rival.displayName)
-        if stored and (lower(stored) == lower(name) or (strcmputf8i and strcmputf8i(stored, name) == 0)) then
-            if matched or not id:match("^manual:") then return end
-            matched = rival
-        end
-    end
-    return matched
+    return addon.FindVisibleRival(guid, unit)
 end
 
 if TooltipDataProcessor and Enum and Enum.TooltipDataType then
@@ -583,8 +574,7 @@ if TooltipDataProcessor and Enum and Enum.TooltipDataType then
         if rival and (rival.killsAgainstThem > 0 or rival.deathsToThem > 0) then
             tooltip:AddLine(" ")
             tooltip:AddLine(addon.title, 1, 0.82, 0)
-            local counts = ("%s  %d     %s  %d"):format(victoryGlyph, rival.killsAgainstThem, deathGlyph, rival.deathsToThem)
-            tooltip:AddLine(counts, 1, 1, 1)
+            tooltip:AddLine(addon.RivalCounters(rival), 1, 1, 1)
         end
     end)
 end

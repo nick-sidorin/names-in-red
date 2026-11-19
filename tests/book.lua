@@ -51,7 +51,7 @@ assert(tooltipLines[2] == addon.title)
 local art = "|TInterface\\AddOns\\NamesInRed\\Art\\"
 local victory = art .. "TooltipVictory.tga:14:14:0:1|t"
 local death = art .. "TooltipGravestone.tga:14:14:0:1|t"
-assert(tooltipLines[3] == victory .. "  2     " .. death .. "  1")
+assert(tooltipLines[3] == victory .. " 2   " .. death .. " 1")
 print("Rival tooltip and locale checks passed")
 
 assert(loadfile("NamesInRed/Ledger.lua"))("NamesInRed", addon)
@@ -87,7 +87,7 @@ local manualRival = addon.db.rivals[manualID]
 function GameTooltip:GetUnit() return "Айро", "mouseover", "Player-ayro" end
 callback(GameTooltip, { guid = "Player-ayro" })
 assert(#tooltipLines == 9)
-assert(tooltipLines[9] == victory .. "  0     " .. death .. "  1")
+assert(tooltipLines[9] == victory .. " 0   " .. death .. " 1")
 assert(addon.db.rivals[manualID] == manualRival and manualRival.deathsToThem == 1)
 assert(addon.db.rivals["Player-ayro"] == nil)
 surname = nil

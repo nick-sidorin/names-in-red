@@ -90,6 +90,7 @@ function addon.RecordEncounter(guid, name, direction, context)
     if addon.RefreshBook then
         addon.RefreshBook()
     end
+    if addon.RefreshNameplates then addon.RefreshNameplates() end
 end
 
 function addon.ManualName(input)
@@ -105,6 +106,29 @@ end
 
 function addon.HasFullName(name)
     return type(name) == "string" and name:find("%S %S") ~= nil
+end
+
+function addon.FindVisibleRival(guid, unit)
+    local rivals = addon.db.rivals
+    local rival = type(guid) == "string" and rivals[guid]
+    if rival then return addon.HasFullName(rival.displayName) and rival or nil end
+    if type(unit) ~= "string" then return end
+
+    local name = addon.UnitPlayerName(unit)
+    if not addon.HasFullName(name) then return end
+
+    -- Only an unambiguous full name can match an entry without a GUID.
+    local lower = strlower or string.lower
+    local key = lower(name)
+    local matched
+    for id, entry in pairs(rivals) do
+        local stored = not id:match("^seed:") and addon.ManualName(entry.displayName)
+        if stored and (lower(stored) == key or (strcmputf8i and strcmputf8i(stored, name) == 0)) then
+            if matched or not id:match("^manual:") then return end
+            matched = entry
+        end
+    end
+    return matched
 end
 
 local function CombineName(given, surname)
@@ -135,6 +159,7 @@ function addon.ResolveRivalName(unit)
     if addon.HasFullName(name) then
         rival.displayName = name
         if addon.RefreshBook then addon.RefreshBook() end
+        if addon.RefreshNameplates then addon.RefreshNameplates() end
     end
 end
 
