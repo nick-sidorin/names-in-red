@@ -378,7 +378,8 @@ local function ToggleBook()
         if addon.ApplyAtlas(circle, "UI-HUD-UnitFrame-SmallCircle") then
             levelBadge = badge
             badge.label = badge:CreateFontString(nil, "OVERLAY", "WhiteNormalNumberFont")
-            badge.label:SetAllPoints(circle)
+            -- Compensate for the numeral glyphs sitting low and left in this atlas.
+            badge.label:SetPoint("CENTER", circle, "CENTER", 1.5, 1)
             badge.label:SetJustifyH("CENTER")
             badge.label:SetJustifyV("MIDDLE")
         end
