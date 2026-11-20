@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Configure CurseForge source packaging for version tags, with the addon folder and its runtime assets at the ZIP root.
+
 ## 0.1.1
 
 - Collect PvP diagnostics automatically in the standard addon. The last 1,000 diagnostic rows are saved locally per character for voluntary sharing when reporting an issue.
