@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Collect PvP diagnostics automatically in the standard addon. The last 1,000 diagnostic rows are saved locally per character for voluntary sharing when reporting an issue.
+
 ## 0.1.0
 
 - First public release for World of Warcraft: Forever 1.60.1.

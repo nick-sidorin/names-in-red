@@ -1,15 +1,41 @@
 # Names in Red
 
-Remember your rivals and revisit your recent open-world PvP fights in World of Warcraft: Forever.
+**Remember who got you. Plan your revenge.**
 
-- **Keep a rival book.** See your kills and deaths against each opponent, their profile, and your full recorded history with them.
-- **Review recent skirmishes.** Browse the latest 100 fights across all opponents and open a rival's profile from the log.
-- **Find the location again.** See the date, zone, coordinates, and character levels when available. Use **Show on Map** to place a waypoint when the recorded location can be resolved.
-- **Recognize familiar names.** See rival counters on nameplates and unit tooltips.
-- **Add a missing fight manually.** Enter a character's full name and select the outcome.
+A personal journal for open-world PvP in **World of Warcraft: Forever**.
 
-Click the crossed-swords button near the minimap to open the journal. Use the tabs on the right edge to switch between rivals and the skirmish history.
+## ✨ Features at a Glance
 
-## Compatibility
+- 📖 **Rival book** — See who you killed, who killed you, and how your rivalry adds up.
+- ⚔️ **Skirmish history** — Browse your latest 100 recorded fights, newest first.
+- 📍 **Map waypoints** — Mark the spot where a fight happened.
+- 💬 **Rival markers** — Recognize familiar opponents on nameplates and see your record with them in their tooltips.
 
-Built for **World of Warcraft: Forever 1.60.1**. The journal is saved separately for each character. Automatic tracking covers confirmed personal killing blows and single-attacker deaths in open-world PvP. If the client withholds an opponent's full name, their fight can appear under **Unknown rival** until the name becomes available.
+Click the **crossed-swords button by the minimap** to open the journal.
+
+## ⚔️ Rivals and Skirmishes
+
+Use the tabs on the right edge of the journal to switch views:
+
+- **Rivals** opens a searchable list. Pick a player to see their profile, your kills and deaths against them, and your last fight. Open **Skirmishes** on their profile to see every recorded encounter with that player.
+- **Skirmish History** brings together recent fights from all opponents. Open a rival's profile directly from their fight card when their full name is known.
+
+Fight cards show the result, date, time, zone, and both character levels when available. Select **Show on map** to open the world map and place a waypoint where the fight happened. If the position can’t be mapped, saved coordinates are still shown when available.
+
+## 📝 What Gets Recorded
+
+The journal is saved separately for each character. In this release, automatic tracking covers confirmed personal killing blows and deaths with a single identified attacker in open-world PvP.
+
+If the client withholds an opponent’s full name, the fight can appear as **Unknown rival** until the addon sees their name. To fill in a missing fight yourself, open the add-skirmish dialog, enter the opponent’s full name, and choose the outcome.
+
+## ℹ️ Compatibility and Support
+
+Built for **World of Warcraft: Forever 1.60.1**.
+
+**[Report a Bug or Suggest a Feature](https://github.com/nick-sidorin/names-in-red/issues)**
+
+For bug reports, include your Forever build, addon version, and what happened.
+
+The addon automatically saves the latest 1,000 diagnostic entries on your computer, separately for each character. These can include character names, identifiers, and honor messages. You can share your saved data with the maintainer when reporting a problem.
+
+**[Source Code](https://github.com/nick-sidorin/names-in-red)**

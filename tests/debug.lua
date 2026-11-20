@@ -39,7 +39,7 @@ local function Event(name, ...)
 end
 
 local function Login(addon)
-    assert(loadfile("debug/Debug.lua"))("NamesInRed", addon)
+    assert(loadfile("NamesInRed/Debug.lua"))("NamesInRed", addon)
     Event("ADDON_LOADED", "OtherAddon")
     Event("ADDON_LOADED", "NamesInRed")
     return NamesInRedDebugDB
@@ -78,6 +78,11 @@ for _ = 1, 1000 do Event("PLAYER_PVP_KILLS_CHANGED", "player") end
 assert(#db.rows == 1000 and db.dropped == 10)
 assert(Login() == db and db.session == 2 and db.rows[1000].kind == "SESSION")
 assert(NamesInRedDB == nil)
+Login({ db = {} })
+SlashCmdList.NAMESINREDDEBUG("seed")
+SlashCmdList.NAMESINREDDEBUG("clear-seed")
+SlashCmdList.NAMESINREDDEBUG("sample")
+assert(db.rows[1000].kind == "MANUAL_SAMPLE")
 print("Debug capture checks passed")
 
 local addon = {}

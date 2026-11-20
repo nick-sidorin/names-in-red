@@ -241,12 +241,10 @@ frame:SetScript("OnEvent", function(self, event, ...)
     SlashCmdList.NAMESINREDDEBUG = function(message)
         if message == "seed" or message == "clear-seed" then
             if not addon or not addon.db then return end
-            local count
-            if message == "seed" then
-                count = addon.AddDebugSeeds(GetServerTime())
-            else
-                count = addon.ClearDebugSeeds()
-            end
+            local seed = message == "seed"
+            local update = addon[seed and "AddDebugSeeds" or "ClearDebugSeeds"]
+            if type(update) ~= "function" then return end
+            local count = update(seed and GetServerTime() or nil)
             if addon.RefreshBook then addon.RefreshBook(message == "seed") end
             print("NamesInRed", message, count)
             return
