@@ -21,7 +21,7 @@ addon.L = { kills = text[1], deaths = text[2], empty = text[3], level = text[4] 
 -- Add button, dialog title, name label, win choice, loss choice, manual marker.
 local manualStrings = {
     enUS = { "Add", "Add an encounter", "Full character name", "I killed them", "They killed me", "Added manually" },
-    ruRU = { "Добавить", "Добавить стычку", "Полное имя персонажа", "Мой фраг", "Меня убили", "Добавлено вручную" },
+    ruRU = { "Добавить", "Добавить стычку", "Полное имя персонажа", "Мой фраг", "Фраг противника", "Добавлено вручную" },
     deDE = { "Hinzufügen", "Begegnung hinzufügen", "Vollständiger Charaktername", "Ich habe gewonnen", "Ich wurde getötet", "Manuell hinzugefügt" },
     frFR = { "Ajouter", "Ajouter une rencontre", "Nom complet du personnage", "J’ai tué ce rival", "Ce rival m’a tué", "Ajouté manuellement" },
     esES = { "Añadir", "Añadir un encuentro", "Nombre completo del personaje", "Derroté al rival", "El rival me derrotó", "Añadido manualmente" },
@@ -56,7 +56,7 @@ addon.L.noMatches, addon.L.deleteConfirm = search[1], search[2]
 
 local statisticsStrings = {
     enUS = { "Statistics", "My wins against this player", "This player’s wins against me" },
-    ruRU = { "Статистика", "Мой фраг", "Меня убили" },
+    ruRU = { "Статистика", "Мой фраг", "Фраг противника" },
     deDE = { "Statistik", "Meine Siege gegen diesen Spieler", "Siege dieses Spielers gegen mich" },
     frFR = { "Statistiques", "Mes victoires contre ce joueur", "Les victoires de ce joueur contre moi" },
     esES = { "Estadísticas", "Mis victorias contra este jugador", "Victorias de este jugador contra mí" },
