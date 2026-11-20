@@ -253,3 +253,10 @@ In Forever, check both side tabs and their hover and selected states, drag to
 the right screen edge, open the history with and without entries, scroll to
 the bottom, switch back to an opponent from the history with a prior roster
 search active, and verify map buttons in both views.
+
+The Rivals tab uses the unrolled parchment from `GuildInfoTab` in
+`Blizzard_Communities/CommunitiesFrame.xml`. History keeps the book icon.
+The addon list, window portraits and minimap use the existing crossed swords.
+The window centers the artwork inside `PortraitFrameTemplate`'s
+`PortraitContainer.CircleMask`; validate that both blade tips and hilts
+remain visible in the window and the minimap button at the live UI scale.

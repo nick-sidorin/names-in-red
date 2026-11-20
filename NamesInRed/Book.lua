@@ -426,7 +426,7 @@ local function CreateRecentCard(parent, width, onMapShown)
 end
 
 local function CreateSideTabs()
-    local icons = { addon.windowIconPath, "Interface\\Icons\\INV_Misc_Book_09" }
+    local icons = { "Interface\\Icons\\INV_Misc_ScrollUnrolled01", "Interface\\Icons\\INV_Misc_Book_09" }
     local labels = { L.rivalsView, L.recentView }
     for view, icon in ipairs(icons) do
         local tab = CreateFrame("Frame", nil, window, "LargeSideTabButtonTemplate")
@@ -462,7 +462,7 @@ local function ToggleBook()
         window:EnableMouse(true)
         window:SetClampedToScreen(true)
         window:SetTitle(addon.title)
-        if window.SetPortraitToAsset then window:SetPortraitToAsset(addon.windowIconPath) end
+        addon.SetBookPortrait(window)
         window.onCloseCallback = function() window:Hide(); return false end
         MakeDraggable(window)
         tinsert(UISpecialFrames, window:GetName())
@@ -685,12 +685,8 @@ local function CreateShortcut()
     background:SetPoint("TOPLEFT", 3, -3)
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetTexture(addon.iconPath)
-    icon:SetSize(20, 20)
-    icon:SetPoint("TOPLEFT", 7, -5)
-    local mask = button:CreateMaskTexture()
-    mask:SetAllPoints(icon)
-    mask:SetTexture("Interface\\CHARACTERFRAME\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-    icon:AddMaskTexture(mask)
+    icon:SetSize(15, 15)
+    icon:SetPoint("CENTER", button, "TOPLEFT", 17, -15)
     local border = button:CreateTexture(nil, "OVERLAY")
     border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
     border:SetSize(53, 53)

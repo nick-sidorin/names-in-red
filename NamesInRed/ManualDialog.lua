@@ -8,6 +8,17 @@ function addon.ApplyAtlas(texture, atlas)
     end
 end
 
+function addon.SetBookPortrait(frame)
+    local portrait = frame:GetPortrait()
+    local container = frame.PortraitContainer
+    portrait:SetColorTexture(0.02, 0.03, 0.055, 1)
+    local icon = container:CreateTexture(nil, "OVERLAY", nil, 1)
+    icon:SetTexture(addon.iconPath)
+    -- Fit the square artwork inside the round portrait without clipping its blades.
+    icon:SetSize(40, 40)
+    icon:SetPoint("CENTER", container.CircleMask)
+end
+
 function addon.CreateRoundIcon(parent)
     local icon = parent:CreateTexture(nil, "ARTWORK")
     icon:SetSize(52, 52)
@@ -83,7 +94,7 @@ function addon.CreateManualDialog(parent, onAdded)
     dialog:SetPoint("CENTER", parent)
     dialog:SetClampedToScreen(true)
     dialog:SetTitle(L.addTitle)
-    dialog:SetPortraitToAsset(addon.windowIconPath)
+    addon.SetBookPortrait(dialog)
     dialog.onCloseCallback = function() shield:Hide(); return false end
 
     local label = dialog:CreateFontString(nil, "ARTWORK", "GameFontNormal")
