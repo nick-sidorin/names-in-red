@@ -183,11 +183,13 @@ the selected rival and captures its ID when opened. Verify that cancel leaves
 the record intact and accepting removes only that record, including when two
 rivals share a display name.
 
-The statistics section follows the reagent slots in
-`Blizzard_ProfessionsTemplates.xml` and
-`Blizzard_ProfessionsRecipeReagentSlotBase.lua`. It uses a 39-unit slot,
-the native square hover texture, and the reagent heading font. The book owns
-its controls and shows short localized GameTooltip descriptions.
+The statistics section instantiates `ProfessionsReagentSlotBaseTemplate` in
+`Blizzard_ProfessionsRecipeReagentSlotBase.xml`. Its `Button` inherits
+`ProfessionsButtonTemplate` and the intrinsic `ItemButton` mask and layers.
+It uses the ordinary reagent state from `SetModifyingRequired(false)`, the
+native `SetItemButtonTexture` path, and `SetSlotQuality(Common)` for the
+profession frame. The book supplies the icon asset and localized tooltip
+without binding the button to an item or crafting transaction.
 
 ## Skirmish cards and the world map
 
@@ -262,8 +264,10 @@ The Rivals tab uses the icon from `RosterTab` in
 The addon list, window portraits and minimap use the existing crossed swords.
 The minimap uses the same `MiniMap-TrackingBorder`, backing, and aperture
 geometry as `Shortcut:Init` in Azeroth Fitness `Minimap.lua`. The swords
-are inset inside that aperture to preserve the tips. The book centers
-its mask and artwork on the stock `PortraitContainer.portrait` and fits the
-swords inside that aperture. The statistics artwork is inset on all sides of
-the native `Professions-Slot-Frame`. Check the swords and the skull at
-normal and reduced UI scales in the live client.
+are inset inside that aperture to preserve the tips. Like the First Aid
+window, the book sets its portrait through `SetPortraitToAsset`. This is the
+path used by `ProfessionsMixin:Refresh` in `Blizzard_ProfessionsFrame.lua`.
+The stock `PortraitFrameTemplate` controls the portrait and mask placement.
+The header uses a padded export of the swords to fit the stock mask.
+Compare the header to First Aid and both statistics slots to reagent icons
+in the live client at normal and reduced UI scales.

@@ -68,31 +68,38 @@ local function UpdatePortrait(portrait, rival, id)
 end
 
 local function Stat(parent, y, art, tooltipText)
-    local slot
-    if ProfessionsButtonMixin then
-        local ok, button = pcall(CreateFrame, "ItemButton", nil, parent, "ProfessionsButtonTemplate")
-        if ok then slot = button end
+    local texture = "Interface\\AddOns\\NamesInRed\\Art\\" .. art .. ".tga"
+    local holder, slot
+    if ProfessionsReagentSlotButtonMixin then
+        local ok, reagent = pcall(CreateFrame, "Frame", nil, parent, "ProfessionsReagentSlotBaseTemplate")
+        if ok then
+            holder, slot = reagent, reagent.Button
+            holder:SetSize(slot:GetSize())
+            holder.Name:Hide()
+            slot.CropFrame:Hide()
+            slot.InputOverlay:Hide()
+            slot:SetModifyingRequired(false)
+            slot:SetItemButtonTexture(texture)
+            slot:SetSlotQuality(Enum.ItemQuality.Common)
+        end
     end
     if not slot then
         slot = CreateFrame("Button", nil, parent)
+        holder = slot
+        slot:SetSize(39, 39)
         local background = slot:CreateTexture(nil, "BACKGROUND")
-        background:SetAllPoints(slot)
+        background:SetAllPoints()
         addon.ApplyAtlas(background, "Professions-Slot-bg")
-        slot.Icon = slot:CreateTexture(nil, "ARTWORK")
-        slot.IconBorder = slot:CreateTexture(nil, "OVERLAY")
-        addon.ApplyAtlas(slot.IconBorder, "Professions-Slot-Frame")
+        local icon = slot:CreateTexture(nil, "ARTWORK")
+        icon:SetPoint("CENTER")
+        icon:SetSize(31, 31)
+        icon:SetTexture(texture)
+        local border = slot:CreateTexture(nil, "OVERLAY")
+        border:SetAllPoints()
+        addon.ApplyAtlas(border, "Professions-Slot-Frame")
+        slot:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
     end
-    slot:SetPoint("TOPLEFT", 25, y)
-    slot:SetSize(39, 39)
-    slot.IconBorder:ClearAllPoints()
-    slot.IconBorder:SetAllPoints(slot)
-    slot.IconBorder:Show()
-    slot.Icon:ClearAllPoints()
-    slot.Icon:SetPoint("CENTER", slot.IconBorder)
-    slot.Icon:SetSize(31, 31)
-    slot.Icon:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\" .. art .. ".tga")
-    -- Match the ordinary reagent hover; bags-newitem is reserved for allocation state.
-    slot:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+    holder:SetPoint("TOPLEFT", 25, y)
 
     slot:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -462,7 +469,7 @@ local function ToggleBook()
         window:EnableMouse(true)
         window:SetClampedToScreen(true)
         window:SetTitle(addon.title)
-        addon.SetBookPortrait(window)
+        window:SetPortraitToAsset(addon.portraitIconPath)
         window.onCloseCallback = function() window:Hide(); return false end
         MakeDraggable(window)
         tinsert(UISpecialFrames, window:GetName())
@@ -564,7 +571,7 @@ local function ToggleBook()
         local statsTitle = summary:CreateFontString(nil, "OVERLAY", sectionFont)
         statsTitle:SetPoint("TOPLEFT", 25, -92)
         statsTitle:SetText(L.statistics)
-        if not ProfessionsButtonMixin and C_AddOns and C_AddOns.LoadAddOn then
+        if not ProfessionsReagentSlotButtonMixin and C_AddOns and C_AddOns.LoadAddOn then
             pcall(C_AddOns.LoadAddOn, "Blizzard_ProfessionsTemplates")
         end
         wins = Stat(summary, -112, "CrossedSwords", L.winTooltip)

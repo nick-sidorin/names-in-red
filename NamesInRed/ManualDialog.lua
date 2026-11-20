@@ -8,23 +8,6 @@ function addon.ApplyAtlas(texture, atlas)
     end
 end
 
-function addon.SetBookPortrait(frame)
-    local portrait = frame:GetPortrait()
-    local container = frame.PortraitContainer
-    local mask = container.CircleMask
-    local aperture = math.min(portrait:GetWidth(), portrait:GetHeight()) - 4
-    mask:ClearAllPoints()
-    mask:SetPoint("CENTER", portrait)
-    mask:SetSize(aperture, aperture)
-    portrait:SetColorTexture(0.02, 0.03, 0.055, 1)
-    local icon = container:CreateTexture(nil, "OVERLAY", nil, 1)
-    icon:SetTexture(addon.iconPath)
-    local iconSize = math.floor(aperture / math.sqrt(2))
-    icon:SetSize(iconSize, iconSize)
-    icon:SetPoint("CENTER", portrait)
-    icon:AddMaskTexture(mask)
-end
-
 function addon.CreateRoundIcon(parent)
     local icon = parent:CreateTexture(nil, "ARTWORK")
     icon:SetSize(52, 52)
@@ -100,7 +83,7 @@ function addon.CreateManualDialog(parent, onAdded)
     dialog:SetPoint("CENTER", parent)
     dialog:SetClampedToScreen(true)
     dialog:SetTitle(L.addTitle)
-    addon.SetBookPortrait(dialog)
+    dialog:SetPortraitToAsset(addon.portraitIconPath)
     dialog.onCloseCallback = function() shield:Hide(); return false end
 
     local label = dialog:CreateFontString(nil, "ARTWORK", "GameFontNormal")
