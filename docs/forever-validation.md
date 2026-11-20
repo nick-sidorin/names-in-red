@@ -200,8 +200,9 @@ above a sibling pane whose `common-insideframe` trim covers their lower edge.
 The one-unit `transmog-tab-hl` strip follows the `SelectedHighlight` layer in
 `TransmogWardrobeCollectionTabTemplate` and the selected-state handling in
 `TransmogWardrobeCollectionTabMixin:SetTabSelected`. It draws above both the
-tab and pane. Its vertical anchor follows the book pane's edge because the
-book's overlap differs from Transmog's.
+tab and pane. The strip is drawn on the pane's OVERLAY layer, directly
+anchored to the `common-insideframe` trim. The active tab controls the
+horizontal span. Its vertical position is independent of tab height.
 Initial sizing uses the same text-based `PanelTemplates_TabResize` as
 `PanelTabButtonMixin:OnShow`. Check that the first open after a reload and
 subsequent opens use the same compact widths.
@@ -281,9 +282,11 @@ source texture. That opening was measured in the public texture extraction
 Like the First Aid window, the book sets its portrait through `SetPortraitToAsset`. This is the
 path used by `ProfessionsMixin:Refresh` in `Blizzard_ProfessionsFrame.lua`.
 The stock `PortraitFrameTemplate` controls the portrait and mask placement.
-The branded portrait samples the center 120 × 120 area of the 128 × 128
-artwork. Reference mode uses the full native icon and restores the branded
-crop when it exits.
+The branded portrait samples a 120 × 120 window of the 128 × 128 artwork.
+The portrait and statistics crops sample two texels farther right to move
+the visible art slightly left, per the owner-reported skew in 0.0.56. The
+stock mask, reagent frame and texture anchors remain native. Reference mode
+uses the full native icon and restores the branded crops when it exits.
 The main skull artwork is shared by the statistics, cards and manual dialog.
 The small pink skull remains a distinct inline indicator.
 Compare the header to First Aid and both statistics slots to reagent icons

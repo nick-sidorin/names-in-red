@@ -10,8 +10,11 @@ end
 
 function addon.SetBookPortraitTexture(frame, texture)
     frame:SetPortraitToAsset(texture)
-    local inset = texture == addon.swordsIconPath and 4 / 128 or 0
-    frame:GetPortrait():SetTexCoord(inset, 1 - inset, inset, 1 - inset)
+    local inset, shift = 0, 0
+    if texture == addon.swordsIconPath then
+        inset, shift = 4 / 128, 2 / 128
+    end
+    frame:GetPortrait():SetTexCoord(inset + shift, 1 - inset + shift, inset, 1 - inset)
 end
 
 function addon.SetBookPortrait(frame)

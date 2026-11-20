@@ -20,6 +20,15 @@ local bookPortraitBacking
 local showReferenceIcons = false
 local statSwordInset = 0.11
 
+local function SetStatIconCrop(icon, texture)
+    local inset, shift = 0, 0
+    if texture == addon.swordsIconPath or texture == addon.skullIconPath then
+        shift = 2 / 128
+        inset = texture == addon.swordsIconPath and statSwordInset or shift
+    end
+    icon:SetTexCoord(inset + shift, 1 - inset + shift, inset, 1 - inset)
+end
+
 function addon.RivalCounters(rival, hideZero)
     local wins, losses
     if not hideZero or rival.killsAgainstThem > 0 then wins = victoryGlyph .. " " .. rival.killsAgainstThem end
@@ -104,9 +113,7 @@ local function Stat(parent, y, texture, tooltipText)
         addon.ApplyAtlas(border, "Professions-Slot-Frame")
         slot:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
     end
-    if texture == addon.swordsIconPath then
-        icon:SetTexCoord(statSwordInset, 1 - statSwordInset, statSwordInset, 1 - statSwordInset)
-    end
+    SetStatIconCrop(icon, texture)
     holder:SetPoint("TOPLEFT", 25, y)
 
     slot:SetScript("OnEnter", function(self)
@@ -153,8 +160,8 @@ function addon.ToggleIconReference()
     bookPortraitBacking:SetShown(not showReferenceIcons)
     statIcons[1].texture:SetTexture(winAsset)
     statIcons[2].texture:SetTexture(lossAsset)
-    local inset = showReferenceIcons and 0 or statSwordInset
-    statIcons[1].texture:SetTexCoord(inset, 1 - inset, inset, 1 - inset)
+    SetStatIconCrop(statIcons[1].texture, winAsset)
+    SetStatIconCrop(statIcons[2].texture, lossAsset)
     PrintIconOffset("portrait/mask", window:GetPortrait(), window.PortraitContainer.CircleMask)
     PrintIconOffset("wins/frame", statIcons[1].texture, statIcons[1].reference)
     PrintIconOffset("losses/frame", statIcons[2].texture, statIcons[2].reference)
@@ -396,6 +403,7 @@ local function DetailBackground(parent)
     local trim = parent:CreateTexture(nil, "BORDER")
     trim:SetAllPoints()
     addon.ApplyAtlas(trim, "common-insideframe")
+    return trim
 end
 
 local function MakeDraggable(frame)
@@ -429,11 +437,22 @@ local function SetBookView(view)
     for index, tab in ipairs(sideTabs) do tab:SetChecked(index == view) end
 end
 
+local function UpdateRivalTabHighlight()
+    local glow = tabBar.SelectedHighlight
+    local tab = tabBar.Tabs[PanelTemplates_GetSelectedTab(tabBar)]
+    if not tab then glow:Hide(); return end
+    local trim = glow.trim
+    local tabLeft, trimLeft = tab:GetLeft(), trim:GetLeft()
+    if not tabLeft or not trimLeft then return end
+    glow:ClearAllPoints()
+    glow:SetPoint("TOPLEFT", trim, "TOPLEFT", tabLeft - trimLeft + 2, -2)
+    glow:SetSize(tab:GetWidth() - 5, 2)
+    glow:Show()
+end
+
 local function SelectRivalTab(id)
     PanelTemplates_SetTab(tabBar, id)
-    for index, tab in ipairs(tabBar.Tabs) do
-        if tab.SelectedHighlight then tab.SelectedHighlight:SetShown(index == id) end
-    end
+    UpdateRivalTabHighlight()
 end
 
 local function OpenRival(id)
@@ -558,7 +577,7 @@ local function ToggleBook()
         local rightTop = contentTop + 30
         local rightHeight = window:GetHeight() - rightTop - removeHeight - footerInset - panelGap
         local right = Pane(rivalsPage, rightX, -rightTop, rightWidth, rightHeight)
-        DetailBackground(right)
+        local trim = DetailBackground(right)
         names = Scroll(left, 9, -42, 273, 431, false)
         tabBar = CreateFrame("Frame", nil, rivalsPage)
         local onePixel = PixelUtil.GetPixelToUIUnitFactor() / tabBar:GetEffectiveScale()
@@ -576,28 +595,24 @@ local function ToggleBook()
             for _, texture in ipairs({ tab.LeftActive, tab.MiddleActive, tab.RightActive }) do
                 texture:SetVertexColor(0.68, 0.68, 0.68)
             end
-            -- Put the transmog strip on the pane's top edge, inside its trim.
-            local highlight = CreateFrame("Frame", nil, tab)
-            highlight:SetFrameLevel(math.max(tab:GetFrameLevel(), right:GetFrameLevel()) + 1)
-            highlight:SetHeight(1)
-            local edgeY = -tabOverlap - onePixel
-            highlight:SetPoint("BOTTOMLEFT", 2, edgeY)
-            highlight:SetPoint("BOTTOMRIGHT", -3, edgeY)
-            local glow = highlight:CreateTexture(nil, "ARTWORK")
-            glow:SetAllPoints()
-            addon.ApplyAtlas(glow, "transmog-tab-hl")
-            tab.SelectedHighlight = highlight
             tab:SetScript("OnClick", function(self)
                 SelectRivalTab(self:GetID())
                 ShowDetails()
             end)
         end
+        local glow = right:CreateTexture(nil, "OVERLAY", nil, 6)
+        addon.ApplyAtlas(glow, "transmog-tab-hl")
+        glow.trim = trim
+        tabBar.SelectedHighlight = glow
         PanelTemplates_SetNumTabs(tabBar, 2)
         SelectRivalTab(infoTab)
         -- Match the template's OnShow sizing once labels and selection are set.
         for _, tab in ipairs(tabBar.Tabs) do
             PanelTemplates_TabResize(tab)
+            tab:HookScript("OnSizeChanged", UpdateRivalTabHighlight)
         end
+        right:HookScript("OnShow", UpdateRivalTabHighlight)
+        UpdateRivalTabHighlight()
 
         local historyTop = 16
         details = CardList(right, 25, -historyTop, cardWidth, rightHeight - historyTop - 12,
