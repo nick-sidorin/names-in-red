@@ -400,7 +400,6 @@ local function ToggleBook()
             tab:SetID(id)
             if id == infoTab then tab:SetPoint("TOPLEFT") end
             tab:SetText(label)
-            PanelTemplates_TabResize(tab, 0, 143)
             for _, texture in ipairs({ tab.LeftActive, tab.MiddleActive, tab.RightActive }) do
                 texture:SetVertexColor(0.68, 0.68, 0.68)
             end
@@ -411,6 +410,10 @@ local function ToggleBook()
         end
         PanelTemplates_SetNumTabs(tabBar, 2)
         PanelTemplates_SetTab(tabBar, infoTab)
+        -- Match the template's OnShow sizing once labels and selection are set.
+        for _, tab in ipairs(tabBar.Tabs) do
+            PanelTemplates_TabResize(tab)
+        end
 
         local historyTop = 16
         local historyScroll

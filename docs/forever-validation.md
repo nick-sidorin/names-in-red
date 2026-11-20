@@ -195,6 +195,9 @@ The book uses `PanelTopTabButtonTemplate` from Forever
 `Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml`. The tab textures are
 bottom-anchored by `PanelTopTabButtonMixin:OnLoad`. The book places the tabs
 above a sibling pane whose `common-insideframe` trim covers their lower edge.
+Initial sizing uses the same text-based `PanelTemplates_TabResize` as
+`PanelTabButtonMixin:OnShow`. Check that the first open after a reload and
+subsequent opens use the same compact widths.
 The settings reference is `GameTab` and `AddOnsTab` in
 `Blizzard_SettingsPanel.xml`. Their `MinimalTabTemplate` swaps to
 `Options_Tab_Active_*` via `MinimalTabMixin:UpdateAtlas`. The book keeps its
