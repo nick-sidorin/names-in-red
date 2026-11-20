@@ -23,8 +23,8 @@ local statSwordInset = 0.11
 local function SetStatIconCrop(icon, texture)
     local inset, shift = 0, 0
     if texture == addon.swordsIconPath or texture == addon.skullIconPath then
-        shift = 2 / 128
-        inset = texture == addon.swordsIconPath and statSwordInset or shift
+        shift = 1 / 128
+        inset = texture == addon.swordsIconPath and statSwordInset or 2 / 128
     end
     icon:SetTexCoord(inset + shift, 1 - inset + shift, inset, 1 - inset)
 end
@@ -778,7 +778,7 @@ local function CreateShortcut()
     mask:SetPoint("CENTER", border, "TOPLEFT", borderSize * apertureX, -borderSize * apertureY)
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetTexture(addon.swordsIconPath)
-    icon:SetSize(22, 22)
+    icon:SetSize(23.5, 23.5)
     icon:SetPoint("CENTER", mask)
     icon:AddMaskTexture(mask)
     button:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight", "ADD")

@@ -283,8 +283,10 @@ Like the First Aid window, the book sets its portrait through `SetPortraitToAsse
 path used by `ProfessionsMixin:Refresh` in `Blizzard_ProfessionsFrame.lua`.
 The stock `PortraitFrameTemplate` controls the portrait and mask placement.
 The branded portrait samples a 120 × 120 window of the 128 × 128 artwork.
-The portrait and statistics crops sample two texels farther right to move
-the visible art slightly left, per the owner-reported skew in 0.0.56. The
+The portrait crop samples two texels farther right and the statistics crops
+sample one, after the owner reported a slight left skew in the statistics.
+The minimap samples the same artwork in a 23.5-unit square centered on its
+existing circle mask. The
 stock mask, reagent frame and texture anchors remain native. Reference mode
 uses the full native icon and restores the branded crops when it exits.
 The main skull artwork is shared by the statistics, cards and manual dialog.
