@@ -294,7 +294,8 @@ The small pink skull remains a distinct inline indicator.
 Compare the header to First Aid and both statistics slots to reagent icons
 in the live client at normal and reduced UI scales.
 
-With an opponent's Information tab visible, `/nirdebug icons` swaps the window
+In the 0.0.54–0.0.59 previews, with an opponent's Information tab visible,
+`/nirdebug icons` swaps the window
 and statistics art for First Aid, Linen Cloth and Wool Cloth in the same
 frames. The addon portrait backing is hidden in reference mode. Run it again
 to restore addon art. The chat diagnostics report the

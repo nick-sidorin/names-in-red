@@ -4,7 +4,7 @@ A personal rival ledger for World of Warcraft: Forever. The goal is to remember
 who killed your character and whom your character killed, then recognize those
 rivals in the game world.
 
-The preview targets Forever 1.60.1 (interface 16001). It keeps separate
+Names in Red targets Forever 1.60.1 (interface 16001). It keeps separate
 per-character totals for confirmed personal killing blows and single-attacker
 deaths in open-world PvP. Click the crossed-swords icon on the minimap to browse rivals.
 Information shows totals and the latest skirmish. Skirmishes lists the complete
@@ -17,7 +17,8 @@ Use Add to enter a full character name and select who won. A manual entry
 keeps its chosen outcome and has no inferred battle details. Known rivals also have
 history appended to the standard unit tooltip.
 
-See [PvP diagnostics preview](docs/debug-preview.md) for capture and installation.
+Download the latest ZIP from [Releases](https://github.com/nick-sidorin/names-in-red/releases)
+and extract `NamesInRed/` into `_forever_/Interface/AddOns/`.
 
 ## Development
 

@@ -39,7 +39,7 @@ local function Event(name, ...)
 end
 
 local function Login(addon)
-    assert(loadfile("NamesInRed/Debug.lua"))("NamesInRed", addon)
+    assert(loadfile("debug/Debug.lua"))("NamesInRed", addon)
     Event("ADDON_LOADED", "OtherAddon")
     Event("ADDON_LOADED", "NamesInRed")
     return NamesInRedDebugDB
@@ -82,7 +82,7 @@ print("Debug capture checks passed")
 
 local addon = {}
 assert(loadfile("NamesInRed/Ledger.lua"))("NamesInRed", addon)
-assert(loadfile("NamesInRed/DebugSeeds.lua"))("NamesInRed", addon)
+assert(loadfile("debug/DebugSeeds.lua"))("NamesInRed", addon)
 addon.db = assert(addon.Ledger.Open(nil))
 local existing = addon.Ledger.Add(addon.db, "Player-existing", "Existing")
 local existingManual = addon.Ledger.Add(addon.db, "manual:existing", "Existing")

@@ -1,5 +1,12 @@
 # PvP diagnostics preview
 
+Versions 0.0.x were diagnostic previews. The 0.1.0 release keeps the rival
+journal and ships without these diagnostic scripts. To build a local diagnostic
+copy, copy both Lua files from `debug/` into the addon folder, add
+`NamesInRedDebugDB` to the TOC's per-character saved variables, then append
+`DebugSeeds.lua` and `Debug.lua` to the TOC in that order.
+
+
 Install the ZIP by extracting its `NamesInRed/` folder into
 `_forever_/Interface/AddOns/`. The AddOns list shows **Names in Red (Debug)**.
 This is a temporary build for Forever 1.60.1. Collection starts at addon load
