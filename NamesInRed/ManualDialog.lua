@@ -16,6 +16,7 @@ function addon.SetBookPortrait(frame)
     backing:SetAllPoints(portrait)
     backing:SetColorTexture(0.02, 0.03, 0.055, 1)
     backing:AddMaskTexture(container.CircleMask)
+    return backing
 end
 
 function addon.CreateRoundIcon(parent)

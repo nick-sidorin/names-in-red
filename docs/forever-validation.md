@@ -197,6 +197,10 @@ The book uses `PanelTopTabButtonTemplate` from Forever
 `Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml`. The tab textures are
 bottom-anchored by `PanelTopTabButtonMixin:OnLoad`. The book places the tabs
 above a sibling pane whose `common-insideframe` trim covers their lower edge.
+The one-unit `transmog-tab-hl` strip follows the `SelectedHighlight` layer in
+`TransmogWardrobeCollectionTabTemplate` and the selected-state handling in
+`TransmogWardrobeCollectionTabMixin:SetTabSelected`. It draws above both the
+tab and pane so the seam under the active tab lights up.
 Initial sizing uses the same text-based `PanelTemplates_TabResize` as
 `PanelTabButtonMixin:OnShow`. Check that the first open after a reload and
 subsequent opens use the same compact widths.
@@ -281,7 +285,12 @@ in the live client at normal and reduced UI scales.
 
 With an opponent's Information tab visible, `/nirdebug icons` swaps the window
 and statistics art for First Aid, Linen Cloth and Wool Cloth in the same
-frames. Run it again to restore addon art. The chat diagnostics report the
+frames. The addon portrait backing is hidden in reference mode. Run it again
+to restore addon art. The chat diagnostics report the
 center differences between texture and mask or border regions in UI units.
 The region bounds include atlas padding and do not measure the center of the
 visible paint. Compare before and after in the same client session.
+The owner's 0.0.54 comparison shows the First Aid drop in both title portraits
+and Linen Cloth in both reagent slots at approximately the same relative
+positions. The inline captures support a visual comparison, with an estimated
+one-to-two-pixel uncertainty in locating the edges.

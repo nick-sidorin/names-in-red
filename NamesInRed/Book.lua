@@ -16,6 +16,7 @@ local cardStride = addon.encounterCardHeight + 8
 local cardWidth = 332
 local sectionFont = "GameFontNormal"
 local statIcons = {}
+local bookPortraitBacking
 local showReferenceIcons = false
 local statSwordInset = 0.11
 
@@ -149,6 +150,7 @@ function addon.ToggleIconReference()
     end
     showReferenceIcons = not showReferenceIcons
     window:SetPortraitToAsset(windowAsset)
+    bookPortraitBacking:SetShown(not showReferenceIcons)
     statIcons[1].texture:SetTexture(winAsset)
     statIcons[2].texture:SetTexture(lossAsset)
     local inset = showReferenceIcons and 0 or statSwordInset
@@ -422,11 +424,18 @@ local function SetBookView(view)
     for index, tab in ipairs(sideTabs) do tab:SetChecked(index == view) end
 end
 
+local function SelectRivalTab(id)
+    PanelTemplates_SetTab(tabBar, id)
+    for index, tab in ipairs(tabBar.Tabs) do
+        if tab.SelectedHighlight then tab.SelectedHighlight:SetShown(index == id) end
+    end
+end
+
 local function OpenRival(id)
     local rival = addon.Ledger.Find(addon.db, id)
     if not rival or not addon.IsRosterRival(id, rival) then return end
     selected = id
-    PanelTemplates_SetTab(tabBar, infoTab)
+    SelectRivalTab(infoTab)
     details:SetVerticalScroll(0)
     SetBookView(rivalsView)
     addon.RefreshBook(true)
@@ -511,7 +520,7 @@ local function ToggleBook()
         window:EnableMouse(true)
         window:SetClampedToScreen(true)
         window:SetTitle(addon.title)
-        addon.SetBookPortrait(window)
+        bookPortraitBacking = addon.SetBookPortrait(window)
         window.onCloseCallback = function() window:Hide(); return false end
         MakeDraggable(window)
         tinsert(UISpecialFrames, window:GetName())
@@ -561,13 +570,23 @@ local function ToggleBook()
             for _, texture in ipairs({ tab.LeftActive, tab.MiddleActive, tab.RightActive }) do
                 texture:SetVertexColor(0.68, 0.68, 0.68)
             end
+            -- TransmogWardrobeCollectionTabTemplate draws this strip over the pane.
+            local highlight = CreateFrame("Frame", nil, tab)
+            highlight:SetFrameLevel(math.max(tab:GetFrameLevel(), right:GetFrameLevel()) + 1)
+            highlight:SetHeight(1)
+            highlight:SetPoint("BOTTOMLEFT", 2, 5)
+            highlight:SetPoint("BOTTOMRIGHT", -3, 5)
+            local glow = highlight:CreateTexture(nil, "ARTWORK")
+            glow:SetAllPoints()
+            addon.ApplyAtlas(glow, "transmog-tab-hl")
+            tab.SelectedHighlight = highlight
             tab:SetScript("OnClick", function(self)
-                PanelTemplates_SetTab(tabBar, self:GetID())
+                SelectRivalTab(self:GetID())
                 ShowDetails()
             end)
         end
         PanelTemplates_SetNumTabs(tabBar, 2)
-        PanelTemplates_SetTab(tabBar, infoTab)
+        SelectRivalTab(infoTab)
         -- Match the template's OnShow sizing once labels and selection are set.
         for _, tab in ipairs(tabBar.Tabs) do
             PanelTemplates_TabResize(tab)
@@ -663,7 +682,7 @@ local function ToggleBook()
             if not openDialog then
                 openDialog = addon.CreateManualDialog(window, function(id)
                     selected = id
-                    PanelTemplates_SetTab(tabBar, infoTab)
+                    SelectRivalTab(infoTab)
                     search:SetText("")
                     details:SetVerticalScroll(0)
                     addon.RefreshBook()
