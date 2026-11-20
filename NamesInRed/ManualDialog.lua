@@ -83,7 +83,7 @@ function addon.CreateManualDialog(parent, onAdded)
     dialog:SetPoint("CENTER", parent)
     dialog:SetClampedToScreen(true)
     dialog:SetTitle(L.addTitle)
-    dialog:SetPortraitToAsset(addon.portraitIconPath)
+    dialog:SetPortraitToAsset(addon.roundIconPath)
     dialog.onCloseCallback = function() shield:Hide(); return false end
 
     local label = dialog:CreateFontString(nil, "ARTWORK", "GameFontNormal")
