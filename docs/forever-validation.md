@@ -260,9 +260,9 @@ The Rivals tab uses the icon from `RosterTab` in
 `SidePanelTabButtonMixin:UpdateIconInterior`.
 
 The addon list, window portraits and minimap use the existing crossed swords.
-The minimap uses the centered `RingBorder` file and circular mask referenced
-by `ExternalEventURLMinimapButtonTemplate` in
-`Blizzard_Minimap/Shared/ExternalEventURLMinimapButton.xml`. The book centers
+The minimap uses the same `MiniMap-TrackingBorder`, backing, and aperture
+geometry as `Shortcut:Init` in Azeroth Fitness `Minimap.lua`. The swords
+are inset inside that aperture to preserve the tips. The book centers
 its mask and artwork on the stock `PortraitContainer.portrait` and fits the
 swords inside that aperture. The statistics artwork is inset on all sides of
 the native `Professions-Slot-Frame`. Check the swords and the skull at
