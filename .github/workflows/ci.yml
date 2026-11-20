@@ -14,12 +14,18 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y lua5.1
       - run: bash scripts/check.sh
       - name: Stage debug preview
-        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/profession-style-book'
-        run: mkdir -p preview && cp -R NamesInRed preview/
+        id: preview
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/')
+        run: |
+          version=$(sed -n 's/^## Version: //p' NamesInRed/NamesInRed.toc)
+          test -n "$version"
+          echo "name=NamesInRed-$version" >> "$GITHUB_OUTPUT"
+          mkdir -p preview
+          cp -R NamesInRed preview/
       - name: Upload debug preview
-        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/profession-style-book'
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/')
         uses: actions/upload-artifact@v4
         with:
-          name: NamesInRed-0.0.38-debug
+          name: ${{ steps.preview.outputs.name }}
           path: preview/
           if-no-files-found: error

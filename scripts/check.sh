@@ -12,4 +12,5 @@ lua5.1 tests/debug.lua
 lua5.1 tests/kills.lua
 lua5.1 tests/deaths.lua
 lua5.1 tests/book.lua
+lua5.1 tests/waypoints.lua
 lua5.1 tests/nameplates.lua

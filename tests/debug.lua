@@ -102,7 +102,7 @@ for key, rival in pairs(addon.db.rivals) do
         assert(#rival.encounters == rival.killsAgainstThem + rival.deathsToThem)
         for _, encounter in ipairs(rival.encounters) do
             assert(encounter.rivalLevel and encounter.playerLevel and encounter.time)
-            assert(encounter.zone and encounter.x and encounter.y and not encounter.manual)
+            assert(encounter.zone and encounter.mapID and encounter.x and encounter.y and not encounter.manual)
         end
     end
 end

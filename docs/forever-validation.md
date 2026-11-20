@@ -188,3 +188,47 @@ The statistics section follows the reagent slots in
 `Blizzard_ProfessionsRecipeReagentSlotBase.lua`. It uses a 39-unit slot,
 the native square hover texture, and the reagent heading font. The book owns
 its controls and shows short localized GameTooltip descriptions.
+
+## Skirmish cards and the world map
+
+The book uses `PanelTopTabButtonTemplate` from Forever
+`Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml`. The tab textures are
+bottom-anchored by `PanelTopTabButtonMixin:OnLoad`. The book places the tabs
+above a sibling pane whose `common-insideframe` trim covers their lower edge.
+Initial sizing uses the same text-based `PanelTemplates_TabResize` as
+`PanelTabButtonMixin:OnShow`. Check that the first open after a reload and
+subsequent opens use the same compact widths.
+The settings reference is `GameTab` and `AddOnsTab` in
+`Blizzard_SettingsPanel.xml`. Their `MinimalTabTemplate` swaps to
+`Options_Tab_Active_*` via `MinimalTabMixin:UpdateAtlas`. The book keeps its
+three active `uiframe-activetab` slices and lowers their brightness.
+Camelot's `SchematicFormCraftingTemplate` in
+`Blizzard_ProfessionsRecipeSchematicForm.xml` uses that same rim on the BORDER
+layer. The full right column uses the same `Professions-background-summarylist`
+atlas as the roster and `Blizzard_ProfessionsRecipeList.xml`. Check it behind
+the tabs and the Delete button. Delete confirmation uses the client's shared
+`StaticPopupButtonTemplate` from `Blizzard_StaticPopup_Game/GameDialog.xml`.
+The book fades the left side of its illustration into the recipe
+background using the texture gradient API. Check that the upper rim is
+continuous in both tab states and that the illustration has no visible seam
+at its left edge, including at non-default UI scales.
+
+History uses the same `ScrollFrameTemplate` as the roster, with cards reused
+as the viewport scrolls. Check both tabs on 1.60.1 with empty, legacy, manual
+and seeded histories. Scroll through a long history, then switch rivals while
+scrolled.
+
+For the map diamond, see `WaypointLocationDataProviderMixin:HandleClick` and
+the MAPPIN slash command in
+`Blizzard_SharedMapDataProviders/WaypointLocationDataProvider.lua`. The book
+uses the command's waypoint flow, including `OpenMapToUserWaypoint` from
+`Blizzard_WorldMap/Blizzard_WorldMap.lua`. Test with a seeded card from a
+different zone. Check that the world map opens on that zone, places its
+standard user pin at the displayed coordinates and replaces any previous user
+pin. The map action uses `SharedButtonSmallTemplate` from
+`Blizzard_SharedXML/Shared/Button/ThreeSliceButtonTemplate.xml`.
+For legacy cards the addon uses `C_Map.GetMapChildrenInfo` from
+`Blizzard_APIDocumentationGenerated/MapDocumentation.lua` to index Azeroth's
+zone maps by localized name. Check older Hillsbrad and Stranglethorn cards
+like the owner's screenshots, plus an unresolved zone. Verify coordinates
+on button hover and that a rejected waypoint leaves the book open.
