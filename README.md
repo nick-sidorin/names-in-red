@@ -6,7 +6,7 @@ rivals in the game world.
 
 The preview targets Forever 1.60.1 (interface 16001). It keeps separate
 per-character totals for confirmed personal killing blows and single-attacker
-deaths in open-world PvP. Click the skull icon on the minimap to browse rivals.
+deaths in open-world PvP. Click the crossed-swords icon on the minimap to browse rivals.
 Information shows totals and the latest skirmish. Skirmishes lists the complete
 recorded history, newest first. Cards show the date, zone, coordinates and levels
 when available. The side tabs switch between the rival book and the latest

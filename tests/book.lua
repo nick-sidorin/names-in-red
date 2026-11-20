@@ -40,6 +40,7 @@ local secret = {}
 function issecretvalue(value) return value == secret end
 assert(loadfile("NamesInRed/Encounter.lua"))("NamesInRed", addon)
 assert(loadfile("NamesInRed/EncounterCards.lua"))("NamesInRed", addon)
+assert(loadfile("NamesInRed/Core.lua"))("NamesInRed", addon)
 assert(loadfile("NamesInRed/Book.lua"))("NamesInRed", addon)
 addon.db.rivals["Player-test"] = { displayName = "Test Rival", killsAgainstThem = 2, deathsToThem = 1 }
 addon.db.rivals["Player-empty"] = { displayName = "Empty Rival", killsAgainstThem = 0, deathsToThem = 0 }
@@ -55,7 +56,7 @@ assert(#tooltipLines == 3)
 assert(tooltipLines[1] == " ")
 assert(tooltipLines[2] == addon.title)
 local art = "|TInterface\\AddOns\\NamesInRed\\Art\\"
-local victory = art .. "TooltipVictory.tga:14:14:0:1|t"
+local victory = art .. "CrossedSwords.tga:14:14:0:1:128:128:22:106:22:106|t"
 local death = art .. "TooltipSkull.tga:14:14:0:1|t"
 assert(tooltipLines[3] == victory .. " 2   " .. death .. " 1")
 print("Rival tooltip and locale checks passed")

@@ -1,6 +1,5 @@
 local _, addon = ...
 local L = addon.L
-local artPath = "Interface\\AddOns\\NamesInRed\\Art\\"
 local azerothMapID = 947
 local mapsByName
 
@@ -175,7 +174,9 @@ function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
         if not encounter then return end
 
         local victory = encounter.direction == "killsAgainstThem"
-        icon:SetTexture(artPath .. (victory and "CrossedSwords.tga" or "Skull.tga"))
+        icon:SetTexture(victory and addon.swordsIconPath or addon.skullIconPath)
+        local inset = victory and 0.16 or 0.08
+        icon:SetTexCoord(inset, 1 - inset, inset, 1 - inset)
         outcome:SetText(victory and L.win or L.loss)
         if victory then outcome:SetTextColor(0.65, 0.83, 1) else outcome:SetTextColor(1, 0.61, 0.52) end
         local encounterDay, encounterTime = EncounterDate(encounter)

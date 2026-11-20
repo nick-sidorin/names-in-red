@@ -1,6 +1,7 @@
 local addonName, addon = ...
-addon.iconPath = "Interface\\AddOns\\NamesInRed\\Art\\Skull.tga"
-addon.windowIconPath = "Interface\\AddOns\\NamesInRed\\Art\\WindowSkull.tga"
+local artPath = "Interface\\AddOns\\NamesInRed\\Art\\"
+addon.swordsIconPath = artPath .. "CrossedSwords.tga"
+addon.skullIconPath = artPath .. "Skull.tga"
 
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")

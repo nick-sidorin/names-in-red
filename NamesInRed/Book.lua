@@ -1,6 +1,6 @@
 local _, addon = ...
 local L, Readable = addon.L, addon.Readable
-local victoryGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipVictory.tga:14:14:0:1|t"
+local victoryGlyph = "|T" .. addon.swordsIconPath .. ":14:14:0:1:128:128:22:106:22:106|t"
 local deathGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipSkull.tga:14:14:0:1|t"
 local window, names, details, heading, portrait, summary, wins, losses, status, selected, empty
 local search, remove, levelBadge, tabBar, latestCard, latestEmpty, historyEmpty
@@ -15,6 +15,19 @@ local infoTab, historyTab = 1, 2
 local cardStride = addon.encounterCardHeight + 8
 local cardWidth = 332
 local sectionFont = "GameFontNormal"
+local statIcons = {}
+local bookPortraitBacking
+local showReferenceIcons = false
+local statSwordInset = 0.11
+
+local function SetStatIconCrop(icon, texture)
+    local inset, shift = 0, 0
+    if texture == addon.swordsIconPath or texture == addon.skullIconPath then
+        shift = 1 / 128
+        inset = texture == addon.swordsIconPath and statSwordInset or 2 / 128
+    end
+    icon:SetTexCoord(inset + shift, 1 - inset + shift, inset, 1 - inset)
+end
 
 function addon.RivalCounters(rival, hideZero)
     local wins, losses
@@ -67,32 +80,41 @@ local function UpdatePortrait(portrait, rival, id)
     end
 end
 
-local function Stat(parent, y, art, tooltipText)
-    local slot
-    if ProfessionsButtonMixin then
-        local ok, button = pcall(CreateFrame, "ItemButton", nil, parent, "ProfessionsButtonTemplate")
-        if ok then slot = button end
+local function Stat(parent, y, texture, tooltipText)
+    local holder, slot, icon, border
+    if ProfessionsReagentSlotButtonMixin then
+        local ok, reagent = pcall(CreateFrame, "Frame", nil, parent, "ProfessionsReagentSlotBaseTemplate")
+        if ok then
+            holder, slot = reagent, reagent.Button
+            holder:SetSize(slot:GetSize())
+            holder.Name:Hide()
+            slot.CropFrame:Hide()
+            slot.InputOverlay:Hide()
+            slot:SetModifyingRequired(false)
+            slot:SetItemButtonTexture(texture)
+            icon = slot:GetItemButtonIconTexture()
+            slot:SetSlotQuality(Enum.ItemQuality.Common)
+            border = slot.IconBorder
+        end
     end
     if not slot then
         slot = CreateFrame("Button", nil, parent)
+        holder = slot
+        slot:SetSize(39, 39)
         local background = slot:CreateTexture(nil, "BACKGROUND")
-        background:SetAllPoints(slot)
+        background:SetAllPoints()
         addon.ApplyAtlas(background, "Professions-Slot-bg")
-        slot.Icon = slot:CreateTexture(nil, "ARTWORK")
-        slot.IconBorder = slot:CreateTexture(nil, "OVERLAY")
-        addon.ApplyAtlas(slot.IconBorder, "Professions-Slot-Frame")
+        icon = slot:CreateTexture(nil, "ARTWORK")
+        icon:SetPoint("CENTER")
+        icon:SetSize(31, 31)
+        icon:SetTexture(texture)
+        border = slot:CreateTexture(nil, "OVERLAY")
+        border:SetAllPoints()
+        addon.ApplyAtlas(border, "Professions-Slot-Frame")
+        slot:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
     end
-    slot:SetPoint("TOPLEFT", 25, y)
-    slot:SetSize(39, 39)
-    slot.Icon:ClearAllPoints()
-    slot.Icon:SetAllPoints(slot)
-    slot.Icon:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\" .. art .. ".tga")
-    slot.IconBorder:ClearAllPoints()
-    slot.IconBorder:SetPoint("TOPLEFT", slot.Icon, "TOPLEFT")
-    slot.IconBorder:SetPoint("BOTTOMRIGHT", slot.Icon, "BOTTOMRIGHT", 1, -1)
-    slot.IconBorder:Show()
-    -- Match the ordinary reagent hover; bags-newitem is reserved for allocation state.
-    slot:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+    SetStatIconCrop(icon, texture)
+    holder:SetPoint("TOPLEFT", 25, y)
 
     slot:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -107,7 +129,43 @@ local function Stat(parent, y, art, tooltipText)
 
     local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     label:SetPoint("LEFT", slot, "RIGHT", 10, 0)
-    return label
+    return label, { texture = icon, reference = border }
+end
+
+local function PrintIconOffset(label, icon, reference)
+    local x, y = icon:GetCenter()
+    local refX, refY = reference:GetCenter()
+    if x and refX then
+        print(("NamesInRed %s offset x=%+.2f y=%+.2f"):format(label, x - refX, y - refY))
+    end
+end
+
+function addon.ToggleIconReference()
+    if not summary or not summary:IsVisible() then return "open-information" end
+    local windowAsset, winAsset, lossAsset = addon.swordsIconPath, addon.swordsIconPath, addon.skullIconPath
+    if not showReferenceIcons then
+        if not C_TradeSkillUI or not C_TradeSkillUI.GetTradeSkillTexture or not C_Item or not C_Item.GetItemIconByID then
+            return "reference-unavailable"
+        end
+        windowAsset = Readable(C_TradeSkillUI.GetTradeSkillTexture(129)) -- First Aid
+        if (not windowAsset or windowAsset == 0) and C_Spell and C_Spell.GetSpellTexture then
+            windowAsset = Readable(C_Spell.GetSpellTexture(3273))
+        end
+        winAsset = Readable(C_Item.GetItemIconByID(2589)) -- Linen Cloth
+        lossAsset = Readable(C_Item.GetItemIconByID(2592)) -- Wool Cloth
+        if not windowAsset or windowAsset == 0 or not winAsset or not lossAsset then return "reference-unavailable" end
+    end
+    showReferenceIcons = not showReferenceIcons
+    addon.SetBookPortraitTexture(window, windowAsset)
+    bookPortraitBacking:SetShown(not showReferenceIcons)
+    statIcons[1].texture:SetTexture(winAsset)
+    statIcons[2].texture:SetTexture(lossAsset)
+    SetStatIconCrop(statIcons[1].texture, winAsset)
+    SetStatIconCrop(statIcons[2].texture, lossAsset)
+    PrintIconOffset("portrait/mask", window:GetPortrait(), window.PortraitContainer.CircleMask)
+    PrintIconOffset("wins/frame", statIcons[1].texture, statIcons[1].reference)
+    PrintIconOffset("losses/frame", statIcons[2].texture, statIcons[2].reference)
+    return showReferenceIcons and "blizzard" or "addon"
 end
 
 local function CloseForMap()
@@ -304,9 +362,14 @@ local function Pane(parent, x, y, width, height)
     return frame
 end
 
-local function ListBackground(parent)
+local function ListBackground(parent, x, y, width, height)
     local texture = parent:CreateTexture(nil, "BACKGROUND")
-    texture:SetAllPoints()
+    if x then
+        texture:SetPoint("TOPLEFT", x, y)
+        texture:SetSize(width, height)
+    else
+        texture:SetAllPoints()
+    end
     addon.ApplyAtlas(texture, "Professions-background-summarylist")
 end
 
@@ -373,11 +436,18 @@ local function SetBookView(view)
     for index, tab in ipairs(sideTabs) do tab:SetChecked(index == view) end
 end
 
+local function SelectRivalTab(id)
+    PanelTemplates_SetTab(tabBar, id)
+    for index, tab in ipairs(tabBar.Tabs) do
+        tab.SelectedHighlight:SetShown(index == id)
+    end
+end
+
 local function OpenRival(id)
     local rival = addon.Ledger.Find(addon.db, id)
     if not rival or not addon.IsRosterRival(id, rival) then return end
     selected = id
-    PanelTemplates_SetTab(tabBar, infoTab)
+    SelectRivalTab(infoTab)
     details:SetVerticalScroll(0)
     SetBookView(rivalsView)
     addon.RefreshBook(true)
@@ -426,7 +496,7 @@ local function CreateRecentCard(parent, width, onMapShown)
 end
 
 local function CreateSideTabs()
-    local icons = { addon.windowIconPath, "Interface\\Icons\\INV_Misc_Book_09" }
+    local icons = { "Interface\\Icons\\Achievement_GuildPerk_EverybodysFriend", "Interface\\Icons\\INV_Misc_Book_09" }
     local labels = { L.rivalsView, L.recentView }
     for view, icon in ipairs(icons) do
         local tab = CreateFrame("Frame", nil, window, "LargeSideTabButtonTemplate")
@@ -462,7 +532,7 @@ local function ToggleBook()
         window:EnableMouse(true)
         window:SetClampedToScreen(true)
         window:SetTitle(addon.title)
-        if window.SetPortraitToAsset then window:SetPortraitToAsset(addon.windowIconPath) end
+        bookPortraitBacking = addon.SetBookPortrait(window)
         window.onCloseCallback = function() window:Hide(); return false end
         MakeDraggable(window)
         tinsert(UISpecialFrames, window:GetName())
@@ -488,7 +558,8 @@ local function ToggleBook()
         local rightX, rightWidth = 312, 383
         local left = Pane(rivalsPage, 5, -contentTop, rightX - 5, bodyHeight)
         ListBackground(left)
-        ListBackground(Pane(rivalsPage, rightX, -contentTop, rightWidth, bodyHeight))
+        -- Paint the underlay below the footer button's three-slice background.
+        ListBackground(rivalsPage, rightX, -contentTop, rightWidth, bodyHeight)
 
         local panelGap = 4
         local rightTop = contentTop + 30
@@ -512,13 +583,23 @@ local function ToggleBook()
             for _, texture in ipairs({ tab.LeftActive, tab.MiddleActive, tab.RightActive }) do
                 texture:SetVertexColor(0.68, 0.68, 0.68)
             end
+            -- The transmog strip follows the tab's authored width and sits below its edge.
+            local highlight = CreateFrame("Frame", nil, tab)
+            highlight:SetFrameLevel(math.max(tab:GetFrameLevel(), right:GetFrameLevel()) + 1)
+            highlight:SetHeight(2)
+            highlight:SetPoint("BOTTOMLEFT", 2, -2)
+            highlight:SetPoint("BOTTOMRIGHT", -3, -2)
+            local glow = highlight:CreateTexture(nil, "ARTWORK")
+            glow:SetAllPoints()
+            addon.ApplyAtlas(glow, "transmog-tab-hl")
+            tab.SelectedHighlight = highlight
             tab:SetScript("OnClick", function(self)
-                PanelTemplates_SetTab(tabBar, self:GetID())
+                SelectRivalTab(self:GetID())
                 ShowDetails()
             end)
         end
         PanelTemplates_SetNumTabs(tabBar, 2)
-        PanelTemplates_SetTab(tabBar, infoTab)
+        SelectRivalTab(infoTab)
         -- Match the template's OnShow sizing once labels and selection are set.
         for _, tab in ipairs(tabBar.Tabs) do
             PanelTemplates_TabResize(tab)
@@ -564,11 +645,11 @@ local function ToggleBook()
         local statsTitle = summary:CreateFontString(nil, "OVERLAY", sectionFont)
         statsTitle:SetPoint("TOPLEFT", 25, -92)
         statsTitle:SetText(L.statistics)
-        if not ProfessionsButtonMixin and C_AddOns and C_AddOns.LoadAddOn then
+        if not ProfessionsReagentSlotButtonMixin and C_AddOns and C_AddOns.LoadAddOn then
             pcall(C_AddOns.LoadAddOn, "Blizzard_ProfessionsTemplates")
         end
-        wins = Stat(summary, -112, "CrossedSwords", L.winTooltip)
-        losses = Stat(summary, -162, "Skull", L.lossTooltip)
+        wins, statIcons[1] = Stat(summary, -112, addon.swordsIconPath, L.winTooltip)
+        losses, statIcons[2] = Stat(summary, -162, addon.skullIconPath, L.lossTooltip)
         local latestHeading = summary:CreateFontString(nil, "OVERLAY", sectionFont)
         latestHeading:SetPoint("TOPLEFT", 25, -215)
         latestHeading:SetText(L.latestEncounter)
@@ -614,7 +695,7 @@ local function ToggleBook()
             if not openDialog then
                 openDialog = addon.CreateManualDialog(window, function(id)
                     selected = id
-                    PanelTemplates_SetTab(tabBar, infoTab)
+                    SelectRivalTab(infoTab)
                     search:SetText("")
                     details:SetVerticalScroll(0)
                     addon.RefreshBook()
@@ -678,23 +759,28 @@ local function CreateShortcut()
     if not Minimap then return end
     local button = CreateFrame("Button", "NamesInRedMinimapButton", Minimap)
     button:SetSize(31, 31)
+    button:SetFrameStrata("MEDIUM")
     button:SetFrameLevel(Minimap:GetFrameLevel() + 8)
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
     background:SetSize(24, 24)
     background:SetPoint("TOPLEFT", 3, -3)
-    local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetTexture(addon.iconPath)
-    icon:SetSize(20, 20)
-    icon:SetPoint("TOPLEFT", 7, -5)
-    local mask = button:CreateMaskTexture()
-    mask:SetAllPoints(icon)
-    mask:SetTexture("Interface\\CHARACTERFRAME\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-    icon:AddMaskTexture(mask)
     local border = button:CreateTexture(nil, "OVERLAY")
     border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-    border:SetSize(53, 53)
+    local borderSize = 53
+    border:SetSize(borderSize, borderSize)
     border:SetPoint("TOPLEFT")
+    -- The aperture center in the 64x64 TrackingBorder texture, including its padding.
+    local apertureX, apertureY = 20 / 64, 19.5 / 64
+    local mask = button:CreateMaskTexture()
+    mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    mask:SetSize(20, 20)
+    mask:SetPoint("CENTER", border, "TOPLEFT", borderSize * apertureX, -borderSize * apertureY)
+    local icon = button:CreateTexture(nil, "ARTWORK")
+    icon:SetTexture(addon.swordsIconPath)
+    icon:SetSize(23.5, 23.5)
+    icon:SetPoint("CENTER", mask)
+    icon:AddMaskTexture(mask)
     button:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight", "ADD")
 
     local function Position()

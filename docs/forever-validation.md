@@ -183,11 +183,13 @@ the selected rival and captures its ID when opened. Verify that cancel leaves
 the record intact and accepting removes only that record, including when two
 rivals share a display name.
 
-The statistics section follows the reagent slots in
-`Blizzard_ProfessionsTemplates.xml` and
-`Blizzard_ProfessionsRecipeReagentSlotBase.lua`. It uses a 39-unit slot,
-the native square hover texture, and the reagent heading font. The book owns
-its controls and shows short localized GameTooltip descriptions.
+The statistics section instantiates `ProfessionsReagentSlotBaseTemplate` in
+`Blizzard_ProfessionsRecipeReagentSlotBase.xml`. Its `Button` inherits
+`ProfessionsButtonTemplate` and the intrinsic `ItemButton` mask and layers.
+It uses the ordinary reagent state from `SetModifyingRequired(false)`, the
+native `SetItemButtonTexture` path, and `SetSlotQuality(Common)` for the
+profession frame. The book supplies the icon asset and localized tooltip
+without binding the button to an item or crafting transaction.
 
 ## Skirmish cards and the world map
 
@@ -195,6 +197,12 @@ The book uses `PanelTopTabButtonTemplate` from Forever
 `Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml`. The tab textures are
 bottom-anchored by `PanelTopTabButtonMixin:OnLoad`. The book places the tabs
 above a sibling pane whose `common-insideframe` trim covers their lower edge.
+The `transmog-tab-hl` strip follows the `SelectedHighlight` layer in
+`TransmogWardrobeCollectionTabTemplate` and the selected-state handling in
+`TransmogWardrobeCollectionTabMixin:SetTabSelected`. It draws above the pane
+from a child frame anchored to the tab's bottom corners, so the span follows
+the localized label width. The book uses a two-unit strip with its upper
+edge meeting the tab's bottom baseline.
 Initial sizing uses the same text-based `PanelTemplates_TabResize` as
 `PanelTabButtonMixin:OnShow`. Check that the first open after a reload and
 subsequent opens use the same compact widths.
@@ -205,8 +213,10 @@ three active `uiframe-activetab` slices and lowers their brightness.
 Camelot's `SchematicFormCraftingTemplate` in
 `Blizzard_ProfessionsRecipeSchematicForm.xml` uses that same rim on the BORDER
 layer. The full right column uses the same `Professions-background-summarylist`
-atlas as the roster and `Blizzard_ProfessionsRecipeList.xml`. Check it behind
-the tabs and the Delete button. Delete confirmation uses the client's shared
+atlas as the roster and `Blizzard_ProfessionsRecipeList.xml`. The right
+column underlay lives on the page's BACKGROUND layer, below the Delete
+button's three-slice artwork. Check the button after opening and reopening
+the book and when switching pages. Delete confirmation uses the client's shared
 `StaticPopupButtonTemplate` from `Blizzard_StaticPopup_Game/GameDialog.xml`.
 The book fades the left side of its illustration into the recipe
 background using the texture gradient API. Check that the upper rim is
@@ -253,3 +263,45 @@ In Forever, check both side tabs and their hover and selected states, drag to
 the right screen edge, open the history with and without entries, scroll to
 the bottom, switch back to an opponent from the history with a prior roster
 search active, and verify map buttons in both views.
+
+The Rivals tab uses the icon from `RosterTab` in
+`Blizzard_Communities/CommunitiesFrame.xml`. Both side tabs retain the native
+`common-sidetab-mask` and the icon treatment in
+`SidePanelTabButtonMixin:UpdateIconInterior`.
+
+The addon list, window portraits, minimap, statistics, cards, manual dialog,
+tooltip and nameplate use the same transparent `CrossedSwords.tga`. Framed
+icons keep their native anchors and masks; square and inline icons use
+centered texture coordinates for their display size. Inline texture
+coordinates follow the format used by `GuildRewards.lua`.
+The minimap uses the `MiniMap-TrackingBorder` and backing from
+`Shortcut:Init` in Azeroth Fitness `Minimap.lua`. The icon is centered in
+the visible opening of the border, which is near (20, 19.5) in its 64 × 64
+source texture. That opening was measured in the public texture extraction
+`Gethe/wow-ui-textures@d23deaf8f44a7d280dc974a5c9d5321c013db59b`.
+Like the First Aid window, the book sets its portrait through `SetPortraitToAsset`. This is the
+path used by `ProfessionsMixin:Refresh` in `Blizzard_ProfessionsFrame.lua`.
+The stock `PortraitFrameTemplate` controls the portrait and mask placement.
+The branded portrait samples a 120 × 120 window of the 128 × 128 artwork.
+The portrait crop samples two texels farther right and the statistics crops
+sample one, after the owner reported a slight left skew in the statistics.
+The minimap samples the same artwork in a 23.5-unit square centered on its
+existing circle mask. The
+stock mask, reagent frame and texture anchors remain native. Reference mode
+uses the full native icon and restores the branded crops when it exits.
+The main skull artwork is shared by the statistics, cards and manual dialog.
+The small pink skull remains a distinct inline indicator.
+Compare the header to First Aid and both statistics slots to reagent icons
+in the live client at normal and reduced UI scales.
+
+With an opponent's Information tab visible, `/nirdebug icons` swaps the window
+and statistics art for First Aid, Linen Cloth and Wool Cloth in the same
+frames. The addon portrait backing is hidden in reference mode. Run it again
+to restore addon art. The chat diagnostics report the
+center differences between texture and mask or border regions in UI units.
+The region bounds include atlas padding and do not measure the center of the
+visible paint. Compare before and after in the same client session.
+The owner's 0.0.54 comparison shows the First Aid drop in both title portraits
+and Linen Cloth in both reagent slots at approximately the same relative
+positions. The inline captures support a visual comparison, with an estimated
+one-to-two-pixel uncertainty in locating the edges.

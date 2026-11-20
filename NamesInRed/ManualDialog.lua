@@ -8,6 +8,26 @@ function addon.ApplyAtlas(texture, atlas)
     end
 end
 
+function addon.SetBookPortraitTexture(frame, texture)
+    frame:SetPortraitToAsset(texture)
+    local inset, shift = 0, 0
+    if texture == addon.swordsIconPath then
+        inset, shift = 4 / 128, 2 / 128
+    end
+    frame:GetPortrait():SetTexCoord(inset + shift, 1 - inset + shift, inset, 1 - inset)
+end
+
+function addon.SetBookPortrait(frame)
+    addon.SetBookPortraitTexture(frame, addon.swordsIconPath)
+    local portrait = frame:GetPortrait()
+    local container = frame.PortraitContainer
+    local backing = container:CreateTexture(nil, "BACKGROUND")
+    backing:SetAllPoints(portrait)
+    backing:SetColorTexture(0.02, 0.03, 0.055, 1)
+    backing:AddMaskTexture(container.CircleMask)
+    return backing
+end
+
 function addon.CreateRoundIcon(parent)
     local icon = parent:CreateTexture(nil, "ARTWORK")
     icon:SetSize(52, 52)
@@ -83,7 +103,7 @@ function addon.CreateManualDialog(parent, onAdded)
     dialog:SetPoint("CENTER", parent)
     dialog:SetClampedToScreen(true)
     dialog:SetTitle(L.addTitle)
-    dialog:SetPortraitToAsset(addon.windowIconPath)
+    addon.SetBookPortrait(dialog)
     dialog.onCloseCallback = function() shield:Hide(); return false end
 
     local label = dialog:CreateFontString(nil, "ARTWORK", "GameFontNormal")
@@ -125,8 +145,8 @@ function addon.CreateManualDialog(parent, onAdded)
         selected = direction
         Update()
     end
-    win = Choice(dialog, 24, L.win, "Interface\\AddOns\\NamesInRed\\Art\\Victory.tga", "killsAgainstThem", Choose)
-    loss = Choice(dialog, 186, L.loss, "Interface\\AddOns\\NamesInRed\\Art\\Gravestone.tga", "deathsToThem", Choose)
+    win = Choice(dialog, 24, L.win, addon.swordsIconPath, "killsAgainstThem", Choose)
+    loss = Choice(dialog, 186, L.loss, addon.skullIconPath, "deathsToThem", Choose)
     local function Save()
         local id = addon.AddManualEncounter(edit:GetText(), selected, target)
         if id then

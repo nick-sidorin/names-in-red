@@ -1,8 +1,8 @@
 ## Interface: 16001
 ## Title: Names in Red (Debug)
 ## Notes: PvP diagnostics preview
-## Version: 0.0.46-debug
-## IconTexture: Interface\AddOns\NamesInRed\Art\Skull.tga
+## Version: 0.0.59-debug
+## IconTexture: Interface\AddOns\NamesInRed\Art\CrossedSwords.tga
 ## SavedVariablesPerCharacter: NamesInRedDB, NamesInRedDebugDB
 
 Locale.lua

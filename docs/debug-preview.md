@@ -44,7 +44,7 @@ replayed into the ledger.
 
 ## Rival Book preview
 
-The minimap skull icon opens the Rival Book and can be dragged around the
+The minimap crossed-swords icon opens the Rival Book and can be dragged around the
 minimap. Select a name to see totals and the last skirmish in Information.
 Skirmishes shows all saved cards in newest-first order. Existing totals load
 without needing saved encounter details. The standard GameTooltip gets a
