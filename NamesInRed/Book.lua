@@ -15,9 +15,6 @@ local infoTab, historyTab = 1, 2
 local cardStride = addon.encounterCardHeight + 8
 local cardWidth = 332
 local sectionFont = "GameFontNormal"
-local statIcons = {}
-local bookPortraitBacking
-local showReferenceIcons = false
 local statSwordInset = 0.11
 
 local function SetStatIconCrop(icon, texture)
@@ -81,7 +78,7 @@ local function UpdatePortrait(portrait, rival, id)
 end
 
 local function Stat(parent, y, texture, tooltipText)
-    local holder, slot, icon, border
+    local holder, slot, icon
     if ProfessionsReagentSlotButtonMixin then
         local ok, reagent = pcall(CreateFrame, "Frame", nil, parent, "ProfessionsReagentSlotBaseTemplate")
         if ok then
@@ -94,7 +91,6 @@ local function Stat(parent, y, texture, tooltipText)
             slot:SetItemButtonTexture(texture)
             icon = slot:GetItemButtonIconTexture()
             slot:SetSlotQuality(Enum.ItemQuality.Common)
-            border = slot.IconBorder
         end
     end
     if not slot then
@@ -108,7 +104,7 @@ local function Stat(parent, y, texture, tooltipText)
         icon:SetPoint("CENTER")
         icon:SetSize(31, 31)
         icon:SetTexture(texture)
-        border = slot:CreateTexture(nil, "OVERLAY")
+        local border = slot:CreateTexture(nil, "OVERLAY")
         border:SetAllPoints()
         addon.ApplyAtlas(border, "Professions-Slot-Frame")
         slot:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
@@ -129,43 +125,7 @@ local function Stat(parent, y, texture, tooltipText)
 
     local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     label:SetPoint("LEFT", slot, "RIGHT", 10, 0)
-    return label, { texture = icon, reference = border }
-end
-
-local function PrintIconOffset(label, icon, reference)
-    local x, y = icon:GetCenter()
-    local refX, refY = reference:GetCenter()
-    if x and refX then
-        print(("NamesInRed %s offset x=%+.2f y=%+.2f"):format(label, x - refX, y - refY))
-    end
-end
-
-function addon.ToggleIconReference()
-    if not summary or not summary:IsVisible() then return "open-information" end
-    local windowAsset, winAsset, lossAsset = addon.swordsIconPath, addon.swordsIconPath, addon.skullIconPath
-    if not showReferenceIcons then
-        if not C_TradeSkillUI or not C_TradeSkillUI.GetTradeSkillTexture or not C_Item or not C_Item.GetItemIconByID then
-            return "reference-unavailable"
-        end
-        windowAsset = Readable(C_TradeSkillUI.GetTradeSkillTexture(129)) -- First Aid
-        if (not windowAsset or windowAsset == 0) and C_Spell and C_Spell.GetSpellTexture then
-            windowAsset = Readable(C_Spell.GetSpellTexture(3273))
-        end
-        winAsset = Readable(C_Item.GetItemIconByID(2589)) -- Linen Cloth
-        lossAsset = Readable(C_Item.GetItemIconByID(2592)) -- Wool Cloth
-        if not windowAsset or windowAsset == 0 or not winAsset or not lossAsset then return "reference-unavailable" end
-    end
-    showReferenceIcons = not showReferenceIcons
-    addon.SetBookPortraitTexture(window, windowAsset)
-    bookPortraitBacking:SetShown(not showReferenceIcons)
-    statIcons[1].texture:SetTexture(winAsset)
-    statIcons[2].texture:SetTexture(lossAsset)
-    SetStatIconCrop(statIcons[1].texture, winAsset)
-    SetStatIconCrop(statIcons[2].texture, lossAsset)
-    PrintIconOffset("portrait/mask", window:GetPortrait(), window.PortraitContainer.CircleMask)
-    PrintIconOffset("wins/frame", statIcons[1].texture, statIcons[1].reference)
-    PrintIconOffset("losses/frame", statIcons[2].texture, statIcons[2].reference)
-    return showReferenceIcons and "blizzard" or "addon"
+    return label
 end
 
 local function CloseForMap()
@@ -532,7 +492,7 @@ local function ToggleBook()
         window:EnableMouse(true)
         window:SetClampedToScreen(true)
         window:SetTitle(addon.title)
-        bookPortraitBacking = addon.SetBookPortrait(window)
+        addon.SetBookPortrait(window)
         window.onCloseCallback = function() window:Hide(); return false end
         MakeDraggable(window)
         tinsert(UISpecialFrames, window:GetName())
@@ -648,8 +608,8 @@ local function ToggleBook()
         if not ProfessionsReagentSlotButtonMixin and C_AddOns and C_AddOns.LoadAddOn then
             pcall(C_AddOns.LoadAddOn, "Blizzard_ProfessionsTemplates")
         end
-        wins, statIcons[1] = Stat(summary, -112, addon.swordsIconPath, L.winTooltip)
-        losses, statIcons[2] = Stat(summary, -162, addon.skullIconPath, L.lossTooltip)
+        wins = Stat(summary, -112, addon.swordsIconPath, L.winTooltip)
+        losses = Stat(summary, -162, addon.skullIconPath, L.lossTooltip)
         local latestHeading = summary:CreateFontString(nil, "OVERLAY", sectionFont)
         latestHeading:SetPoint("TOPLEFT", 25, -215)
         latestHeading:SetText(L.latestEncounter)
