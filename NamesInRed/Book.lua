@@ -15,6 +15,9 @@ local infoTab, historyTab = 1, 2
 local cardStride = addon.encounterCardHeight + 8
 local cardWidth = 332
 local sectionFont = "GameFontNormal"
+local statIcons = {}
+local showReferenceIcons = false
+local statSwordInset = 0.11
 
 function addon.RivalCounters(rival, hideZero)
     local wins, losses
@@ -68,7 +71,7 @@ local function UpdatePortrait(portrait, rival, id)
 end
 
 local function Stat(parent, y, texture, tooltipText)
-    local holder, slot, icon
+    local holder, slot, icon, border
     if ProfessionsReagentSlotButtonMixin then
         local ok, reagent = pcall(CreateFrame, "Frame", nil, parent, "ProfessionsReagentSlotBaseTemplate")
         if ok then
@@ -81,6 +84,7 @@ local function Stat(parent, y, texture, tooltipText)
             slot:SetItemButtonTexture(texture)
             icon = slot:GetItemButtonIconTexture()
             slot:SetSlotQuality(Enum.ItemQuality.Common)
+            border = slot.IconBorder
         end
     end
     if not slot then
@@ -94,13 +98,13 @@ local function Stat(parent, y, texture, tooltipText)
         icon:SetPoint("CENTER")
         icon:SetSize(31, 31)
         icon:SetTexture(texture)
-        local border = slot:CreateTexture(nil, "OVERLAY")
+        border = slot:CreateTexture(nil, "OVERLAY")
         border:SetAllPoints()
         addon.ApplyAtlas(border, "Professions-Slot-Frame")
         slot:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
     end
     if texture == addon.swordsIconPath then
-        icon:SetTexCoord(0.11, 0.89, 0.11, 0.89)
+        icon:SetTexCoord(statSwordInset, 1 - statSwordInset, statSwordInset, 1 - statSwordInset)
     end
     holder:SetPoint("TOPLEFT", 25, y)
 
@@ -117,7 +121,42 @@ local function Stat(parent, y, texture, tooltipText)
 
     local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     label:SetPoint("LEFT", slot, "RIGHT", 10, 0)
-    return label
+    return label, { texture = icon, reference = border }
+end
+
+local function PrintIconOffset(label, icon, reference)
+    local x, y = icon:GetCenter()
+    local refX, refY = reference:GetCenter()
+    if x and refX then
+        print(("NamesInRed %s offset x=%+.2f y=%+.2f"):format(label, x - refX, y - refY))
+    end
+end
+
+function addon.ToggleIconReference()
+    if not summary or not summary:IsVisible() then return "open-information" end
+    local windowAsset, winAsset, lossAsset = addon.swordsIconPath, addon.swordsIconPath, addon.skullIconPath
+    if not showReferenceIcons then
+        if not C_TradeSkillUI or not C_TradeSkillUI.GetTradeSkillTexture or not C_Item or not C_Item.GetItemIconByID then
+            return "reference-unavailable"
+        end
+        windowAsset = Readable(C_TradeSkillUI.GetTradeSkillTexture(129)) -- First Aid
+        if (not windowAsset or windowAsset == 0) and C_Spell and C_Spell.GetSpellTexture then
+            windowAsset = Readable(C_Spell.GetSpellTexture(3273))
+        end
+        winAsset = Readable(C_Item.GetItemIconByID(2589)) -- Linen Cloth
+        lossAsset = Readable(C_Item.GetItemIconByID(2592)) -- Wool Cloth
+        if not windowAsset or windowAsset == 0 or not winAsset or not lossAsset then return "reference-unavailable" end
+    end
+    showReferenceIcons = not showReferenceIcons
+    window:SetPortraitToAsset(windowAsset)
+    statIcons[1].texture:SetTexture(winAsset)
+    statIcons[2].texture:SetTexture(lossAsset)
+    local inset = showReferenceIcons and 0 or statSwordInset
+    statIcons[1].texture:SetTexCoord(inset, 1 - inset, inset, 1 - inset)
+    PrintIconOffset("portrait/mask", window:GetPortrait(), window.PortraitContainer.CircleMask)
+    PrintIconOffset("wins/frame", statIcons[1].texture, statIcons[1].reference)
+    PrintIconOffset("losses/frame", statIcons[2].texture, statIcons[2].reference)
+    return showReferenceIcons and "blizzard" or "addon"
 end
 
 local function CloseForMap()
@@ -577,8 +616,8 @@ local function ToggleBook()
         if not ProfessionsReagentSlotButtonMixin and C_AddOns and C_AddOns.LoadAddOn then
             pcall(C_AddOns.LoadAddOn, "Blizzard_ProfessionsTemplates")
         end
-        wins = Stat(summary, -112, addon.swordsIconPath, L.winTooltip)
-        losses = Stat(summary, -162, addon.skullIconPath, L.lossTooltip)
+        wins, statIcons[1] = Stat(summary, -112, addon.swordsIconPath, L.winTooltip)
+        losses, statIcons[2] = Stat(summary, -162, addon.skullIconPath, L.lossTooltip)
         local latestHeading = summary:CreateFontString(nil, "OVERLAY", sectionFont)
         latestHeading:SetPoint("TOPLEFT", 25, -215)
         latestHeading:SetText(L.latestEncounter)

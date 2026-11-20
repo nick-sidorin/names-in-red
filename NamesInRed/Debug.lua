@@ -239,6 +239,10 @@ frame:SetScript("OnEvent", function(self, event, ...)
 
     SLASH_NAMESINREDDEBUG1 = "/nirdebug"
     SlashCmdList.NAMESINREDDEBUG = function(message)
+        if message == "icons" and addon and addon.ToggleIconReference then
+            print("NamesInRed", "icons", addon.ToggleIconReference())
+            return
+        end
         if message == "seed" or message == "clear-seed" then
             if not addon or not addon.db then return end
             local count

@@ -278,3 +278,10 @@ The main skull artwork is shared by the statistics, cards and manual dialog.
 The small pink skull remains a distinct inline indicator.
 Compare the header to First Aid and both statistics slots to reagent icons
 in the live client at normal and reduced UI scales.
+
+With an opponent's Information tab visible, `/nirdebug icons` swaps the window
+and statistics art for First Aid, Linen Cloth and Wool Cloth in the same
+frames. Run it again to restore addon art. The chat diagnostics report the
+center differences between texture and mask or border regions in UI units.
+The region bounds include atlas padding and do not measure the center of the
+visible paint. Compare before and after in the same client session.
