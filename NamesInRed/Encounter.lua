@@ -91,6 +91,9 @@ function addon.RecordEncounter(guid, name, direction, context, appearance)
     rival[direction] = rival[direction] + 1
     rival.encounters = rival.encounters or {}
     context.direction = direction
+    addon.db.encounterSequence = (addon.db.encounterSequence or 0) + 1
+    context.sequence = addon.db.encounterSequence
+    if not context.time then context.recordedAt = SafeRead(GetServerTime) end
     table.insert(rival.encounters, 1, context)
     if addon.RefreshBook then
         addon.RefreshBook()
@@ -111,6 +114,43 @@ end
 
 function addon.HasFullName(name)
     return type(name) == "string" and name:find("%S %S") ~= nil
+end
+
+function addon.IsRosterRival(id, rival)
+    return not id:match("^Player%-") or addon.HasFullName(rival.displayName)
+end
+
+local function MoreRecent(a, b)
+    if a.time ~= b.time then return a.time > b.time end
+    if a.sequence ~= b.sequence then return a.sequence > b.sequence end
+    if a.id ~= b.id then return a.id < b.id end
+    return a.index < b.index
+end
+
+function addon.RecentEncounters(db, limit)
+    local entries = {}
+    for id, rival in pairs(db.rivals) do
+        for index, encounter in ipairs(rival.encounters or {}) do
+            local entry = {
+                id = id, rival = rival, encounter = encounter, index = index,
+                time = encounter.time or encounter.recordedAt or 0, sequence = encounter.sequence or 0,
+            }
+            if #entries < limit or MoreRecent(entry, entries[limit]) then
+                local low, high = 1, #entries
+                while low <= high do
+                    local middle = math.floor((low + high) / 2)
+                    if MoreRecent(entry, entries[middle]) then
+                        high = middle - 1
+                    else
+                        low = middle + 1
+                    end
+                end
+                table.insert(entries, low, entry)
+                entries[limit + 1] = nil
+            end
+        end
+    end
+    return entries
 end
 
 function addon.FindVisibleRival(guid, unit)

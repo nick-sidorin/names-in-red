@@ -232,3 +232,24 @@ For legacy cards the addon uses `C_Map.GetMapChildrenInfo` from
 zone maps by localized name. Check older Hillsbrad and Stranglethorn cards
 like the owner's screenshots, plus an unresolved zone. Verify coordinates
 on button hover and that a rejected waypoint leaves the book open.
+
+## Cross-rival skirmish history
+
+The outer navigation follows `UI:Build` and `UI:Show` in Azeroth Fitness
+`UI.lua`, and the `ProfessionsOverviewTab` anchor in
+`Blizzard_Professions/Camelot/Blizzard_ProfessionsFrame.xml`. It uses
+`LargeSideTabButtonTemplate` and the native
+`SidePanelTabButtonMixin:SetCustomOnMouseUpHandler` and `SetChecked` handling.
+The two pages share the main book window. An identified rival's Information
+button opens that rival in the roster even with a previous search active.
+Unresolved identities stay anonymous until the full name is known.
+
+The journal displays at most 100 cards across the ledger. It preserves older
+saved entries and uses a bounded sorted list and a viewport-sized frame pool.
+New manually added entries use their recording time for ordering. Historic
+manual entries without a timestamp follow dated ones.
+
+In Forever, check both side tabs and their hover and selected states, drag to
+the right screen edge, open the history with and without entries, scroll to
+the bottom, switch back to an opponent from the history with a prior roster
+search active, and verify map buttons in both views.

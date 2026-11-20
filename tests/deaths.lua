@@ -103,3 +103,25 @@ end
 assert(#rival.encounters == 34 and rival.encounters[1].time == 1040)
 assert(rival.encounters[30].time == 1011 and rival.encounters[34] == oldest)
 print("Complete newest-first encounter history checks passed")
+
+addon.db = assert(addon.Ledger.Open(nil))
+now = 1100
+addon.RecordEncounter("Player-one", "First Rival", "killsAgainstThem", { time = now })
+local manualID = assert(addon.AddManualEncounter("Second Rival", "deathsToThem"))
+addon.RecordEncounter("Player-unknown", nil, "killsAgainstThem", { time = now })
+local legacy = addon.Ledger.Add(addon.db, "manual:old rival", "Old Rival")
+legacy.encounters = { { manual = true } }
+local recent = addon.RecentEncounters(addon.db, 100)
+assert(#recent == 4)
+assert(recent[1].id == "Player-unknown" and not addon.IsRosterRival(recent[1].id, recent[1].rival))
+assert(recent[2].id == manualID and recent[2].encounter.manual and recent[2].encounter.time == nil)
+assert(recent[2].encounter.recordedAt == now and recent[3].id == "Player-one")
+assert(recent[4].encounter == legacy.encounters[1])
+addon.Ledger.Remove(addon.db, "Player-unknown")
+for timestamp = 1101, 1210 do
+    addon.RecordEncounter("Player-one", "First Rival", "killsAgainstThem", { time = timestamp })
+end
+recent = addon.RecentEncounters(addon.db, 100)
+assert(#recent == 100 and recent[1].time == 1210 and recent[100].time == 1111)
+assert(#addon.db.rivals["Player-one"].encounters == 111 and addon.db.rivals[manualID])
+print("Cross-rival skirmish order and display limit checks passed")

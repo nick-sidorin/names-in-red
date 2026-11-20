@@ -90,3 +90,19 @@ local encounter = encounterStrings[GetLocale()] or encounterStrings.enUS
 addon.L.infoTab, addon.L.historyTab, addon.L.latestEncounter, addon.L.showOnMap = unpack(encounter, 1, 4)
 addon.L.unknownLocation, addon.L.myLevel, addon.L.rivalLevel, addon.L.waypointError = unpack(encounter, 5, 8)
 addon.L.noSkirmishes = encounter[9]
+
+local bookViews = {
+    enUS = { "Rivals", "Skirmish history", "Unknown rival" },
+    ruRU = { "Противники", "История стычек", "Неизвестный противник" },
+    deDE = { "Rivalen", "Gefechtsverlauf", "Unbekannter Rivale" },
+    frFR = { "Rivaux", "Historique des escarmouches", "Rival inconnu" },
+    esES = { "Rivales", "Historial de escaramuzas", "Rival desconocido" },
+    itIT = { "Rivali", "Cronologia delle schermaglie", "Rivale sconosciuto" },
+    ptBR = { "Rivais", "Histórico de escaramuças", "Rival desconhecido" },
+    koKR = { "상대", "전체 교전 기록", "알 수 없는 상대" },
+    zhCN = { "对手", "交锋记录", "未知对手" },
+    zhTW = { "對手", "交鋒紀錄", "未知對手" },
+}
+bookViews.enGB = bookViews.enUS
+bookViews.esMX = bookViews.esES
+addon.L.rivalsView, addon.L.recentView, addon.L.unknownRival = unpack(bookViews[GetLocale()] or bookViews.enUS)
