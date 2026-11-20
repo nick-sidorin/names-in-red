@@ -261,7 +261,11 @@ The Rivals tab uses the icon from `RosterTab` in
 `common-sidetab-mask` and the icon treatment in
 `SidePanelTabButtonMixin:UpdateIconInterior`.
 
-The addon list, window portraits and minimap use the existing crossed swords.
+The addon list, window portraits, minimap, statistics, cards, manual dialog,
+tooltip and nameplate use the same transparent `CrossedSwords.tga`. Framed
+icons keep their native anchors and masks; square and inline icons use
+centered texture coordinates for their display size. Inline texture
+coordinates follow the format used by `GuildRewards.lua`.
 The minimap uses the `MiniMap-TrackingBorder` and backing from
 `Shortcut:Init` in Azeroth Fitness `Minimap.lua`. The icon is centered in
 the visible opening of the border, which is near (20, 19.5) in its 64 × 64
@@ -270,11 +274,7 @@ source texture. That opening was measured in the public texture extraction
 Like the First Aid window, the book sets its portrait through `SetPortraitToAsset`. This is the
 path used by `ProfessionsMixin:Refresh` in `Blizzard_ProfessionsFrame.lua`.
 The stock `PortraitFrameTemplate` controls the portrait and mask placement.
-The round and reagent-slot exports use the visible bounds of the swords and
-the skull silhouette. In the owner's 0.0.51 screenshot, weighting the
-artwork by brightness made the swords sit low in the portrait.
-On the 128 × 128 exports, the swords now have equal margins on opposite
-sides. The skull's margins differ by at most one pixel after excluding the
-red glow from its silhouette. The original textures remain in skirmish cards.
+The main skull artwork is shared by the statistics, cards and manual dialog.
+The small pink skull remains a distinct inline indicator.
 Compare the header to First Aid and both statistics slots to reagent icons
 in the live client at normal and reduced UI scales.

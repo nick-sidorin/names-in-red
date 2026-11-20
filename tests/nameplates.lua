@@ -49,13 +49,13 @@ function CreateFrame(_, _, owner)
     return badge
 end
 
-for _, file in ipairs({ "Encounter", "EncounterCards", "Book", "Nameplates" }) do
+for _, file in ipairs({ "Encounter", "EncounterCards", "Core", "Book", "Nameplates" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
 
 onEvent(nil, "NAME_PLATE_UNIT_ADDED", unit)
 assert(badge.shown and badge.anchor == name)
-assert(badge.text:find("TooltipVictory", 1, true) and not badge.text:find("TooltipSkull", 1, true))
+assert(badge.text:find("CrossedSwords.tga", 1, true) and not badge.text:find("TooltipSkull", 1, true))
 rival.deathsToThem = 2
 addon.RefreshNameplates()
 assert(badge.shown and badge.text:find("TooltipSkull", 1, true))

@@ -1,6 +1,6 @@
 local _, addon = ...
 local L, Readable = addon.L, addon.Readable
-local victoryGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipVictory.tga:14:14:0:1|t"
+local victoryGlyph = "|T" .. addon.swordsIconPath .. ":14:14:0:1:128:128:22:106:22:106|t"
 local deathGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipSkull.tga:14:14:0:1|t"
 local window, names, details, heading, portrait, summary, wins, losses, status, selected, empty
 local search, remove, levelBadge, tabBar, latestCard, latestEmpty, historyEmpty
@@ -67,9 +67,8 @@ local function UpdatePortrait(portrait, rival, id)
     end
 end
 
-local function Stat(parent, y, art, tooltipText)
-    local texture = "Interface\\AddOns\\NamesInRed\\Art\\" .. art .. ".tga"
-    local holder, slot
+local function Stat(parent, y, texture, tooltipText)
+    local holder, slot, icon
     if ProfessionsReagentSlotButtonMixin then
         local ok, reagent = pcall(CreateFrame, "Frame", nil, parent, "ProfessionsReagentSlotBaseTemplate")
         if ok then
@@ -80,6 +79,7 @@ local function Stat(parent, y, art, tooltipText)
             slot.InputOverlay:Hide()
             slot:SetModifyingRequired(false)
             slot:SetItemButtonTexture(texture)
+            icon = slot:GetItemButtonIconTexture()
             slot:SetSlotQuality(Enum.ItemQuality.Common)
         end
     end
@@ -90,7 +90,7 @@ local function Stat(parent, y, art, tooltipText)
         local background = slot:CreateTexture(nil, "BACKGROUND")
         background:SetAllPoints()
         addon.ApplyAtlas(background, "Professions-Slot-bg")
-        local icon = slot:CreateTexture(nil, "ARTWORK")
+        icon = slot:CreateTexture(nil, "ARTWORK")
         icon:SetPoint("CENTER")
         icon:SetSize(31, 31)
         icon:SetTexture(texture)
@@ -98,6 +98,9 @@ local function Stat(parent, y, art, tooltipText)
         border:SetAllPoints()
         addon.ApplyAtlas(border, "Professions-Slot-Frame")
         slot:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+    end
+    if texture == addon.swordsIconPath then
+        icon:SetTexCoord(0.11, 0.89, 0.11, 0.89)
     end
     holder:SetPoint("TOPLEFT", 25, y)
 
@@ -469,7 +472,7 @@ local function ToggleBook()
         window:EnableMouse(true)
         window:SetClampedToScreen(true)
         window:SetTitle(addon.title)
-        window:SetPortraitToAsset(addon.roundIconPath)
+        addon.SetBookPortrait(window)
         window.onCloseCallback = function() window:Hide(); return false end
         MakeDraggable(window)
         tinsert(UISpecialFrames, window:GetName())
@@ -574,8 +577,8 @@ local function ToggleBook()
         if not ProfessionsReagentSlotButtonMixin and C_AddOns and C_AddOns.LoadAddOn then
             pcall(C_AddOns.LoadAddOn, "Blizzard_ProfessionsTemplates")
         end
-        wins = Stat(summary, -112, "CrossedSwordsSlot", L.winTooltip)
-        losses = Stat(summary, -162, "SkullSlot", L.lossTooltip)
+        wins = Stat(summary, -112, addon.swordsIconPath, L.winTooltip)
+        losses = Stat(summary, -162, addon.skullIconPath, L.lossTooltip)
         local latestHeading = summary:CreateFontString(nil, "OVERLAY", sectionFont)
         latestHeading:SetPoint("TOPLEFT", 25, -215)
         latestHeading:SetText(L.latestEncounter)
@@ -703,7 +706,7 @@ local function CreateShortcut()
     mask:SetSize(20, 20)
     mask:SetPoint("CENTER", border, "TOPLEFT", borderSize * apertureX, -borderSize * apertureY)
     local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetTexture(addon.roundIconPath)
+    icon:SetTexture(addon.swordsIconPath)
     icon:SetSize(22, 22)
     icon:SetPoint("CENTER", mask)
     icon:AddMaskTexture(mask)
