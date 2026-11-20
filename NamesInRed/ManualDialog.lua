@@ -11,12 +11,18 @@ end
 function addon.SetBookPortrait(frame)
     local portrait = frame:GetPortrait()
     local container = frame.PortraitContainer
+    local mask = container.CircleMask
+    local aperture = math.min(portrait:GetWidth(), portrait:GetHeight()) - 4
+    mask:ClearAllPoints()
+    mask:SetPoint("CENTER", portrait)
+    mask:SetSize(aperture, aperture)
     portrait:SetColorTexture(0.02, 0.03, 0.055, 1)
     local icon = container:CreateTexture(nil, "OVERLAY", nil, 1)
     icon:SetTexture(addon.iconPath)
-    -- Fit the square artwork inside the round portrait without clipping its blades.
-    icon:SetSize(40, 40)
-    icon:SetPoint("CENTER", container.CircleMask)
+    local iconSize = math.floor(aperture / math.sqrt(2))
+    icon:SetSize(iconSize, iconSize)
+    icon:SetPoint("CENTER", portrait)
+    icon:AddMaskTexture(mask)
 end
 
 function addon.CreateRoundIcon(parent)

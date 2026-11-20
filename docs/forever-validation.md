@@ -254,9 +254,16 @@ the right screen edge, open the history with and without entries, scroll to
 the bottom, switch back to an opponent from the history with a prior roster
 search active, and verify map buttons in both views.
 
-The Rivals tab uses the unrolled parchment from `GuildInfoTab` in
-`Blizzard_Communities/CommunitiesFrame.xml`. History keeps the book icon.
+The Rivals tab uses the icon from `RosterTab` in
+`Blizzard_Communities/CommunitiesFrame.xml`. Both side tabs retain the native
+`common-sidetab-mask` and the icon treatment in
+`SidePanelTabButtonMixin:UpdateIconInterior`.
+
 The addon list, window portraits and minimap use the existing crossed swords.
-The window centers the artwork inside `PortraitFrameTemplate`'s
-`PortraitContainer.CircleMask`; validate that both blade tips and hilts
-remain visible in the window and the minimap button at the live UI scale.
+The minimap uses the centered `RingBorder` file and circular mask referenced
+by `ExternalEventURLMinimapButtonTemplate` in
+`Blizzard_Minimap/Shared/ExternalEventURLMinimapButton.xml`. The book centers
+its mask and artwork on the stock `PortraitContainer.portrait` and fits the
+swords inside that aperture. The statistics artwork is inset on all sides of
+the native `Professions-Slot-Frame`. Check the swords and the skull at
+normal and reduced UI scales in the live client.
