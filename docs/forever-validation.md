@@ -200,7 +200,8 @@ above a sibling pane whose `common-insideframe` trim covers their lower edge.
 The one-unit `transmog-tab-hl` strip follows the `SelectedHighlight` layer in
 `TransmogWardrobeCollectionTabTemplate` and the selected-state handling in
 `TransmogWardrobeCollectionTabMixin:SetTabSelected`. It draws above both the
-tab and pane so the seam under the active tab lights up.
+tab and pane. Its vertical anchor follows the book pane's edge because the
+book's overlap differs from Transmog's.
 Initial sizing uses the same text-based `PanelTemplates_TabResize` as
 `PanelTabButtonMixin:OnShow`. Check that the first open after a reload and
 subsequent opens use the same compact widths.
@@ -211,8 +212,10 @@ three active `uiframe-activetab` slices and lowers their brightness.
 Camelot's `SchematicFormCraftingTemplate` in
 `Blizzard_ProfessionsRecipeSchematicForm.xml` uses that same rim on the BORDER
 layer. The full right column uses the same `Professions-background-summarylist`
-atlas as the roster and `Blizzard_ProfessionsRecipeList.xml`. Check it behind
-the tabs and the Delete button. Delete confirmation uses the client's shared
+atlas as the roster and `Blizzard_ProfessionsRecipeList.xml`. The right
+column underlay lives on the page's BACKGROUND layer, below the Delete
+button's three-slice artwork. Check the button after opening and reopening
+the book and when switching pages. Delete confirmation uses the client's shared
 `StaticPopupButtonTemplate` from `Blizzard_StaticPopup_Game/GameDialog.xml`.
 The book fades the left side of its illustration into the recipe
 background using the texture gradient API. Check that the upper rim is
@@ -278,6 +281,9 @@ source texture. That opening was measured in the public texture extraction
 Like the First Aid window, the book sets its portrait through `SetPortraitToAsset`. This is the
 path used by `ProfessionsMixin:Refresh` in `Blizzard_ProfessionsFrame.lua`.
 The stock `PortraitFrameTemplate` controls the portrait and mask placement.
+The branded portrait samples the center 120 × 120 area of the 128 × 128
+artwork. Reference mode uses the full native icon and restores the branded
+crop when it exits.
 The main skull artwork is shared by the statistics, cards and manual dialog.
 The small pink skull remains a distinct inline indicator.
 Compare the header to First Aid and both statistics slots to reagent icons

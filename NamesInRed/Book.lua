@@ -149,7 +149,7 @@ function addon.ToggleIconReference()
         if not windowAsset or windowAsset == 0 or not winAsset or not lossAsset then return "reference-unavailable" end
     end
     showReferenceIcons = not showReferenceIcons
-    window:SetPortraitToAsset(windowAsset)
+    addon.SetBookPortraitTexture(window, windowAsset)
     bookPortraitBacking:SetShown(not showReferenceIcons)
     statIcons[1].texture:SetTexture(winAsset)
     statIcons[2].texture:SetTexture(lossAsset)
@@ -355,9 +355,14 @@ local function Pane(parent, x, y, width, height)
     return frame
 end
 
-local function ListBackground(parent)
+local function ListBackground(parent, x, y, width, height)
     local texture = parent:CreateTexture(nil, "BACKGROUND")
-    texture:SetAllPoints()
+    if x then
+        texture:SetPoint("TOPLEFT", x, y)
+        texture:SetSize(width, height)
+    else
+        texture:SetAllPoints()
+    end
     addon.ApplyAtlas(texture, "Professions-background-summarylist")
 end
 
@@ -546,7 +551,8 @@ local function ToggleBook()
         local rightX, rightWidth = 312, 383
         local left = Pane(rivalsPage, 5, -contentTop, rightX - 5, bodyHeight)
         ListBackground(left)
-        ListBackground(Pane(rivalsPage, rightX, -contentTop, rightWidth, bodyHeight))
+        -- Paint the underlay below the footer button's three-slice background.
+        ListBackground(rivalsPage, rightX, -contentTop, rightWidth, bodyHeight)
 
         local panelGap = 4
         local rightTop = contentTop + 30
@@ -570,12 +576,13 @@ local function ToggleBook()
             for _, texture in ipairs({ tab.LeftActive, tab.MiddleActive, tab.RightActive }) do
                 texture:SetVertexColor(0.68, 0.68, 0.68)
             end
-            -- TransmogWardrobeCollectionTabTemplate draws this strip over the pane.
+            -- Put the transmog strip on the pane's top edge, inside its trim.
             local highlight = CreateFrame("Frame", nil, tab)
             highlight:SetFrameLevel(math.max(tab:GetFrameLevel(), right:GetFrameLevel()) + 1)
             highlight:SetHeight(1)
-            highlight:SetPoint("BOTTOMLEFT", 2, 5)
-            highlight:SetPoint("BOTTOMRIGHT", -3, 5)
+            local edgeY = -tabOverlap - onePixel
+            highlight:SetPoint("BOTTOMLEFT", 2, edgeY)
+            highlight:SetPoint("BOTTOMRIGHT", -3, edgeY)
             local glow = highlight:CreateTexture(nil, "ARTWORK")
             glow:SetAllPoints()
             addon.ApplyAtlas(glow, "transmog-tab-hl")

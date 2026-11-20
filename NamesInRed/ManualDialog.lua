@@ -8,8 +8,14 @@ function addon.ApplyAtlas(texture, atlas)
     end
 end
 
+function addon.SetBookPortraitTexture(frame, texture)
+    frame:SetPortraitToAsset(texture)
+    local inset = texture == addon.swordsIconPath and 4 / 128 or 0
+    frame:GetPortrait():SetTexCoord(inset, 1 - inset, inset, 1 - inset)
+end
+
 function addon.SetBookPortrait(frame)
-    frame:SetPortraitToAsset(addon.swordsIconPath)
+    addon.SetBookPortraitTexture(frame, addon.swordsIconPath)
     local portrait = frame:GetPortrait()
     local container = frame.PortraitContainer
     local backing = container:CreateTexture(nil, "BACKGROUND")
