@@ -1,0 +1,20 @@
+# CurseForge's GitHub source packager.
+package-as: NamesInRed
+enable-nolib-creation: no
+
+ignore:
+  - AGENTS.md
+  - CHANGELOG.md
+  - README.md
+  - idea.md
+  - debug
+  - docs
+  - scripts
+  - tests
+
+move-folders:
+  NamesInRed/NamesInRed: NamesInRed
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
