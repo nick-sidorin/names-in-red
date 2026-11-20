@@ -90,6 +90,9 @@ local encounter = encounterStrings[GetLocale()] or encounterStrings.enUS
 addon.L.infoTab, addon.L.historyTab, addon.L.latestEncounter, addon.L.showOnMap = unpack(encounter, 1, 4)
 addon.L.unknownLocation, addon.L.myLevel, addon.L.rivalLevel, addon.L.waypointError = unpack(encounter, 5, 8)
 addon.L.noSkirmishes = encounter[9]
+local russian = GetLocale() == "ruRU"
+addon.L.attackers = russian and "Нападавшие" or "Attackers"
+addon.L.finishingBlow = russian and "%s (добивающий удар)" or "%s (finishing blow)"
 
 local bookViews = {
     enUS = { "Rivals", "Skirmish history", "Unknown rival" },

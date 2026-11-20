@@ -149,7 +149,7 @@ function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
     map:SetSize(mapButtonWidth, 25)
     map:SetText(L.showOnMap)
 
-    local function HideCoordinates(self)
+    local function HideTooltip(self)
         if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
     end
     map:SetScript("OnEnter", function(self)
@@ -157,8 +157,8 @@ function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
         GameTooltip:SetText(card.coordinateText)
         GameTooltip:Show()
     end)
-    map:SetScript("OnLeave", HideCoordinates)
-    map:HookScript("OnHide", HideCoordinates)
+    map:SetScript("OnLeave", HideTooltip)
+    map:HookScript("OnHide", HideTooltip)
     map:SetScript("OnClick", function()
         if addon.ShowEncounterWaypoint(card.encounter) then
             onMapShown()
@@ -167,8 +167,27 @@ function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
         end
     end)
 
+    local attackers = CreateFrame("Button", nil, body, "SharedButtonSmallTemplate")
+    attackers:SetPoint("BOTTOMRIGHT", -12, 11)
+    attackers:SetSize(130, 25)
+    attackers:SetText(L.attackers)
+    attackers:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(L.attackers)
+        for index, attacker in ipairs(card.encounter.attackers) do
+            local name = attacker.name or L.unknownRival
+            GameTooltip:AddLine(index == 1 and L.finishingBlow:format(name) or name, 1, 1, 1, true)
+        end
+        GameTooltip:Show()
+    end)
+    attackers:SetScript("OnLeave", HideTooltip)
+    attackers:HookScript("OnHide", HideTooltip)
+
     function card:SetEncounter(encounter)
-        if self.encounter ~= encounter then HideCoordinates(map) end
+        if self.encounter ~= encounter then
+            HideTooltip(map)
+            HideTooltip(attackers)
+        end
         self.encounter = encounter
         self:SetShown(encounter ~= nil)
         if not encounter then return end
@@ -191,6 +210,7 @@ function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
         myLevel:SetText(LevelText(encounter.playerLevel))
         rivalLevel:SetText(LevelText(encounter.rivalLevel))
         map:SetShown(hasWaypoint)
+        attackers:SetShown(type(encounter.attackers) == "table" and #encounter.attackers > 0)
     end
 
     return card

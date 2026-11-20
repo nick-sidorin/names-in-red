@@ -9,6 +9,15 @@ local function ReadTable(value)
     end
 end
 
+local function HostilePlayer(row, playerGUID)
+    local guid = Readable(row.sourceGUID)
+    local flags = Readable(row.sourceFlags)
+    if type(guid) == "string" and guid:match("^Player%-.+") and guid ~= playerGUID
+        and type(flags) == "number" and bit and bit.band(flags, 0x440) == 0x440 then
+        return guid
+    end
+end
+
 local function Record(death)
     if death.sequence ~= sequence or not C_DeathRecap or not C_DeathRecap.GetRecapEvents then
         return
@@ -29,26 +38,33 @@ local function Record(death)
         return
     end
 
-    local guid = Readable(first.sourceGUID)
+    local playerGUID = Readable(UnitGUID("player"))
+    local guid = HostilePlayer(first, playerGUID)
     local name = Readable(first.sourceName)
-    local flags = Readable(first.sourceFlags)
-    if type(guid) ~= "string" or not guid:match("^Player%-.+")
-        or guid == Readable(UnitGUID("player"))
-        or type(flags) ~= "number" or not bit or bit.band(flags, 0x440) ~= 0x440 then
+    if not guid then
         return
     end
 
-    -- Defer encounters with other damage sources until group attribution is validated.
+    local observed = death.units[guid]
+    local attackers = { { guid = guid, name = observed and observed.fullName or addon.ManualName(name) } }
+    local seen = { [guid] = true }
     for index = 2, #rows do
         local row = ReadTable(rows[index])
-        if not row or Readable(row.sourceGUID) ~= guid then
-            return
+        local attackerGUID = row and HostilePlayer(row, playerGUID)
+        local amount = row and Readable(row.amount)
+        if attackerGUID and not seen[attackerGUID] and type(amount) == "number" and amount > 0 then
+            local unit = death.units[attackerGUID]
+            attackers[#attackers + 1] = {
+                guid = attackerGUID,
+                name = unit and unit.fullName or addon.ManualName(Readable(row.sourceName)),
+            }
+            seen[attackerGUID] = true
         end
     end
 
     death.context.time = math.floor(stamp)
-    local observed = death.units[guid]
     death.context.rivalLevel = observed and observed.level
+    death.context.attackers = attackers
     addon.db.lastDeathTimestamp = stamp
     addon.RecordEncounter(guid, observed and observed.fullName or name, "deathsToThem", death.context)
     return true
