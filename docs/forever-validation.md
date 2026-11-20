@@ -127,7 +127,44 @@ One open-world death on 1.60.1.70959 produced two PLAYER_DEAD notifications
 hostile player, including readable GUID, display name, flags and a lethal hit
 with 87 overkill. Later reads repeated the same lethal timestamp. The test
 fixture reproduces this duplicate with synthetic identity and timestamps.
-Coverage for groups and battlegrounds still needs live data.
+
+A later open-world group session exposed two different player finishing blows
+with readable GUIDs, hostile player flags and positive overkill. Each death
+produced two notifications with the same lethal timestamp. One recap also
+contained another player and two creatures, and the other contained two
+additional players. Replaying the four notifications through the updated
+handler yielded two records with two and three hostile players respectively.
+The finishing blow is checked separately from the other recent damage rows.
+The attacker list is limited to readable hostile players in that recap.
+The new card tooltip uses the native `GameTooltip`.
+
+On the Forever 70959 source branch, `Blizzard_DeathRecap.lua` loads the event
+array through `C_DeathRecap.GetRecapEvents` and uses `overkill` in its damage
+display. Generated `UnitDocumentation.lua` documents that standalone
+`PARTY_KILL` carries attacker and target GUIDs. Neither observation establishes
+the entire participant roster. Falls, pet credit, participation on the outgoing
+kill path and battleground coverage still need validation. The new card
+tooltip has not been checked in the live client.
+
+### Participant diagnostic preview
+
+The 0.1.3-preview.1 build records a local combat sequence, group snapshots,
+and readable target metadata at combat boundaries. After combat, it samples
+Damage Done, Damage Taken, Enemy Damage Taken and Healing Done. A single
+newly archived meter session takes precedence. A Current-session sample is
+explicitly labeled as a fallback when a unique new archive is unavailable.
+The capture is scoped to its combat sequence and is marked interrupted when
+combat resumes before the read. Source and spell lists have bounded samples.
+Secret, restricted and unavailable fields retain their read status.
+
+The probe follows the supported APIs used by
+`DamageMeterSessionWindowMixin:GetCombatSession`,
+`DamageMeterSourceWindowMixin:GetCombatSessionSource` and the target fields
+used by `DamageMeterEntry.lua` in Forever 70959. A target name in an
+aggregate is evidence to inspect rather than automatic encounter attribution.
+Compare both players' saves after a fight in a party and a fight outside it.
+Have one attack while the other lands the finishing blow. This probe needs
+live-client validation.
 
 The UI uses the Forever Blizzard PortraitFrameTemplate,
 UIPanelScrollFrameTemplate and UIPanelButtonTemplate, and a unit-only

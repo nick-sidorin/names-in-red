@@ -117,3 +117,77 @@ for key in pairs(addon.db.rivals) do assert(not key:match("^seed:")) end
 assert(addon.db.rivals["Player-existing"] == existing)
 assert(addon.db.rivals["manual:existing"] == existingManual)
 print("Debug seed checks passed")
+
+local inCombat, groupSize = false, 1
+function InCombatLockdown() return inCombat end
+function GetNumSubgroupMembers() return groupSize end
+function GetNumGroupMembers() return groupSize > 0 and groupSize + 1 or 0 end
+function IsInRaid() return false end
+function UnitGUID(unit)
+    if unit == "player" then return "Player-test" end
+    if unit == "party1" then return "Player-ally" end
+end
+
+Enum = {
+    DamageMeterType = { DamageDone = 1, DamageTaken = 2, HealingDone = 3, EnemyDamageTaken = 4 },
+    DamageMeterSessionType = { Current = 0 },
+}
+local sessions = { { sessionID = 1 } }
+local archivedReads = 0
+C_DamageMeter = {
+    GetAvailableCombatSessions = function() return sessions end,
+    GetCombatSessionFromID = function(id, meterType)
+        assert(id == 2)
+        archivedReads = archivedReads + 1
+        if meterType == 2 then return restricted end
+        return { combatSources = {
+            { sourceGUID = "Player-ally", totalAmount = 40 },
+            { sourceGUID = secret, name = secret },
+        } }
+    end,
+    GetCombatSessionSourceFromID = function(id, _, guid)
+        assert(id == 2 and guid == "Player-ally")
+        return { combatSpells = { { spellID = 42, combatSpellDetails = {
+            unitName = "Enemy Rival", unitClassFilename = "WARRIOR", isMob = false, amount = secret,
+        } } } }
+    end,
+    GetCombatSessionFromType = function(sessionType)
+        assert(sessionType == 0)
+        return { combatSources = {} }
+    end,
+}
+
+inCombat = true
+Event("PLAYER_REGEN_DISABLED")
+local started = db.rows[#db.rows]
+assert(started.kind == "COMBAT_START" and started.group[1].guid == "Player-ally")
+Event("PARTY_KILL", "Player-ally", "Player-rival")
+assert(db.rows[#db.rows].combatSequence == started.combatSequence)
+sessions[2] = { sessionID = 2 }
+inCombat = false
+Event("PLAYER_REGEN_ENABLED")
+local ended = db.rows[#db.rows]
+timers[#timers][2]()
+assert(ended.kind == "COMBAT_END" and ended.combatSequence == started.combatSequence)
+assert(ended.meterSelection == "new-archived" and ended.meterSessionID == 2 and archivedReads == 4)
+assert(ended.meter.DamageTaken.status.session == "restricted-table")
+local sources = ended.meter.DamageDone.sources
+assert(sources[2].sourceGUID == nil and sources[2].status.sourceGUID == "secret")
+local target = sources[1].spells[1].target
+assert(target.unitName == "Enemy Rival" and target.unitClassFilename == "WARRIOR")
+assert(target.amount == nil and target.status.amount == "secret")
+
+groupSize = 0
+Event("PLAYER_REGEN_DISABLED")
+Event("PLAYER_REGEN_ENABLED")
+ended = db.rows[#db.rows]
+timers[#timers][2]()
+assert(#ended.group == 0 and ended.meterSelection == "current-fallback" and archivedReads == 4)
+
+Event("PLAYER_REGEN_DISABLED")
+Event("PLAYER_REGEN_ENABLED")
+ended = db.rows[#db.rows]
+Event("PLAYER_REGEN_DISABLED")
+timers[#timers][2]()
+assert(ended.status.meter == "interrupted" and ended.meter == nil)
+print("Post-combat diagnostic capture checks passed")

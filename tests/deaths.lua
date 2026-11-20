@@ -61,15 +61,18 @@ now = 1010
 onEvent()
 assert(rival.deathsToThem == 1)
 rows = { Hit(1010.1, 0), Hit(1009, -1) }
-rows[2].sourceGUID = "Player-other"
+rows[2].sourceGUID, rows[2].sourceName, rows[2].amount = "Player-other", "Other Attacker", 121
+rows[3] = rows[2]
+rows[4] = { sourceGUID = secret, amount = 25 }
+rows[5] = { sourceGUID = "Creature-other", sourceFlags = 66888, amount = 19 }
 onEvent()
-assert(rival.deathsToThem == 1)
-rows[2].sourceGUID = secret
 onEvent()
-assert(rival.deathsToThem == 1)
-rows[2].sourceGUID = "Player-rival"
 for _, retry in ipairs(timers) do retry() end
 assert(rival.deathsToThem == 2 and #rival.encounters == 2)
+local attackers = rival.encounters[1].attackers
+assert(#attackers == 2 and attackers[1].guid == "Player-rival" and attackers[1].name == "Rival Emberfang")
+assert(attackers[2].guid == "Player-other" and attackers[2].name == "Other Attacker")
+assert(addon.db.rivals["Player-other"] == nil)
 print("Confirmed world death checks passed")
 
 assert(addon.AddManualEncounter("   ", "killsAgainstThem") == nil)

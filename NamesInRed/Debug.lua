@@ -2,6 +2,8 @@ local addonName, addon = ...
 local frame = CreateFrame("Frame")
 local db
 local deathSequence = 0
+local combatSequence = 0
+local combat
 local limit = 1000
 
 local function Value(value)
@@ -55,11 +57,16 @@ local function Unit(unit)
     Call(data, "faction", UnitFactionGroup, unit)
     Call(data, "isPlayer", UnitIsPlayer, unit)
     Call(data, "opponent", UnitCanAttack, "player", unit)
+    Call(data, "level", UnitLevel, unit)
+    Capture(data, "class", Call(data, "className", UnitClass, unit))
     return data
 end
 
 local function Add(kind)
-    local row = { kind = kind, status = {}, session = db.session }
+    local row = {
+        kind = kind, status = {}, session = db.session,
+        combatSequence = combatSequence > 0 and combatSequence or nil,
+    }
     Call(row, "time", GetServerTime)
     Call(row, "uptime", GetTime)
     Call(row, "instanceType", function()
@@ -67,6 +74,7 @@ local function Add(kind)
         return instanceType
     end)
     Call(row, "inCombat", InCombatLockdown)
+    Call(row, "zone", GetRealZoneText)
     if #db.rows >= limit then
         table.remove(db.rows, 1)
         db.dropped = db.dropped + 1
@@ -157,7 +165,170 @@ local function Sample(row)
     end
 end
 
+local function ReadResult(result, key, fn, ...)
+    if type(fn) ~= "function" then
+        result.status[key] = "unavailable"
+        return
+    end
+    local ok, value = pcall(fn, ...)
+    if not ok then
+        result.status[key] = "error"
+        return
+    end
+    local readable, reason = AccessibleTable(value)
+    result.status[key] = readable and "readable" or reason
+    if readable then return value end
+end
+
+local function CopyRow(input, fields)
+    local output = { status = {} }
+    local readable, reason = AccessibleTable(input)
+    output.status.row = readable and "readable" or reason
+    if readable then
+        for _, key in ipairs(fields) do Capture(output, key, input[key]) end
+    end
+    return output
+end
+
+local function CopyGroup(row)
+    Call(row, "groupSize", GetNumGroupMembers)
+    Call(row, "subgroupSize", GetNumSubgroupMembers)
+    Call(row, "inRaid", IsInRaid)
+    local count = row.inRaid and row.groupSize or row.subgroupSize
+    row.group = {}
+    if type(count) ~= "number" then return end
+    for index = 1, math.min(count, 10) do
+        local token = (row.inRaid and "raid" or "party") .. index
+        row.group[index] = Unit(token)
+    end
+end
+
+local function SessionIDs(result, api)
+    local sessions = ReadResult(result, "availableSessions", api.GetAvailableCombatSessions)
+    if not sessions then return end
+    local known = {}
+    for _, session in ipairs(sessions) do
+        if AccessibleTable(session) then
+            local id = Value(session.sessionID)
+            if type(id) == "number" then known[id] = true end
+        end
+    end
+    return known
+end
+
+local sourceFields = {
+    "sourceGUID", "sourceCreatureID", "name", "classFilename", "classification",
+    "factionGroup", "isLocalPlayer", "totalAmount", "deathRecapID",
+}
+local spellFields = { "spellID", "totalAmount", "overkillAmount" }
+local targetFields = { "unitName", "unitClassFilename", "classification", "isPet", "isMob", "amount" }
+
+local function MeterSources(result, session, readSource)
+    local sources = session.combatSources
+    local readable, reason = AccessibleTable(sources)
+    result.status.sources = readable and "readable" or reason
+    if not readable then return end
+    result.sourceCount = #sources
+    result.sources = {}
+    for index = 1, math.min(#sources, 12) do
+        local source = CopyRow(sources[index], sourceFields)
+        result.sources[index] = source
+        local guid, creature = source.sourceGUID, source.sourceCreatureID
+        if (source.isLocalPlayer and (guid or creature)) or (type(guid) == "string" and guid:match("^Player%-")) then
+            local detail = readSource(source, guid, creature)
+            local spells = detail and detail.combatSpells
+            local hasSpells, why = AccessibleTable(spells)
+            source.status.spells = hasSpells and "readable" or why
+            if hasSpells then
+                source.spellCount = #spells
+                source.spells = {}
+                for spellIndex = 1, math.min(#spells, 16) do
+                    local entry = spells[spellIndex]
+                    local spell = CopyRow(entry, spellFields)
+                    if spell.status.row == "readable" then
+                        spell.target = CopyRow(entry.combatSpellDetails, targetFields)
+                    end
+                    source.spells[spellIndex] = spell
+                end
+            end
+        end
+    end
+end
+
+local function CaptureMeter(row, baseline)
+    local api = C_DamageMeter
+    local types = Enum and Enum.DamageMeterType
+    local current = Enum and Enum.DamageMeterSessionType and Enum.DamageMeterSessionType.Current
+    if not api or not types then
+        row.status.meter = "unavailable"
+        return
+    end
+    local sessionIDs = SessionIDs(row, api)
+    local candidates = {}
+    if baseline and sessionIDs then
+        for candidate in pairs(sessionIDs) do
+            if not baseline[candidate] then candidates[#candidates + 1] = candidate end
+        end
+    end
+    table.sort(candidates)
+    local id = #candidates == 1 and candidates[1] or nil
+    row.newMeterSessionIDs = candidates
+    row.meterSessionID = id
+    row.meterSelection = id and "new-archived" or "current-fallback"
+    row.meter = {}
+    for _, name in ipairs({ "DamageDone", "DamageTaken", "EnemyDamageTaken", "HealingDone" }) do
+        local meterType = types[name]
+        local result = { status = {} }
+        row.meter[name] = result
+        if type(meterType) ~= "number" or (not id and current == nil) then
+            result.status.session = "unavailable"
+        else
+            local getter = api.GetCombatSessionFromType
+            local sourceGetter = api.GetCombatSessionSourceFromType
+            if id then
+                getter = api.GetCombatSessionFromID
+                sourceGetter = api.GetCombatSessionSourceFromID
+            end
+            local selector = id or current
+            local session = ReadResult(result, "session", getter, selector, meterType)
+            if session then
+                Capture(result, "duration", session.durationSeconds)
+                MeterSources(result, session, function(source, guid, creature)
+                    return ReadResult(source, "detail", sourceGetter, selector, meterType, guid, creature)
+                end)
+            end
+        end
+    end
+end
+
 local handlers = {}
+
+function handlers.PLAYER_REGEN_DISABLED()
+    combatSequence = combatSequence + 1
+    local row = Add("COMBAT_START")
+    Sample(row)
+    CopyGroup(row)
+    local baseline = C_DamageMeter and SessionIDs(row, C_DamageMeter)
+    combat = { sequence = combatSequence, baseline = baseline }
+end
+
+function handlers.PLAYER_REGEN_ENABLED()
+    if not combat then return end
+    local finished = combat
+    combat = nil
+    local row = Add("COMBAT_END")
+    Sample(row)
+    CopyGroup(row)
+    local function ReadMeter()
+        local inCombat = Value(InCombatLockdown and InCombatLockdown())
+        if finished.sequence ~= combatSequence or inCombat ~= false then
+            row.status.meter = "interrupted"
+            return
+        end
+        CaptureMeter(row, finished.baseline)
+    end
+    if C_Timer and C_Timer.After then C_Timer.After(0.5, ReadMeter) else ReadMeter() end
+end
 
 function handlers.PLAYER_DEAD()
     deathSequence = deathSequence + 1
@@ -230,6 +401,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
     Capture(row, "build", build)
     Capture(row, "interface", interface)
     Call(row, "locale", GetLocale)
+    Call(row, "addonVersion", C_AddOns and C_AddOns.GetAddOnMetadata, addonName, "Version")
     Sample(row)
     row.registration = {}
     for name in pairs(handlers) do
