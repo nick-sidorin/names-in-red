@@ -92,7 +92,7 @@ local function EncounterDate(encounter)
     return day, time
 end
 
-function addon.CreateEncounterCard(parent, width, onMapShown)
+function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
     local card = CreateFrame("Frame", nil, parent, "BackdropTemplate")
     card:SetSize(width, addon.encounterCardHeight)
     card:SetBackdrop({
@@ -104,30 +104,47 @@ function addon.CreateEncounterCard(parent, width, onMapShown)
     card:SetBackdropColor(0.085, 0.06, 0.04, 0.72)
     card:SetBackdropBorderColor(0.56, 0.42, 0.27, 0.9)
 
-    local icon = card:CreateTexture(nil, "ARTWORK")
+    local body = card
+    if profileWidth then
+        card.profile = CreateFrame("Frame", nil, card)
+        card.profile:SetPoint("TOPLEFT")
+        card.profile:SetSize(profileWidth, addon.encounterCardHeight)
+        local seam = card:CreateTexture(nil, "ARTWORK")
+        seam:SetPoint("TOPLEFT", profileWidth, -12)
+        seam:SetPoint("BOTTOMLEFT", profileWidth, 12)
+        seam:SetWidth(1)
+        seam:SetColorTexture(0.56, 0.42, 0.27, 0.45)
+
+        body = CreateFrame("Frame", nil, card)
+        body:SetPoint("TOPLEFT", profileWidth, 0)
+        body:SetPoint("BOTTOMRIGHT")
+        width = width - profileWidth
+    end
+
+    local icon = body:CreateTexture(nil, "ARTWORK")
     icon:SetPoint("TOPLEFT", 12, -11)
     icon:SetSize(28, 28)
-    local outcome = Label(card, "GameFontNormal", "TOPLEFT", 48, -18, width - 181)
-    local day = Label(card, "GameFontHighlightSmall", "TOPRIGHT", -13, -12, 120)
-    local time = Label(card, "GameFontHighlightSmall", "TOPRIGHT", -13, -26, 120)
-    local divider = card:CreateTexture(nil, "ARTWORK")
+    local outcome = Label(body, "GameFontNormal", "TOPLEFT", 48, -18, width - 181)
+    local day = Label(body, "GameFontHighlightSmall", "TOPRIGHT", -13, -12, 120)
+    local time = Label(body, "GameFontHighlightSmall", "TOPRIGHT", -13, -26, 120)
+    local divider = body:CreateTexture(nil, "ARTWORK")
     divider:SetPoint("TOPLEFT", 12, -45)
     divider:SetPoint("TOPRIGHT", -12, -45)
     divider:SetHeight(1)
     divider:SetColorTexture(0.56, 0.42, 0.27, 0.45)
 
-    local zone = Label(card, "GameFontHighlight", "TOPLEFT", 13, -54, width - 26)
-    local coords = Label(card, "GameFontHighlightSmall", "TOPLEFT", 13, -73, width - 26)
+    local zone = Label(body, "GameFontHighlight", "TOPLEFT", 13, -54, width - 26)
+    local coords = Label(body, "GameFontHighlightSmall", "TOPLEFT", 13, -73, width - 26)
     time:SetTextColor(0.77, 0.71, 0.61)
     coords:SetTextColor(0.77, 0.71, 0.61)
 
-    local myCaption = Label(card, "GameFontNormalSmall", "TOPLEFT", 13, -96, 79)
+    local myCaption = Label(body, "GameFontNormalSmall", "TOPLEFT", 13, -96, 79)
     myCaption:SetText(L.myLevel)
-    local rivalCaption = Label(card, "GameFontNormalSmall", "TOPLEFT", 98, -96, 107)
+    local rivalCaption = Label(body, "GameFontNormalSmall", "TOPLEFT", 98, -96, 107)
     rivalCaption:SetText(L.rivalLevel)
-    local myLevel = Label(card, "GameFontHighlight", "TOPLEFT", 13, -110, 79)
-    local rivalLevel = Label(card, "GameFontHighlight", "TOPLEFT", 98, -110, 107)
-    local map = CreateFrame("Button", nil, card, "SharedButtonSmallTemplate")
+    local myLevel = Label(body, "GameFontHighlight", "TOPLEFT", 13, -110, 79)
+    local rivalLevel = Label(body, "GameFontHighlight", "TOPLEFT", 98, -110, 107)
+    local map = CreateFrame("Button", nil, body, "SharedButtonSmallTemplate")
     local mapButtonWidth = 130
     map:SetPoint("TOPRIGHT", -12, -53)
     map:SetSize(mapButtonWidth, 25)

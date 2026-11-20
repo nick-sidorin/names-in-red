@@ -6,8 +6,11 @@ local window, names, details, heading, portrait, summary, wins, losses, status, 
 local search, remove, levelBadge, tabBar, latestCard, latestEmpty, historyEmpty
 local deletePopup = "NAMES_IN_RED_DELETE_RIVAL"
 local lower = strlower or string.lower
-local buttons, cards = {}, {}
-local history = {}
+local buttons, sideTabs = {}, {}
+local rivalsPage, recentPage, recentList, recentEmpty
+local rivalsView, recentView = 1, 2
+local activeView = rivalsView
+local recentLimit = 100
 local infoTab, historyTab = 1, 2
 local cardStride = addon.encounterCardHeight + 8
 local cardWidth = 332
@@ -38,11 +41,11 @@ local function Scroll(parent, x, y, width, height, hideIfUnscrollable)
     return child, frame
 end
 
-local function UpdatePortrait(rival)
+local function UpdatePortrait(portrait, rival, id)
     portrait:SetSize(52, 52)
     local race, sex, class = rival.race, rival.sex, rival.class
     if not race then
-        local knownRace, knownSex, knownClass = addon.RivalAppearance(selected)
+        local knownRace, knownSex, knownClass = addon.RivalAppearance(id)
         race, sex, class = knownRace, knownSex, class or knownClass
     end
     if race and (sex == 2 or sex == 3) and GetRaceAtlas then
@@ -111,24 +114,35 @@ local function CloseForMap()
     window:Hide()
 end
 
-local function RenderHistory()
-    local scroll = details:GetParent()
-    if not scroll:IsShown() then return end
-
-    local first = math.floor(scroll:GetVerticalScroll() / cardStride) + 1
-    local visibleCount = math.ceil(scroll:GetHeight() / cardStride) + 1
-    local count = math.max(0, math.min(visibleCount, #history - first + 1))
-    for index = 1, count do
-        local card = cards[index]
-        if not card then
-            card = addon.CreateEncounterCard(details, cardWidth, CloseForMap)
-            cards[index] = card
+local function CardList(parent, x, y, width, height, createCard, bindCard)
+    local content, scroll = Scroll(parent, x, y, width, height, true)
+    local entries, cards = {}, {}
+    local function Render()
+        if not scroll:IsVisible() then return end
+        local first = math.floor(scroll:GetVerticalScroll() / cardStride) + 1
+        local visibleCount = math.ceil(scroll:GetHeight() / cardStride) + 1
+        local count = math.max(0, math.min(visibleCount, #entries - first + 1))
+        for index = 1, count do
+            local card = cards[index]
+            if not card then
+                card = createCard(content, width, CloseForMap)
+                cards[index] = card
+            end
+            local itemIndex = first + index - 1
+            card:SetPoint("TOPLEFT", 0, -(itemIndex - 1) * cardStride)
+            bindCard(card, entries[itemIndex])
         end
-        local itemIndex = first + index - 1
-        card:SetPoint("TOPLEFT", 0, -(itemIndex - 1) * cardStride)
-        card:SetEncounter(history[itemIndex])
+        for index = count + 1, #cards do bindCard(cards[index], nil) end
     end
-    for index = count + 1, #cards do cards[index]:SetEncounter(nil) end
+    function scroll:SetEntries(newEntries)
+        entries = newEntries
+        content:SetHeight(math.max(1, #entries * cardStride - 8))
+        local maxScroll = math.max(0, content:GetHeight() - self:GetHeight())
+        if self:GetVerticalScroll() > maxScroll then self:SetVerticalScroll(maxScroll) end
+        Render()
+    end
+    scroll:HookScript("OnVerticalScroll", Render)
+    return scroll
 end
 
 local function ShowDetails()
@@ -137,7 +151,7 @@ local function ShowDetails()
     local showInfo = rival ~= nil and activeTab == infoTab
     local showHistory = rival ~= nil and activeTab == historyTab
     summary:SetShown(showInfo)
-    history = rival and rival.encounters or {}
+    local history = rival and rival.encounters or {}
     if showInfo then
         heading:SetText(rival.displayName)
         local manual = rival.addedManually or selected:match("^manual:") or selected:match("^seed:manual:")
@@ -152,7 +166,7 @@ local function ShowDetails()
         status:SetText(profile)
         wins:SetText(("%s: %d"):format(L.kills, rival.killsAgainstThem))
         losses:SetText(("%s: %d"):format(L.deaths, rival.deathsToThem))
-        UpdatePortrait(rival)
+        UpdatePortrait(portrait, rival, selected)
         latestCard:SetEncounter(history[1])
         latestEmpty:SetShown(history[1] == nil)
         local lastLevel
@@ -168,10 +182,8 @@ local function ShowDetails()
     empty:SetShown(rival == nil)
 
     historyEmpty:SetShown(showHistory and #history == 0)
-    local scroll = details:GetParent()
-    scroll:SetShown(showHistory and #history > 0)
-    details:SetHeight(math.max(1, #history * cardStride - 8))
-    RenderHistory()
+    details:SetShown(showHistory and #history > 0)
+    details:SetEntries(history)
 end
 
 local function NameMatches(name, query)
@@ -201,10 +213,17 @@ function addon.RefreshBook(resetSearch)
     if not window or not window:IsShown() then
         return
     end
+    if activeView == recentView then
+        local entries = addon.RecentEncounters(addon.db, recentLimit)
+        recentEmpty:SetShown(#entries == 0)
+        recentList:SetShown(#entries > 0)
+        recentList:SetEntries(entries)
+        return
+    end
     local query = lower(search:GetText():match("^%s*(.-)%s*$"))
     local ids, selectionVisible = {}, false
     for guid, rival in pairs(addon.db.rivals) do
-        if (not guid:match("^Player%-") or addon.HasFullName(rival.displayName))
+        if addon.IsRosterRival(guid, rival)
             and NameMatches(rival.displayName, query) then
             ids[#ids + 1] = guid
             if guid == selected then selectionVisible = true end
@@ -217,7 +236,7 @@ function addon.RefreshBook(resetSearch)
     end)
     if not selectionVisible then
         selected = ids[1]
-        details:GetParent():SetVerticalScroll(0)
+        details:SetVerticalScroll(0)
     end
     remove:SetEnabled(selected ~= nil)
     empty:SetText(query ~= "" and L.noMatches or L.empty)
@@ -246,7 +265,7 @@ function addon.RefreshBook(resetSearch)
             button.label = label
             button:SetScript("OnClick", function(self)
                 selected = self.rivalID
-                details:GetParent():SetVerticalScroll(0)
+                details:SetVerticalScroll(0)
                 addon.RefreshBook()
             end)
             buttons[index] = button
@@ -347,6 +366,92 @@ local function MakeDraggable(frame)
     frame:HookScript("OnHide", Stop)
 end
 
+local function SetBookView(view)
+    activeView = view
+    rivalsPage:SetShown(view == rivalsView)
+    recentPage:SetShown(view == recentView)
+    for index, tab in ipairs(sideTabs) do tab:SetChecked(index == view) end
+end
+
+local function OpenRival(id)
+    local rival = addon.Ledger.Find(addon.db, id)
+    if not rival or not addon.IsRosterRival(id, rival) then return end
+    selected = id
+    PanelTemplates_SetTab(tabBar, infoTab)
+    details:SetVerticalScroll(0)
+    SetBookView(rivalsView)
+    addon.RefreshBook(true)
+end
+
+local function CreateRecentCard(parent, width, onMapShown)
+    local card = addon.CreateEncounterCard(parent, width, onMapShown, 265)
+    local profile = card.profile
+    local icon, rim = addon.CreateRoundIcon(profile)
+    rim:SetPoint("TOPLEFT", 11, -12)
+    local name = profile:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    name:SetPoint("TOPLEFT", 80, -23)
+    name:SetPoint("TOPRIGHT", -8, -23)
+    name:SetJustifyH("LEFT")
+    name:SetWordWrap(false)
+    local description = profile:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    description:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -6)
+    description:SetWidth(177)
+    description:SetJustifyH("LEFT")
+    description:SetTextColor(0.72, 0.67, 0.59)
+    description:SetMaxLines(2)
+
+    local open = CreateFrame("Button", nil, profile, "SharedButtonSmallTemplate")
+    open:SetPoint("BOTTOMLEFT", 15, 14)
+    open:SetSize(132, 25)
+    open:SetText(L.infoTab)
+    open:SetScript("OnClick", function()
+        if card.rivalID then OpenRival(card.rivalID) end
+    end)
+
+    function card:SetEntry(entry)
+        self.rivalID = entry and entry.id
+        self:SetEncounter(entry and entry.encounter)
+        if not entry then return end
+        local rival = entry.rival
+        local known = addon.IsRosterRival(entry.id, rival)
+        name:SetText(known and rival.displayName or L.unknownRival)
+        open:SetEnabled(known)
+        local labels = {}
+        if rival.raceLabel then labels[#labels + 1] = rival.raceLabel end
+        if rival.classLabel then labels[#labels + 1] = rival.classLabel end
+        description:SetText(table.concat(labels, " / "))
+        UpdatePortrait(icon, rival, entry.id)
+    end
+    return card
+end
+
+local function CreateSideTabs()
+    local icons = { addon.windowIconPath, "Interface\\Icons\\INV_Misc_Book_09" }
+    local labels = { L.rivalsView, L.recentView }
+    for view, icon in ipairs(icons) do
+        local tab = CreateFrame("Frame", nil, window, "LargeSideTabButtonTemplate")
+        tab:EnableMouse(true)
+        if view > 1 then
+            tab:SetPoint("TOPLEFT", sideTabs[view - 1], "BOTTOMLEFT", 0, -2)
+        else
+            tab:SetPoint("TOPLEFT", window, "TOPRIGHT", 0, -60)
+        end
+        tab.Icon:SetTexture(icon)
+        tab.tooltipText = labels[view]
+        tab:SetFillToInterior(true)
+        tab:SetCustomOnMouseUpHandler(function(_, mouseButton, upInside)
+            if mouseButton == "LeftButton" and upInside and activeView ~= view then
+                search:ClearFocus()
+                StaticPopup_Hide(deletePopup)
+                SetBookView(view)
+                addon.RefreshBook()
+            end
+        end)
+        sideTabs[view] = tab
+    end
+    window:SetClampRectInsets(0, sideTabs[1]:GetWidth(), 0, 0)
+end
+
 local function ToggleBook()
     if not addon.db then return end
     if not window then
@@ -374,20 +479,24 @@ local function ToggleBook()
         end
 
         ProfessionBackdrop(window)
+        rivalsPage = CreateFrame("Frame", nil, window)
+        rivalsPage:SetAllPoints()
+        recentPage = CreateFrame("Frame", nil, window)
+        recentPage:SetAllPoints()
         local contentTop, footerInset, removeHeight = 65, 10, 28
         local bodyHeight = window:GetHeight() - contentTop - 5
         local rightX, rightWidth = 312, 383
-        local left = Pane(window, 5, -contentTop, rightX - 5, bodyHeight)
+        local left = Pane(rivalsPage, 5, -contentTop, rightX - 5, bodyHeight)
         ListBackground(left)
-        ListBackground(Pane(window, rightX, -contentTop, rightWidth, bodyHeight))
+        ListBackground(Pane(rivalsPage, rightX, -contentTop, rightWidth, bodyHeight))
 
         local panelGap = 4
         local rightTop = contentTop + 30
         local rightHeight = window:GetHeight() - rightTop - removeHeight - footerInset - panelGap
-        local right = Pane(window, rightX, -rightTop, rightWidth, rightHeight)
+        local right = Pane(rivalsPage, rightX, -rightTop, rightWidth, rightHeight)
         DetailBackground(right)
         names = Scroll(left, 9, -42, 273, 431, false)
-        tabBar = CreateFrame("Frame", nil, window)
+        tabBar = CreateFrame("Frame", nil, rivalsPage)
         local onePixel = PixelUtil.GetPixelToUIUnitFactor() / tabBar:GetEffectiveScale()
         local tabOverlap = onePixel - 4
         tabBar:SetPoint("BOTTOMLEFT", right, "TOPLEFT", 24, tabOverlap)
@@ -416,9 +525,8 @@ local function ToggleBook()
         end
 
         local historyTop = 16
-        local historyScroll
-        details, historyScroll = Scroll(right, 25, -historyTop, cardWidth, rightHeight - historyTop - 12, true)
-        historyScroll:HookScript("OnVerticalScroll", RenderHistory)
+        details = CardList(right, 25, -historyTop, cardWidth, rightHeight - historyTop - 12,
+            addon.CreateEncounterCard, function(card, encounter) card:SetEncounter(encounter) end)
         historyEmpty = right:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         historyEmpty:SetPoint("CENTER", 0, 5)
         historyEmpty:SetText(L.noSkirmishes)
@@ -508,7 +616,7 @@ local function ToggleBook()
                     selected = id
                     PanelTemplates_SetTab(tabBar, infoTab)
                     search:SetText("")
-                    details:GetParent():SetVerticalScroll(0)
+                    details:SetVerticalScroll(0)
                     addon.RefreshBook()
                 end)
             end
@@ -528,7 +636,7 @@ local function ToggleBook()
                 if addon.RefreshNameplates then addon.RefreshNameplates() end
             end,
         }
-        remove = CreateFrame("Button", nil, window, "SharedButtonSmallTemplate")
+        remove = CreateFrame("Button", nil, rivalsPage, "SharedButtonSmallTemplate")
         remove:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -footerInset, footerInset)
         remove:SetSize(128, removeHeight)
         remove:SetText(DELETE)
@@ -538,6 +646,22 @@ local function ToggleBook()
                 StaticPopup_Show(deletePopup, rival.displayName, nil, selected)
             end
         end)
+        local journal = Pane(recentPage, 5, -contentTop, window:GetWidth() - 10, bodyHeight)
+        ListBackground(journal)
+        local journalTrim = journal:CreateTexture(nil, "BORDER")
+        journalTrim:SetAllPoints()
+        addon.ApplyAtlas(journalTrim, "common-insideframe")
+        local journalTitle = journal:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        journalTitle:SetPoint("TOPLEFT", 20, -15)
+        journalTitle:SetText(L.recentView)
+        recentEmpty = journal:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        recentEmpty:SetPoint("CENTER")
+        recentEmpty:SetText(L.noSkirmishes)
+        recentList = CardList(journal, 20, -42, journal:GetWidth() - 62, bodyHeight - 56,
+            CreateRecentCard, function(card, entry) card:SetEntry(entry) end)
+
+        CreateSideTabs()
+        SetBookView(activeView)
         window:HookScript("OnHide", function()
             search:ClearFocus()
             StaticPopup_Hide(deletePopup)
