@@ -270,11 +270,11 @@ source texture. That opening was measured in the public texture extraction
 Like the First Aid window, the book sets its portrait through `SetPortraitToAsset`. This is the
 path used by `ProfessionsMixin:Refresh` in `Blizzard_ProfessionsFrame.lua`.
 The stock `PortraitFrameTemplate` controls the portrait and mask placement.
-The round and reagent-slot exports position the bright part of the artwork
-in the center of their texture and leave clearance for the stock masks.
-On a 128 × 128 texture, weighting pixels by luminance above 45 placed the
-original swords at (63.4, 52.1) and the skull at (71.4, 55.2), compared with
-the canvas center at (63.5, 63.5). Their new framed exports lie within one
-pixel of that center. The original textures remain in skirmish cards.
+The round and reagent-slot exports use the visible bounds of the swords and
+the skull silhouette. In the owner's 0.0.51 screenshot, weighting the
+artwork by brightness made the swords sit low in the portrait.
+On the 128 × 128 exports, the swords now have equal margins on opposite
+sides. The skull's margins differ by at most one pixel after excluding the
+red glow from its silhouette. The original textures remain in skirmish cards.
 Compare the header to First Aid and both statistics slots to reagent icons
 in the live client at normal and reduced UI scales.
