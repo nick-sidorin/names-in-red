@@ -197,12 +197,12 @@ The book uses `PanelTopTabButtonTemplate` from Forever
 `Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml`. The tab textures are
 bottom-anchored by `PanelTopTabButtonMixin:OnLoad`. The book places the tabs
 above a sibling pane whose `common-insideframe` trim covers their lower edge.
-The one-unit `transmog-tab-hl` strip follows the `SelectedHighlight` layer in
+The `transmog-tab-hl` strip follows the `SelectedHighlight` layer in
 `TransmogWardrobeCollectionTabTemplate` and the selected-state handling in
-`TransmogWardrobeCollectionTabMixin:SetTabSelected`. It draws above both the
-tab and pane. The strip is drawn on the pane's OVERLAY layer, directly
-anchored to the `common-insideframe` trim. The active tab controls the
-horizontal span. Its vertical position is independent of tab height.
+`TransmogWardrobeCollectionTabMixin:SetTabSelected`. It draws above the pane
+from a child frame anchored to the tab's bottom corners, so the span follows
+the localized label width. The book uses a two-unit strip with its upper
+edge meeting the tab's bottom baseline.
 Initial sizing uses the same text-based `PanelTemplates_TabResize` as
 `PanelTabButtonMixin:OnShow`. Check that the first open after a reload and
 subsequent opens use the same compact widths.
