@@ -1,9 +1,9 @@
 ## Interface: 16001
 ## Title: Names in Red
 ## Notes: Remember your rivals and review open-world PvP skirmishes.
-## Version: 0.1.0
+## Version: 0.1.1
 ## IconTexture: Interface\AddOns\NamesInRed\Art\CrossedSwords.tga
-## SavedVariablesPerCharacter: NamesInRedDB
+## SavedVariablesPerCharacter: NamesInRedDB, NamesInRedDebugDB
 
 Locale.lua
 Ledger.lua
@@ -15,3 +15,4 @@ ManualDialog.lua
 EncounterCards.lua
 Book.lua
 Nameplates.lua
+Debug.lua
