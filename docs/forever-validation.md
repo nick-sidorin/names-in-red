@@ -182,6 +182,11 @@ confirmed finishing blows, including one whose author was already dead. The
 personal score and card should show one win and one loss. Verify the game's
 honor awards separately with both characters' logs from a real fight.
 
+The 2 × 1 fixture in Feralas credits a confirmed assist after the local
+player dies. The opponent kills the local player and an ally lands the
+finishing blow. That encounter adds one win and one loss to the profile.
+The full timeline credits the second finishing blow to the ally.
+
 From preview.6 onward, a rival's linked cards open a full-width battle in
 the same book. This follows the in-window detail transition in
 `ProfessionsCraftingPageMixin:SelectRecipe` in `Blizzard_ProfessionsCrafting.lua`.

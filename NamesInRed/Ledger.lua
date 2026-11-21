@@ -64,6 +64,11 @@ function Ledger.RemoveSkirmish(db, id)
     end
 end
 
+local function ContributedToDeath(id, finisherID, contributors)
+    -- Both boolean values confirm a contribution in saved records.
+    return id == finisherID or (contributors and type(contributors[id]) == "boolean")
+end
+
 local function IndexSkirmish(index, id, battle)
     local player
     for _, ally in ipairs(battle.allies) do
@@ -96,18 +101,16 @@ local function IndexSkirmish(index, id, battle)
         if event.kind == "kill" then
             local target = opponents[event.targetID]
             local contributors = type(event.contributors) == "table" and event.contributors
-            -- A confirmed finishing blow remains credited after its author's death.
-            -- Other contributors must have been alive when the victim died.
             if target then
                 target.summary.opponentDeathIndex = target.summary.opponentDeathIndex or index
-                if player and (event.actorID == player.id or contributors and contributors[player.id] == true) then
+                if player and ContributedToDeath(player.id, event.actorID, contributors) then
                     target.index.wins = target.index.wins + 1
                     target.summary.wins = target.summary.wins + 1
                 end
             elseif player and event.targetID == player.id then
                 playerDeathIndex = playerDeathIndex or index
                 for opponentID, opponent in pairs(opponents) do
-                    if event.actorID == opponentID or contributors and contributors[opponentID] == true then
+                    if ContributedToDeath(opponentID, event.actorID, contributors) then
                         opponent.index.losses = opponent.index.losses + 1
                         opponent.summary.losses = opponent.summary.losses + 1
                     end

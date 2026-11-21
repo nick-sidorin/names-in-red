@@ -154,21 +154,21 @@ local function CheckScore(id, expectedWins, expectedLosses)
     local wins, losses = ledger.PersonalScore(addon.db, id)
     assert(wins == expectedWins and losses == expectedLosses)
 end
-CheckScore(orcID, 2, 0)
+CheckScore(orcID, 2, 1)
 CheckScore(shamanID, 0, 1)
-CheckScore(bystanderID, 0, 0)
+CheckScore(bystanderID, 1, 0)
 assert(ledger.Find(addon.db, shamanID).displayName == "Shaman Windsong")
 local personalHistory = addon.RivalEncounters(addon.db, orcID)
 assert(#personalHistory == 2 and personalHistory[2].direction == "killsAgainstThem")
 local compact = personalHistory[1]
 assert(compact.skirmishID == "earlier-team-fight" and compact.playerLevel == 51 and compact.rivalLevel == 52)
 assert(compact.player == earlier.allies[1] and compact.opponent == earlier.enemies[1])
-assert(compact.wins == 1 and compact.losses == 0 and addon.db.skirmishes[compact.skirmishID] == earlier)
+assert(compact.wins == 1 and compact.losses == 1 and addon.db.skirmishes[compact.skirmishID] == earlier)
 assert(addon.RivalEncounters(addon.db, bystanderID)[1].skirmishID == compact.skirmishID)
 assert(addon.RecentEncounters(addon.db, 100)[100].time > earlier.time)
 
 addon.RecordSkirmish("earlier-team-fight", earlier)
-CheckScore(orcID, 2, 0)
+CheckScore(orcID, 2, 1)
 local followUp = {
     time = 1220, allies = earlier.allies, enemies = earlier.enemies,
     events = {
@@ -176,14 +176,14 @@ local followUp = {
         { kind = "kill", targetID = "me", contributors = { shaman = true, bystander = true } },
     },
 }
--- Missing alive/participation evidence in the timeline does not grant a score.
+-- An ally's finishing blow alone provides no evidence of the player's contribution.
 addon.RecordSkirmish("follow-up", followUp)
-CheckScore(orcID, 2, 0)
+CheckScore(orcID, 2, 1)
 CheckScore(shamanID, 0, 2)
-CheckScore(bystanderID, 0, 1)
+CheckScore(bystanderID, 1, 1)
 followUp.events[1].contributors = { me = true }
 addon.RecordSkirmish("follow-up", followUp)
-CheckScore(orcID, 3, 0)
+CheckScore(orcID, 3, 1)
 assert(#addon.RivalEncounters(addon.db, orcID) == 3)
 local reopened = assert(ledger.Open({ version = 1, rivals = addon.db.rivals, skirmishes = addon.db.skirmishes }))
 assert(ledger.PersonalScore(reopened, orcID) == 3)
@@ -217,3 +217,13 @@ addon.RecordSkirmish("mutual-fight", mutual)
 CheckScore(mutualID, 1, 1)
 assert(#addon.RivalEncounters(addon.db, mutualID) == 1)
 print("Mutual kills count once per opponent in either death order")
+
+mutual.allies[2] = { id = "brother" }
+mutual.events[2].actorID = "brother"
+addon.RecordSkirmish("mutual-fight", mutual)
+CheckScore(mutualID, 1, 1)
+local assistedCard = addon.RivalEncounters(addon.db, mutualID)[1]
+assert(assistedCard.wins == 1 and assistedCard.losses == 1)
+assert(assistedCard.playerDeathIndex == 1 and assistedCard.opponentDeathIndex == 2)
+assert(addon.db.skirmishes[assistedCard.skirmishID].events[2].actorID == "brother")
+print("A confirmed assist counts when a teammate finishes the kill after the player dies")
