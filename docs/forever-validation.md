@@ -363,9 +363,9 @@ tooltips and click handling supplied by `UIButtonMixin`. Its icons come from
 32 units square with 16-unit icons. Center the icon at rest and restore that
 center after `SquareIconButtonMixin:OnMouseUp`. The
 header uses the square template's scaled four-unit inset to match the date-to-map
-and map-to-information gaps. The compact action icons use a half-unit upward
-adjustment, including after the native mouse-up handler. The full history
-map button keeps the unshifted native center. Verify both at the same UI scale.
+and map-to-information gaps. Both map buttons share the same center anchor and
+pixel rounding. The compact information icon uses a half-unit upward
+adjustment. Verify the diamond at different UI scales, before and after clicking.
 All dividers use the factor from Blizzard's `PixelUtil.lua` divided by the
 texture's effective scale to target one physical pixel. Their positions snap
 to the pixel grid. The full header centers the map control between the inner
@@ -381,6 +381,7 @@ same outcome calculation as the profile score. The full card uses a 56-unit
 outcome frame with a label. The result art can extend beyond the decorative
 rim. Both cards frame their casualty markers with `UI-HUD-UnitFrame-SmallCircle`
 from Camelot's `TargetFrameTemplates.xml`, which also frames the full outcome.
+The compact casualty marker uses a 20-unit circle for legibility at lower resolutions.
 Hover the markers and rebind the card to check tooltip cleanup.
 A local portrait with no saved race portrait uses `SetPortraitTexture`, as in Camelot's
 `CharacterFrameMixin:UpdateCharacterModeTabPortrait`. Race portraits use the
@@ -402,10 +403,10 @@ directs `TargetFrameMixin:GetPvPIndicatorElements` to `PvpBackgroundIcon`. The
 full card uses its `UI-HUD-UnitFrame-SmallCircle-Alliance` and
 `UI-HUD-UnitFrame-SmallCircle-Horde` atlases from Camelot's
 `UnitFramePvPIndicatorStyle.lua`. Each emblem fits an 18-unit box at its
-authored aspect ratio before the heading. The two panels use translucent
-neutral darkening over one battlefield illustration. The square artwork
-spans 68 percent of the card width and uses a vertical texture crop on
-short cards. Check the art under both panels, the colors and emblem order
+authored aspect ratio before the heading. Translucent roster panels and card
+backdrops reveal one centered battlefield texture attached to the stationary
+pane. The cards are attached to the scroll child. Scroll a long history and
+verify that the artwork stays centered. Check the colors and emblem order
 for both factions. Include the Borin fixture, where a defeat also awards honor,
 and the incomplete Ashenvale fixture. Verify that a card rebind clears stale
 tooltips and that the map action remains available on mapped legacy cards.

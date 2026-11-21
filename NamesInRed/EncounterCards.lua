@@ -224,9 +224,11 @@ local function CardActionButton(card, iconY)
     return button
 end
 
-local function MapAction(card, onClick, iconY)
-    local map = CardActionButton(card, iconY)
+local function MapAction(card, onClick)
+    local map = CardActionButton(card)
     map:SetAtlas("Waypoint-MapPin-Untracked")
+    map:SetRoundLayoutToNearestPixel(true)
+    map.Icon:SetRoundLayoutToNearestPixel(true)
     map:SetTooltipInfo(L.showOnMap)
     map:SetOnClickHandler(onClick)
     return map
@@ -299,16 +301,16 @@ local function CompactParticipant(card, x, size, nameWidth, isOpponent)
     name:SetWidth(nameWidth)
     name:SetJustifyH("CENTER")
     name:SetWordWrap(false)
-    local death = OutcomeMarker(card, 17, addon.smallSkullIconPath, L.portraitDeath, true)
+    local death = OutcomeMarker(card, 20, addon.smallSkullIconPath, L.portraitDeath, true)
     death:SetPoint("CENTER", rim, isOpponent and "TOPLEFT" or "TOPRIGHT", isOpponent and 10 or -10, -10)
     return { portrait = portrait, level = level, name = name, death = death }
 end
 
-local compactOutcomeY = -79
+local compactHeaderCenter, compactOutcomeY = -21, -79
 
 function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmish)
     local card = CreateCard(parent, width, addon.compactEncounterCardHeight)
-    local zone = Label(card, "GameFontHighlight", "LEFT", cardInset, -21, width - 167, "TOPLEFT")
+    local zone = Label(card, "GameFontHighlight", "LEFT", cardInset, compactHeaderCenter, width - 167, "TOPLEFT")
     zone:SetWordWrap(true)
     zone:SetMaxLines(2)
     local day = Label(card, "GameFontHighlightSmall", "TOPRIGHT", -cardInset, -9, 96)
@@ -323,7 +325,7 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
 
     local map = MapAction(card, function()
         if card.encounter then ActivateWaypoint(card.encounter, onMapShown) end
-    end, compactIconY)
+    end)
     local info = CardActionButton(card, compactIconY)
     info:SetPoint("TOPRIGHT", -compactActionRight, -5)
     info:SetIcon("Interface\\FriendsFrame\\InformationIcon")
@@ -403,7 +405,7 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         time:SetText(encounterTime)
         zone:SetWidth(width - 20 - stampRight - stampWidth)
         zone:SetText(encounter.zone and encounter.zone ~= "" and encounter.zone or L.unknownLocation)
-        map:SetPoint("TOPRIGHT", -mapRight, -5)
+        map:SetPoint("RIGHT", card, "TOPRIGHT", -mapRight, compactHeaderCenter)
         map:SetShown(hasWaypoint)
         info:SetShown(hasInfo)
         info:SetTooltipInfo(encounter.skirmishID and L.openSkirmish or L.attackers)
@@ -648,6 +650,7 @@ end
 
 function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTimeline)
     local card = CreateCard(parent, width, 1)
+    card:SetBackdropColor(0.085, 0.06, 0.04, 0.50)
     local sideWidth = math.floor((width - 2 * cardInset - rosterGutter) / 2)
     local zone = Label(card, "GameFontHighlight", "LEFT", cardInset, fullHeaderCenter, sideWidth, "TOPLEFT")
     local score = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -670,10 +673,6 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
     stamp:SetTextColor(unpack(neutralColor))
     Divider(card, fullHeaderDivider)
 
-    local illustration = card:CreateTexture(nil, "BACKGROUND", nil, 1)
-    illustration:SetTexture(addon.battlefieldArtPath)
-    illustration:SetAlpha(0.32)
-    local illustrationWidth = math.floor(width * 0.68)
     local setAllies = CreateSkirmishSide(card, cardInset, sideWidth, L.alliedSide, false, openRival)
     local setEnemies = CreateSkirmishSide(card, width - cardInset - sideWidth, sideWidth, L.enemySide, true, openRival)
     local setResult = CreateSkirmishResult(card)
@@ -698,14 +697,6 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
         local bottom = RosterBottom(height)
         local middle = rosterTop - height / 2
         setResult(addon.Ledger.SkirmishOutcome(battle) or "unknown", changed, middle)
-        -- Sample the square art at its original proportions down to the timeline divider.
-        local visibleHeight = math.min(illustrationWidth, -bottom - 2)
-        local visibleRatio = visibleHeight / illustrationWidth
-        local cropTop = (1 - visibleRatio) * 0.58
-        illustration:ClearAllPoints()
-        illustration:SetPoint("CENTER", card, "TOP", 0, (bottom - 2) / 2)
-        illustration:SetSize(illustrationWidth, visibleHeight)
-        illustration:SetTexCoord(0, 1, cropTop, cropTop + visibleRatio)
         zone:SetText(battle.zone and battle.zone ~= "" and battle.zone or L.unknownLocation)
         score:SetText(("%d × %d"):format(#battle.allies, #battle.enemies))
         coverage:SetShown(battle.rosterComplete ~= true)

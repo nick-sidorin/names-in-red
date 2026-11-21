@@ -167,6 +167,7 @@ local function MockRegion(parent)
     function region:SetTextColor(r, g, b) self.color = { r, g, b } end
     function region:SetColorTexture(_, _, _, opacity) self.fillOpacity = opacity end
     function region:SetBackdropColor(...) self.backdropColor = { ... } end
+    function region:SetRoundLayoutToNearestPixel(enabled) self.roundToPixel = enabled end
     function region:GetEffectiveScale() return dividerScale end
     function region:SetPoint(...) self.anchor = { ... } end
     function region:SetAllPoints(target) self.bounds = target end
@@ -202,6 +203,7 @@ function CreateFrame(_, _, parent, template)
     region.template = template
     if template == "CommonSquareIconButtonTemplate" then
         region.Icon = MockRegion(region)
+        function region:SetAtlas(atlas) self.Icon:SetAtlas(atlas) end
         region:SetScript("OnMouseUp", function(self) self.Icon:SetPoint("CENTER", self, "CENTER", -1, 0) end)
     end
     return region
@@ -289,17 +291,12 @@ local allyEmblem = assert(FindRegion(card, "atlas", allianceAtlas))
 local enemyEmblem = assert(FindRegion(card, "atlas", hordeAtlas))
 assert(allyEmblem.anchor[2] == allyHeading and enemyEmblem.anchor[2] == enemyHeading)
 assert(allyEmblem.height == 18 and allyEmblem.width == 13.5 and enemyEmblem.height == 18 and enemyEmblem.width == 9)
-local battlefield = assert(FindRegion(card, "texture", addon.battlefieldArtPath))
 local allyPanel, enemyPanel = allyHeading.parent, enemyHeading.parent
 for _, panel in ipairs({ allyPanel, enemyPanel }) do
     local r, g, b, alpha = unpack(panel.backdropColor)
     assert(r == g and g == b and alpha < 0.5)
 end
-assert(battlefield.parent == card and battlefield.anchor[4] == 0)
-assert((630 - battlefield.width) / 2 < allyPanel.anchor[2] + allyPanel.width)
-assert((630 + battlefield.width) / 2 > enemyPanel.anchor[2])
-assert(battlefield.texcoords[3] >= 0 and battlefield.texcoords[4] <= 1)
-assert(math.abs((battlefield.texcoords[4] - battlefield.texcoords[3]) * battlefield.width - battlefield.height) < 0.01)
+assert(not FindRegion(card, "texture", addon.battlefieldArtPath) and card.backdropColor[4] < 0.72)
 CheckFactionColors(allyHeading, enemyHeading)
 faction = "Horde"
 card:SetSkirmish(large, "Player-test")
@@ -359,7 +356,6 @@ for count = #patterns, 1, -1 do
     local battle = { allies = { unpack(roster, 1, count) }, enemies = enemies, events = {} }
     card:SetSkirmish(battle)
     assert(card.height == addon.SkirmishCardHeight(battle))
-    assert(battlefield.height <= battlefield.width and battlefield.texcoords[4] <= 1)
     local i, priorY = 0, 0
     for _, slots in ipairs(patterns[count]) do
         local center, y, priorX = 0, nil, -math.huge
@@ -439,6 +435,7 @@ local victory = assert(CenterMarker(swords))
 assert(victory.anchor[4] == 0 and not CenterMarker(banner))
 local portraitDeath = CheckPortraitMarker(opponentRim, skull, "TOPLEFT")
 assert(FindRegion(portraitDeath, "atlas", "UI-HUD-UnitFrame-SmallCircle"))
+assert(portraitDeath.width == 20 and FindRegion(portraitDeath, "texture", skull).width == 14)
 assert(not PortraitMarker(myRim, skull) and not PortraitMarker(opponentRim, swords))
 CheckFactionColors(myName, opponentName)
 faction = "Horde"
@@ -452,13 +449,19 @@ local open = assert(FindRegion(compact, "title", addon.L.openSkirmish))
 local map = assert(FindRegion(compact, "title", addon.L.showOnMap))
 assert(not FindText(compact, addon.L.openSkirmish) and not FindText(compact, addon.L.showOnMap))
 assert(open.width == 32 and map.width == 32 and open.Icon.width == 16 and map.Icon.width == 16)
-assert(open.Icon.anchor[4] == 0 and map.Icon.anchor[4] == 0)
-assert(open.Icon.anchor[5] == 0.5 and map.Icon.anchor[5] == 0.5 and journalMap.Icon.anchor[5] == 0)
-map.scripts.OnMouseUp(map)
-assert(map.Icon.anchor[4] == 0 and map.Icon.anchor[5] == 0.5)
+assert(open.Icon.anchor[4] == 0 and open.Icon.anchor[5] == 0.5)
+assert(map.Icon.atlas == "Waypoint-MapPin-Untracked" and map.Icon.atlas == journalMap.Icon.atlas)
+assert(map.anchor[1] == journalMap.anchor[1] and map.anchor[3] == journalMap.anchor[3])
+for _, button in ipairs({ map, journalMap }) do
+    assert(button.roundToPixel and button.Icon.roundToPixel)
+    for i = 1, 2 do
+        assert(button.Icon.anchor[2] == button and button.Icon.anchor[4] == 0 and button.Icon.anchor[5] == 0)
+        button.scripts.OnMouseUp(button)
+    end
+end
 local inset = map.insets[1]
-local mapToInfo = open.anchor[2] - open.width + inset - (map.anchor[2] - inset)
-local dateToMap = map.anchor[2] - map.width + inset - FindText(compact, date("%x", first.time)).anchor[2]
+local mapToInfo = open.anchor[2] - open.width + inset - (map.anchor[4] - inset)
+local dateToMap = map.anchor[4] - map.width + inset - FindText(compact, date("%x", first.time)).anchor[2]
 assert(mapToInfo == dateToMap and mapToInfo == 6)
 open.scripts.OnClick()
 assert(openedSkirmish == "battle-one")
