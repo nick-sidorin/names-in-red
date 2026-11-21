@@ -303,9 +303,11 @@ Camelot's `SchematicFormCraftingTemplate` in
 `Blizzard_ProfessionsRecipeSchematicForm.xml` uses that same rim on the BORDER
 layer. The full right column uses the same `Professions-background-summarylist`
 atlas as the roster and `Blizzard_ProfessionsRecipeList.xml`. The right
-column underlay lives on the page's BACKGROUND layer, below the Delete
-button's three-slice artwork. Check the button after opening and reopening
-the book and when switching pages. Delete confirmation uses the client's shared
+column underlay lives on the page's BACKGROUND layer. The inset reaches the
+bottom of the book, with a red Delete control inside its upper-right corner.
+The control follows `GearSetButtonTemplate`'s `DeleteButton` from Camelot
+`PaperDollFrame.xml`, including the `UI-GroupLoot-Pass-Up` texture and hover
+opacity. Check it on both rival tabs. Delete confirmation uses the client's shared
 `StaticPopupButtonTemplate` from `Blizzard_StaticPopup_Game/GameDialog.xml`.
 The book fades the left side of its illustration into the recipe
 background using the texture gradient API. Check that the upper rim is
@@ -317,7 +319,7 @@ as the viewport scrolls. Check both tabs on 1.60.1 with empty, legacy, manual
 and seeded histories. Scroll through a long history, then switch rivals while
 scrolled.
 
-The compact rival card uses `CommonSquareIconButtonTemplate` from
+Both skirmish card layouts use `CommonSquareIconButtonTemplate` from
 `Blizzard_SharedXML/Shared/Button/IconButtonTemplate.xml`, including native
 tooltips and click handling supplied by `UIButtonMixin`. Its icons come from
 `WaypointLocationPinTemplate` and `UIPanelInfoButton`. The button frames are
@@ -345,8 +347,11 @@ uses the command's waypoint flow, including `OpenMapToUserWaypoint` from
 `Blizzard_WorldMap/Blizzard_WorldMap.lua`. Test with a seeded card from a
 different zone. Check that the world map opens on that zone, places its
 standard user pin at the saved coordinates and replaces any previous user
-pin. The map action uses `SharedButtonSmallTemplate` from
-`Blizzard_SharedXML/Shared/Button/ThreeSliceButtonTemplate.xml`.
+pin. The full card uses the same map pin button as the compact card, anchored
+beside the timestamp. Check the common header centerline and the spacing in
+the finishing-blow list. The roster count always shows the participants in the
+card. When the roster is partial, a passive `UIPanelInfoButton` from
+`SharedUIPanelTemplates.xml` shows the coverage tooltip on hover.
 For legacy cards the addon uses `C_Map.GetMapChildrenInfo` from
 `Blizzard_APIDocumentationGenerated/MapDocumentation.lua` to index Azeroth's
 zone maps by localized name. Check older Hillsbrad and Stranglethorn cards

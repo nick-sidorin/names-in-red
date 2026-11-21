@@ -17,6 +17,7 @@ local recentLimit = 100
 local infoTab, historyTab = 1, 2
 local cardGap = 8
 local cardWidth = 332
+local profileInset = 25
 local sectionFont = "GameFontNormal"
 local statSwordInset = 0.11
 
@@ -89,7 +90,7 @@ local function Stat(parent, y, texture, tooltipText)
         slot:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
     end
     SetStatIconCrop(icon, texture)
-    holder:SetPoint("TOPLEFT", 25, y)
+    holder:SetPoint("TOPLEFT", profileInset, y)
 
     slot:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -248,7 +249,7 @@ function addon.RefreshBook(resetSearch)
         selected = ids[1]
         details:SetVerticalScroll(0)
     end
-    remove:SetEnabled(selected ~= nil)
+    remove:SetShown(selected ~= nil)
     empty:SetText(query ~= "" and L.noMatches or L.empty)
     for index, guid in ipairs(ids) do
         local button = buttons[index]
@@ -462,18 +463,17 @@ local function ToggleBook()
         rivalsPage:SetAllPoints()
         recentPage = CreateFrame("Frame", nil, window)
         recentPage:SetAllPoints()
-        local contentTop, footerInset, removeHeight = 65, 10, 28
+        local contentTop = 65
         local bodyHeight = window:GetHeight() - contentTop - 5
         local rightX, rightWidth = 312, 383
         local left = Pane(rivalsPage, 5, -contentTop, rightX - 5, bodyHeight)
         ListBackground(left)
-        -- One continuous surface behind the tabs, transparent detail pane and footer.
+        -- One continuous surface behind the tabs and transparent detail pane.
         local rightSurface = ListBackground(rivalsPage, rightX, -contentTop, rightWidth, bodyHeight)
         rightSurface:SetVertexColor(0.76, 0.76, 0.76)
 
-        local panelGap = 4
         local rightTop = contentTop + 30
-        local rightHeight = window:GetHeight() - rightTop - removeHeight - footerInset - panelGap
+        local rightHeight = window:GetHeight() - rightTop - 5
         local right = Pane(rivalsPage, rightX, -rightTop, rightWidth, rightHeight)
         DetailBackground(right)
         names = Scroll(left, 9, -42, 273, 431, false)
@@ -515,11 +515,11 @@ local function ToggleBook()
             PanelTemplates_TabResize(tab)
         end
 
-        local historyTop = 16
+        local historyTop = 42
         local function CreateRivalCard(parent, width, onMapShown)
             return addon.CreateCompactEncounterCard(parent, width, onMapShown, OpenSkirmish)
         end
-        details = CardList(right, 25, -historyTop, cardWidth, rightHeight - historyTop - 12,
+        details = CardList(right, profileInset, -historyTop, cardWidth, rightHeight - historyTop - 12,
             CreateRivalCard, function(card, encounter)
                 card:SetEncounter(encounter, addon.db.rivals[selected], selected)
             end, function() return addon.compactEncounterCardHeight end)
@@ -528,23 +528,25 @@ local function ToggleBook()
         historyEmpty:SetText(L.noSkirmishes)
 
         summary = CreateFrame("Frame", nil, right)
-        summary:SetPoint("TOPLEFT", 0, -9)
+        summary:SetPoint("TOPLEFT", 0, -3)
         summary:SetPoint("BOTTOMRIGHT")
         local rim
         portrait, rim = addon.CreateRoundIcon(summary)
-        rim:SetPoint("TOPLEFT", 17.5, -17.5)
+        -- The race ring artwork has a small transparent border.
+        rim:SetPoint("TOPLEFT", profileInset - 2, -17.5)
         levelBadge = addon.CreateLevelBadge(summary, rim)
         heading = summary:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
-        heading:SetPoint("TOPLEFT", 90, -26)
-        heading:SetWidth(250)
+        heading:SetPoint("TOPLEFT", rim, "TOPRIGHT", 8.5, -8.5)
+        heading:SetPoint("TOPRIGHT", summary, "TOPRIGHT", -50, -26)
         heading:SetJustifyH("LEFT")
+        heading:SetWordWrap(false)
         status = summary:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         status:SetPoint("TOPLEFT", heading, "BOTTOMLEFT", 0, -5)
         status:SetWidth(275)
         status:SetJustifyH("LEFT")
         status:SetTextColor(0.72, 0.67, 0.59)
         local statsTitle = summary:CreateFontString(nil, "OVERLAY", sectionFont)
-        statsTitle:SetPoint("TOPLEFT", 25, -92)
+        statsTitle:SetPoint("TOPLEFT", profileInset, -92)
         statsTitle:SetText(L.personalScore)
         if not ProfessionsReagentSlotButtonMixin and C_AddOns and C_AddOns.LoadAddOn then
             pcall(C_AddOns.LoadAddOn, "Blizzard_ProfessionsTemplates")
@@ -552,13 +554,13 @@ local function ToggleBook()
         wins = Stat(summary, -112, addon.swordsIconPath, L.winTooltip)
         losses = Stat(summary, -162, addon.skullIconPath, L.lossTooltip)
         local latestHeading = summary:CreateFontString(nil, "OVERLAY", sectionFont)
-        latestHeading:SetPoint("TOPLEFT", 25, -215)
+        latestHeading:SetPoint("TOPLEFT", profileInset, -215)
         latestHeading:SetText(L.latestEncounter)
         latestEmpty = summary:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-        latestEmpty:SetPoint("TOPLEFT", 25, -240)
+        latestEmpty:SetPoint("TOPLEFT", profileInset, -240)
         latestEmpty:SetText(L.noSkirmishes)
         latestCard = CreateRivalCard(summary, cardWidth, CloseForMap)
-        latestCard:SetPoint("TOPLEFT", 25, -234)
+        latestCard:SetPoint("TOPLEFT", profileInset, -234)
         empty = right:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         empty:SetPoint("CENTER", 0, 5)
         empty:SetWidth(305)
@@ -618,13 +620,34 @@ local function ToggleBook()
                 if addon.RefreshNameplates then addon.RefreshNameplates() end
             end,
         }
-        remove = CreateFrame("Button", nil, rivalsPage, "SharedButtonSmallTemplate")
-        remove:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -footerInset, footerInset)
-        remove:SetSize(128, removeHeight)
-        remove:SetText(DELETE)
-        remove:SetScript("OnClick", function()
+        remove = CreateFrame("Button", nil, right)
+        remove:SetPoint("TOPRIGHT", -14, -12)
+        remove:SetSize(22, 22)
+        remove:Hide()
+        local removeIcon = remove:CreateTexture(nil, "ARTWORK")
+        removeIcon:SetSize(22, 22)
+        removeIcon:SetPoint("TOPLEFT", 0, 0)
+        removeIcon:SetTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
+        removeIcon:SetAlpha(0.5)
+        remove:SetScript("OnEnter", function(self)
+            removeIcon:SetAlpha(1)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(DELETE)
+            GameTooltip:Show()
+        end)
+        local function ResetRemove(self)
+            removeIcon:SetAlpha(0.5)
+            removeIcon:SetPoint("TOPLEFT", 0, 0)
+            if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
+        end
+        remove:SetScript("OnLeave", ResetRemove)
+        remove:SetScript("OnHide", ResetRemove)
+        remove:SetScript("OnMouseDown", function() removeIcon:SetPoint("TOPLEFT", 1, -1) end)
+        remove:SetScript("OnMouseUp", function() removeIcon:SetPoint("TOPLEFT", 0, 0) end)
+        remove:SetScript("OnClick", function(self)
             local rival = selected and addon.Ledger.Find(addon.db, selected)
             if rival then
+                ResetRemove(self)
                 StaticPopup_Show(deletePopup, rival.displayName, nil, selected)
             end
         end)

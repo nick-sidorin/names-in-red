@@ -13,9 +13,9 @@ to see both sides, levels, classes, and the finishing blows
 in the same window. **Back** returns to the rival and the same place in their
 history. The side tab shows the latest 100 skirmishes across all opponents using
 the same two-sided layout for both battle records and earlier individual
-encounters. **Partial roster** indicates that the record identifies some
-participants and leaves the full team sizes unconfirmed. Older saved battles can
-still open from a rival's history.
+encounters. The header shows the number of recorded participants on each side.
+An information icon beside those counts explains when the full team sizes are
+unconfirmed. Older saved battles can still open from a rival's history.
 The map pin places a waypoint when the saved location supports one. Known
 rivals show the same score in the standard unit tooltip.
 

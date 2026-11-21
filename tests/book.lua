@@ -168,6 +168,7 @@ end
 
 function CreateFrame(_, _, parent, template)
     local region = MockRegion(parent)
+    region.template = template
     if template == "CommonSquareIconButtonTemplate" then
         region.Icon = MockRegion(region)
         region:SetScript("OnMouseUp", function(self) self.Icon:SetPoint("CENTER", self, "CENTER", -1, 0) end)
@@ -181,14 +182,15 @@ function addon.ApplyAtlas(region, atlas)
     return true
 end
 date = os.date
-local selectedRival
-local card = addon.CreateSkirmishCard(MockRegion(), 630, function() end, function(id) selectedRival = id end)
+local selectedRival, journalMapOpened
+local card = addon.CreateSkirmishCard(MockRegion(), 630, function() journalMapOpened = true end,
+    function(id) selectedRival = id end)
 local allies = { { id = "me", name = "My Character", isSelf = true }, { id = "ally", name = "Ally Warrior" } }
 local enemies = {
     { id = "enemy", name = "Test Rival", rivalID = "Player-test", class = "MAGE", level = 42 },
     { id = "other", name = "Other Rival" },
 }
-local large = { time = 100, startedAt = 80, mapID = 1424, x = 0.45, y = 0.51,
+local large = { time = 100, startedAt = 80, zone = "Hillsbrad Foothills", mapID = 1424, x = 0.45, y = 0.51,
     allies = allies, enemies = enemies, rosterComplete = true, events = {
     { actorID = "ally", targetID = "enemy", time = 91 }, { actorID = "other", targetID = "me", time = 97 },
 } }
@@ -214,7 +216,19 @@ end
 card:SetSkirmish(large, "Player-test")
 local largeHeight = card.height
 assert(FindText(card, "2 × 2") and FindText(card, "Ally Warrior") and FindText(card, "0:11"))
-assert(FindText(card, addon.L.showOnMap) and not FindText(card, "45.0, 51.0"))
+assert(not FindText(card, addon.L.showOnMap) and not FindText(card, "45.0, 51.0"))
+local journalMap = assert(FindRegion(card, "title", addon.L.showOnMap))
+local zone = assert(FindText(card, large.zone))
+local stamp = assert(FindText(card, date("%x", large.time) .. "  " .. date("%H:%M", large.time)))
+assert(journalMap.template == "CommonSquareIconButtonTemplate" and stamp.anchor[4] < journalMap.anchor[4])
+assert(zone.anchor[5] == stamp.anchor[5] and stamp.anchor[5] == journalMap.anchor[5])
+local eventTitle, firstTime = FindText(card, addon.L.finishingBlows), FindText(card, "0:11")
+local secondTime = FindText(card, "0:17")
+assert(eventTitle.anchor[3] - firstTime.anchor[3] == firstTime.anchor[3] - secondTime.anchor[3])
+addon.ShowEncounterWaypoint = function(battle) assert(battle == large); return true end
+journalMap.scripts.OnClick()
+assert(journalMapOpened)
+assert(not FindRegion(card, "template", "UIPanelInfoButton"))
 local allyHeading, enemyHeading = FindText(card, addon.L.alliedSide), FindText(card, addon.L.enemySide)
 CheckFactionColors(allyHeading, enemyHeading)
 faction = "Horde"
@@ -227,9 +241,12 @@ name.parent.scripts.OnClick(name.parent)
 assert(selectedRival == "Player-test")
 card:SetSkirmish({ allies = { allies[1] }, enemies = { enemies[1] }, events = {} })
 assert(not name.parent.selection.shown)
-assert(card.height < largeHeight and FindText(card, addon.L.partialRoster))
+local partialCount = assert(FindText(card, "1 × 1"))
+assert(card.height < largeHeight and not FindText(card, addon.L.partialRoster))
+assert(not journalMap.shown)
 assert(not FindText(card, "Ally Warrior") and not FindText(card, "Other Rival") and not FindText(card, "0:11"))
-local rosterHint = assert(FindRegion(card, "bounds", FindText(card, addon.L.partialRoster)))
+local rosterHint = assert(FindRegion(card, "template", "UIPanelInfoButton"))
+assert(rosterHint.anchor[2] == partialCount and rosterHint.anchor[4] > 0)
 rosterHint.scripts.OnEnter(rosterHint)
 assert(GameTooltip.shown and GameTooltip.title == addon.L.partialRoster)
 assert(tooltipLines[#tooltipLines] == addon.L.partialRosterHint)
@@ -253,6 +270,7 @@ AnchorUtil = {
 }
 compact:SetEncounter(first)
 assert(FindText(compact, "Hillsbrad Foothills") and FindText(compact, date("%x", first.time)))
+assert(FindText(compact, "Hillsbrad Foothills").anchor[1] == "LEFT")
 assert(FindText(compact, "My Character") and FindText(compact, "Test Rival"))
 assert(FindText(compact, 51).width == 24 and FindText(compact, 42).width == 24)
 local myName, opponentName = FindText(compact, "My Character"), FindText(compact, "Test Rival")
