@@ -73,6 +73,13 @@ local attackers = rival.encounters[1].attackers
 assert(#attackers == 2 and attackers[1].guid == "Player-rival" and attackers[1].name == "Rival Emberfang")
 assert(attackers[2].guid == "Player-other" and attackers[2].name == "Other Attacker")
 assert(addon.db.rivals["Player-other"] == nil)
+local oldDeath = addon.RecentSkirmishes(addon.db, 1)[1]
+assert(not oldDeath.rosterComplete and oldDeath.time == 1010 and oldDeath.mapID == 123)
+assert(oldDeath.allies[1].isSelf and oldDeath.allies[1].level == 25 and #oldDeath.allies == 1)
+assert(#oldDeath.enemies == 2 and oldDeath.enemies[1].rivalID == "Player-rival")
+assert(oldDeath.enemies[2].name == "Other Attacker" and not oldDeath.enemies[2].rivalID)
+assert(#oldDeath.events == 1 and oldDeath.events[1].actorID == oldDeath.enemies[1].id)
+assert(oldDeath.events[1].targetID == oldDeath.allies[1].id and addon.db.skirmishes == nil)
 print("Confirmed world death checks passed")
 
 assert(addon.AddManualEncounter("   ", "killsAgainstThem") == nil)
@@ -120,6 +127,11 @@ assert(recent[1].id == "Player-unknown" and not addon.IsRosterRival(recent[1].id
 assert(recent[2].id == manualID and recent[2].encounter.manual and recent[2].encounter.time == nil)
 assert(recent[2].encounter.recordedAt == now and recent[3].id == "Player-one")
 assert(recent[4].encounter == legacy.encounters[1])
+local uniform = addon.RecentSkirmishes(addon.db, 100)
+assert(#uniform == 4 and not uniform[1].enemies[1].name)
+assert(uniform[2].manual and uniform[2].time == nil and not uniform[2].rosterComplete)
+assert(uniform[2].events[1].actorID == uniform[2].enemies[1].id)
+assert(#uniform[4].events == 0 and uniform[4].manual)
 addon.Ledger.Remove(addon.db, "Player-unknown")
 for timestamp = 1101, 1210 do
     addon.RecordEncounter("Player-one", "First Rival", "killsAgainstThem", { time = timestamp })
@@ -131,6 +143,10 @@ local battle = { time = 1212, allies = {}, enemies = {}, events = {} }
 assert(addon.Ledger.SaveSkirmish(addon.db, "battle-one", battle) == battle)
 recent = addon.RecentEncounters(addon.db, 2)
 assert(#recent == 2 and recent[1].skirmish == battle and recent[2].time == 1210)
+uniform = addon.RecentSkirmishes(addon.db, 2)
+assert(#uniform == 2 and uniform[1] == battle and uniform[2].time == 1210)
+assert(uniform[2].events[1].actorID == uniform[2].allies[1].id)
+assert(uniform[2].events[1].targetID == uniform[2].enemies[1].id)
 print("Cross-rival skirmish order and display limit checks passed")
 
 local ledger = addon.Ledger

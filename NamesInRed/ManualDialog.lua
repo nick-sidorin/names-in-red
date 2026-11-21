@@ -40,7 +40,7 @@ function addon.CreateRoundIcon(parent, size)
     return icon, ring
 end
 
-function addon.SetRivalPortrait(portrait, rival, id, size)
+function addon.SetRivalPortrait(portrait, rival, id, size, mirrored)
     size = size or 64
     portrait:SetSize(size * 13 / 16, size * 13 / 16)
     local race, sex, class = rival.race, rival.sex, rival.class
@@ -52,6 +52,7 @@ function addon.SetRivalPortrait(portrait, rival, id, size)
         local gender = sex == 3 and "female" or "male"
         if addon.ApplyAtlas(portrait, GetRaceAtlas(race, gender, true))
             or addon.ApplyAtlas(portrait, GetRaceAtlas(race, gender)) then
+            if mirrored then AnchorUtil.SetMirroredTexCoordAlongHorizontalAxis(portrait, portrait:GetTexCoord()) end
             return
         end
     end

@@ -37,7 +37,7 @@ for _, supported in ipairs({
         "latestEncounter", "showOnMap", "unknownLocation", "myLevel", "rivalLevel", "waypointError", "noSkirmishes",
         "rivalsView", "recentView", "unknownRival",
         "alliedSide", "enemySide", "partialRoster", "finishingBlows", "unknownPlayer", "minimapHint",
-        "openSkirmish",
+        "openSkirmish", "partialRosterHint",
     }) do
         assert(type(addon.L[key]) == "string" and addon.L[key] ~= "")
     end
@@ -144,13 +144,23 @@ local function MockRegion(parent)
     end
     function region:SetTextColor(r, g, b) self.color = { r, g, b } end
     function region:SetPoint(...) self.anchor = { ... } end
+    function region:SetAllPoints(target) self.bounds = target end
     function region:SetSize(width, height) self.width, self.height = width, height end
-    function region:SetTexture(texture) self.texture = texture end
+    function region:SetTexture(texture) self.texture, self.atlas = texture, nil end
+    function region:SetTexCoord(...) self.texcoords = { ... } end
+    function region:GetTexCoord() return unpack(self.texcoords) end
     function region:SetHitRectInsets(...) self.insets = { ... } end
     function region:SetShown(shown) self.shown = shown end
     function region:Hide() self:SetShown(false) end
     function region:SetHeight(height) self.height = height end
     function region:SetScript(event, handler) self.scripts[event] = handler end
+    function region:HookScript(event, handler)
+        local previous = self.scripts[event]
+        self:SetScript(event, function(...)
+            if previous then previous(...) end
+            handler(...)
+        end)
+    end
     function region:SetOnClickHandler(handler) self.scripts.OnClick = handler end
     function region:SetTooltipInfo(title) self.title = title end
     return setmetatable(region, { __index = function() return function() end end })
@@ -160,13 +170,14 @@ function CreateFrame(_, _, parent, template)
     local region = MockRegion(parent)
     if template == "CommonSquareIconButtonTemplate" then
         region.Icon = MockRegion(region)
-        function region:OnMouseUp() self.Icon:SetPoint("CENTER", self, "CENTER", -1, 0) end
+        region:SetScript("OnMouseUp", function(self) self.Icon:SetPoint("CENTER", self, "CENTER", -1, 0) end)
     end
     return region
 end
 assert(loadfile("NamesInRed/ManualDialog.lua"))("NamesInRed", addon)
 function addon.ApplyAtlas(region, atlas)
     region.atlas = atlas
+    region:SetTexCoord(0.2, 0.3, 0.2, 0.5, 0.4, 0.3, 0.4, 0.5)
     return true
 end
 date = os.date
@@ -218,8 +229,12 @@ card:SetSkirmish({ allies = { allies[1] }, enemies = { enemies[1] }, events = {}
 assert(not name.parent.selection.shown)
 assert(card.height < largeHeight and FindText(card, addon.L.partialRoster))
 assert(not FindText(card, "Ally Warrior") and not FindText(card, "Other Rival") and not FindText(card, "0:11"))
+local rosterHint = assert(FindRegion(card, "bounds", FindText(card, addon.L.partialRoster)))
+rosterHint.scripts.OnEnter(rosterHint)
+assert(GameTooltip.shown and GameTooltip.title == addon.L.partialRoster)
+assert(tooltipLines[#tooltipLines] == addon.L.partialRosterHint)
 card:SetSkirmish(nil)
-assert(not card.shown)
+assert(not card.shown and not GameTooltip.shown)
 print("Skirmish card roster and recycling checks passed")
 
 local openedSkirmish, openedMap, mapped
@@ -228,6 +243,14 @@ local compact = addon.CreateCompactEncounterCard(MockRegion(), 332, function() o
 local first = { skirmishID = "battle-one", wins = 1, losses = 0, mapID = 1424, x = 0.45, y = 0.51,
     zone = "Hillsbrad Foothills", time = 100, player = allies[1], opponent = enemies[1],
     playerLevel = 51, rivalLevel = 42 }
+first.player.race, first.player.sex = "orc", 2
+first.opponent.race, first.opponent.sex = "human", 3
+function GetRaceAtlas(race, gender) return race .. "-" .. gender end
+AnchorUtil = {
+    SetMirroredTexCoordAlongHorizontalAxis = function(region, x1, y1, x2, y2, x3, y3, x4, y4)
+        region:SetTexCoord(x3, y3, x4, y4, x1, y1, x2, y2)
+    end,
+}
 compact:SetEncounter(first)
 assert(FindText(compact, "Hillsbrad Foothills") and FindText(compact, date("%x", first.time)))
 assert(FindText(compact, "My Character") and FindText(compact, "Test Rival"))
@@ -235,6 +258,10 @@ assert(FindText(compact, 51).width == 24 and FindText(compact, 42).width == 24)
 local myName, opponentName = FindText(compact, "My Character"), FindText(compact, "Test Rival")
 local myRim, opponentRim = myName.anchor[2], opponentName.anchor[2]
 assert(myRim.width == 64 and opponentRim.width == 64)
+local playerPortrait = assert(FindRegion(compact, "atlas", "orc-male"))
+local rivalPortrait = assert(FindRegion(compact, "atlas", "human-female"))
+assert(playerPortrait.texcoords[1] < playerPortrait.texcoords[5])
+assert(rivalPortrait.texcoords[1] > rivalPortrait.texcoords[5])
 local function CenterMarker(texture)
     for _, child in ipairs(compact.children) do
         if child.shown and child.scripts.OnEnter and child.children[1] and child.children[1].texture == texture then
@@ -256,12 +283,15 @@ CheckFactionColors(myName, opponentName)
 faction = "Horde"
 compact:SetEncounter(first)
 CheckFactionColors(opponentName, myName)
+assert(rivalPortrait.texcoords[1] > rivalPortrait.texcoords[5])
 faction = "Alliance"
 local open = assert(FindRegion(compact, "title", addon.L.openSkirmish))
 local map = assert(FindRegion(compact, "title", addon.L.showOnMap))
 assert(not FindText(compact, addon.L.openSkirmish) and not FindText(compact, addon.L.showOnMap))
 assert(open.width == 32 and map.width == 32 and open.Icon.width == 16 and map.Icon.width == 16)
-assert(open.Icon.anchor[4] == -1 and map.Icon.anchor[4] == -1)
+assert(open.Icon.anchor[4] == 0 and map.Icon.anchor[4] == 0)
+map.scripts.OnMouseUp(map)
+assert(map.Icon.anchor[4] == 0 and map.Icon.anchor[5] == 0)
 local inset = map.insets[1]
 local mapToInfo = open.anchor[2] - open.width + inset - (map.anchor[2] - inset)
 local dateToMap = map.anchor[2] - map.width + inset - FindText(compact, date("%x", first.time)).anchor[2]
@@ -307,6 +337,8 @@ function SetPortraitTexture(_, unit, disableMasking)
 end
 compact:SetEncounter({ direction = "killsAgainstThem" }, { displayName = "Legacy Rival" })
 assert(FindText(compact, "Legacy Rival") and loadedSelfPortrait and not open.shown)
+assert(rivalPortrait.texture == "Interface\\Icons\\INV_Misc_QuestionMark")
+assert(rivalPortrait.texcoords[1] < rivalPortrait.texcoords[2])
 assert(CenterMarker(swords))
 compact:SetEncounter(nil)
 assert(not compact.shown)

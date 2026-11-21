@@ -197,6 +197,62 @@ function addon.RecentEncounters(db, limit)
     return entries
 end
 
+local function LegacyOpponent(db, id, recordedName, level)
+    local rival = db.rivals[id]
+    local name = rival and addon.IsRosterRival(id, rival) and addon.ManualName(rival.displayName)
+    return {
+        id = id, rivalID = rival and id, name = name or addon.ManualName(recordedName), level = level,
+        class = rival and rival.class, classLabel = rival and rival.classLabel, sex = rival and rival.sex,
+    }
+end
+
+local function LegacySkirmish(db, entry, playerAppearance)
+    local encounter = entry.encounter
+    local player = {
+        id = "legacy:player", isSelf = true, name = playerAppearance.name, level = encounter.playerLevel,
+        class = playerAppearance.class, classLabel = playerAppearance.classLabel, sex = playerAppearance.sex,
+    }
+    local attackers = encounter.attackers or {}
+    local first = attackers[1]
+    local rival = LegacyOpponent(db, entry.id, first and first.guid == entry.id and first.name, encounter.rivalLevel)
+    local opponents, seen = { rival }, { [rival.id] = true }
+    for index, attacker in ipairs(attackers) do
+        local id = attacker.guid or ("legacy:attacker:" .. index)
+        if not seen[id] then
+            seen[id] = true
+            opponents[#opponents + 1] = LegacyOpponent(db, id, attacker.name)
+        end
+    end
+    local events = {}
+    if encounter.direction == "killsAgainstThem" then
+        events[1] = { kind = "kill", actorID = player.id, targetID = rival.id, time = encounter.time }
+    elseif encounter.direction == "deathsToThem" then
+        events[1] = { kind = "kill", actorID = rival.id, targetID = player.id, time = encounter.time }
+    end
+    -- A legacy entry records one death and the observed participants, without a complete roster.
+    return {
+        time = encounter.time, manual = encounter.manual, zone = encounter.zone,
+        mapID = encounter.mapID, x = encounter.x, y = encounter.y,
+        rosterComplete = false, allies = { player }, enemies = opponents, events = events,
+    }
+end
+
+function addon.RecentSkirmishes(db, limit)
+    local battles = addon.RecentEncounters(db, limit)
+    local playerAppearance
+    for index, entry in ipairs(battles) do
+        if not entry.skirmish and not playerAppearance then
+            local classLabel, class = SafeRead(UnitClass, "player")
+            playerAppearance = {
+                name = addon.UnitPlayerName("player"), class = class, classLabel = classLabel,
+                sex = SafeRead(UnitSex, "player"),
+            }
+        end
+        battles[index] = entry.skirmish or LegacySkirmish(db, entry, playerAppearance)
+    end
+    return battles
+end
+
 function addon.FindVisibleRival(guid, unit)
     local rivals = addon.db.rivals
     local rival = type(guid) == "string" and rivals[guid]

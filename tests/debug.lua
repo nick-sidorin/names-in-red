@@ -127,6 +127,9 @@ assert(#seeded["seed:battle:3"].enemies == 6 and not seeded["seed:battle:4"].ros
 local borin = addon.RivalEncounters(addon.db, "seed:2")[1]
 assert(borin.skirmishID == "seed:battle:3" and borin.wins == 0 and borin.losses == 0)
 assert(borin.opponentDeathIndex == 2 and borin.playerDeathIndex == 3)
+local cressa = addon.RivalEncounters(addon.db, "seed:3")[1]
+assert(cressa.skirmishID == "seed:battle:3" and cressa.wins == 0 and cressa.losses == 0)
+assert(cressa.playerDeathIndex == 3 and not cressa.opponentDeathIndex)
 addon.Ledger.SaveSkirmish(addon.db, "existing-battle", { allies = {}, enemies = {}, events = {} })
 SlashCmdList.NAMESINREDDEBUG("clear-seed")
 for key in pairs(addon.db.rivals) do assert(not key:match("^seed:")) end

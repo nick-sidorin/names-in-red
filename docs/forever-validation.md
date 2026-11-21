@@ -321,14 +321,16 @@ The compact rival card uses `CommonSquareIconButtonTemplate` from
 `Blizzard_SharedXML/Shared/Button/IconButtonTemplate.xml`, including native
 tooltips and click handling supplied by `UIButtonMixin`. Its icons come from
 `WaypointLocationPinTemplate` and `UIPanelInfoButton`. The button frames are
-32 units square with 16-unit icons. Initialize the resting icon alignment with
-`SquareIconButtonMixin:OnMouseUp`, which also restores it after a click. The
+32 units square with 16-unit icons. Center the icon at rest and restore that
+center after `SquareIconButtonMixin:OnMouseUp`. The
 header uses the square template's scaled four-unit inset to match the date-to-map
 and map-to-information gaps. Both portraits use the profile's 64-unit ring and
 24-unit level badge. The central and portrait markers share the nameplate sword
 crop and small skull texture. A local portrait with no saved race portrait uses
 `SetPortraitTexture`, as in Camelot's
-`CharacterFrameMixin:UpdateCharacterModeTabPortrait`.
+`CharacterFrameMixin:UpdateCharacterModeTabPortrait`. A rival's race portrait
+uses `AnchorUtil.SetMirroredTexCoordAlongHorizontalAxis` from
+`Blizzard_SharedXMLBase/AnchorUtil.lua` to face inwards.
 `PVPMatchStyle.GetLocalPlayerFactionTheme` uses the first return from
 `UnitFactionGroup("player")`. The skirmish cards use the same faction tag to
 order the existing blue and red palette. Check both factions in the full and
@@ -388,9 +390,11 @@ The outer navigation follows `UI:Build` and `UI:Show` in Azeroth Fitness
 `Blizzard_Professions/Camelot/Blizzard_ProfessionsFrame.xml`. It uses
 `LargeSideTabButtonTemplate` and the native
 `SidePanelTabButtonMixin:SetCustomOnMouseUpHandler` and `SetChecked` handling.
-The two pages share the main book window. An identified rival's Information
-button opens that rival in the roster even with a previous search active.
-Unresolved identities stay anonymous until the full name is known.
+The two pages share the main book window. Clicking a known opponent in the
+journal opens their profile even with a previous search active. The journal
+uses the same two-sided battle card for all records. Older one-death entries
+show their recorded participants, finishing blow and map data with a partial
+roster tooltip. Their original saved data remains in the ledger.
 
 The journal displays at most 100 cards across the ledger. It preserves older
 saved entries and uses a bounded sorted list and a viewport-sized frame pool.

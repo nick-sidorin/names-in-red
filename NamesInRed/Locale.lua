@@ -128,6 +128,22 @@ skirmishStrings.esMX = skirmishStrings.esES
 addon.L.alliedSide, addon.L.enemySide, addon.L.partialRoster, addon.L.finishingBlows, addon.L.unknownPlayer =
     unpack(skirmishStrings[GetLocale()] or skirmishStrings.enUS)
 
+local rosterHints = {
+    enUS = "This record lists known participants. The full size of either side is unconfirmed.",
+    ruRU = "Здесь показаны известные участники. Точное число игроков на каждой стороне неизвестно.",
+    deDE = "Dieser Eintrag zeigt die bekannten Teilnehmer. Die vollständige Größe der beiden Seiten ist unbekannt.",
+    frFR = "Cette fiche présente les participants connus. L’effectif complet de chaque camp reste inconnu.",
+    esES = "Este registro muestra a los participantes conocidos. Se desconoce el tamaño total de cada bando.",
+    itIT = "Questa scheda mostra i partecipanti noti. Il numero totale di giocatori per schieramento è sconosciuto.",
+    ptBR = "Este registro mostra os participantes conhecidos. O tamanho total de cada lado é desconhecido.",
+    koKR = "확인된 참가자만 표시합니다. 양측의 전체 인원은 확인되지 않았습니다.",
+    zhCN = "这条记录仅显示已知参与者。双方的总人数尚未确认。",
+    zhTW = "這筆紀錄僅顯示已知參與者。雙方的總人數尚未確認。",
+}
+rosterHints.enGB = rosterHints.enUS
+rosterHints.esMX = rosterHints.esES
+addon.L.partialRosterHint = rosterHints[GetLocale()] or rosterHints.enUS
+
 local minimapHints = {
     enUS = "Left-click — open the journal\nDrag — move the icon",
     ruRU = "ЛКМ — открыть журнал\nПеретащи — переместить значок",

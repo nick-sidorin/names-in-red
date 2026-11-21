@@ -139,7 +139,7 @@ local function CardList(parent, x, y, width, height, createCard, bindCard, measu
         local offset = 0
         for index, entry in ipairs(entries) do
             offsets[index] = offset
-            offset = offset + (measure and measure(entry) or addon.encounterCardHeight) + cardGap
+            offset = offset + measure(entry) + cardGap
         end
         content:SetHeight(math.max(1, offset - cardGap))
         local maxScroll = math.max(0, content:GetHeight() - self:GetHeight())
@@ -224,7 +224,7 @@ function addon.RefreshBook(resetSearch)
         return
     end
     if activeView == recentView then
-        local entries = addon.RecentEncounters(addon.db, recentLimit)
+        local entries = addon.RecentSkirmishes(addon.db, recentLimit)
         recentEmpty:SetShown(#entries == 0)
         recentList:SetShown(#entries > 0)
         recentList:SetEntries(entries)
@@ -397,76 +397,8 @@ local function OpenRival(id)
     addon.RefreshBook(true)
 end
 
-local function CreateSingleRecentCard(parent, width, onMapShown)
-    local card = addon.CreateEncounterCard(parent, width, onMapShown, 265)
-    local profile = card.profile
-    local icon, rim = addon.CreateRoundIcon(profile)
-    rim:SetPoint("TOPLEFT", 11, -12)
-    local name = profile:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    name:SetPoint("TOPLEFT", 80, -23)
-    name:SetPoint("TOPRIGHT", -8, -23)
-    name:SetJustifyH("LEFT")
-    name:SetWordWrap(false)
-    local description = profile:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    description:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -6)
-    description:SetWidth(177)
-    description:SetJustifyH("LEFT")
-    description:SetTextColor(0.72, 0.67, 0.59)
-    description:SetMaxLines(2)
-
-    local open = CreateFrame("Button", nil, profile, "SharedButtonSmallTemplate")
-    open:SetPoint("BOTTOMLEFT", 15, 14)
-    open:SetSize(132, 25)
-    open:SetText(L.infoTab)
-    open:SetScript("OnClick", function()
-        if card.rivalID then OpenRival(card.rivalID) end
-    end)
-
-    function card:SetEntry(entry)
-        self.rivalID = entry and entry.id
-        self:SetEncounter(entry and entry.encounter)
-        if not entry then return end
-        local rival = entry.rival
-        local known = addon.IsRosterRival(entry.id, rival)
-        name:SetText(known and rival.displayName or L.unknownRival)
-        open:SetEnabled(known)
-        local labels = {}
-        if rival.raceLabel then labels[#labels + 1] = rival.raceLabel end
-        if rival.classLabel then labels[#labels + 1] = rival.classLabel end
-        description:SetText(table.concat(labels, " / "))
-        addon.SetRivalPortrait(icon, rival, entry.id)
-    end
-    return card
-end
-
-local function RecentCardHeight(entry)
-    return entry.skirmish and addon.SkirmishCardHeight(entry.skirmish) or addon.encounterCardHeight
-end
-
-local function CreateRecentCard(parent, width, onMapShown)
-    local holder = CreateFrame("Frame", nil, parent)
-    holder:SetWidth(width)
-    function holder:SetEntry(entry)
-        self:SetShown(entry ~= nil)
-        if not entry then return end
-        self:SetHeight(RecentCardHeight(entry))
-        if entry.skirmish then
-            if self.single then self.single:SetEntry(nil) end
-            if not self.battle then
-                self.battle = addon.CreateSkirmishCard(self, width, onMapShown, OpenRival)
-                self.battle:SetPoint("TOPLEFT")
-            end
-            self.battle:SetSkirmish(entry.skirmish)
-        else
-            if self.battle then self.battle:SetSkirmish(nil) end
-            if not self.single then
-                self.single = CreateSingleRecentCard(self, width, onMapShown)
-                self.single:SetPoint("TOPLEFT")
-            end
-            self.single:SetEntry(entry)
-        end
-    end
-    return holder
+local function CreateBattleCard(parent, width, onMapShown)
+    return addon.CreateSkirmishCard(parent, width, onMapShown, OpenRival)
 end
 
 local function CreateSideTabs()
@@ -708,7 +640,7 @@ local function ToggleBook()
         recentEmpty:SetPoint("CENTER")
         recentEmpty:SetText(L.noSkirmishes)
         recentList = CardList(journal, 20, -42, journal:GetWidth() - 62, bodyHeight - 56,
-            CreateRecentCard, function(card, entry) card:SetEntry(entry) end, RecentCardHeight)
+            CreateBattleCard, function(card, battle) card:SetSkirmish(battle) end, addon.SkirmishCardHeight)
 
         battlePage = Pane(window, 5, -contentTop, window:GetWidth() - 10, bodyHeight)
         ListBackground(battlePage)
@@ -724,7 +656,7 @@ local function ToggleBook()
             addon.RefreshBook()
         end)
         battleList = CardList(battlePage, 20, -42, battlePage:GetWidth() - 62, bodyHeight - 56,
-            function(parent, width, onMapShown) return addon.CreateSkirmishCard(parent, width, onMapShown, OpenRival) end,
+            CreateBattleCard,
             function(card, battle) card:SetSkirmish(battle, selected) end, addon.SkirmishCardHeight)
 
         CreateSideTabs()

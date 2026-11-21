@@ -3,7 +3,6 @@ local L = addon.L
 local azerothMapID = 947
 local mapsByName
 
-addon.encounterCardHeight = 136
 addon.compactEncounterCardHeight = 138
 
 local allianceColor = { 0.65, 0.83, 1 }
@@ -140,96 +139,6 @@ local function CreateCard(parent, width, height)
     return card
 end
 
-function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
-    local card = CreateCard(parent, width, addon.encounterCardHeight)
-
-    local body = card
-    if profileWidth then
-        card.profile = CreateFrame("Frame", nil, card)
-        card.profile:SetPoint("TOPLEFT")
-        card.profile:SetSize(profileWidth, addon.encounterCardHeight)
-        local seam = card:CreateTexture(nil, "ARTWORK")
-        seam:SetPoint("TOPLEFT", profileWidth, -12)
-        seam:SetPoint("BOTTOMLEFT", profileWidth, 12)
-        seam:SetWidth(1)
-        seam:SetColorTexture(0.56, 0.42, 0.27, 0.45)
-
-        body = CreateFrame("Frame", nil, card)
-        body:SetPoint("TOPLEFT", profileWidth, 0)
-        body:SetPoint("BOTTOMRIGHT")
-        width = width - profileWidth
-    end
-
-    local icon = body:CreateTexture(nil, "ARTWORK")
-    icon:SetPoint("TOPLEFT", 12, -11)
-    icon:SetSize(28, 28)
-    local outcome = Label(body, "GameFontNormal", "TOPLEFT", 48, -18, width - 181)
-    local day = Label(body, "GameFontHighlightSmall", "TOPRIGHT", -13, -12, 120)
-    local time = Label(body, "GameFontHighlightSmall", "TOPRIGHT", -13, -26, 120)
-    local divider = body:CreateTexture(nil, "ARTWORK")
-    divider:SetPoint("TOPLEFT", 12, -45)
-    divider:SetPoint("TOPRIGHT", -12, -45)
-    divider:SetHeight(1)
-    divider:SetColorTexture(0.56, 0.42, 0.27, 0.45)
-
-    local zone = Label(body, "GameFontHighlight", "TOPLEFT", 13, -54, width - 26)
-    time:SetTextColor(0.77, 0.71, 0.61)
-
-    local myCaption = Label(body, "GameFontNormalSmall", "TOPLEFT", 13, -96, 79)
-    myCaption:SetText(L.myLevel)
-    local rivalCaption = Label(body, "GameFontNormalSmall", "TOPLEFT", 98, -96, 107)
-    rivalCaption:SetText(L.rivalLevel)
-    local myLevel = Label(body, "GameFontHighlight", "TOPLEFT", 13, -110, 79)
-    local rivalLevel = Label(body, "GameFontHighlight", "TOPLEFT", 98, -110, 107)
-    local map = CreateFrame("Button", nil, body, "SharedButtonSmallTemplate")
-    local mapButtonWidth = 130
-    map:SetPoint("TOPRIGHT", -12, -53)
-    map:SetSize(mapButtonWidth, 25)
-    map:SetText(L.showOnMap)
-
-    map:SetScript("OnClick", function()
-        ActivateWaypoint(card.encounter, onMapShown)
-    end)
-
-    local attackers = CreateFrame("Button", nil, body, "SharedButtonSmallTemplate")
-    attackers:SetPoint("BOTTOMRIGHT", -12, 11)
-    attackers:SetSize(130, 25)
-    attackers:SetText(L.attackers)
-    attackers:SetScript("OnEnter", function(self)
-        ShowAttackers(self, card.encounter.attackers)
-    end)
-    attackers:SetScript("OnLeave", HideTooltip)
-    attackers:HookScript("OnHide", HideTooltip)
-
-    function card:SetEncounter(encounter)
-        if self.encounter ~= encounter then
-            HideTooltip(attackers)
-        end
-        self.encounter = encounter
-        self:SetShown(encounter ~= nil)
-        if not encounter then return end
-
-        local victory = encounter.direction == "killsAgainstThem"
-        icon:SetTexture(victory and addon.swordsIconPath or addon.skullIconPath)
-        local inset = victory and 0.16 or 0.08
-        icon:SetTexCoord(inset, 1 - inset, inset, 1 - inset)
-        outcome:SetText(victory and L.win or L.loss)
-        if victory then outcome:SetTextColor(0.65, 0.83, 1) else outcome:SetTextColor(1, 0.61, 0.52) end
-        local encounterDay, encounterTime = EncounterDate(encounter)
-        day:SetText(encounterDay)
-        time:SetText(encounterTime)
-        local hasWaypoint = WaypointMap(encounter) ~= nil
-        zone:SetWidth(hasWaypoint and width - 33 - mapButtonWidth or width - 26)
-        zone:SetText(encounter.zone and encounter.zone ~= "" and encounter.zone or L.unknownLocation)
-        myLevel:SetText(LevelText(encounter.playerLevel))
-        rivalLevel:SetText(LevelText(encounter.rivalLevel))
-        map:SetShown(hasWaypoint)
-        attackers:SetShown(type(encounter.attackers) == "table" and #encounter.attackers > 0)
-    end
-
-    return card
-end
-
 function addon.SkirmishCardHeight(battle)
     local rosterHeight = 29 * math.max(#battle.allies, #battle.enemies, 1)
     local eventHeight = #battle.events > 0 and 22 + 19 * #battle.events or 0
@@ -257,8 +166,11 @@ local function CompactAction(card)
     button:SetHitRectInsets(compactActionInset, compactActionInset, compactActionInset, compactActionInset)
     button:RegisterForClicks("LeftButtonUp")
     button.Icon:SetSize(16, 16)
-    -- Apply the template's resting icon position before the first click.
-    button:OnMouseUp()
+    local function CenterIcon(self)
+        self.Icon:SetPoint("CENTER", self, "CENTER", 0, 0)
+    end
+    CenterIcon(button)
+    button:HookScript("OnMouseUp", CenterIcon)
     button:SetTooltipAnchor("ANCHOR_TOP")
     button:HookScript("OnHide", HideTooltip)
     return button
@@ -379,7 +291,7 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         end
         local appearance = opponent or rival or {}
         if not appearance.race and rival and rival.race then appearance = rival end
-        addon.SetRivalPortrait(theirs.portrait, appearance, rivalID, portraitSize)
+        addon.SetRivalPortrait(theirs.portrait, appearance, rivalID, portraitSize, true)
         mine.level:SetLevel(encounter.playerLevel)
         theirs.level:SetLevel(encounter.rivalLevel)
 
@@ -423,6 +335,18 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
     local zone = Label(card, "GameFontHighlight", "TOPLEFT", 14, -16, columnWidth - 76)
     local score = Label(card, "GameFontNormal", "TOP", 0, -15, 194)
     score:SetJustifyH("CENTER")
+    local coverage = CreateFrame("Frame", nil, card)
+    coverage:SetAllPoints(score)
+    coverage:SetMouseMotionEnabled(true)
+    coverage:SetScript("OnEnter", function(self)
+        local tooltip = GetAppropriateTooltip and GetAppropriateTooltip() or GameTooltip
+        tooltip:SetOwner(self, "ANCHOR_TOP")
+        tooltip:SetText(L.partialRoster)
+        tooltip:AddLine(L.partialRosterHint, 1, 1, 1, true)
+        tooltip:Show()
+    end)
+    coverage:SetScript("OnLeave", HideTooltip)
+    coverage:SetScript("OnHide", HideTooltip)
     local stamp = Label(card, "GameFontHighlightSmall", "TOPRIGHT", -14, -17, columnWidth - 76)
     stamp:SetTextColor(0.77, 0.71, 0.61)
     Divider(card, -36)
@@ -468,8 +392,8 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
                 row:SetShown(player ~= nil)
                 if player then
                     row.selection:SetShown(selectedRivalID ~= nil and player.rivalID == selectedRivalID)
-                    local name = player.name or L.unknownPlayer
-                    row.name:SetText(player.isSelf and YOU and (name .. " • " .. YOU) or name)
+                    local name = player.name or (player.isSelf and YOU) or L.unknownPlayer
+                    row.name:SetText(player.isSelf and player.name and YOU and (name .. " • " .. YOU) or name)
                     local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[player.class]
                     row.name:SetTextColor(classColor and classColor.r or 1, classColor and classColor.g or 1,
                         classColor and classColor.b or 1)
@@ -504,15 +428,17 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
         ActivateWaypoint(card.skirmish, onMapShown)
     end)
     function card:SetSkirmish(battle, selectedRivalID)
+        if self.skirmish ~= battle then HideTooltip(coverage) end
         self.skirmish = battle
         self:SetShown(battle ~= nil)
         if not battle then return end
         self:SetHeight(addon.SkirmishCardHeight(battle))
-        zone:SetText(battle.zone or L.unknownLocation)
+        zone:SetText(battle.zone and battle.zone ~= "" and battle.zone or L.unknownLocation)
         score:SetText(battle.rosterComplete and ("%d × %d"):format(#battle.allies, #battle.enemies)
             or L.partialRoster)
+        coverage:SetShown(not battle.rosterComplete)
         local day, time = EncounterDate(battle)
-        stamp:SetText(day .. "  " .. time)
+        stamp:SetText(time ~= "" and day .. "  " .. time or day)
         local allyColor, enemyColor = SideColors()
         setAllies(battle.allies, allyColor)
         setEnemies(battle.enemies, enemyColor, selectedRivalID)

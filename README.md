@@ -11,8 +11,11 @@ mark confirmed wins and deaths. Hover over a center icon for the personal result
 Alliance is blue and Horde is red. Use the information icon on a linked card
 to see both sides, levels, classes, and the finishing blows
 in the same window. **Back** returns to the rival and the same place in their
-history. The side tab shows the latest 100 skirmishes across all opponents. Older
-saved battles can still open from a rival's history.
+history. The side tab shows the latest 100 skirmishes across all opponents using
+the same two-sided layout for both battle records and earlier individual
+encounters. **Partial roster** indicates that the record identifies some
+participants and leaves the full team sizes unconfirmed. Older saved battles can
+still open from a rival's history.
 The map pin places a waypoint when the saved location supports one. Known
 rivals show the same score in the standard unit tooltip.
 
