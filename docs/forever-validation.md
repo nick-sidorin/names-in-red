@@ -201,7 +201,15 @@ visible-plate path as the kill handler. Only recap-confirmed attackers enter
 the roster. Verify a hostile finishing blow while targeting nothing, including
 a delayed recap after the nameplate disappears. Old cards use known class and
 portrait details and mark a rival's last known level with `~` if the fight
-itself lacks a level. The team result still depends on roster coverage.
+itself lacks a level.
+
+An open-world skirmish with one recorded rival, the local player alone on
+their side and direct finishing blows between them is treated as an observed
+duel. Use the recorded deaths to decide the result. Two eliminated sides
+still leave the result unknown. The roster is recalculated on load and after
+each update, so additional participants can reopen a provisional result.
+The live solo replay should show one win, two losses and one honorable kill
+for ten honor in the rival profile. Verify the markers in both card layouts.
 
 The user's 70959 group log showed a session HK increase from four to five
 317 ms after a readable player death credited to another attacker, followed

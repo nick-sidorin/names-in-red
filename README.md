@@ -43,6 +43,9 @@ to [GitHub Issues](https://github.com/nick-sidorin/names-in-red/issues).
   A recorded result counts once in the journal and once in each opponent's
   profile. If you die and your surviving teammate finishes the opposing
   side, it counts as one win against every opponent in the battle.
+- In open-world history, a direct fight between you and the only recorded
+  opponent counts as a duel. If another participant is recorded in the same
+  fight, the result is recalculated using the larger roster.
 - A skirmish with an unknown outcome stays in the history. The score changes
   once the outcome is known. Older records of individual killing blows and
   deaths stay visible. Manually entered results still count.
@@ -72,9 +75,9 @@ the same skirmish ID replaces the indexed result and rewards.
 Live open-world capture groups readable player kills and local death recaps
 within the observed combat window. A current party member's finishing blow
 can add that ally to the roster. At death, visible nameplates can supply
-participant details when the target and mouseover are unavailable. The live
-observer records a partial roster
-when the full fight is unavailable. Honor correlation uses one readable
+participant details when the target and mouseover are unavailable. For live
+records, `rosterComplete` also covers observed duels. It is recalculated at
+load and on each save. Honor correlation uses one readable
 opponent death and a single increase in the session honorable kill count.
 An honor amount also requires one award message and a readable amount from
 that message or a matching honor currency update. Ambiguous broadcasts

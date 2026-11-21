@@ -160,5 +160,35 @@ assert(#recorded.enemies == 1 and recorded.enemies[1].id == "Player-rogue")
 local rogue, player = recorded.enemies[1], recorded.allies[1]
 assert(rogue.level == 32 and rogue.class == "ROGUE" and rogue.race == "scourge" and rogue.sex == 2)
 assert(player.level == 32 and player.class == "HUNTER" and player.race == "nightelf" and player.sex == 3)
-assert(not recorded.rosterComplete and not addon.Ledger.SkirmishOutcome(recorded))
+assert(recorded.rosterComplete and addon.Ledger.SkirmishOutcome(recorded) == "loss")
+local wins, losses = addon.Ledger.PersonalScore(addon.db, rogue.id)
+assert(wins == 0 and losses == 1)
 print("Delayed death recap retains previously visible nameplate appearance")
+
+-- If a teammate later lands a blow, the same record is no longer a duel.
+addon.RecordWorldEncounter(rogue.id, rogue.name, "killsAgainstThem", {
+    time = GetServerTime(), zone = "Tanaris", actorID = brother, actorName = "Thoren Ironbrook",
+})
+assert(#recorded.allies == 2 and not recorded.rosterComplete and not addon.Ledger.SkirmishOutcome(recorded))
+wins, losses = addon.Ledger.PersonalScore(addon.db, rogue.id)
+assert(wins == 0 and losses == 0)
+
+-- Reopen a pre-upgrade record matching the solo kill signal in the live log.
+local saved = { version = 1, rivals = addon.db.rivals, skirmishes = {} }
+local direct = { kind = "kill", actorID = player.id, targetID = rogue.id }
+local indirect = { kind = "kill", actorID = "Player-other", targetID = rogue.id }
+local reciprocal = { kind = "kill", actorID = rogue.id, targetID = player.id }
+local function SavedBattle(events)
+    return { rosterComplete = false, allies = { player }, enemies = { rogue }, events = events }
+end
+saved.skirmishes["world:1"] = SavedBattle({ direct })
+saved.skirmishes["world:2"] = SavedBattle({ indirect })
+saved.skirmishes["world:3"] = SavedBattle({ direct, reciprocal })
+saved.skirmishes["seed:incomplete"] = SavedBattle({ direct })
+assert(addon.Ledger.Open(saved) == saved)
+assert(saved.skirmishes["world:1"].rosterComplete and not saved.skirmishes["world:2"].rosterComplete)
+assert(saved.skirmishes["world:3"].rosterComplete and not addon.Ledger.SkirmishOutcome(saved.skirmishes["world:3"]))
+assert(not saved.skirmishes["seed:incomplete"].rosterComplete)
+wins, losses = addon.Ledger.PersonalScore(saved, rogue.id)
+assert(wins == 1 and losses == 0)
+print("Observed world duels recalculate on load and when participants change")

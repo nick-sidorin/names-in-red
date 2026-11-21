@@ -3,11 +3,44 @@ local Ledger = {}
 addon.Ledger = Ledger
 local skirmishIndexes = setmetatable({}, { __mode = "k" })
 
+local function ObservedDuel(battle)
+    if #battle.allies ~= 1 or #battle.enemies ~= 1 then return false end
+    local player, rival = battle.allies[1], battle.enemies[1]
+    if not player.isSelf or not player.id or not rival.id or player.id == rival.id then return false end
+    local directKill = false
+    for _, event in ipairs(battle.events) do
+        if event.kind == "kill" then
+            local won = event.actorID == player.id and event.targetID == rival.id
+            local lost = event.actorID == rival.id and event.targetID == player.id
+            if not won and not lost then return false end
+            directKill = true
+        end
+    end
+    return directKill
+end
+
+local function UpdateWorldRoster(id, battle)
+    if type(id) == "string" and id:match("^world:%d+$") then
+        battle.rosterComplete = ObservedDuel(battle)
+    end
+end
+
+local function IsSkirmish(battle)
+    return type(battle) == "table" and type(battle.allies) == "table"
+        and type(battle.enemies) == "table" and type(battle.events) == "table"
+end
+
 function Ledger.Open(saved)
     if saved == nil then
         return { version = 1, rivals = {} }
     end
     if type(saved) == "table" and saved.version == 1 and type(saved.rivals) == "table" then
+        if type(saved.skirmishes) == "table" then
+            for id, battle in pairs(saved.skirmishes) do
+                if IsSkirmish(battle) then UpdateWorldRoster(id, battle) end
+            end
+        end
+        skirmishIndexes[saved] = nil
         return saved
     end
 end
@@ -54,11 +87,8 @@ end
 -- One battle record owns its roster and events. IDs in events are local to
 -- that battle, and rival IDs are optional links to the personal ledger.
 function Ledger.SaveSkirmish(db, id, skirmish)
-    if type(id) ~= "string" or id == "" or type(skirmish) ~= "table"
-        or type(skirmish.allies) ~= "table" or type(skirmish.enemies) ~= "table"
-        or type(skirmish.events) ~= "table" then
-        return
-    end
+    if type(id) ~= "string" or id == "" or not IsSkirmish(skirmish) then return end
+    UpdateWorldRoster(id, skirmish)
     db.skirmishes = db.skirmishes or {}
     db.skirmishes[id] = skirmish
     skirmishIndexes[db] = nil
