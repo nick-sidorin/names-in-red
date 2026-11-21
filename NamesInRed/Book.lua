@@ -5,7 +5,7 @@ local victoryGlyph = ("|T%s:14:14:0:1:128:128:%d:%d:%d:%d|t"):format(
     addon.swordsIconPath, swordsStart, swordsEnd, swordsStart, swordsEnd)
 local deathGlyph = "|T" .. addon.smallSkullIconPath .. ":14:14:0:1|t"
 local window, names, details, heading, portrait, summary, wins, losses, status, selected, empty
-local search, remove, levelBadge, tabBar, latestCard, latestEmpty, historyEmpty
+local search, levelBadge, tabBar, latestCard, latestEmpty, historyEmpty
 local deletePopup = "NAMES_IN_RED_DELETE_RIVAL"
 local lower = strlower or string.lower
 local buttons, sideTabs = {}, {}
@@ -249,7 +249,6 @@ function addon.RefreshBook(resetSearch)
         selected = ids[1]
         details:SetVerticalScroll(0)
     end
-    remove:SetShown(selected ~= nil)
     empty:SetText(query ~= "" and L.noMatches or L.empty)
     for index, guid in ipairs(ids) do
         local button = buttons[index]
@@ -464,8 +463,11 @@ local function ToggleBook()
         recentPage = CreateFrame("Frame", nil, window)
         recentPage:SetAllPoints()
         local contentTop = 65
+        local paneRightInset = 7
+        local fullPaneWidth = window:GetWidth() - 5 - paneRightInset
         local bodyHeight = window:GetHeight() - contentTop - 5
-        local rightX, rightWidth = 312, 383
+        local rightX = 312
+        local rightWidth = window:GetWidth() - rightX - paneRightInset
         local left = Pane(rivalsPage, 5, -contentTop, rightX - 5, bodyHeight)
         ListBackground(left)
         -- One continuous surface behind the tabs and transparent detail pane.
@@ -515,7 +517,7 @@ local function ToggleBook()
             PanelTemplates_TabResize(tab)
         end
 
-        local historyTop = 42
+        local historyTop = 16
         local function CreateRivalCard(parent, width, onMapShown)
             return addon.CreateCompactEncounterCard(parent, width, onMapShown, OpenSkirmish)
         end
@@ -620,10 +622,9 @@ local function ToggleBook()
                 if addon.RefreshNameplates then addon.RefreshNameplates() end
             end,
         }
-        remove = CreateFrame("Button", nil, right)
-        remove:SetPoint("TOPRIGHT", -14, -12)
+        local remove = CreateFrame("Button", nil, summary)
+        remove:SetPoint("TOPRIGHT", right, "TOPRIGHT", -14, -12)
         remove:SetSize(22, 22)
-        remove:Hide()
         local removeIcon = remove:CreateTexture(nil, "ARTWORK")
         removeIcon:SetSize(22, 22)
         removeIcon:SetPoint("TOPLEFT", 0, 0)
@@ -651,7 +652,7 @@ local function ToggleBook()
                 StaticPopup_Show(deletePopup, rival.displayName, nil, selected)
             end
         end)
-        local journal = Pane(recentPage, 5, -contentTop, window:GetWidth() - 10, bodyHeight)
+        local journal = Pane(recentPage, 5, -contentTop, fullPaneWidth, bodyHeight)
         ListBackground(journal)
         local journalTrim = journal:CreateTexture(nil, "BORDER")
         journalTrim:SetAllPoints()
@@ -665,7 +666,7 @@ local function ToggleBook()
         recentList = CardList(journal, 20, -42, journal:GetWidth() - 62, bodyHeight - 56,
             CreateBattleCard, function(card, battle) card:SetSkirmish(battle) end, addon.SkirmishCardHeight)
 
-        battlePage = Pane(window, 5, -contentTop, window:GetWidth() - 10, bodyHeight)
+        battlePage = Pane(window, 5, -contentTop, fullPaneWidth, bodyHeight)
         ListBackground(battlePage)
         local battleTrim = battlePage:CreateTexture(nil, "BORDER")
         battleTrim:SetAllPoints()

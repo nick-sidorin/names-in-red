@@ -2,9 +2,10 @@ local _, addon = ...
 local L = addon.L
 
 function addon.ApplyAtlas(texture, atlas)
-    if C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas) then
+    local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas)
+    if info then
         texture:SetAtlas(atlas)
-        return true
+        return true, info
     end
 end
 
@@ -50,9 +51,13 @@ function addon.SetRivalPortrait(portrait, rival, id, size, mirrored)
     end
     if race and (sex == 2 or sex == 3) and GetRaceAtlas then
         local gender = sex == 3 and "female" or "male"
-        if addon.ApplyAtlas(portrait, GetRaceAtlas(race, gender, true))
-            or addon.ApplyAtlas(portrait, GetRaceAtlas(race, gender)) then
-            if mirrored then AnchorUtil.SetMirroredTexCoordAlongHorizontalAxis(portrait, portrait:GetTexCoord()) end
+        local applied, info = addon.ApplyAtlas(portrait, GetRaceAtlas(race, gender, true))
+        if not applied then applied, info = addon.ApplyAtlas(portrait, GetRaceAtlas(race, gender)) end
+        if applied then
+            -- SetAtlas can retain the current coordinates when assigned the same atlas again.
+            local left, right = info.leftTexCoord, info.rightTexCoord
+            if mirrored then left, right = right, left end
+            portrait:SetTexCoord(left, right, info.topTexCoord, info.bottomTexCoord)
             return
         end
     end

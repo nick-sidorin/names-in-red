@@ -307,7 +307,8 @@ column underlay lives on the page's BACKGROUND layer. The inset reaches the
 bottom of the book, with a red Delete control inside its upper-right corner.
 The control follows `GearSetButtonTemplate`'s `DeleteButton` from Camelot
 `PaperDollFrame.xml`, including the `UI-GroupLoot-Pass-Up` texture and hover
-opacity. Check it on both rival tabs. Delete confirmation uses the client's shared
+opacity. Check it on Information and confirm it is hidden on Skirmishes.
+Delete confirmation uses the client's shared
 `StaticPopupButtonTemplate` from `Blizzard_StaticPopup_Game/GameDialog.xml`.
 The book fades the left side of its illustration into the recipe
 background using the texture gradient API. Check that the upper rim is
@@ -330,9 +331,11 @@ and map-to-information gaps. Both portraits use the profile's 64-unit ring and
 24-unit level badge. The central and portrait markers share the nameplate sword
 crop and small skull texture. A local portrait with no saved race portrait uses
 `SetPortraitTexture`, as in Camelot's
-`CharacterFrameMixin:UpdateCharacterModeTabPortrait`. A rival's race portrait
-uses `AnchorUtil.SetMirroredTexCoordAlongHorizontalAxis` from
-`Blizzard_SharedXMLBase/AnchorUtil.lua` to face inwards.
+`CharacterFrameMixin:UpdateCharacterModeTabPortrait`. The rival's race portrait
+uses the metadata from `C_Texture.GetAtlasInfo` to set the mirrored coordinates
+on every bind. `Blizzard_SharedXML/NineSlice.lua` also uses atlas metadata to set
+explicit texture coordinates. Reassigning the same atlas can retain custom
+coordinates. Check repeated clicks on the same rival to verify the direction.
 `PVPMatchStyle.GetLocalPlayerFactionTheme` uses the first return from
 `UnitFactionGroup("player")`. The skirmish cards use the same faction tag to
 order the existing blue and red palette. Check both factions in the full and
@@ -350,8 +353,10 @@ standard user pin at the saved coordinates and replaces any previous user
 pin. The full card uses the same map pin button as the compact card, anchored
 beside the timestamp. Check the common header centerline and the spacing in
 the finishing-blow list. The roster count always shows the participants in the
-card. When the roster is partial, a passive `UIPanelInfoButton` from
-`SharedUIPanelTemplates.xml` shows the coverage tooltip on hover.
+card. A passive `UIPanelInfoButton` from `SharedUIPanelTemplates.xml` shows
+the coverage tooltip when `rosterComplete` is false or absent. Seed fixtures
+set this flag explicitly. Converted one-death entries lack a complete roster
+confirmation, so their displayed counts show the known participants.
 For legacy cards the addon uses `C_Map.GetMapChildrenInfo` from
 `Blizzard_APIDocumentationGenerated/MapDocumentation.lua` to index Azeroth's
 zone maps by localized name. Check older Hillsbrad and Stranglethorn cards

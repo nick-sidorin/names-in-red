@@ -148,7 +148,13 @@ local function MockRegion(parent)
     function region:SetSize(width, height) self.width, self.height = width, height end
     function region:SetTexture(texture) self.texture, self.atlas = texture, nil end
     function region:SetTexCoord(...) self.texcoords = { ... } end
-    function region:GetTexCoord() return unpack(self.texcoords) end
+    function region:SetAtlas(atlas)
+        -- Reassigning an atlas already on the texture preserves its custom coordinates.
+        if self.atlas == atlas then return end
+        self.atlas = atlas
+        local info = C_Texture.GetAtlasInfo(atlas)
+        self:SetTexCoord(info.leftTexCoord, info.rightTexCoord, info.topTexCoord, info.bottomTexCoord)
+    end
     function region:SetHitRectInsets(...) self.insets = { ... } end
     function region:SetShown(shown) self.shown = shown end
     function region:Hide() self:SetShown(false) end
@@ -176,11 +182,11 @@ function CreateFrame(_, _, parent, template)
     return region
 end
 assert(loadfile("NamesInRed/ManualDialog.lua"))("NamesInRed", addon)
-function addon.ApplyAtlas(region, atlas)
-    region.atlas = atlas
-    region:SetTexCoord(0.2, 0.3, 0.2, 0.5, 0.4, 0.3, 0.4, 0.5)
-    return true
-end
+C_Texture = {
+    GetAtlasInfo = function()
+        return { leftTexCoord = 0.2, rightTexCoord = 0.4, topTexCoord = 0.3, bottomTexCoord = 0.5 }
+    end,
+}
 date = os.date
 local selectedRival, journalMapOpened
 local card = addon.CreateSkirmishCard(MockRegion(), 630, function() journalMapOpened = true end,
@@ -222,6 +228,7 @@ local zone = assert(FindText(card, large.zone))
 local stamp = assert(FindText(card, date("%x", large.time) .. "  " .. date("%H:%M", large.time)))
 assert(journalMap.template == "CommonSquareIconButtonTemplate" and stamp.anchor[4] < journalMap.anchor[4])
 assert(zone.anchor[5] == stamp.anchor[5] and stamp.anchor[5] == journalMap.anchor[5])
+assert(FindText(card, "2 × 2").anchor[5] == stamp.anchor[5] - 2)
 local eventTitle, firstTime = FindText(card, addon.L.finishingBlows), FindText(card, "0:11")
 local secondTime = FindText(card, "0:17")
 assert(eventTitle.anchor[3] - firstTime.anchor[3] == firstTime.anchor[3] - secondTime.anchor[3])
@@ -263,11 +270,6 @@ local first = { skirmishID = "battle-one", wins = 1, losses = 0, mapID = 1424, x
 first.player.race, first.player.sex = "orc", 2
 first.opponent.race, first.opponent.sex = "human", 3
 function GetRaceAtlas(race, gender) return race .. "-" .. gender end
-AnchorUtil = {
-    SetMirroredTexCoordAlongHorizontalAxis = function(region, x1, y1, x2, y2, x3, y3, x4, y4)
-        region:SetTexCoord(x3, y3, x4, y4, x1, y1, x2, y2)
-    end,
-}
 compact:SetEncounter(first)
 assert(FindText(compact, "Hillsbrad Foothills") and FindText(compact, date("%x", first.time)))
 assert(FindText(compact, "Hillsbrad Foothills").anchor[1] == "LEFT")
@@ -278,8 +280,8 @@ local myRim, opponentRim = myName.anchor[2], opponentName.anchor[2]
 assert(myRim.width == 64 and opponentRim.width == 64)
 local playerPortrait = assert(FindRegion(compact, "atlas", "orc-male"))
 local rivalPortrait = assert(FindRegion(compact, "atlas", "human-female"))
-assert(playerPortrait.texcoords[1] < playerPortrait.texcoords[5])
-assert(rivalPortrait.texcoords[1] > rivalPortrait.texcoords[5])
+assert(playerPortrait.texcoords[1] == 0.2 and playerPortrait.texcoords[2] == 0.4)
+assert(rivalPortrait.texcoords[1] == 0.4 and rivalPortrait.texcoords[2] == 0.2)
 local function CenterMarker(texture)
     for _, child in ipairs(compact.children) do
         if child.shown and child.scripts.OnEnter and child.children[1] and child.children[1].texture == texture then
@@ -301,7 +303,9 @@ CheckFactionColors(myName, opponentName)
 faction = "Horde"
 compact:SetEncounter(first)
 CheckFactionColors(opponentName, myName)
-assert(rivalPortrait.texcoords[1] > rivalPortrait.texcoords[5])
+assert(rivalPortrait.texcoords[1] == 0.4 and rivalPortrait.texcoords[2] == 0.2)
+compact:SetEncounter(first)
+assert(rivalPortrait.texcoords[1] == 0.4 and rivalPortrait.texcoords[2] == 0.2)
 faction = "Alliance"
 local open = assert(FindRegion(compact, "title", addon.L.openSkirmish))
 local map = assert(FindRegion(compact, "title", addon.L.showOnMap))

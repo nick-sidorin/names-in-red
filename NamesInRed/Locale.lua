@@ -112,16 +112,16 @@ addon.L.rivalsView, addon.L.recentView, addon.L.unknownRival = unpack(bookViews[
 
 -- Side labels, incomplete roster, timeline and anonymous participant.
 local skirmishStrings = {
-    enUS = { "Allies", "Opponents", "Partial roster", "Finishing blows", "Unknown player" },
-    ruRU = { "Союзники", "Противники", "Неполный состав", "Добивающие удары", "Неизвестный игрок" },
-    deDE = { "Verbündete", "Gegner", "Unvollständige Besetzung", "Todesstöße", "Unbekannter Spieler" },
-    frFR = { "Alliés", "Adversaires", "Composition partielle", "Coups fatals", "Joueur inconnu" },
-    esES = { "Aliados", "Oponentes", "Lista incompleta", "Golpes de gracia", "Jugador desconocido" },
-    itIT = { "Alleati", "Avversari", "Formazione parziale", "Colpi di grazia", "Giocatore sconosciuto" },
-    ptBR = { "Aliados", "Adversários", "Lista incompleta", "Golpes fatais", "Jogador desconhecido" },
-    koKR = { "아군", "적군", "일부 참가자 확인", "결정타", "알 수 없는 플레이어" },
-    zhCN = { "盟友", "对手", "阵容不完整", "最后一击", "未知玩家" },
-    zhTW = { "盟友", "對手", "陣容不完整", "最後一擊", "未知玩家" },
+    enUS = { "Allies", "Opponents", "Full roster unconfirmed", "Finishing blows", "Unknown player" },
+    ruRU = { "Союзники", "Противники", "Полный состав не подтверждён", "Добивающие удары", "Неизвестный игрок" },
+    deDE = { "Verbündete", "Gegner", "Vollständige Besetzung nicht bestätigt", "Todesstöße", "Unbekannter Spieler" },
+    frFR = { "Alliés", "Adversaires", "Effectif complet non confirmé", "Coups fatals", "Joueur inconnu" },
+    esES = { "Aliados", "Oponentes", "Lista completa sin confirmar", "Golpes de gracia", "Jugador desconocido" },
+    itIT = { "Alleati", "Avversari", "Formazione completa non confermata", "Colpi di grazia", "Giocatore sconosciuto" },
+    ptBR = { "Aliados", "Adversários", "Lista completa não confirmada", "Golpes fatais", "Jogador desconhecido" },
+    koKR = { "아군", "적군", "전체 참가자 미확인", "결정타", "알 수 없는 플레이어" },
+    zhCN = { "盟友", "对手", "完整阵容未确认", "最后一击", "未知玩家" },
+    zhTW = { "盟友", "對手", "完整陣容未確認", "最後一擊", "未知玩家" },
 }
 skirmishStrings.enGB = skirmishStrings.enUS
 skirmishStrings.esMX = skirmishStrings.esES
