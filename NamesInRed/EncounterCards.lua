@@ -4,7 +4,7 @@ local azerothMapID = 947
 local mapsByName
 
 addon.encounterCardHeight = 136
-addon.compactEncounterCardHeight = 122
+addon.compactEncounterCardHeight = 138
 
 local allianceColor = { 0.65, 0.83, 1 }
 local hordeColor = { 1, 0.61, 0.52 }
@@ -246,38 +246,65 @@ local function Divider(card, top)
 end
 
 local compactActionSize = 32
-local compactActionStep = compactActionSize + 3
+local compactActionInset = 4
+local compactHeaderGap = 6
+local compactActionStep = compactActionSize - 2 * compactActionInset + compactHeaderGap
+local compactActionRight = 11
 
 local function CompactAction(card)
     local button = CreateFrame("Button", nil, card, "CommonSquareIconButtonTemplate")
     button:SetSize(compactActionSize, compactActionSize)
-    button:SetHitRectInsets(0, 0, 0, 0)
+    button:SetHitRectInsets(compactActionInset, compactActionInset, compactActionInset, compactActionInset)
     button:RegisterForClicks("LeftButtonUp")
     button.Icon:SetSize(16, 16)
+    -- Apply the template's resting icon position before the first click.
+    button:OnMouseUp()
     button:SetTooltipAnchor("ANCHOR_TOP")
     button:HookScript("OnHide", HideTooltip)
     return button
 end
 
+local function OutcomeTexture(parent, size, victory)
+    local icon = parent:CreateTexture(nil, "OVERLAY", nil, 1)
+    icon:SetSize(size, size)
+    icon:SetTexture(victory and addon.swordsIconPath or addon.smallSkullIconPath)
+    if victory then
+        local inset = addon.smallSwordsInset / 128
+        icon:SetTexCoord(inset, 1 - inset, inset, 1 - inset)
+    end
+    return icon
+end
+
 local function CompactParticipant(card, x, size, nameWidth)
     local portrait, rim = addon.CreateRoundIcon(card, size)
     rim:SetPoint("TOPLEFT", x - size / 2, -47)
-    local level = addon.CreateLevelBadge(card, rim, 19)
+    local level = addon.CreateLevelBadge(card, rim)
     local name = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     name:SetPoint("TOP", rim, "BOTTOM", 0, -4)
     name:SetWidth(nameWidth)
     name:SetJustifyH("CENTER")
     name:SetWordWrap(false)
-    return portrait, level, name
+    local victory = OutcomeTexture(card, 14, true)
+    victory:SetPoint("CENTER", rim, "TOPRIGHT", -10, -10)
+    local death = OutcomeTexture(card, 14, false)
+    death:SetPoint("CENTER", rim, "TOPLEFT", 10, -10)
+    return { portrait = portrait, level = level, name = name, victory = victory, death = death }
 end
 
-local function CompactOutcome(card, width)
-    local label = card:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    label:SetWidth(width)
-    label:SetWordWrap(true)
-    label:SetMaxLines(2)
-    label:SetJustifyH("CENTER")
-    return label
+local function CompactOutcome(card, victory)
+    local marker = CreateFrame("Frame", nil, card)
+    marker:SetSize(24, 24)
+    OutcomeTexture(marker, 24, victory):SetPoint("CENTER")
+    marker:SetMouseMotionEnabled(true)
+    marker:SetScript("OnEnter", function(self)
+        local tooltip = GetAppropriateTooltip and GetAppropriateTooltip() or GameTooltip
+        tooltip:SetOwner(self, "ANCHOR_TOP")
+        tooltip:SetText(victory and L.winTooltip or L.lossTooltip)
+        tooltip:Show()
+    end)
+    marker:SetScript("OnLeave", HideTooltip)
+    marker:SetScript("OnHide", HideTooltip)
+    return marker
 end
 
 function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmish)
@@ -290,13 +317,11 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
     time:SetTextColor(unpack(neutralColor))
     Divider(card, -41)
 
-    local portraitSize = 48
-    local myPortrait, myLevel, myName = CompactParticipant(card, width / 4, portraitSize, width / 2 - 18)
-    local theirPortrait, theirLevel, theirName = CompactParticipant(card, 3 * width / 4, portraitSize, width / 2 - 18)
-    local outcomeWidth = width / 2 - portraitSize - 12
-    local result = CompactOutcome(card, outcomeWidth)
-    local secondResult = CompactOutcome(card, outcomeWidth)
-    secondResult:SetPoint("CENTER", card, "TOP", 0, -84)
+    local portraitSize = 64
+    local mine = CompactParticipant(card, width / 4, portraitSize, width / 2 - 18)
+    local theirs = CompactParticipant(card, 3 * width / 4, portraitSize, width / 2 - 18)
+    local victory = CompactOutcome(card, true)
+    local defeat = CompactOutcome(card, false)
 
     local map = CompactAction(card)
     map:SetAtlas("Waypoint-MapPin-Untracked")
@@ -305,7 +330,7 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         if card.encounter then ActivateWaypoint(card.encounter, onMapShown) end
     end)
     local info = CompactAction(card)
-    info:SetPoint("TOPRIGHT", -11, -5)
+    info:SetPoint("TOPRIGHT", -compactActionRight, -5)
     info:SetIcon("Interface\\FriendsFrame\\InformationIcon")
     info:SetOnEnterHandler(function(self)
         local encounter = card.encounter
@@ -328,6 +353,8 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         if self.encounter ~= encounter then
             HideTooltip(map)
             HideTooltip(info)
+            HideTooltip(victory)
+            HideTooltip(defeat)
         end
         self.encounter = encounter
         self:SetShown(encounter ~= nil)
@@ -336,65 +363,53 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         local player, opponent = encounter.player, encounter.opponent
         local playerName = player and addon.ManualName(player.name) or addon.UnitPlayerName("player")
         local opponentName = opponent and addon.ManualName(opponent.name) or rival and addon.ManualName(rival.displayName)
-        myName:SetText(playerName or YOU or L.unknownPlayer)
-        theirName:SetText(opponentName or L.unknownRival)
+        mine.name:SetText(playerName or YOU or L.unknownPlayer)
+        theirs.name:SetText(opponentName or L.unknownRival)
         local allyColor, enemyColor = SideColors()
-        myName:SetTextColor(unpack(allyColor))
-        theirName:SetTextColor(unpack(enemyColor))
+        mine.name:SetTextColor(unpack(allyColor))
+        theirs.name:SetTextColor(unpack(enemyColor))
         if player and player.race and player.sex then
-            addon.SetRivalPortrait(myPortrait, player, nil, portraitSize)
+            addon.SetRivalPortrait(mine.portrait, player, nil, portraitSize)
         elseif SetPortraitTexture then
-            myPortrait:SetSize(portraitSize * 13 / 16, portraitSize * 13 / 16)
-            SetPortraitTexture(myPortrait, "player", true)
-            myPortrait:SetTexCoord(0, 1, 0, 1)
+            mine.portrait:SetSize(portraitSize * 13 / 16, portraitSize * 13 / 16)
+            SetPortraitTexture(mine.portrait, "player", true)
+            mine.portrait:SetTexCoord(0, 1, 0, 1)
         else
-            addon.SetRivalPortrait(myPortrait, player or {}, nil, portraitSize)
+            addon.SetRivalPortrait(mine.portrait, player or {}, nil, portraitSize)
         end
         local appearance = opponent or rival or {}
         if not appearance.race and rival and rival.race then appearance = rival end
-        addon.SetRivalPortrait(theirPortrait, appearance, rivalID, portraitSize)
-        myLevel:SetLevel(encounter.playerLevel)
-        theirLevel:SetLevel(encounter.rivalLevel)
+        addon.SetRivalPortrait(theirs.portrait, appearance, rivalID, portraitSize)
+        mine.level:SetLevel(encounter.playerLevel)
+        theirs.level:SetLevel(encounter.rivalLevel)
 
         local won = encounter.direction == "killsAgainstThem" or (encounter.wins or 0) > 0
         local lost = encounter.direction == "deathsToThem" or (encounter.losses or 0) > 0
-        local primary, secondary, color
-        if won or lost then
-            primary = won and L.winTooltip or L.lossTooltip
-            secondary = won and lost and L.lossTooltip
-            color = won and allyColor or enemyColor
-        else
-            -- Battle casualties can be known without evidence for a personal result.
-            local opponentDeath, playerDeath = encounter.opponentDeathIndex, encounter.playerDeathIndex
-            primary = opponentDeath and L.opponentFell or playerDeath and L.playerFell or L.outcomeUnknown
-            if opponentDeath and playerDeath then
-                secondary = L.playerFell
-                if playerDeath < opponentDeath then primary, secondary = secondary, primary end
-            end
-            color = neutralColor
-        end
-        result:SetPoint("CENTER", card, "TOP", 0, secondary and -57 or -70)
-        result:SetText(primary)
-        result:SetTextColor(unpack(color))
-        secondResult:SetShown(not not secondary)
-        if secondary then
-            secondResult:SetText(secondary)
-            secondResult:SetTextColor(unpack(won and enemyColor or neutralColor))
-        end
+        victory:SetPoint("CENTER", card, "TOP", lost and -15 or 0, -79)
+        defeat:SetPoint("CENTER", card, "TOP", won and 15 or 0, -79)
+        victory:SetShown(won)
+        defeat:SetShown(lost)
+        mine.victory:SetShown(won)
+        theirs.victory:SetShown(lost)
+        mine.death:SetShown(lost or encounter.playerDeathIndex ~= nil)
+        theirs.death:SetShown(won or encounter.opponentDeathIndex ~= nil)
 
         local hasWaypoint = WaypointMap(encounter) ~= nil
         local hasInfo = encounter.skirmishID ~= nil or type(encounter.attackers) == "table" and #encounter.attackers > 0
-        local actionWidth = (hasWaypoint and compactActionStep or 0) + (hasInfo and compactActionStep or 0)
+        local mapRight = compactActionRight + (hasInfo and compactActionStep or 0)
+        local firstActionRight = hasWaypoint and mapRight or hasInfo and compactActionRight
+        local stampRight = firstActionRight
+            and firstActionRight + compactActionSize - compactActionInset + compactHeaderGap or 13
         local stampWidth = encounter.manual and not encounter.time and 136 or 96
-        day:SetPoint("TOPRIGHT", -13 - actionWidth, -9)
+        day:SetPoint("TOPRIGHT", -stampRight, -9)
         day:SetWidth(stampWidth)
-        time:SetPoint("TOPRIGHT", -13 - actionWidth, -23)
+        time:SetPoint("TOPRIGHT", -stampRight, -23)
         local encounterDay, encounterTime = EncounterDate(encounter)
         day:SetText(encounterDay)
         time:SetText(encounterTime)
-        zone:SetWidth(width - 33 - actionWidth - stampWidth)
+        zone:SetWidth(width - 20 - stampRight - stampWidth)
         zone:SetText(encounter.zone and encounter.zone ~= "" and encounter.zone or L.unknownLocation)
-        map:SetPoint("TOPRIGHT", -11 - (hasInfo and compactActionStep or 0), -5)
+        map:SetPoint("TOPRIGHT", -mapRight, -5)
         map:SetShown(hasWaypoint)
         info:SetShown(hasInfo)
         info:SetTooltipInfo(encounter.skirmishID and L.openSkirmish or L.attackers)

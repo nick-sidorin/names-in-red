@@ -311,9 +311,14 @@ The compact rival card uses `CommonSquareIconButtonTemplate` from
 `Blizzard_SharedXML/Shared/Button/IconButtonTemplate.xml`, including native
 tooltips and click handling supplied by `UIButtonMixin`. Its icons come from
 `WaypointLocationPinTemplate` and `UIPanelInfoButton`. The button frames are
-32 units square with 16-unit icons. Both portraits reuse the profile ring and level
-badge. A local portrait with no saved race portrait uses `SetPortraitTexture`,
-as in Camelot's `CharacterFrameMixin:UpdateCharacterModeTabPortrait`.
+32 units square with 16-unit icons. Initialize the resting icon alignment with
+`SquareIconButtonMixin:OnMouseUp`, which also restores it after a click. The
+header uses the square template's scaled four-unit inset to match the date-to-map
+and map-to-information gaps. Both portraits use the profile's 64-unit ring and
+24-unit level badge. The central and portrait markers share the nameplate sword
+crop and small skull texture. A local portrait with no saved race portrait uses
+`SetPortraitTexture`, as in Camelot's
+`CharacterFrameMixin:UpdateCharacterModeTabPortrait`.
 `PVPMatchStyle.GetLocalPlayerFactionTheme` uses the first return from
 `UnitFactionGroup("player")`. The skirmish cards use the same faction tag to
 order the existing blue and red palette. Check both factions in the full and

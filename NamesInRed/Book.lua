@@ -1,7 +1,9 @@
 local _, addon = ...
 local L, Readable = addon.L, addon.Readable
-local victoryGlyph = "|T" .. addon.swordsIconPath .. ":14:14:0:1:128:128:22:106:22:106|t"
-local deathGlyph = "|TInterface\\AddOns\\NamesInRed\\Art\\TooltipSkull.tga:14:14:0:1|t"
+local swordsStart, swordsEnd = addon.smallSwordsInset, 128 - addon.smallSwordsInset
+local victoryGlyph = ("|T%s:14:14:0:1:128:128:%d:%d:%d:%d|t"):format(
+    addon.swordsIconPath, swordsStart, swordsEnd, swordsStart, swordsEnd)
+local deathGlyph = "|T" .. addon.smallSkullIconPath .. ":14:14:0:1|t"
 local window, names, details, heading, portrait, summary, wins, losses, status, selected, empty
 local search, remove, levelBadge, tabBar, latestCard, latestEmpty, historyEmpty
 local deletePopup = "NAMES_IN_RED_DELETE_RIVAL"
@@ -599,7 +601,7 @@ local function ToggleBook()
         local rim
         portrait, rim = addon.CreateRoundIcon(summary)
         rim:SetPoint("TOPLEFT", 17.5, -17.5)
-        levelBadge = addon.CreateLevelBadge(summary, rim, 24)
+        levelBadge = addon.CreateLevelBadge(summary, rim)
         heading = summary:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
         heading:SetPoint("TOPLEFT", 90, -26)
         heading:SetWidth(250)

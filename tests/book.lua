@@ -6,7 +6,11 @@ end
 
 local tooltipLines = {}
 GameTooltip = {
-    IsOwned = function() return false end,
+    IsOwned = function(self, owner) return self.owner == owner end,
+    SetOwner = function(self, owner) self.owner = owner end,
+    SetText = function(self, title) self.title = title end,
+    Show = function(self) self.shown = true end,
+    Hide = function(self) self.shown, self.owner = false, nil end,
     AddLine = function(_, text)
         assert(type(text) == "string" and text ~= "")
         table.insert(tooltipLines, text)
@@ -33,7 +37,7 @@ for _, supported in ipairs({
         "latestEncounter", "showOnMap", "unknownLocation", "myLevel", "rivalLevel", "waypointError", "noSkirmishes",
         "rivalsView", "recentView", "unknownRival",
         "alliedSide", "enemySide", "partialRoster", "finishingBlows", "unknownPlayer", "minimapHint",
-        "openSkirmish", "opponentFell", "playerFell", "outcomeUnknown",
+        "openSkirmish",
     }) do
         assert(type(addon.L[key]) == "string" and addon.L[key] ~= "")
     end
@@ -141,6 +145,8 @@ local function MockRegion(parent)
     function region:SetTextColor(r, g, b) self.color = { r, g, b } end
     function region:SetPoint(...) self.anchor = { ... } end
     function region:SetSize(width, height) self.width, self.height = width, height end
+    function region:SetTexture(texture) self.texture = texture end
+    function region:SetHitRectInsets(...) self.insets = { ... } end
     function region:SetShown(shown) self.shown = shown end
     function region:Hide() self:SetShown(false) end
     function region:SetHeight(height) self.height = height end
@@ -152,7 +158,10 @@ end
 
 function CreateFrame(_, _, parent, template)
     local region = MockRegion(parent)
-    if template == "CommonSquareIconButtonTemplate" then region.Icon = MockRegion(region) end
+    if template == "CommonSquareIconButtonTemplate" then
+        region.Icon = MockRegion(region)
+        function region:OnMouseUp() self.Icon:SetPoint("CENTER", self, "CENTER", -1, 0) end
+    end
     return region
 end
 assert(loadfile("NamesInRed/ManualDialog.lua"))("NamesInRed", addon)
@@ -222,9 +231,27 @@ local first = { skirmishID = "battle-one", wins = 1, losses = 0, mapID = 1424, x
 compact:SetEncounter(first)
 assert(FindText(compact, "Hillsbrad Foothills") and FindText(compact, date("%x", first.time)))
 assert(FindText(compact, "My Character") and FindText(compact, "Test Rival"))
-assert(FindText(compact, 51) and FindText(compact, 42))
-assert(FindText(compact, addon.L.winTooltip) and not FindText(compact, addon.L.lossTooltip))
+assert(FindText(compact, 51).width == 24 and FindText(compact, 42).width == 24)
 local myName, opponentName = FindText(compact, "My Character"), FindText(compact, "Test Rival")
+local myRim, opponentRim = myName.anchor[2], opponentName.anchor[2]
+assert(myRim.width == 64 and opponentRim.width == 64)
+local function CenterMarker(texture)
+    for _, child in ipairs(compact.children) do
+        if child.shown and child.scripts.OnEnter and child.children[1] and child.children[1].texture == texture then
+            return child
+        end
+    end
+end
+local function PortraitMarker(rim, texture)
+    for _, child in ipairs(compact.children) do
+        if child.shown and rawget(child, "texture") == texture and child.anchor[2] == rim then return child end
+    end
+end
+local swords, skull = addon.swordsIconPath, addon.smallSkullIconPath
+local victory = assert(CenterMarker(swords))
+assert(not CenterMarker(skull) and not FindText(compact, addon.L.winTooltip))
+assert(PortraitMarker(myRim, swords) and PortraitMarker(opponentRim, skull))
+assert(not PortraitMarker(myRim, skull) and not PortraitMarker(opponentRim, swords))
 CheckFactionColors(myName, opponentName)
 faction = "Horde"
 compact:SetEncounter(first)
@@ -234,25 +261,42 @@ local open = assert(FindRegion(compact, "title", addon.L.openSkirmish))
 local map = assert(FindRegion(compact, "title", addon.L.showOnMap))
 assert(not FindText(compact, addon.L.openSkirmish) and not FindText(compact, addon.L.showOnMap))
 assert(open.width == 32 and map.width == 32 and open.Icon.width == 16 and map.Icon.width == 16)
+assert(open.Icon.anchor[4] == -1 and map.Icon.anchor[4] == -1)
+local inset = map.insets[1]
+local mapToInfo = open.anchor[2] - open.width + inset - (map.anchor[2] - inset)
+local dateToMap = map.anchor[2] - map.width + inset - FindText(compact, date("%x", first.time)).anchor[2]
+assert(mapToInfo == dateToMap and mapToInfo == 6)
 open.scripts.OnClick()
 assert(openedSkirmish == "battle-one")
 addon.ShowEncounterWaypoint = function(encounter) mapped = encounter; return true end
 map.scripts.OnClick()
 assert(openedMap and mapped == first)
 
+victory.scripts.OnEnter(victory)
+assert(GameTooltip.shown and GameTooltip.title == addon.L.winTooltip)
 compact:SetEncounter({ skirmishID = "battle-loss", wins = 0, losses = 1 })
-assert(FindText(compact, addon.L.lossTooltip) and not FindText(compact, addon.L.winTooltip))
+assert(not GameTooltip.shown and not CenterMarker(swords))
+local defeat = assert(CenterMarker(skull))
+defeat.scripts.OnEnter(defeat)
+assert(GameTooltip.shown and GameTooltip.title == addon.L.lossTooltip)
+assert(PortraitMarker(myRim, skull) and PortraitMarker(opponentRim, swords))
+defeat.scripts.OnLeave(defeat)
+assert(not GameTooltip.shown)
+compact:SetEncounter({ skirmishID = "win-then-death", wins = 1, playerDeathIndex = 2, opponentDeathIndex = 1 })
+assert(CenterMarker(swords) and not CenterMarker(skull))
+assert(PortraitMarker(myRim, swords) and PortraitMarker(myRim, skull) and PortraitMarker(opponentRim, skull))
 compact:SetEncounter({ skirmishID = "battle-both", wins = 1, losses = 1 })
-assert(FindText(compact, addon.L.winTooltip) and FindText(compact, addon.L.lossTooltip))
+assert(CenterMarker(swords) and CenterMarker(skull))
+assert(PortraitMarker(myRim, swords) and PortraitMarker(myRim, skull))
 compact:SetEncounter({ skirmishID = "battle-casualties", opponentDeathIndex = 1, playerDeathIndex = 2 })
-local enemyDeath, playerDeath = FindText(compact, addon.L.opponentFell), FindText(compact, addon.L.playerFell)
-assert(enemyDeath.anchor[5] > playerDeath.anchor[5])
-compact:SetEncounter({ skirmishID = "battle-reversed", playerDeathIndex = 1, opponentDeathIndex = 2 })
-enemyDeath, playerDeath = FindText(compact, addon.L.opponentFell), FindText(compact, addon.L.playerFell)
-assert(playerDeath.anchor[5] > enemyDeath.anchor[5])
+assert(not CenterMarker(swords) and not CenterMarker(skull))
+assert(PortraitMarker(myRim, skull) and PortraitMarker(opponentRim, skull))
+assert(not PortraitMarker(myRim, swords) and not PortraitMarker(opponentRim, swords))
+compact:SetEncounter({ skirmishID = "player-casualty", playerDeathIndex = 1 })
+assert(PortraitMarker(myRim, skull) and not PortraitMarker(opponentRim, skull))
 compact:SetEncounter({ skirmishID = "battle-two", wins = 0, losses = 0 })
-assert(FindText(compact, addon.L.outcomeUnknown))
-assert(not FindText(compact, addon.L.opponentFell) and not FindText(compact, addon.L.playerFell))
+assert(not CenterMarker(swords) and not CenterMarker(skull))
+assert(not PortraitMarker(myRim, skull) and not PortraitMarker(opponentRim, skull))
 assert(not FindText(compact, 51) and not FindText(compact, 42) and not map.shown)
 open.scripts.OnClick()
 assert(openedSkirmish == "battle-two")
@@ -263,7 +307,7 @@ function SetPortraitTexture(_, unit, disableMasking)
 end
 compact:SetEncounter({ direction = "killsAgainstThem" }, { displayName = "Legacy Rival" })
 assert(FindText(compact, "Legacy Rival") and loadedSelfPortrait and not open.shown)
-assert(FindText(compact, addon.L.winTooltip))
+assert(CenterMarker(swords))
 compact:SetEncounter(nil)
 assert(not compact.shown)
 print("Compact skirmish factions, personal outcomes, casualties and actions checks passed")

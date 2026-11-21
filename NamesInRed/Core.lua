@@ -2,6 +2,8 @@ local addonName, addon = ...
 local artPath = "Interface\\AddOns\\NamesInRed\\Art\\"
 addon.swordsIconPath = artPath .. "CrossedSwords.tga"
 addon.skullIconPath = artPath .. "Skull.tga"
+addon.smallSkullIconPath = artPath .. "TooltipSkull.tga"
+addon.smallSwordsInset = 22
 
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")

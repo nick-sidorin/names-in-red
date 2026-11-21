@@ -71,23 +71,6 @@ scoreStrings.esMX = scoreStrings.esES
 addon.L.personalScore, addon.L.winTooltip, addon.L.lossTooltip, addon.L.openSkirmish =
     unpack(scoreStrings[GetLocale()] or scoreStrings.enUS)
 
-local outcomeStrings = {
-    enUS = { "Opponent fell", "I was killed", "Outcome unknown" },
-    ruRU = { "Противник погиб", "Меня убили", "Исход неизвестен" },
-    deDE = { "Gegner gefallen", "Ich wurde getötet", "Ausgang unbekannt" },
-    frFR = { "Adversaire tombé", "J’ai été tué", "Issue inconnue" },
-    esES = { "Oponente caído", "Me mataron", "Resultado desconocido" },
-    itIT = { "Avversario caduto", "Mi hanno ucciso", "Esito sconosciuto" },
-    ptBR = { "Adversário abatido", "Fui abatido", "Resultado desconhecido" },
-    koKR = { "상대가 쓰러짐", "내가 쓰러짐", "결과 미확인" },
-    zhCN = { "对手阵亡", "我被击杀", "结果未知" },
-    zhTW = { "對手陣亡", "我被擊殺", "結果未知" },
-}
-outcomeStrings.enGB = outcomeStrings.enUS
-outcomeStrings.esMX = outcomeStrings.esES
-addon.L.opponentFell, addon.L.playerFell, addon.L.outcomeUnknown =
-    unpack(outcomeStrings[GetLocale()] or outcomeStrings.enUS)
-
 -- Info tab, history tab, last encounter, map action, unknown location, levels, map error, empty history.
 local encounterStrings = {
     enUS = { "Information", "Skirmishes", "Last skirmish", "Show on map", "Location unknown", "My level", "Opponent’s level", "The map waypoint could not be placed.", "No skirmishes recorded." },

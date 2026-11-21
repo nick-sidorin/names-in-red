@@ -67,7 +67,8 @@ function addon.SetRivalPortrait(portrait, rival, id, size)
     end
 end
 
-function addon.CreateLevelBadge(parent, rim, size)
+function addon.CreateLevelBadge(parent, rim)
+    local size = 24
     local badge = CreateFrame("Frame", nil, parent)
     badge:SetSize(size, size)
     badge:SetPoint("CENTER", rim, "BOTTOMLEFT", size / 2, size / 2)
