@@ -43,32 +43,61 @@ local squad = {
 }
 local opposing = { 4, 7, 2, 8, 3, 6 }
 
+local function Ally(index)
+    local ally = {}
+    for key, value in pairs(squad[index]) do ally[key] = value end
+    return ally
+end
+
+local function Opponent(id, index, rival)
+    return {
+        id = id, rivalID = id, name = rival.displayName, race = rival.race, sex = rival.sex,
+        class = rival.class, classLabel = rival.classLabel, level = 30 + (index * 7) % 31,
+    }
+end
+
 local function SeedBattle(index, now, zoneNames, allyCount, enemyCount, complete, blows, rewards)
     local zone = (index - 1) % #zones + 1
+    local time = now - index * 290
     local battle = {
-        time = now - index * 290,
-        startedAt = now - index * 290 - 95,
+        time = time, startedAt = time - math.max(95, #blows * 17),
         zone = zoneNames[zone], mapID = zones[zone][1], x = 0.42 + index * 0.03, y = 0.51,
         rosterComplete = complete, allies = {}, enemies = {}, events = {}, rewards = rewards,
     }
     for i = 1, allyCount do
-        local player = {}
-        for key, value in pairs(squad[i]) do player[key] = value end
-        battle.allies[i] = player
+        battle.allies[i] = Ally(i)
     end
     for i = 1, enemyCount do
-        local id = "seed:" .. opposing[i]
-        local rival = addon.db.rivals[id]
-        battle.enemies[i] = {
-            id = id, rivalID = id, name = rival.displayName, race = rival.race, sex = rival.sex,
-            class = rival.class, classLabel = rival.classLabel, level = rival.encounters[1].rivalLevel,
-        }
+        local rivalIndex = opposing[i]
+        local id = "seed:" .. rivalIndex
+        battle.enemies[i] = Opponent(id, rivalIndex, addon.db.rivals[id])
     end
     for i, blow in ipairs(blows) do
         battle.events[i] = { kind = "kill", actorID = blow[1], targetID = blow[2],
             time = battle.startedAt + i * 17, contributors = blow[3] }
     end
-    addon.RecordSkirmish("seed:battle:" .. index, battle)
+    addon.Ledger.SaveSkirmish(addon.db, "seed:battle:" .. index, battle)
+end
+
+local function SeedSolo(index, attempt, now, zoneNames, opponent)
+    local player = Ally(1)
+    player.level = 48 + (index + attempt) % 13
+    local time = now - index * 173 - attempt * 3617
+    local zone = (index + attempt - 2) % #zones + 1
+    local won = (index + attempt) % 3 ~= 0
+    local winner, loser = player, opponent
+    if not won then winner, loser = opponent, player end
+    local rewards
+    if won and opponent.level >= player.level - 8 then
+        rewards = { [opponent.id] = { honorableKills = 1, honor = 4 + (index + attempt) % 9 } }
+    end
+    addon.Ledger.SaveSkirmish(addon.db, ("seed:solo:%d:%d"):format(index, attempt), {
+        time = time, startedAt = time - 17, zone = zoneNames[zone], mapID = zones[zone][1],
+        x = (20 + (index * 13 + attempt * 7) % 61) / 100,
+        y = (20 + (index * 5 + attempt * 11) % 61) / 100,
+        rosterComplete = true, allies = { player }, enemies = { opponent },
+        events = { { kind = "kill", actorID = winner.id, targetID = loser.id, time = time } }, rewards = rewards,
+    })
 end
 
 function addon.ClearDebugSeeds()
@@ -96,32 +125,17 @@ function addon.AddDebugSeeds(now)
         local manual = index % 5 == 0
         local id = (manual and "seed:manual:" or "seed:") .. index
         local rival = addon.Ledger.Add(addon.db, id, name)
-        rival.encounters = {}
-        local count = manual and 1 or (3 + index % 5)
-        local rivalLevel = 30 + (index * 7) % 31
-        if not manual then
+        if manual then
+            rival.encounters = { { manual = true, outcome = (index + 1) % 3 == 0 and "loss" or "win" } }
+        else
             local profile = profiles[(index - 1) % #profiles + 1]
             local raceInfo = C_CreatureInfo and C_CreatureInfo.GetRaceInfo and C_CreatureInfo.GetRaceInfo(profile[1])
             rival.race, rival.sex, rival.class = profile[2], profile[4], profile[5]
             rival.raceLabel = raceInfo and raceInfo.raceName or profile[3]
             rival.classLabel = ClassName(profile[5], profile[4], profile[6])
-        end
-        for encounter = 1, count do
-            local field = (index + encounter) % 3 == 0 and "deathsToThem" or "killsAgainstThem"
-            rival[field] = rival[field] + 1
-            local row = { direction = field }
-            if manual then
-                row.manual = true
-            else
-                row.time = now - index * 173 - encounter * 3617
-                local zone = (index + encounter - 2) % #zones + 1
-                row.mapID, row.zone = zones[zone][1], zoneNames[zone]
-                row.x = (20 + (index * 13 + encounter * 7) % 61) / 100
-                row.y = (18 + (index * 9 + encounter * 11) % 65) / 100
-                row.playerLevel = 48 + (index + encounter) % 13
-                row.rivalLevel = rivalLevel
+            for attempt = 1, 3 + index % 5 do
+                SeedSolo(index, attempt, now, zoneNames, Opponent(id, index, rival))
             end
-            rival.encounters[encounter] = row
         end
     end
     SeedBattle(1, now, zoneNames, 2, 2, true, {
@@ -139,6 +153,9 @@ function addon.AddDebugSeeds(now)
     SeedBattle(3, now, zoneNames, 5, 6, true, {
         { "seed:4", "ally:2" }, { "ally:4", "seed:2" },
         { "seed:7", "me", { ["seed:4"] = true, ["seed:7"] = true } },
+        { "seed:8", "ally:1" }, { "seed:3", "ally:3" }, { "seed:6", "ally:4" },
+    }, {
+        ["seed:2"] = { honorableKills = 1, honor = 8 },
     })
     SeedBattle(4, now, zoneNames, 2, 1, false, { { "seed:4", "me" } })
     SeedBattle(5, now, zoneNames, 2, 1, true, {

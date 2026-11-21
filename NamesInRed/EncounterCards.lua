@@ -139,27 +139,59 @@ local function CreateCard(parent, width, height)
     return card
 end
 
-local finishingBlowFirstRow = 26
-local finishingBlowStep = 19
+local cardInset = 14
+local sectionPadding = 8
+local titleToText = 19
+local rosterRowHeight, rosterRowGap, rosterTextInset = 27, 2, 2
+local rosterRowStep = rosterRowHeight + rosterRowGap
+local fullHeaderCenter = -18
+-- Keep equal space between the map button and the inside edges of the header.
+local fullHeaderDivider = 2 * fullHeaderCenter + 2
+local rosterTitleY = fullHeaderDivider - sectionPadding
+local rosterRowsY = rosterTitleY - titleToText + rosterTextInset
+local finishingBlowFirstRow = sectionPadding + titleToText
+local finishingBlowStep = titleToText
 
 local function FinishingBlowsHeight(count)
     return count > 0 and finishingBlowFirstRow + finishingBlowStep * count or 0
 end
 
+local function RosterBottom(battle)
+    return rosterRowsY - rosterRowStep * math.max(#battle.allies, #battle.enemies, 1) + rosterRowGap
+end
+
 function addon.SkirmishCardHeight(battle)
-    local rosterHeight = 29 * math.max(#battle.allies, #battle.enemies, 1)
     local count = 0
     for _, event in ipairs(battle.events) do
         if event.kind == "kill" then count = count + 1 end
     end
-    return 80 + rosterHeight + FinishingBlowsHeight(count)
+    local height = -RosterBottom(battle) + sectionPadding
+    return count > 0 and height + FinishingBlowsHeight(count) + sectionPadding or height
+end
+
+local dividers = setmetatable({}, { __mode = "k" })
+
+local function SizeDivider(line)
+    local factor = PixelUtil and PixelUtil.GetPixelToUIUnitFactor and PixelUtil.GetPixelToUIUnitFactor()
+    line:SetHeight(factor and factor / line:GetEffectiveScale() or 1)
+end
+
+if PixelUtil and PixelUtil.GetPixelToUIUnitFactor then
+    local layoutEvents = CreateFrame("Frame")
+    layoutEvents:RegisterEvent("UI_SCALE_CHANGED")
+    layoutEvents:RegisterEvent("DISPLAY_SIZE_CHANGED")
+    layoutEvents:SetScript("OnEvent", function()
+        for line in pairs(dividers) do SizeDivider(line) end
+    end)
 end
 
 local function Divider(card, top)
     local line = card:CreateTexture(nil, "ARTWORK")
-    line:SetPoint("TOPLEFT", 14, top)
-    line:SetPoint("TOPRIGHT", -14, top)
-    line:SetHeight(1)
+    line:SetPoint("TOPLEFT", cardInset, top)
+    line:SetPoint("TOPRIGHT", -cardInset, top)
+    line:SetRoundLayoutToNearestPixel(true)
+    SizeDivider(line)
+    dividers[line] = true
     line:SetColorTexture(0.56, 0.42, 0.27, 0.45)
     return line
 end
@@ -196,13 +228,13 @@ local function MapAction(card, onClick, iconY)
 end
 
 local function StampRight(actionRight)
-    return actionRight and actionRight + compactActionSize - compactActionInset + compactHeaderGap or 13
+    return actionRight and actionRight + compactActionSize - compactActionInset + compactHeaderGap or cardInset
 end
 
-local function OutcomeMarker(parent, size, victory, tooltipText)
+local function OutcomeMarker(parent, size, texture, tooltipText)
     local marker = CreateFrame("Frame", nil, parent)
     marker:SetSize(size, size)
-    if victory == nil then
+    if not texture then
         local mark = marker:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
         mark:SetPoint("CENTER")
         mark:SetText("?")
@@ -210,8 +242,8 @@ local function OutcomeMarker(parent, size, victory, tooltipText)
         local icon = marker:CreateTexture(nil, "OVERLAY", nil, 1)
         icon:SetSize(size, size)
         icon:SetPoint("CENTER")
-        icon:SetTexture(victory and addon.swordsIconPath or addon.smallSkullIconPath)
-        if victory then
+        icon:SetTexture(texture)
+        if texture == addon.swordsIconPath then
             local inset = addon.smallSwordsInset / 128
             icon:SetTexCoord(inset, 1 - inset, inset, 1 - inset)
         end
@@ -228,18 +260,17 @@ local function OutcomeMarker(parent, size, victory, tooltipText)
     return marker
 end
 
-local function CompactParticipant(card, x, size, nameWidth, markerCorner)
+local function CompactParticipant(card, x, size, nameWidth, isOpponent)
     local portrait, rim = addon.CreateRoundIcon(card, size)
     rim:SetPoint("TOPLEFT", x - size / 2, -47)
-    local level = addon.CreateLevelBadge(card, rim)
+    local level = addon.CreateLevelBadge(card, rim, isOpponent)
     local name = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     name:SetPoint("TOP", rim, "BOTTOM", 0, -4)
     name:SetWidth(nameWidth)
     name:SetJustifyH("CENTER")
     name:SetWordWrap(false)
-    local cornerX = markerCorner == "TOPRIGHT" and -10 or 10
-    local death = OutcomeMarker(card, 16, false, L.portraitDeath)
-    death:SetPoint("CENTER", rim, markerCorner, cornerX, -10)
+    local death = OutcomeMarker(card, 16, addon.smallSkullIconPath, L.portraitDeath)
+    death:SetPoint("CENTER", rim, isOpponent and "TOPLEFT" or "TOPRIGHT", isOpponent and 10 or -10, -10)
     return { portrait = portrait, level = level, name = name, death = death }
 end
 
@@ -247,19 +278,19 @@ local compactOutcomeY = -79
 
 function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmish)
     local card = CreateCard(parent, width, addon.compactEncounterCardHeight)
-    local zone = Label(card, "GameFontHighlight", "LEFT", 13, -21, width - 167, "TOPLEFT")
+    local zone = Label(card, "GameFontHighlight", "LEFT", cardInset, -21, width - 167, "TOPLEFT")
     zone:SetWordWrap(true)
     zone:SetMaxLines(2)
-    local day = Label(card, "GameFontHighlightSmall", "TOPRIGHT", -13, -9, 96)
-    local time = Label(card, "GameFontHighlightSmall", "TOPRIGHT", -13, -23, 96)
+    local day = Label(card, "GameFontHighlightSmall", "TOPRIGHT", -cardInset, -9, 96)
+    local time = Label(card, "GameFontHighlightSmall", "TOPRIGHT", -cardInset, -23, 96)
     time:SetTextColor(unpack(neutralColor))
     Divider(card, -41)
 
     local portraitSize = 64
-    local mine = CompactParticipant(card, width / 4, portraitSize, width / 2 - 18, "TOPRIGHT")
-    local theirs = CompactParticipant(card, 3 * width / 4, portraitSize, width / 2 - 18, "TOPLEFT")
-    local victory = OutcomeMarker(card, 24, true, L.winTooltip)
-    local defeat = OutcomeMarker(card, 27, false, L.lossTooltip)
+    local mine = CompactParticipant(card, width / 4, portraitSize, width / 2 - 18, false)
+    local theirs = CompactParticipant(card, 3 * width / 4, portraitSize, width / 2 - 18, true)
+    local victory = OutcomeMarker(card, 24, addon.swordsIconPath, L.winTooltip)
+    local defeat = OutcomeMarker(card, 31, addon.defeatBannerPath, L.lossTooltip)
     local unknown = OutcomeMarker(card, 24, nil, L.unknownOutcome)
     victory:SetPoint("CENTER", card, "TOP", 0, compactOutcomeY)
     defeat:SetPoint("CENTER", card, "TOP", 0, compactOutcomeY)
@@ -358,11 +389,11 @@ end
 
 function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
     local card = CreateCard(parent, width, 1)
-    local columnWidth = math.floor(width / 2) - 26
-    local headerCenter = -18
-    local zone = Label(card, "GameFontHighlight", "LEFT", 14, headerCenter, columnWidth - 76, "TOPLEFT")
+    local columnWidth = math.floor(width / 2) - 2 * cardInset
+    local rightColumn = math.floor(width / 2) + cardInset
+    local zone = Label(card, "GameFontHighlight", "LEFT", cardInset, fullHeaderCenter, columnWidth - 76, "TOPLEFT")
     local score = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    score:SetPoint("CENTER", card, "TOP", 0, headerCenter - 2)
+    score:SetPoint("CENTER", card, "TOP", 0, fullHeaderCenter - 2)
     local coverage = CreateFrame("Button", nil, card, "UIPanelInfoButton")
     coverage:SetPoint("LEFT", score, "RIGHT", 6, 0)
     coverage:SetAlpha(0.75)
@@ -377,26 +408,26 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
     end)
     coverage:SetScript("OnLeave", HideTooltip)
     coverage:SetScript("OnHide", HideTooltip)
-    local stamp = Label(card, "GameFontHighlightSmall", "RIGHT", -14, headerCenter, columnWidth - 76, "TOPRIGHT")
+    local stamp = Label(card, "GameFontHighlightSmall", "RIGHT", -cardInset, fullHeaderCenter, columnWidth - 76, "TOPRIGHT")
     stamp:SetTextColor(0.77, 0.71, 0.61)
-    Divider(card, -36)
+    Divider(card, fullHeaderDivider)
 
     local function CreateSide(x, caption)
-        local title = Label(card, "GameFontNormalSmall", "TOPLEFT", x, -47, columnWidth)
+        local title = Label(card, "GameFontNormalSmall", "TOPLEFT", x, rosterTitleY, columnWidth)
         title:SetText(caption)
         local side = CreateFrame("Frame", nil, card)
-        side:SetPoint("TOPLEFT", x, -62)
+        side:SetPoint("TOPLEFT", x, rosterRowsY)
         side:SetSize(columnWidth, 1)
         local rows = {}
         return function(players, color, selectedRivalID)
             title:SetTextColor(unpack(color))
-            side:SetHeight(math.max(1, #players * 29))
+            side:SetHeight(math.max(1, #players * rosterRowStep))
             for i = 1, math.max(#players, #rows) do
                 local player, row = players[i], rows[i]
                 if not row then
                     row = CreateFrame("Button", nil, side)
-                    row:SetSize(columnWidth, 27)
-                    row:SetPoint("TOPLEFT", 0, -(i - 1) * 29)
+                    row:SetSize(columnWidth, rosterRowHeight)
+                    row:SetPoint("TOPLEFT", 0, -(i - 1) * rosterRowStep)
                     local hover = row:CreateTexture(nil, "HIGHLIGHT")
                     hover:SetAllPoints(row)
                     hover:SetTexture("Interface\\QuestFrame\\UI-QuestLogTitleHighlight")
@@ -413,7 +444,7 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
                     row.icon = row:CreateTexture(nil, "ARTWORK")
                     row.icon:SetSize(22, 22)
                     row.icon:SetPoint("LEFT", 2, 0)
-                    row.name = Label(row, "GameFontHighlightSmall", "TOPLEFT", 31, -2, columnWidth - 67)
+                    row.name = Label(row, "GameFontHighlightSmall", "TOPLEFT", 31, -rosterTextInset, columnWidth - 67)
                     row.class = Label(row, "GameFontHighlightSmall", "TOPLEFT", 31, -14, columnWidth - 67)
                     row.class:SetTextColor(0.76, 0.70, 0.62)
                     row.level = Label(row, "GameFontNormal", "TOPRIGHT", -5, -7, 34)
@@ -442,18 +473,18 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
         end
     end
 
-    local setAllies = CreateSide(14, L.alliedSide)
-    local setEnemies = CreateSide(math.floor(width / 2) + 12, L.enemySide)
+    local setAllies = CreateSide(cardInset, L.alliedSide)
+    local setEnemies = CreateSide(rightColumn, L.enemySide)
     local events = CreateFrame("Frame", nil, card)
     events:SetSize(width, 1)
     Divider(events, 0)
-    local eventTitle = Label(events, "GameFontNormalSmall", "TOPLEFT", 14, -7, width - 28)
+    local eventTitle = Label(events, "GameFontNormalSmall", "TOPLEFT", cardInset, -sectionPadding, width - 2 * cardInset)
     eventTitle:SetText(L.finishingBlows)
     local eventRows = {}
     local map = MapAction(card, function()
         ActivateWaypoint(card.skirmish, onMapShown)
     end)
-    map:SetPoint("RIGHT", card, "TOPRIGHT", -compactActionRight, headerCenter)
+    map:SetPoint("RIGHT", card, "TOPRIGHT", -compactActionRight, fullHeaderCenter)
     function card:SetSkirmish(battle, selectedRivalID)
         if self.skirmish ~= battle then
             HideTooltip(coverage)
@@ -469,7 +500,7 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
         local day, time = EncounterDate(battle)
         local hasWaypoint = WaypointMap(battle) ~= nil
         local stampRight = StampRight(hasWaypoint and compactActionRight)
-        stamp:SetPoint("RIGHT", card, "TOPRIGHT", -stampRight, headerCenter)
+        stamp:SetPoint("RIGHT", card, "TOPRIGHT", -stampRight, fullHeaderCenter)
         stamp:SetText(time ~= "" and day .. "  " .. time or day)
         local allyColor, enemyColor = SideColors()
         setAllies(battle.allies, allyColor)
@@ -483,7 +514,7 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
             if event.kind == "kill" then blows[#blows + 1] = event end
         end
         events:ClearAllPoints()
-        events:SetPoint("TOPLEFT", 0, -66 - 29 * math.max(#battle.allies, #battle.enemies, 1))
+        events:SetPoint("TOPLEFT", 0, RosterBottom(battle) - sectionPadding)
         events:SetHeight(math.max(1, FinishingBlowsHeight(#blows)))
         events:SetShown(#blows > 0)
         for i = 1, math.max(#blows, #eventRows) do
@@ -502,8 +533,8 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
                     arrow:SetText(">")
                 end
                 row = {
-                    Label(events, "GameFontHighlightSmall", "TOPLEFT", 15, y, 45), from, arrow,
-                    Label(events, "GameFontHighlightSmall", "TOPLEFT", math.floor(width / 2) + 14, y, columnWidth),
+                    Label(events, "GameFontHighlightSmall", "TOPLEFT", cardInset, y, 45), from, arrow,
+                    Label(events, "GameFontHighlightSmall", "TOPLEFT", rightColumn, y, columnWidth),
                 }
                 eventRows[i] = row
             end

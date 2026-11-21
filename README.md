@@ -6,8 +6,9 @@ what happened, and where you last met.
 Names in Red targets Forever 1.60.1 (interface 16001). Click the crossed swords
 on the minimap to browse rivals. Information shows your skirmish stats and the
 latest skirmish. The Skirmishes tab lists that rival's recorded history, newest
-first. Compact cards show both portraits and levels. The center icon shows the
-team result. A skull on a portrait marks a recorded death.
+first. Compact cards show both portraits and levels. The center shows crossed
+swords for a victory and a torn banner for a defeat. A skull on a portrait
+marks a recorded death. The reward icons use the current character's faction.
 Alliance is blue and Horde is red. Use the information icon on a linked card
 to see both sides, levels, classes, and the finishing blows
 in the same window. **Back** returns to the rival and the same place in their

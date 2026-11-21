@@ -181,7 +181,9 @@ The reciprocal-kill fixture against Dargun ends with both sides dead and
 has an unknown result. The Feralas 2 × 1 fixture records a team win after
 the local player dies and an ally lands the final blow. In a complete
 multi-opponent win, each opposing profile receives one win. Test one
-confirmed loss and the incomplete Tanaris fixture as well.
+confirmed loss and the incomplete Ashenvale fixture as well. The debug
+command seeds 132 completed solo encounters alongside the shared battles and
+manual results. Tanaris tests honor credited in a team loss.
 
 The live observer uses `PARTY_KILL` and local death recap rows to assemble
 a partial open-world record. Killing-blow identity can come from the player
@@ -344,10 +346,16 @@ header uses the square template's scaled four-unit inset to match the date-to-ma
 and map-to-information gaps. The compact action icons use a half-unit upward
 adjustment, including after the native mouse-up handler. The full history
 map button keeps the unshifted native center. Verify both at the same UI scale.
+All dividers use the factor from Blizzard's `PixelUtil.lua` divided by the
+texture's effective scale to target one physical pixel. Their positions snap
+to the pixel grid. The full header centers the map control between the inner
+top edge and divider. Both sections use the same separator-to-title gap.
+Check dividers and headings at different resolutions and UI scales.
 Both portraits use the profile's 64-unit ring and 24-unit level badge. The
-center uses one team-result marker. Portrait skulls indicate recorded deaths
-regardless of the result. Hover the markers and rebind the card to check
-tooltip cleanup.
+compact badges sit at the outer bottom corners. The center uses crossed swords,
+the original Names in Red torn banner art or a question mark. Portrait skulls
+indicate recorded deaths. Hover the markers and rebind the card to check tooltip
+cleanup.
 A local portrait with no saved race portrait uses `SetPortraitTexture`, as in Camelot's
 `CharacterFrameMixin:UpdateCharacterModeTabPortrait`. Race portraits use the
 `resetTexCoords` argument to `SetAtlas`. The compact rival portrait flips its
@@ -355,14 +363,18 @@ full atlas region horizontally with `SetTexCoord(1, 0, 0, 1)`, following
 `Blizzard_OrderHallUI/Blizzard_OrderHallTalents.lua` where the same talent atlas
 is drawn facing either way. Check the full crop in the profile and the compact
 card, and click the same rival repeatedly to verify the direction.
-Check that the skirmish score and reward columns have stable left edges and that the labels start at the same left edge when their
-counts change from one to multiple digits.
+The two reward rows reuse the same profession reagent controls as the score
+rows. For the reference art, the rank-12 helmet uses the client texture paths
+`Achievement_PVP_A_12` and `Achievement_PVP_H_12`. The original faction currency
+emblems use `PVPCurrency-Honor-Alliance` and `PVPCurrency-Honor-Horde`.
+Check that skirmish and reward labels keep their left edge when their counts
+change from one to multiple digits.
 `PVPMatchStyle.GetLocalPlayerFactionTheme` uses the first return from
 `UnitFactionGroup("player")`. The skirmish cards use the same faction tag to
 order the existing blue and red palette. Check both factions in the full and
-compact cards. Include a win, a loss and the Borin fixture, where the timeline
-records two deaths with an unknown team outcome. Verify that a card rebind clears
-stale tooltips and that the map action remains available on mapped legacy cards.
+compact cards. Include the Borin fixture, where a defeat also awards honor,
+and the incomplete Ashenvale fixture. Verify that a card rebind clears stale
+tooltips and that the map action remains available on mapped legacy cards.
 
 For the map diamond, see `WaypointLocationDataProviderMixin:HandleClick` and
 the MAPPIN slash command in

@@ -55,16 +55,16 @@ local search = searchStrings[GetLocale()] or searchStrings.enUS
 addon.L.noMatches, addon.L.deleteConfirm = search[1], search[2]
 
 local scoreStrings = {
-    enUS = { "Skirmish stats", "Our team won", "Our team lost", "Open skirmish", "Honorable kills", "Honor", "Skirmish outcome unknown" },
-    ruRU = { "Статистика встреч", "Наша команда победила", "Наша команда проиграла", "Открыть стычку", "Почётные победы", "Честь", "Исход стычки неизвестен" },
-    deDE = { "Gefechtsstatistik", "Unser Team hat gewonnen", "Unser Team hat verloren", "Gefecht öffnen", "Ehrenhafte Siege", "Ehre", "Gefechtsausgang unbekannt" },
-    frFR = { "Bilan des escarmouches", "Notre équipe a gagné", "Notre équipe a perdu", "Voir l’escarmouche", "Victoires honorables", "Honneur", "Issue de l’escarmouche inconnue" },
-    esES = { "Estadísticas de escaramuza", "Nuestro equipo ganó", "Nuestro equipo perdió", "Ver escaramuza", "Muertes con honor", "Honor", "Resultado de la escaramuza desconocido" },
-    itIT = { "Statistiche schermaglie", "La nostra squadra ha vinto", "La nostra squadra ha perso", "Vedi schermaglia", "Uccisioni onorevoli", "Onore", "Esito della schermaglia sconosciuto" },
-    ptBR = { "Estatísticas de escaramuças", "Nossa equipe venceu", "Nossa equipe perdeu", "Ver escaramuça", "Abates honrosos", "Honra", "Resultado da escaramuça desconhecido" },
-    koKR = { "교전 통계", "아군이 승리했습니다", "아군이 패배했습니다", "교전 보기", "명예 승수", "명예", "교전 결과 미확인" },
-    zhCN = { "交锋统计", "我方获胜", "我方落败", "查看交锋", "荣誉击杀", "荣誉", "交锋结果未知" },
-    zhTW = { "交鋒統計", "我方獲勝", "我方落敗", "查看交鋒", "榮譽擊殺", "榮譽", "交鋒結果未知" },
+    enUS = { "Skirmish stats", "Victory", "Defeat", "Open skirmish", "Honorable kills", "Honor", "Skirmish outcome unknown" },
+    ruRU = { "Статистика встреч", "Победа", "Поражение", "Открыть стычку", "Почётные победы", "Честь", "Исход стычки неизвестен" },
+    deDE = { "Gefechtsstatistik", "Sieg", "Niederlage", "Gefecht öffnen", "Ehrenhafte Siege", "Ehre", "Gefechtsausgang unbekannt" },
+    frFR = { "Bilan des escarmouches", "Victoire", "Défaite", "Voir l’escarmouche", "Victoires honorables", "Honneur", "Issue de l’escarmouche inconnue" },
+    esES = { "Estadísticas de escaramuza", "Victoria", "Derrota", "Ver escaramuza", "Muertes con honor", "Honor", "Resultado de la escaramuza desconocido" },
+    itIT = { "Statistiche schermaglie", "Vittoria", "Sconfitta", "Vedi schermaglia", "Uccisioni onorevoli", "Onore", "Esito della schermaglia sconosciuto" },
+    ptBR = { "Estatísticas de escaramuças", "Vitória", "Derrota", "Ver escaramuça", "Abates honrosos", "Honra", "Resultado da escaramuça desconhecido" },
+    koKR = { "교전 통계", "승리", "패배", "교전 보기", "명예 승수", "명예", "교전 결과 미확인" },
+    zhCN = { "交锋统计", "胜利", "失败", "查看交锋", "荣誉击杀", "荣誉", "交锋结果未知" },
+    zhTW = { "交鋒統計", "勝利", "失敗", "查看交鋒", "榮譽擊殺", "榮譽", "交鋒結果未知" },
 }
 scoreStrings.enGB = scoreStrings.enUS
 scoreStrings.esMX = scoreStrings.esES

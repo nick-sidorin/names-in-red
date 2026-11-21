@@ -101,19 +101,28 @@ for key, rival in pairs(addon.db.rivals) do
     if key:match("^seed:manual:") then
         manual = manual + 1
         assert(rival.encounters[1].manual and #rival.encounters == 1)
-        assert(rival.killsAgainstThem + rival.deathsToThem == 1)
+        local wins, losses = addon.Ledger.PersonalScore(addon.db, key)
+        assert(wins + losses == 1)
     elseif key:match("^seed:") then
         automatic = automatic + 1
         assert(rival.race and rival.class and rival.raceLabel and rival.classLabel)
-        assert(#rival.encounters == rival.killsAgainstThem + rival.deathsToThem)
-        for _, encounter in ipairs(rival.encounters) do
+        local solo = 0
+        for _, encounter in ipairs(addon.RivalEncounters(addon.db, key)) do
             assert(encounter.rivalLevel and encounter.playerLevel and encounter.time)
             assert(encounter.zone and encounter.mapID and encounter.x and encounter.y and not encounter.manual)
+            if encounter.skirmishID:match("^seed:solo:") then
+                solo = solo + 1
+                assert(encounter.outcome == "win" or encounter.outcome == "loss")
+            end
         end
+        assert(solo >= 4)
     end
 end
 assert(manual == 6 and automatic == 24)
 local seeded = addon.db.skirmishes
+local battleCount = 0
+for _ in pairs(seeded) do battleCount = battleCount + 1 end
+assert(battleCount == 138)
 assert(#seeded["seed:battle:1"].allies == 2 and #seeded["seed:battle:1"].enemies == 2)
 assert(seeded["seed:battle:1"].events[1].actorID == "ally:1")
 assert(#seeded["seed:battle:2"].allies == 1 and #seeded["seed:battle:2"].enemies == 1)
@@ -125,10 +134,11 @@ assert(assisted.skirmishID == "seed:battle:5" and assisted.outcome == "win" and 
 assert(seeded[assisted.skirmishID].events[2].actorID == "ally:1")
 assert(#seeded["seed:battle:3"].enemies == 6 and not seeded["seed:battle:4"].rosterComplete)
 local borin = addon.RivalEncounters(addon.db, "seed:2")[1]
-assert(borin.skirmishID == "seed:battle:3" and not borin.outcome)
+assert(borin.skirmishID == "seed:battle:3" and borin.outcome == "loss")
+assert(borin.honorableKills == 1 and borin.honor == 8)
 assert(borin.opponentDeathIndex == 2 and borin.playerDeathIndex == 3)
 local cressa = addon.RivalEncounters(addon.db, "seed:3")[1]
-assert(cressa.skirmishID == "seed:battle:3" and not cressa.outcome)
+assert(cressa.skirmishID == "seed:battle:3" and cressa.outcome == "loss")
 assert(cressa.playerDeathIndex == 3 and not cressa.opponentDeathIndex)
 addon.Ledger.SaveSkirmish(addon.db, "existing-battle", { allies = {}, enemies = {}, events = {} })
 SlashCmdList.NAMESINREDDEBUG("clear-seed")

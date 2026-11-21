@@ -7,6 +7,7 @@ local deathGlyph = "|T" .. addon.smallSkullIconPath .. ":14:14:0:1|t"
 local window, names, details, heading, portrait, summary, wins, losses, status, selected, empty
 local search, levelBadge, tabBar, latestCard, latestEmpty, historyEmpty
 local honorableKills, honor
+local honorableKillsIcon, honorIcon
 local deletePopup = "NAMES_IN_RED_DELETE_RIVAL"
 local lower = strlower or string.lower
 local buttons, sideTabs = {}, {}
@@ -58,7 +59,7 @@ local function Scroll(parent, x, y, width, height, hideIfUnscrollable)
     return child, frame
 end
 
-local function Stat(parent, y, texture, tooltipText)
+local function Stat(parent, x, y, texture, tooltipText)
     local holder, slot, icon
     if ProfessionsReagentSlotButtonMixin then
         local ok, reagent = pcall(CreateFrame, "Frame", nil, parent, "ProfessionsReagentSlotBaseTemplate")
@@ -91,7 +92,7 @@ local function Stat(parent, y, texture, tooltipText)
         slot:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
     end
     SetStatIconCrop(icon, texture)
-    holder:SetPoint("TOPLEFT", profileInset, y)
+    holder:SetPoint("TOPLEFT", x, y)
 
     slot:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -108,15 +109,7 @@ local function Stat(parent, y, texture, tooltipText)
     label:SetPoint("LEFT", holder, "RIGHT", 10, 0)
     label:SetWidth(cardWidth / 2 - holder:GetWidth() - 14)
     label:SetJustifyH("LEFT")
-    return label
-end
-
-local function RewardStat(parent, y)
-    local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    label:SetPoint("LEFT", parent, "TOPLEFT", profileInset + cardWidth / 2 + 6, y)
-    label:SetWidth(cardWidth / 2 - 6)
-    label:SetJustifyH("LEFT")
-    return label
+    return label, icon
 end
 
 local function CloseForMap()
@@ -186,6 +179,9 @@ local function ShowDetails()
         losses:SetText(("%s: %d"):format(L.losses, lossCount))
         honorableKills:SetText(("%s: %d"):format(L.honorableKills, honorableKillCount))
         honor:SetText(("%s: %d"):format(L.honor, honorTotal))
+        local faction = UnitFactionGroup and Readable(UnitFactionGroup("player"))
+        honorableKillsIcon:SetTexture(addon.RewardIconPath(faction, false))
+        honorIcon:SetTexture(addon.RewardIconPath(faction, true))
         addon.SetRivalPortrait(portrait, rival, selected)
         latestCard:SetEncounter(history[1], rival, selected)
         latestEmpty:SetShown(history[1] == nil)
@@ -570,10 +566,13 @@ local function ToggleBook()
         if not ProfessionsReagentSlotButtonMixin and C_AddOns and C_AddOns.LoadAddOn then
             pcall(C_AddOns.LoadAddOn, "Blizzard_ProfessionsTemplates")
         end
-        wins = Stat(summary, -112, addon.swordsIconPath, L.winTooltip)
-        losses = Stat(summary, -162, addon.skullIconPath, L.lossTooltip)
-        honorableKills = RewardStat(summary, -131)
-        honor = RewardStat(summary, -181)
+        wins = Stat(summary, profileInset, -112, addon.swordsIconPath, L.winTooltip)
+        losses = Stat(summary, profileInset, -162, addon.skullIconPath, L.lossTooltip)
+        local rewardColumn = profileInset + cardWidth / 2 + 6
+        local faction = UnitFactionGroup and Readable(UnitFactionGroup("player"))
+        honorableKills, honorableKillsIcon = Stat(summary, rewardColumn, -112,
+            addon.RewardIconPath(faction, false), L.honorableKills)
+        honor, honorIcon = Stat(summary, rewardColumn, -162, addon.RewardIconPath(faction, true), L.honor)
         local latestHeading = summary:CreateFontString(nil, "OVERLAY", sectionFont)
         latestHeading:SetPoint("TOPLEFT", profileInset, -215)
         latestHeading:SetText(L.latestEncounter)

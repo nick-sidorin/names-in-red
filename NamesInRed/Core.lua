@@ -3,7 +3,17 @@ local artPath = "Interface\\AddOns\\NamesInRed\\Art\\"
 addon.swordsIconPath = artPath .. "CrossedSwords.tga"
 addon.skullIconPath = artPath .. "Skull.tga"
 addon.smallSkullIconPath = artPath .. "TooltipSkull.tga"
+addon.defeatBannerPath = artPath .. "DefeatBanner.tga"
 addon.smallSwordsInset = 22
+
+function addon.RewardIconPath(faction, isHonor)
+    if isHonor then
+        local emblem = faction == "Horde" and "Horde" or "Alliance"
+        return "Interface\\Icons\\PVPCurrency-Honor-" .. emblem
+    end
+    local rank = faction == "Horde" and "H" or "A"
+    return "Interface\\Icons\\Achievement_PVP_" .. rank .. "_12"
+end
 
 function addon.AreNameplateIconsEnabled()
     return not addon.db or addon.db.showNameplateIcons ~= false
