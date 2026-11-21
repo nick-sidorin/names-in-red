@@ -59,7 +59,7 @@ end
 
 onEvent(nil, "NAME_PLATE_UNIT_ADDED", unit)
 assert(badge.shown and badge.anchor == name)
-assert(badge.text:find("CrossedSwords.tga", 1, true) and not badge.text:find("TooltipSkull", 1, true))
+assert(badge.text:find("CrossedSwords.tga", 1, true) and not badge.text:find("DefeatBanner.tga", 1, true))
 addon.db.showNameplateIcons = false
 addon.RefreshNameplates()
 onEvent(nil, "NAME_PLATE_UNIT_ADDED", unit)
@@ -69,7 +69,7 @@ addon.RefreshNameplates()
 assert(badge.shown and lookups == 2)
 rival.encounters[2] = { outcome = "loss" }
 addon.RefreshNameplates()
-assert(badge.shown and badge.text:find("TooltipSkull", 1, true))
+assert(badge.shown and badge.text:find("DefeatBanner.tga", 1, true))
 name.shown = false
 addon.RefreshNameplates()
 assert(badge.anchor == bar)

@@ -11,8 +11,8 @@ local neutralColor = { 0.77, 0.71, 0.61 }
 
 local function SideColors()
     local faction = UnitFactionGroup and addon.Readable(UnitFactionGroup("player"))
-    if faction == "Horde" then return hordeColor, allianceColor end
-    return allianceColor, hordeColor
+    if faction == "Horde" then return hordeColor, allianceColor, true end
+    return allianceColor, hordeColor, false
 end
 
 local function HasCoordinates(encounter)
@@ -235,7 +235,7 @@ local function OutcomeMarker(parent, size, texture, tooltipText)
     local marker = CreateFrame("Frame", nil, parent)
     marker:SetSize(size, size)
     if not texture then
-        local mark = marker:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        local mark = marker:CreateFontString(nil, "OVERLAY", size >= 24 and "GameFontNormalLarge" or "GameFontNormal")
         mark:SetPoint("CENTER")
         mark:SetText("?")
     else
@@ -258,6 +258,24 @@ local function OutcomeMarker(parent, size, texture, tooltipText)
     marker:SetScript("OnLeave", HideTooltip)
     marker:SetScript("OnHide", HideTooltip)
     return marker
+end
+
+local function CreateOutcomeMarkers(card, y, swordSize, bannerSize)
+    local markers = {
+        win = OutcomeMarker(card, swordSize, addon.swordsIconPath, L.winTooltip),
+        loss = OutcomeMarker(card, bannerSize, addon.defeatBannerPath, L.lossTooltip),
+        unknown = OutcomeMarker(card, swordSize, nil, L.unknownOutcome),
+    }
+    for _, marker in pairs(markers) do
+        marker:SetPoint("CENTER", card, "TOP", 0, y)
+        marker:Hide()
+    end
+    return function(outcome, changed)
+        for result, marker in pairs(markers) do
+            if changed then HideTooltip(marker) end
+            marker:SetShown(outcome == result)
+        end
+    end
 end
 
 local function CompactParticipant(card, x, size, nameWidth, isOpponent)
@@ -289,12 +307,7 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
     local portraitSize = 64
     local mine = CompactParticipant(card, width / 4, portraitSize, width / 2 - 18, false)
     local theirs = CompactParticipant(card, 3 * width / 4, portraitSize, width / 2 - 18, true)
-    local victory = OutcomeMarker(card, 24, addon.swordsIconPath, L.winTooltip)
-    local defeat = OutcomeMarker(card, 31, addon.defeatBannerPath, L.lossTooltip)
-    local unknown = OutcomeMarker(card, 24, nil, L.unknownOutcome)
-    victory:SetPoint("CENTER", card, "TOP", 0, compactOutcomeY)
-    defeat:SetPoint("CENTER", card, "TOP", 0, compactOutcomeY)
-    unknown:SetPoint("CENTER", card, "TOP", 0, compactOutcomeY)
+    local setOutcome = CreateOutcomeMarkers(card, compactOutcomeY, 24, 31)
 
     local map = MapAction(card, function()
         if card.encounter then ActivateWaypoint(card.encounter, onMapShown) end
@@ -320,17 +333,16 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
     end)
 
     function card:SetEncounter(encounter, rival, rivalID)
-        if self.encounter ~= encounter then
+        local changed = self.encounter ~= encounter
+        if changed then
             HideTooltip(map)
             HideTooltip(info)
-            HideTooltip(victory)
-            HideTooltip(defeat)
-            HideTooltip(unknown)
             HideTooltip(mine.death)
             HideTooltip(theirs.death)
         end
         self.encounter = encounter
         self:SetShown(encounter ~= nil)
+        setOutcome(encounter and (addon.Ledger.EncounterOutcome(encounter) or "unknown"), changed)
         if not encounter then return end
 
         local player, opponent = encounter.player, encounter.opponent
@@ -356,10 +368,6 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         mine.level:SetLevel(encounter.playerLevel)
         theirs.level:SetLevel(encounter.rivalLevel)
 
-        local outcome = addon.Ledger.EncounterOutcome(encounter)
-        victory:SetShown(outcome == "win")
-        defeat:SetShown(outcome == "loss")
-        unknown:SetShown(outcome == nil)
         mine.death:SetShown(encounter.playerDeathIndex ~= nil
             or (not encounter.manual and encounter.direction == "deathsToThem"))
         theirs.death:SetShown(encounter.opponentDeathIndex ~= nil
@@ -411,16 +419,26 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
     local stamp = Label(card, "GameFontHighlightSmall", "RIGHT", -cardInset, fullHeaderCenter, columnWidth - 76, "TOPRIGHT")
     stamp:SetTextColor(0.77, 0.71, 0.61)
     Divider(card, fullHeaderDivider)
+    local titleCenter = rosterTitleY - 5
+    local setOutcome = CreateOutcomeMarkers(card, titleCenter, 17, 21)
 
     local function CreateSide(x, caption)
-        local title = Label(card, "GameFontNormalSmall", "TOPLEFT", x, rosterTitleY, columnWidth)
+        local emblemSize, emblemGap = 11, 4
+        local titleInset = emblemSize + emblemGap
+        local emblem = card:CreateTexture(nil, "ARTWORK")
+        emblem:SetTexture(addon.factionEmblemsPath)
+        emblem:SetSize(emblemSize, emblemSize)
+        emblem:SetPoint("LEFT", card, "TOPLEFT", x, titleCenter)
+        local title = Label(card, "GameFontNormalSmall", "TOPLEFT", x + titleInset, rosterTitleY, columnWidth - titleInset)
         title:SetText(caption)
         local side = CreateFrame("Frame", nil, card)
         side:SetPoint("TOPLEFT", x, rosterRowsY)
         side:SetSize(columnWidth, 1)
         local rows = {}
-        return function(players, color, selectedRivalID)
+        return function(players, color, horde, selectedRivalID)
             title:SetTextColor(unpack(color))
+            local left = horde and 0.5 or 0
+            emblem:SetTexCoord(left, left + 0.5, 0, 0.5)
             side:SetHeight(math.max(1, #players * rosterRowStep))
             for i = 1, math.max(#players, #rows) do
                 local player, row = players[i], rows[i]
@@ -486,12 +504,14 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
     end)
     map:SetPoint("RIGHT", card, "TOPRIGHT", -compactActionRight, fullHeaderCenter)
     function card:SetSkirmish(battle, selectedRivalID)
-        if self.skirmish ~= battle then
+        local changed = self.skirmish ~= battle
+        if changed then
             HideTooltip(coverage)
             HideTooltip(map)
         end
         self.skirmish = battle
         self:SetShown(battle ~= nil)
+        setOutcome(battle and (addon.Ledger.SkirmishOutcome(battle) or "unknown"), changed)
         if not battle then return end
         self:SetHeight(addon.SkirmishCardHeight(battle))
         zone:SetText(battle.zone and battle.zone ~= "" and battle.zone or L.unknownLocation)
@@ -502,9 +522,9 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
         local stampRight = StampRight(hasWaypoint and compactActionRight)
         stamp:SetPoint("RIGHT", card, "TOPRIGHT", -stampRight, fullHeaderCenter)
         stamp:SetText(time ~= "" and day .. "  " .. time or day)
-        local allyColor, enemyColor = SideColors()
-        setAllies(battle.allies, allyColor)
-        setEnemies(battle.enemies, enemyColor, selectedRivalID)
+        local allyColor, enemyColor, alliesHorde = SideColors()
+        setAllies(battle.allies, allyColor, alliesHorde)
+        setEnemies(battle.enemies, enemyColor, not alliesHorde, selectedRivalID)
         local players, colors = {}, {}
         for _, player in ipairs(battle.allies) do players[player.id], colors[player.id] = player, allyColor end
         for _, player in ipairs(battle.enemies) do players[player.id], colors[player.id] = player, enemyColor end

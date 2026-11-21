@@ -352,10 +352,10 @@ to the pixel grid. The full header centers the map control between the inner
 top edge and divider. Both sections use the same separator-to-title gap.
 Check dividers and headings at different resolutions and UI scales.
 Both portraits use the profile's 64-unit ring and 24-unit level badge. The
-compact badges sit at the outer bottom corners. The center uses crossed swords,
-the original Names in Red torn banner art or a question mark. Portrait skulls
-indicate recorded deaths. Hover the markers and rebind the card to check tooltip
-cleanup.
+compact badges sit at the outer bottom corners. Both layouts center crossed
+swords, the torn gray banner or a question mark between the sides, using the
+same outcome calculation as the profile score. Portrait skulls indicate recorded
+deaths. Hover the markers and rebind the card to check tooltip cleanup.
 A local portrait with no saved race portrait uses `SetPortraitTexture`, as in Camelot's
 `CharacterFrameMixin:UpdateCharacterModeTabPortrait`. Race portraits use the
 `resetTexCoords` argument to `SetAtlas`. The compact rival portrait flips its
@@ -371,8 +371,10 @@ Check that skirmish and reward labels keep their left edge when their counts
 change from one to multiple digits.
 `PVPMatchStyle.GetLocalPlayerFactionTheme` uses the first return from
 `UnitFactionGroup("player")`. The skirmish cards use the same faction tag to
-order the existing blue and red palette. Check both factions in the full and
-compact cards. Include the Borin fixture, where a defeat also awards honor,
+order the existing blue and red palette. The full card samples the supplied
+emblems from a transparent atlas and displays them at 11 units before the side
+headings. Check the colors and emblem order for both factions. Include the
+Borin fixture, where a defeat also awards honor,
 and the incomplete Ashenvale fixture. Verify that a card rebind clears stale
 tooltips and that the map action remains available on mapped legacy cards.
 
@@ -496,8 +498,8 @@ The minimap samples the same artwork in a 23.5-unit square centered on its
 existing circle mask. The
 stock mask, reagent frame and texture anchors remain native. Reference mode
 uses the full native icon and restores the branded crops when it exits.
-The main skull artwork is shared by the statistics, cards and manual dialog.
-The small pink skull remains a distinct inline indicator.
+The gray banner marks defeats in the statistics, cards, manual dialog, nameplates
+and unit tooltip. The small pink skull marks recorded deaths on portraits.
 Compare the header to First Aid and both statistics slots to reagent icons
 in the live client at normal and reduced UI scales.
 

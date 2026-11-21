@@ -192,7 +192,7 @@ function addon.CreateManualDialog(parent, onAdded)
         Update()
     end
     win = Choice(dialog, 24, L.win, addon.swordsIconPath, "killsAgainstThem", Choose)
-    loss = Choice(dialog, 186, L.loss, addon.skullIconPath, "deathsToThem", Choose)
+    loss = Choice(dialog, 186, L.loss, addon.defeatBannerPath, "deathsToThem", Choose)
     local function Save()
         local id = addon.AddManualEncounter(edit:GetText(), selected, target)
         if id then

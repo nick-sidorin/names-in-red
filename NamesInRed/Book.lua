@@ -3,7 +3,7 @@ local L, Readable = addon.L, addon.Readable
 local swordsStart, swordsEnd = addon.smallSwordsInset, 128 - addon.smallSwordsInset
 local victoryGlyph = ("|T%s:14:14:0:1:128:128:%d:%d:%d:%d|t"):format(
     addon.swordsIconPath, swordsStart, swordsEnd, swordsStart, swordsEnd)
-local deathGlyph = "|T" .. addon.smallSkullIconPath .. ":14:14:0:1|t"
+local defeatGlyph = "|T" .. addon.defeatBannerPath .. ":14:14:0:1|t"
 local window, names, details, heading, portrait, summary, wins, losses, status, selected, empty
 local search, levelBadge, tabBar, latestCard, latestEmpty, historyEmpty
 local honorableKills, honor
@@ -25,9 +25,9 @@ local statSwordInset = 0.11
 
 local function SetStatIconCrop(icon, texture)
     local inset, shift = 0, 0
-    if texture == addon.swordsIconPath or texture == addon.skullIconPath then
+    if texture == addon.swordsIconPath then
         shift = 1 / 128
-        inset = texture == addon.swordsIconPath and statSwordInset or 2 / 128
+        inset = statSwordInset
     end
     icon:SetTexCoord(inset + shift, 1 - inset + shift, inset, 1 - inset)
 end
@@ -37,7 +37,7 @@ function addon.RivalCounters(id, hideZero)
     if winCount == 0 and lossCount == 0 then return end
     local wins, losses
     if not hideZero or winCount > 0 then wins = victoryGlyph .. " " .. winCount end
-    if not hideZero or lossCount > 0 then losses = deathGlyph .. " " .. lossCount end
+    if not hideZero or lossCount > 0 then losses = defeatGlyph .. " " .. lossCount end
     if wins and losses then return wins .. "   " .. losses end
     return wins or losses
 end
@@ -567,7 +567,7 @@ local function ToggleBook()
             pcall(C_AddOns.LoadAddOn, "Blizzard_ProfessionsTemplates")
         end
         wins = Stat(summary, profileInset, -112, addon.swordsIconPath, L.winTooltip)
-        losses = Stat(summary, profileInset, -162, addon.skullIconPath, L.lossTooltip)
+        losses = Stat(summary, profileInset, -162, addon.defeatBannerPath, L.lossTooltip)
         local rewardColumn = profileInset + cardWidth / 2 + 6
         local faction = UnitFactionGroup and Readable(UnitFactionGroup("player"))
         honorableKills, honorableKillsIcon = Stat(summary, rewardColumn, -112,

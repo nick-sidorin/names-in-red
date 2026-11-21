@@ -99,28 +99,31 @@ local function SideEliminated(side, dead)
     return #side > 0
 end
 
-local function SkirmishOutcome(battle, dead)
-    local outcome = Ledger.EncounterOutcome(battle)
-    if outcome then return outcome end
-    if battle.rosterComplete ~= true or #battle.allies == 0 or #battle.enemies == 0 then return end
-    local alliesEliminated = SideEliminated(battle.allies, dead)
-    local enemiesEliminated = SideEliminated(battle.enemies, dead)
-    if alliesEliminated ~= enemiesEliminated then
-        return enemiesEliminated and "win" or "loss"
+local function LocalParticipant(battle)
+    for _, ally in ipairs(battle.allies) do
+        if ally.isSelf and ally.id then return ally end
     end
+end
+
+function Ledger.SkirmishOutcome(battle)
+    local player = LocalParticipant(battle)
+    if not player then return end
+    local outcome = Ledger.EncounterOutcome(battle)
+    if not outcome and battle.rosterComplete == true and #battle.enemies > 0 then
+        local dead = Deaths(battle)
+        local alliesEliminated = SideEliminated(battle.allies, dead)
+        local enemiesEliminated = SideEliminated(battle.enemies, dead)
+        if alliesEliminated ~= enemiesEliminated then
+            outcome = enemiesEliminated and "win" or "loss"
+        end
+    end
+    return outcome, player
 end
 
 -- Use deaths across the whole battle for the portrait markers, including
 -- players who were later resurrected. The outcome uses the final known state.
 local function IndexSkirmish(index, id, battle)
-    local player
-    for _, ally in ipairs(battle.allies) do
-        if ally.isSelf and ally.id then
-            player = ally
-            break
-        end
-    end
-    local outcome = player and SkirmishOutcome(battle, Deaths(battle))
+    local outcome, player = Ledger.SkirmishOutcome(battle)
     local firstDeath = {}
     for index, event in ipairs(battle.events) do
         if event.kind == "kill" and event.targetID then

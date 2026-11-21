@@ -79,8 +79,8 @@ assert(tooltipLines[1] == " ")
 assert(tooltipLines[2] == addon.title)
 local art = "|TInterface\\AddOns\\NamesInRed\\Art\\"
 local victory = art .. "CrossedSwords.tga:14:14:0:1:128:128:22:106:22:106|t"
-local death = art .. "TooltipSkull.tga:14:14:0:1|t"
-assert(tooltipLines[3] == victory .. " 2   " .. death .. " 1")
+local loss = art .. "DefeatBanner.tga:14:14:0:1|t"
+assert(tooltipLines[3] == victory .. " 2   " .. loss .. " 1")
 addon.db.showUnitTooltip = false
 callback(GameTooltip, { guid = "Player-test" })
 assert(#tooltipLines == 3)
@@ -135,7 +135,7 @@ local manualRival = addon.db.rivals[manualID]
 function GameTooltip:GetUnit() return "Айро", "mouseover", "Player-ayro" end
 callback(GameTooltip, { guid = "Player-ayro" })
 assert(#tooltipLines == 9)
-assert(tooltipLines[9] == victory .. " 0   " .. death .. " 1")
+assert(tooltipLines[9] == victory .. " 0   " .. loss .. " 1")
 assert(addon.db.rivals[manualID] == manualRival and manualRival.deathsToThem == 1)
 assert(addon.db.rivals["Player-ayro"] == nil)
 surname = nil
@@ -267,17 +267,39 @@ assert(journalMapOpened)
 assert(not FindRegion(card, "template", "UIPanelInfoButton"))
 local allyHeading, enemyHeading = FindText(card, addon.L.alliedSide), FindText(card, addon.L.enemySide)
 assert(headerLine.anchor[3] - allyHeading.anchor[3] == blowsLine.anchor[3] - eventTitle.anchor[3])
-assert(allyHeading.anchor[2] == eventTitle.anchor[2])
+local function HeadingEmblem(heading)
+    for _, region in ipairs(card.children) do
+        if rawget(region, "texture") == addon.factionEmblemsPath
+            and region.anchor[4] + region.width + 4 == heading.anchor[2] then return region end
+    end
+end
+local allyEmblem, enemyEmblem = assert(HeadingEmblem(allyHeading)), assert(HeadingEmblem(enemyHeading))
+assert(allyEmblem.anchor[4] == eventTitle.anchor[2] and allyEmblem.height == 11 and enemyEmblem.height == 11)
+assert(allyEmblem.texcoords[1] == 0 and enemyEmblem.texcoords[1] == 0.5)
 CheckFactionColors(allyHeading, enemyHeading)
 faction = "Horde"
 card:SetSkirmish(large, "Player-test")
 CheckFactionColors(enemyHeading, allyHeading)
+assert(allyEmblem.texcoords[1] == 0.5 and enemyEmblem.texcoords[1] == 0)
 faction = "Alliance"
 local name = assert(FindText(card, "Test Rival"))
 assert(name.parent.selection.shown)
 name.parent.scripts.OnClick(name.parent)
 assert(selectedRival == "Player-test")
+local finished = { allies = { allies[1] }, enemies = { enemies[1] }, rosterComplete = true,
+    events = { { kind = "kill", actorID = "me", targetID = "enemy" } } }
+card:SetSkirmish(finished)
+local fullVictory = assert(FindRegion(card, "texture", addon.swordsIconPath)).parent
+assert(fullVictory.anchor[4] == 0 and fullVictory.anchor[5] == allyEmblem.anchor[5])
+fullVictory.scripts.OnEnter(fullVictory)
+assert(GameTooltip.shown and GameTooltip.title == addon.L.winTooltip)
+card:SetSkirmish({ allies = finished.allies, enemies = finished.enemies, outcome = "loss", events = {} })
+assert(not GameTooltip.shown and not fullVictory.shown)
+local fullDefeat = assert(FindRegion(card, "texture", addon.defeatBannerPath)).parent
+fullDefeat.scripts.OnEnter(fullDefeat)
+assert(GameTooltip.shown and GameTooltip.title == addon.L.lossTooltip)
 card:SetSkirmish({ allies = { allies[1] }, enemies = { enemies[1] }, events = {} })
+assert(not GameTooltip.shown and not fullDefeat.shown and FindText(card, "?"))
 assert(not name.parent.selection.shown)
 local partialCount = assert(FindText(card, "1 × 1"))
 assert(card.height < largeHeight and not FindText(card, addon.L.partialRoster))
@@ -290,7 +312,7 @@ assert(GameTooltip.shown and GameTooltip.title == addon.L.partialRoster)
 assert(tooltipLines[#tooltipLines] == addon.L.partialRosterHint)
 card:SetSkirmish(nil)
 assert(not card.shown and not GameTooltip.shown)
-print("Skirmish card roster and recycling checks passed")
+print("Skirmish card roster, faction emblems, outcomes and recycling checks passed")
 
 local openedSkirmish, openedMap, mapped
 local compact = addon.CreateCompactEncounterCard(MockRegion(), 332, function() openedMap = true end,
