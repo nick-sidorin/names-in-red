@@ -142,6 +142,10 @@ local function MockRegion(parent)
 end
 
 function CreateFrame(_, _, parent) return MockRegion(parent) end
+function addon.ApplyAtlas(region, atlas)
+    region.atlas = atlas
+    return true
+end
 date = os.date
 local selectedRival
 local card = addon.CreateSkirmishCard(MockRegion(), 630, function() end, function(id) selectedRival = id end)
@@ -150,7 +154,8 @@ local enemies = {
     { id = "enemy", name = "Test Rival", rivalID = "Player-test", class = "MAGE", level = 42 },
     { id = "other", name = "Other Rival" },
 }
-local large = { time = 100, startedAt = 80, allies = allies, enemies = enemies, rosterComplete = true, events = {
+local large = { time = 100, startedAt = 80, mapID = 1424, x = 0.45, y = 0.51,
+    allies = allies, enemies = enemies, rosterComplete = true, events = {
     { actorID = "ally", targetID = "enemy", time = 91 }, { actorID = "other", targetID = "me", time = 97 },
 } }
 local function FindText(region, expected)
@@ -164,6 +169,7 @@ end
 card:SetSkirmish(large)
 local largeHeight = card.height
 assert(FindText(card, "2 × 2") and FindText(card, "Ally Warrior") and FindText(card, "0:11"))
+assert(FindText(card, addon.L.showOnMap) and not FindText(card, "45.0, 51.0"))
 local name = assert(FindText(card, "Test Rival"))
 name.parent.scripts.OnClick(name.parent)
 assert(selectedRival == "Player-test")

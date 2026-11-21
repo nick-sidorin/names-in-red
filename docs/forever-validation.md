@@ -303,14 +303,21 @@ the MAPPIN slash command in
 uses the command's waypoint flow, including `OpenMapToUserWaypoint` from
 `Blizzard_WorldMap/Blizzard_WorldMap.lua`. Test with a seeded card from a
 different zone. Check that the world map opens on that zone, places its
-standard user pin at the displayed coordinates and replaces any previous user
+standard user pin at the saved coordinates and replaces any previous user
 pin. The map action uses `SharedButtonSmallTemplate` from
 `Blizzard_SharedXML/Shared/Button/ThreeSliceButtonTemplate.xml`.
 For legacy cards the addon uses `C_Map.GetMapChildrenInfo` from
 `Blizzard_APIDocumentationGenerated/MapDocumentation.lua` to index Azeroth's
 zone maps by localized name. Check older Hillsbrad and Stranglethorn cards
-like the owner's screenshots, plus an unresolved zone. Verify coordinates
-on button hover and that a rejected waypoint leaves the book open.
+like the owner's screenshots, plus an unresolved zone. Verify the saved
+location through the map action and that a rejected waypoint leaves the book open.
+
+Preview.4 uses one tinted `Professions-background-summarylist` texture from
+`ProfessionsRecipeListTemplate` across the entire right side of the rival
+book. The inset frame and translucent battlefield illustration are separate
+layers. The roster hover uses the native quest list texture from
+`QuestLogFrame.xml` with reduced intensity. The finishing blow marker reuses
+`common-icon-forwardarrow` from `GamepadNextPageButtonTemplate`.
 
 ## Cross-rival skirmish history
 

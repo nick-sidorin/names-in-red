@@ -339,34 +339,16 @@ local function ListBackground(parent, x, y, width, height)
         texture:SetAllPoints()
     end
     addon.ApplyAtlas(texture, "Professions-background-summarylist")
+    return texture
 end
 
 local function DetailBackground(parent)
-    local background = parent:CreateTexture(nil, "BACKGROUND")
-    background:SetAllPoints()
-    if not addon.ApplyAtlas(background, "Professions-Recipe-Background") then
-        background:SetColorTexture(0.07, 0.048, 0.034, 1)
-    end
-
-    local sourceWidth = 512
-    local leftEdge, fadeEnd = 171, 265
-    local aspect = (sourceWidth - leftEdge) / sourceWidth
-    local height = math.min(parent:GetHeight() - 12, (parent:GetWidth() - 12) / aspect)
-    local function PaintingSlice(first, last)
-        local texture = parent:CreateTexture(nil, "BACKGROUND", nil, 1)
-        texture:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\Battlefield.tga")
-        texture:SetTexCoord(first / sourceWidth, last / sourceWidth, 0, 1)
-        texture:SetSize(height * (last - first) / sourceWidth, height)
-        texture:SetAlpha(0.88)
-        return texture
-    end
-
-    local illustration = PaintingSlice(fadeEnd, sourceWidth)
-    illustration:SetPoint("BOTTOMRIGHT", -6, 6)
-    -- Feather the painted underlay into the recipe background.
-    local leftFade = PaintingSlice(leftEdge, fadeEnd)
-    leftFade:SetPoint("BOTTOMRIGHT", illustration, "BOTTOMLEFT")
-    leftFade:SetGradient("HORIZONTAL", CreateColor(1, 1, 1, 0), CreateColor(1, 1, 1, 1))
+    local size = math.min(parent:GetWidth() * 0.58, parent:GetHeight() * 0.56)
+    local illustration = parent:CreateTexture(nil, "BACKGROUND")
+    illustration:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\Battlefield.tga")
+    illustration:SetPoint("BOTTOMRIGHT", -9, 13)
+    illustration:SetSize(size, size)
+    illustration:SetAlpha(0.24)
 
     local trim = parent:CreateTexture(nil, "BORDER")
     trim:SetAllPoints()
@@ -556,8 +538,9 @@ local function ToggleBook()
         local rightX, rightWidth = 312, 383
         local left = Pane(rivalsPage, 5, -contentTop, rightX - 5, bodyHeight)
         ListBackground(left)
-        -- Paint the underlay below the footer button's three-slice background.
-        ListBackground(rivalsPage, rightX, -contentTop, rightWidth, bodyHeight)
+        -- One continuous surface behind the tabs, transparent detail pane and footer.
+        local rightSurface = ListBackground(rivalsPage, rightX, -contentTop, rightWidth, bodyHeight)
+        rightSurface:SetVertexColor(0.76, 0.76, 0.76)
 
         local panelGap = 4
         local rightTop = contentTop + 30

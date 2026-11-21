@@ -20,7 +20,7 @@ Use the tabs on the right edge of the journal to switch views:
 - **Rivals** opens a searchable list. Pick a player to see their profile, your kills and deaths against them, and your last fight. Open **Skirmishes** on their profile to see every recorded encounter with that player.
 - **Skirmish History** brings together recent fights from all opponents. Open a rival's profile directly from their fight card when their full name is known.
 
-Fight cards show the result, date, time, zone, and both character levels when available. Select **Show on map** to open the world map and place a waypoint where the fight happened. If the position can’t be mapped, saved coordinates are still shown when available.
+Fight cards show the result, date, time, zone, and both character levels when available. Select **Show on map** to open the world map and place a waypoint where the fight happened.
 
 ## 📝 What Gets Recorded
 
