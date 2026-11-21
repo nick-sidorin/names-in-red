@@ -31,7 +31,7 @@ for _, supported in ipairs({
         "noMatches", "deleteConfirm", "statistics", "winTooltip", "lossTooltip", "infoTab", "historyTab",
         "latestEncounter", "showOnMap", "unknownLocation", "myLevel", "rivalLevel", "waypointError", "noSkirmishes",
         "rivalsView", "recentView", "unknownRival",
-        "alliedSide", "enemySide", "partialRoster", "finishingBlows", "unknownPlayer",
+        "alliedSide", "enemySide", "partialRoster", "finishingBlows", "unknownPlayer", "minimapHint",
     }) do
         assert(type(addon.L[key]) == "string" and addon.L[key] ~= "")
     end

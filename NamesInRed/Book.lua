@@ -357,7 +357,6 @@ end
 
 local function MakeDraggable(frame)
     frame:SetMovable(true)
-    frame:SetToplevel(true)
     local drag = CreateFrame("Frame", nil, frame)
     drag:SetPoint("TOPLEFT", 60, -1)
     drag:SetPoint("TOPRIGHT", -30, -1)
@@ -506,9 +505,12 @@ local function ToggleBook()
     if not addon.db then return end
     if not window then
         window = CreateFrame("Frame", "NamesInRedRivalBook", UIParent, "PortraitFrameTemplate")
+        window:Hide()
         window:SetSize(700, 555)
         window:SetPoint("CENTER")
-        window:SetFrameStrata("DIALOG")
+        -- Share the ordinary window strata so another top-level panel can rise above us.
+        window:SetFrameStrata("MEDIUM")
+        window:SetToplevel(true)
         window:EnableMouse(true)
         window:SetClampedToScreen(true)
         window:SetTitle(addon.title)
@@ -724,7 +726,12 @@ local function ToggleBook()
 
         CreateSideTabs()
         SetBookView(activeView)
+        window:HookScript("OnShow", function(self)
+            self:Raise()
+            PlaySound(SOUNDKIT.UI_PROFESSIONS_WINDOW_OPEN)
+        end)
         window:HookScript("OnHide", function()
+            PlaySound(SOUNDKIT.UI_PROFESSIONS_WINDOW_CLOSE)
             search:ClearFocus()
             StaticPopup_Hide(deletePopup)
         end)
@@ -772,12 +779,16 @@ local function CreateShortcut()
             math.sin(angle) * (Minimap:GetHeight() / 2 + 8))
     end
     local function StopDrag()
+        button.dragging = nil
         button:SetScript("OnUpdate", nil)
+        if GameTooltip:IsOwned(button) then GameTooltip:Hide() end
     end
+    button:RegisterForClicks("LeftButtonUp")
     button:RegisterForDrag("LeftButton")
     button:SetScript("OnMouseDown", function(self) self.dragged = false end)
     button:SetScript("OnDragStart", function(self)
-        self.dragged = true
+        self.dragging, self.dragged = true, true
+        if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
         self:SetScript("OnUpdate", function()
             local cx, cy = Minimap:GetCenter()
             if not cx or not cy then return end
@@ -793,8 +804,10 @@ local function CreateShortcut()
         if not self.dragged then ToggleBook() end
     end)
     button:SetScript("OnEnter", function(self)
+        if self.dragging then return end
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:SetText(addon.title)
+        GameTooltip:AddLine(L.minimapHint, 1, 1, 1, true)
         GameTooltip:Show()
     end)
     button:SetScript("OnLeave", function(self)

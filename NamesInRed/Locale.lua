@@ -127,3 +127,19 @@ skirmishStrings.enGB = skirmishStrings.enUS
 skirmishStrings.esMX = skirmishStrings.esES
 addon.L.alliedSide, addon.L.enemySide, addon.L.partialRoster, addon.L.finishingBlows, addon.L.unknownPlayer =
     unpack(skirmishStrings[GetLocale()] or skirmishStrings.enUS)
+
+local minimapHints = {
+    enUS = "Left-click — open the journal\nDrag — move the icon",
+    ruRU = "ЛКМ — открыть журнал\nПеретащи — переместить значок",
+    deDE = "Linksklick — Journal öffnen\nZiehen — Symbol verschieben",
+    frFR = "Clic gauche — ouvrir le journal\nGlisser — déplacer l’icône",
+    esES = "Clic izquierdo — abrir el diario\nArrastra — mover el icono",
+    itIT = "Clic sinistro — apri il diario\nTrascina — sposta l’icona",
+    ptBR = "Clique esquerdo — abrir o diário\nArraste — mover o ícone",
+    koKR = "왼쪽 클릭 — 기록 열기\n드래그 — 아이콘 이동",
+    zhCN = "左键点击 — 打开日志\n拖动 — 移动图标",
+    zhTW = "按左鍵 — 開啟日誌\n拖曳 — 移動圖示",
+}
+minimapHints.enGB = minimapHints.enUS
+minimapHints.esMX = minimapHints.esES
+addon.L.minimapHint = minimapHints[GetLocale()] or minimapHints.enUS

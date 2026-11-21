@@ -319,6 +319,29 @@ layers. The roster hover uses the native quest list texture from
 `QuestLogFrame.xml` with reduced intensity. The finishing blow marker reuses
 `common-icon-forwardarrow` from `GamepadNextPageButtonTemplate`.
 
+### Window ordering, sounds and minimap hint
+
+Forever 70959 loads the Camelot `ProfessionsFrame` from
+`Blizzard_Professions/Camelot/Blizzard_ProfessionsFrame.xml`. The shared
+`ProfessionsFrameBase` uses `PortraitFrameTemplate` with `toplevel=true`.
+`ProfessionsMixin:OnShow` and `OnHide` play the two
+`UI_PROFESSIONS_WINDOW_*` sound kits. The book uses the same portrait
+template and sound kits in its own visibility handlers.
+
+The book remains a movable, independent top-level frame and uses the
+ordinary MEDIUM strata. The old DIALOG strata always drew above a MEDIUM
+frame regardless of its level. DeModal's `HookMovable` sets the supported
+profession window to top-level and raises it on show, while BlizzMove
+supplies drag behavior for registered Blizzard frames. The book uses native
+top-level ordering and raises its own frame when shown.
+
+The minimap tooltip follows Azeroth Fitness's `Shortcut:Init` implementation
+in `Minimap.lua`, using a left anchor, title and a two-line localized hint.
+Check first open, reopen, Escape and the close button for one sound per
+visibility change. With DeModal and BlizzMove, overlap the book and
+Engineering, then click the visible part or header of each alternately.
+Check that both remain open and the clicked panel comes to the front.
+
 ## Cross-rival skirmish history
 
 The outer navigation follows `UI:Build` and `UI:Show` in Azeroth Fitness
