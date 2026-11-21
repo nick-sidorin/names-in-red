@@ -37,7 +37,7 @@ for _, supported in ipairs({
         "latestEncounter", "showOnMap", "unknownLocation", "myLevel", "rivalLevel", "waypointError", "noSkirmishes",
         "rivalsView", "recentView", "unknownRival",
         "alliedSide", "enemySide", "partialRoster", "finishingBlows", "unknownPlayer", "minimapHint",
-        "openSkirmish", "partialRosterHint", "portraitKill", "portraitDeath",
+        "openSkirmish", "partialRosterHint", "portraitDeath", "honorableKills", "honor", "unknownOutcome",
         "showNameplateIcons", "showUnitTooltip", "resetData", "resetDataConfirm", "reportIssue", "reportIssueLink",
     }) do
         assert(type(addon.L[key]) == "string" and addon.L[key] ~= "")
@@ -53,7 +53,7 @@ assert(loadfile("NamesInRed/Encounter.lua"))("NamesInRed", addon)
 assert(loadfile("NamesInRed/EncounterCards.lua"))("NamesInRed", addon)
 assert(loadfile("NamesInRed/Core.lua"))("NamesInRed", addon)
 assert(loadfile("NamesInRed/Book.lua"))("NamesInRed", addon)
-addon.db.rivals["Player-test"] = { displayName = "Test Rival", killsAgainstThem = 2, deathsToThem = 1 }
+addon.db.rivals["Player-test"] = { displayName = "Test Rival", encounters = { { outcome = "win" }, { outcome = "win" }, { outcome = "loss" } } }
 addon.db.rivals["Player-empty"] = { displayName = "Empty Rival", killsAgainstThem = 0, deathsToThem = 0 }
 addon.db.rivals["Player-partial"] = { displayName = "Rival", killsAgainstThem = 1, deathsToThem = 0 }
 callback(GameTooltip, { guid = secret })
@@ -155,7 +155,6 @@ local function MockRegion(parent)
     function region:SetSize(width, height) self.width, self.height = width, height end
     function region:SetTexture(texture) self.texture, self.atlas = texture, nil end
     function region:SetTexCoord(...) self.texcoords = { ... } end
-    function region:SetGradient(...) self.gradient = { ... } end
     function region:SetAtlas(atlas, _, _, resetTexCoords)
         -- Reassigning an atlas already on the texture preserves its custom coordinates.
         if self.atlas ~= atlas or resetTexCoords then self:SetTexCoord(0, 1, 0, 1) end
@@ -178,8 +177,6 @@ local function MockRegion(parent)
     return setmetatable(region, { __index = function() return function() end end })
 end
 
-function CreateColor(r, g, b, a) return { r = r, g = g, b = b, a = a } end
-UPPER_LEFT_VERTEX, LOWER_LEFT_VERTEX, UPPER_RIGHT_VERTEX, LOWER_RIGHT_VERTEX = 1, 2, 3, 4
 
 function CreateFrame(_, _, parent, template)
     local region = MockRegion(parent)
@@ -207,7 +204,9 @@ local enemies = {
 }
 local large = { time = 100, startedAt = 80, zone = "Hillsbrad Foothills", mapID = 1424, x = 0.45, y = 0.51,
     allies = allies, enemies = enemies, rosterComplete = true, events = {
-    { actorID = "ally", targetID = "enemy", time = 91 }, { actorID = "other", targetID = "me", time = 97 },
+    { kind = "kill", actorID = "ally", targetID = "enemy", time = 91 },
+    { kind = "revive", targetID = "enemy", time = 95 },
+    { kind = "kill", actorID = "other", targetID = "me", time = 97 },
 } }
 local function FindRegion(region, key, expected)
     if not region.shown then return end
@@ -231,6 +230,7 @@ end
 card:SetSkirmish(large, "Player-test")
 local largeHeight = card.height
 assert(FindText(card, "2 × 2") and FindText(card, "Ally Warrior") and FindText(card, "0:11"))
+assert(not FindText(card, "0:15"))
 assert(not FindText(card, addon.L.showOnMap) and not FindText(card, "45.0, 51.0"))
 local journalMap = assert(FindRegion(card, "title", addon.L.showOnMap))
 local zone = assert(FindText(card, large.zone))
@@ -273,7 +273,7 @@ print("Skirmish card roster and recycling checks passed")
 local openedSkirmish, openedMap, mapped
 local compact = addon.CreateCompactEncounterCard(MockRegion(), 332, function() openedMap = true end,
     function(id) openedSkirmish = id end)
-local first = { skirmishID = "battle-one", wins = 1, losses = 0, mapID = 1424, x = 0.45, y = 0.51,
+local first = { skirmishID = "battle-one", outcome = "win", opponentDeathIndex = 1, mapID = 1424, x = 0.45, y = 0.51,
     zone = "Hillsbrad Foothills", time = 100, player = allies[1], opponent = enemies[1],
     playerLevel = 51, rivalLevel = 42 }
 first.player.race, first.player.sex = "orc", 2
@@ -308,11 +308,6 @@ local function PortraitMarker(anchor, texture)
     end
 end
 local function CenterMarker(texture) return PortraitMarker(compact, texture) end
-local function FindSeparator()
-    for _, child in ipairs(compact.children) do
-        if child.children[1] and rawget(child.children[1], "gradient") then return child end
-    end
-end
 local function CheckPortraitMarker(rim, texture, corner)
     local marker = assert(PortraitMarker(rim, texture))
     local x = corner == "TOPRIGHT" and -10 or 10
@@ -321,16 +316,8 @@ local function CheckPortraitMarker(rim, texture, corner)
 end
 local swords, skull = addon.swordsIconPath, addon.smallSkullIconPath
 local victory = assert(CenterMarker(swords))
-local separator = assert(FindSeparator())
-assert(not separator.shown and victory.anchor[4] == 0)
-assert(not CenterMarker(skull) and not FindText(compact, addon.L.winTooltip))
-local portraitVictory = CheckPortraitMarker(myRim, swords, "TOPRIGHT")
+assert(victory.anchor[4] == 0 and not CenterMarker(skull))
 local portraitDeath = CheckPortraitMarker(opponentRim, skull, "TOPLEFT")
-assert(portraitDeath.width > portraitVictory.width)
-portraitVictory.scripts.OnEnter(portraitVictory)
-assert(GameTooltip.shown and GameTooltip.title == addon.L.portraitKill)
-portraitVictory.scripts.OnLeave(portraitVictory)
-assert(not GameTooltip.shown)
 assert(not PortraitMarker(myRim, skull) and not PortraitMarker(opponentRim, swords))
 CheckFactionColors(myName, opponentName)
 faction = "Horde"
@@ -345,8 +332,9 @@ local map = assert(FindRegion(compact, "title", addon.L.showOnMap))
 assert(not FindText(compact, addon.L.openSkirmish) and not FindText(compact, addon.L.showOnMap))
 assert(open.width == 32 and map.width == 32 and open.Icon.width == 16 and map.Icon.width == 16)
 assert(open.Icon.anchor[4] == 0 and map.Icon.anchor[4] == 0)
+assert(open.Icon.anchor[5] == 0.5 and map.Icon.anchor[5] == 0.5 and journalMap.Icon.anchor[5] == 0)
 map.scripts.OnMouseUp(map)
-assert(map.Icon.anchor[4] == 0 and map.Icon.anchor[5] == 0)
+assert(map.Icon.anchor[4] == 0 and map.Icon.anchor[5] == 0.5)
 local inset = map.insets[1]
 local mapToInfo = open.anchor[2] - open.width + inset - (map.anchor[2] - inset)
 local dateToMap = map.anchor[2] - map.width + inset - FindText(compact, date("%x", first.time)).anchor[2]
@@ -359,41 +347,28 @@ assert(openedMap and mapped == first)
 
 victory.scripts.OnEnter(victory)
 assert(GameTooltip.shown and GameTooltip.title == addon.L.winTooltip)
-compact:SetEncounter({ skirmishID = "battle-loss", wins = 0, losses = 1 })
+compact:SetEncounter({ skirmishID = "battle-loss", outcome = "loss", playerDeathIndex = 1 })
 assert(not GameTooltip.shown and not CenterMarker(swords))
 local defeat = assert(CenterMarker(skull))
 defeat.scripts.OnEnter(defeat)
 assert(GameTooltip.shown and GameTooltip.title == addon.L.lossTooltip)
 CheckPortraitMarker(myRim, skull, "TOPRIGHT")
-CheckPortraitMarker(opponentRim, swords, "TOPLEFT")
-assert(not separator.shown and defeat.anchor[4] == 0 and defeat.width > victory.width)
-defeat.scripts.OnLeave(defeat)
-assert(not GameTooltip.shown)
-compact:SetEncounter({ skirmishID = "win-then-death", wins = 1, playerDeathIndex = 2, opponentDeathIndex = 1 })
-assert(CenterMarker(swords) and not CenterMarker(skull))
-assert(PortraitMarker(myRim, swords) and PortraitMarker(myRim, skull) and PortraitMarker(opponentRim, skull))
-compact:SetEncounter({ skirmishID = "battle-both", wins = 1, losses = 1 })
-assert(CenterMarker(swords) and CenterMarker(skull))
-CheckPortraitMarker(myRim, swords, "TOPRIGHT")
-CheckPortraitMarker(myRim, skull, "TOPLEFT")
-CheckPortraitMarker(opponentRim, swords, "TOPLEFT")
-CheckPortraitMarker(opponentRim, skull, "TOPRIGHT")
-assert(separator.shown and victory.anchor[5] > separator.anchor[5] and separator.anchor[5] > defeat.anchor[5])
-local upperFade, lowerFade = separator.children[1].gradient, separator.children[2].gradient
-assert(upperFade[1] == "VERTICAL" and upperFade[2].a > 0 and upperFade[3].a == 0)
-assert(lowerFade[1] == "VERTICAL" and lowerFade[2].a == 0 and lowerFade[3].a == upperFade[2].a)
-portraitDeath.scripts.OnEnter(portraitDeath)
-assert(GameTooltip.shown and GameTooltip.title == addon.L.portraitDeath)
-compact:SetEncounter({ skirmishID = "battle-casualties", opponentDeathIndex = 1, playerDeathIndex = 2 })
-assert(not GameTooltip.shown and not separator.shown)
-assert(not CenterMarker(swords) and not CenterMarker(skull))
+assert(not PortraitMarker(opponentRim, swords) and defeat.anchor[4] == 0)
+compact:SetEncounter({ skirmishID = "win-while-dead", outcome = "win", playerDeathIndex = 1, opponentDeathIndex = 2 })
+assert(not GameTooltip.shown and CenterMarker(swords) and not CenterMarker(skull))
 CheckPortraitMarker(myRim, skull, "TOPRIGHT")
 CheckPortraitMarker(opponentRim, skull, "TOPLEFT")
-assert(not PortraitMarker(myRim, swords) and not PortraitMarker(opponentRim, swords))
+portraitDeath.scripts.OnEnter(portraitDeath)
+assert(GameTooltip.shown and GameTooltip.title == addon.L.portraitDeath)
 compact:SetEncounter({ skirmishID = "player-casualty", playerDeathIndex = 1 })
+assert(not GameTooltip.shown and not CenterMarker(swords) and not CenterMarker(skull))
 assert(PortraitMarker(myRim, skull) and not PortraitMarker(opponentRim, skull))
-compact:SetEncounter({ skirmishID = "battle-two", wins = 0, losses = 0 })
-assert(not CenterMarker(swords) and not CenterMarker(skull))
+local unknownMark = assert(FindText(compact, "?"))
+assert(unknownMark.parent.shown)
+unknownMark.parent.scripts.OnEnter(unknownMark.parent)
+assert(GameTooltip.shown and GameTooltip.title == addon.L.unknownOutcome)
+compact:SetEncounter({ skirmishID = "battle-two" })
+assert(not GameTooltip.shown and unknownMark.parent.shown)
 assert(not PortraitMarker(myRim, skull) and not PortraitMarker(opponentRim, skull))
 assert(not FindText(compact, 51) and not FindText(compact, 42) and not map.shown)
 open.scripts.OnClick()
@@ -407,9 +382,9 @@ compact:SetEncounter({ direction = "killsAgainstThem" }, { displayName = "Legacy
 assert(FindText(compact, "Legacy Rival") and loadedSelfPortrait and not open.shown)
 assert(rivalPortrait.texture == "Interface\\Icons\\INV_Misc_QuestionMark")
 assert(rivalPortrait.texcoords[1] < rivalPortrait.texcoords[2])
-assert(CenterMarker(swords))
+assert(not CenterMarker(swords) and unknownMark.parent.shown)
 compact:SetEncounter(first)
 AssertFullPortrait(rivalPortrait, true)
 compact:SetEncounter(nil)
 assert(not compact.shown)
-print("Compact skirmish factions, personal outcomes, casualties and actions checks passed")
+print("Compact skirmish factions, team outcomes, casualties and actions checks passed")

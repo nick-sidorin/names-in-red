@@ -119,16 +119,16 @@ assert(seeded["seed:battle:1"].events[1].actorID == "ally:1")
 assert(#seeded["seed:battle:2"].allies == 1 and #seeded["seed:battle:2"].enemies == 1)
 local dargunHistory = addon.RivalEncounters(addon.db, "seed:4")
 local mutual = dargunHistory[2]
-assert(mutual.skirmishID == "seed:battle:2" and mutual.wins == 1 and mutual.losses == 1)
+assert(mutual.skirmishID == "seed:battle:2" and not mutual.outcome)
 local assisted = dargunHistory[5]
-assert(assisted.skirmishID == "seed:battle:5" and assisted.wins == 1 and assisted.losses == 1)
+assert(assisted.skirmishID == "seed:battle:5" and assisted.outcome == "win" and assisted.playerDeathIndex == 1)
 assert(seeded[assisted.skirmishID].events[2].actorID == "ally:1")
 assert(#seeded["seed:battle:3"].enemies == 6 and not seeded["seed:battle:4"].rosterComplete)
 local borin = addon.RivalEncounters(addon.db, "seed:2")[1]
-assert(borin.skirmishID == "seed:battle:3" and borin.wins == 0 and borin.losses == 0)
+assert(borin.skirmishID == "seed:battle:3" and not borin.outcome)
 assert(borin.opponentDeathIndex == 2 and borin.playerDeathIndex == 3)
 local cressa = addon.RivalEncounters(addon.db, "seed:3")[1]
-assert(cressa.skirmishID == "seed:battle:3" and cressa.wins == 0 and cressa.losses == 0)
+assert(cressa.skirmishID == "seed:battle:3" and not cressa.outcome)
 assert(cressa.playerDeathIndex == 3 and not cressa.opponentDeathIndex)
 addon.Ledger.SaveSkirmish(addon.db, "existing-battle", { allies = {}, enemies = {}, events = {} })
 SlashCmdList.NAMESINREDDEBUG("clear-seed")

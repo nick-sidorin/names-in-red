@@ -4,10 +4,10 @@ A personal PvP journal for World of Warcraft: Forever. Remember who you fought,
 what happened, and where you last met.
 
 Names in Red targets Forever 1.60.1 (interface 16001). Click the crossed swords
-on the minimap to browse rivals. Information shows your personal score and the
+on the minimap to browse rivals. Information shows your skirmish stats and the
 latest skirmish. The Skirmishes tab lists that rival's recorded history, newest
-first. Compact cards show both portraits and levels. Crossed swords and skulls
-mark confirmed wins and deaths. Hover over a center icon for the personal result.
+first. Compact cards show both portraits and levels. The center icon shows the
+team result. A skull on a portrait marks a recorded death.
 Alliance is blue and Horde is red. Use the information icon on a linked card
 to see both sides, levels, classes, and the finishing blows
 in the same window. **Back** returns to the rival and the same place in their
@@ -31,26 +31,20 @@ character's rivals, skirmishes and diagnostic logs. Display preferences and
 the minimap icon position are kept. **Report an issue** shows a copyable link
 to [GitHub Issues](https://github.com/nick-sidorin/names-in-red/issues).
 
-## How the personal score works
+## How the score works
 
-- **Win.** You landed the confirmed finishing blow or contributed to this
-  opponent's death in the same skirmish.
-- **Loss.** This opponent landed the confirmed finishing blow or contributed
-  to your death in the same skirmish. Each confirmed attacker can add a loss
-  to their own profile.
-- Confirmed contributions count even if the contributor dies before the
-  finishing blow. If you wound an opponent, they kill you, and your brother
-  finishes them, you gain one win and one loss against that same opponent.
-  The timeline credits the finishing blow to your brother.
-- Each death counts once per credited rival. The score requires evidence of
-  participation in that specific kill. The history can also show battles with
-  no confirmed contribution.
+- **Skirmishes won** and **Skirmishes lost** count the result of your side.
+  A recorded result counts once in the journal and once in each opponent's
+  profile. If you die and your surviving teammate finishes the opposing
+  side, it counts as one win against every opponent in the battle.
+- A skirmish with an unknown outcome stays in the history. The score changes
+  once the outcome is known. Older records of individual killing blows and
+  deaths stay visible. Manually entered results still count.
+- **Honorable kills** and **Honor** show how much the game awarded you for
+  identifiable opponents. An award may count even when the team outcome is
+  unknown. Shared or closely spaced signals can leave a reward unattributed.
 
-The score describes your history with each rival. Honor awards and the outcome
-of an entire battle or battleground follow the game's own rules. Existing
-confirmed solo records and manually chosen results still count. Use **Add**
-to enter a full character name and choose the outcome manually.
-Deleting a rival clears their profile and personal history. Shared battles
+Deleting a rival clears their profile and its statistics. Shared battles
 remain in the journal with their recorded participants and timeline.
 
 ## Development
@@ -61,20 +55,23 @@ GitHub Actions runs the same suite. For a developer smoke test, copy the
 [Forever validation](docs/forever-validation.md) for gameplay research and the
 client test matrix. See [idea.md](idea.md) for the full scope.
 
-The scoring logic consumes normalized, chronologically ordered confirmed PvP
-deaths. Each death has one `kind = "kill"` event with a local `targetID`. Set
-`actorID` only for a confirmed finishing blow. The optional `contributors` map
-uses local participant IDs as keys. Store `true` for a confirmed contribution
-to that death. Older preview records use `false` for confirmed contributors who
-were already dead. Both values qualify. Omit entries for unconfirmed
-contributions. Mark the local player `isSelf` in the allies roster. An
-opponent's `rivalID` links the battle to their
-profile. Re-saving the same battle ID replaces its results. Record each death
-once, either in a battle or through the existing single-rival recording path.
+Each skirmish owns its roster, timeline and rewards. Store an explicit
+`outcome` of `"win"` or `"loss"` when known. Otherwise a complete roster
+allows inference if exactly one side ends fully eliminated. A
+`kind = "revive"` event restores the participant for outcome calculation.
+Mark the local player `isSelf` and identify profile links with `rivalID`.
+Store `honorableKills` and `honor` under `rewards[opponent.id]`. Re-saving
+the same skirmish ID replaces the indexed result and rewards.
 
-The preview seeds exercise these rules. Automatic recording still uses the
-existing confirmed kill and death paths. The diagnostics collect evidence for
-connecting live team fights to the new model.
+Live open-world capture groups readable player kills and local death recaps
+within the observed combat window. A current party member's finishing blow
+can add that ally to the roster. The live observer records a partial roster
+when the full fight is unavailable. Honor correlation uses one readable
+opponent death and a single increase in the session honorable kill count.
+An honor amount also requires one award message and a readable amount from
+that message or a matching honor currency update. Ambiguous broadcasts
+remain in diagnostics. Rewards are collected for new observations. The
+seeded preview exercises completed outcomes and attributed rewards.
 
 The pinned [WoW Addon Standards](docs/standards/AGENTS.md) are used for development
 and are outside the installable addon folder.

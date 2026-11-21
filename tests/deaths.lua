@@ -38,6 +38,9 @@ local function Hit(stamp, overkill)
         timestamp = stamp, overkill = overkill }
 end
 
+-- Exercise the death-recap adapter in isolation from live grouping.
+addon.RecordWorldEncounter = addon.RecordEncounter
+
 local function Setup(saved)
     addon.db = assert(addon.Ledger.Open(saved))
     assert(loadfile("NamesInRed/Deaths.lua"))("NamesInRed", addon)
@@ -130,7 +133,7 @@ assert(recent[4].encounter == legacy.encounters[1])
 local uniform = addon.RecentSkirmishes(addon.db, 100)
 assert(#uniform == 4 and not uniform[1].enemies[1].name)
 assert(uniform[2].manual and uniform[2].time == nil and not uniform[2].rosterComplete)
-assert(uniform[2].events[1].actorID == uniform[2].enemies[1].id)
+assert(#uniform[2].events == 0 and uniform[2].outcome == "loss")
 assert(#uniform[4].events == 0 and uniform[4].manual)
 addon.Ledger.Remove(addon.db, "Player-unknown")
 for timestamp = 1101, 1210 do
@@ -166,83 +169,68 @@ local earlier = {
     },
 }
 assert(addon.RecordSkirmish("earlier-team-fight", earlier) == earlier)
-local function CheckScore(id, expectedWins, expectedLosses)
-    local wins, losses = ledger.PersonalScore(addon.db, id)
+local function CheckScore(id, expectedWins, expectedLosses, expectedHK, expectedHonor)
+    local wins, losses, hk, honor = ledger.PersonalScore(addon.db, id)
     assert(wins == expectedWins and losses == expectedLosses)
+    assert(hk == (expectedHK or 0) and honor == (expectedHonor or 0))
 end
-CheckScore(orcID, 2, 1)
-CheckScore(shamanID, 0, 1)
-CheckScore(bystanderID, 1, 0)
-assert(ledger.Find(addon.db, shamanID).displayName == "Shaman Windsong")
-local personalHistory = addon.RivalEncounters(addon.db, orcID)
-assert(#personalHistory == 2 and personalHistory[2].direction == "killsAgainstThem")
-local compact = personalHistory[1]
-assert(compact.skirmishID == "earlier-team-fight" and compact.playerLevel == 51 and compact.rivalLevel == 52)
-assert(compact.player == earlier.allies[1] and compact.opponent == earlier.enemies[1])
-assert(compact.wins == 1 and compact.losses == 1 and addon.db.skirmishes[compact.skirmishID] == earlier)
-assert(addon.RivalEncounters(addon.db, bystanderID)[1].skirmishID == compact.skirmishID)
-assert(addon.RecentEncounters(addon.db, 100)[100].time > earlier.time)
 
+-- The first battle leaves an opponent alive and does not identify an outcome.
+CheckScore(orcID, 0, 0)
+CheckScore(shamanID, 0, 0)
+local compact = addon.RivalEncounters(addon.db, orcID)[1]
+assert(compact.skirmishID == "earlier-team-fight" and compact.playerLevel == 51 and compact.rivalLevel == 52)
+assert(compact.playerDeathIndex == 2 and compact.opponentDeathIndex == 1 and not compact.outcome)
+assert(addon.RivalEncounters(addon.db, bystanderID)[1].skirmishID == compact.skirmishID)
+
+earlier.events[4] = { kind = "kill", actorID = "brother", targetID = "shaman" }
+earlier.rosterComplete = true
+earlier.rewards = { orc = { honorableKills = 2, honor = 13 } }
 addon.RecordSkirmish("earlier-team-fight", earlier)
-CheckScore(orcID, 2, 1)
-local followUp = {
-    time = 1220, allies = earlier.allies, enemies = earlier.enemies,
+CheckScore(orcID, 1, 0, 2, 13)
+CheckScore(shamanID, 1, 0)
+CheckScore(bystanderID, 1, 0)
+compact = addon.RivalEncounters(addon.db, orcID)[1]
+assert(compact.outcome == "win" and compact.playerDeathIndex == 2 and compact.honor == 13)
+addon.RecordSkirmish("earlier-team-fight", earlier)
+CheckScore(orcID, 1, 0, 2, 13)
+
+local loss = {
+    rosterComplete = true, time = 1220, allies = earlier.allies, enemies = earlier.enemies,
     events = {
-        { kind = "kill", actorID = "brother", targetID = "orc" },
-        { kind = "kill", targetID = "me", contributors = { shaman = true, bystander = true } },
+        { kind = "kill", actorID = "shaman", targetID = "me" },
+        { kind = "kill", actorID = "orc", targetID = "brother" },
     },
 }
--- An ally's finishing blow alone provides no evidence of the player's contribution.
-addon.RecordSkirmish("follow-up", followUp)
-CheckScore(orcID, 2, 1)
-CheckScore(shamanID, 0, 2)
+addon.RecordSkirmish("loss", loss)
+CheckScore(orcID, 1, 1, 2, 13)
+CheckScore(shamanID, 1, 1)
 CheckScore(bystanderID, 1, 1)
-followUp.events[1].contributors = { me = true }
-addon.RecordSkirmish("follow-up", followUp)
-CheckScore(orcID, 3, 1)
-assert(#addon.RivalEncounters(addon.db, orcID) == 3)
+loss.events[3] = { kind = "revive", targetID = "brother" }
+addon.RecordSkirmish("loss", loss)
+CheckScore(orcID, 1, 0, 2, 13)
+loss.outcome = "loss"
+addon.RecordSkirmish("loss", loss)
+CheckScore(bystanderID, 1, 1)
+
+local mutual = {
+    rosterComplete = true, allies = { { id = "me", isSelf = true } }, enemies = { earlier.enemies[1] },
+    events = {
+        { kind = "kill", actorID = "me", targetID = "orc" },
+        { kind = "kill", actorID = "orc", targetID = "me" },
+    },
+}
+addon.RecordSkirmish("mutual", mutual)
+CheckScore(orcID, 1, 1, 2, 13)
 local reopened = assert(ledger.Open({ version = 1, rivals = addon.db.rivals, skirmishes = addon.db.skirmishes }))
-assert(ledger.PersonalScore(reopened, orcID) == 3)
+local wins, losses, hk, honor = ledger.PersonalScore(reopened, orcID)
+assert(wins == 1 and losses == 1 and hk == 2 and honor == 13)
 ledger.Remove(addon.db, orcID)
 ledger.Add(addon.db, orcID, "Orc Gruntsong")
 CheckScore(orcID, 0, 0)
-CheckScore(shamanID, 0, 2)
-assert(#addon.RivalEncounters(addon.db, orcID) == 0 and earlier.events[1].targetID == "orc")
-print("Personal score, incomplete evidence and shared skirmish history checks passed")
-
-local mutualID = "Player-mutual"
-local mutual = {
-    allies = { { id = "me", isSelf = true } },
-    enemies = { { id = "rival", rivalID = mutualID, name = "Mutual Rival" } },
-    events = {
-        { kind = "kill", actorID = "me", targetID = "rival", contributors = { me = true } },
-        { kind = "kill", actorID = "rival", targetID = "me", contributors = { rival = false } },
-    },
-}
-addon.RecordSkirmish("mutual-fight", mutual)
-CheckScore(mutualID, 1, 1)
-local mutualCard = addon.RivalEncounters(addon.db, mutualID)[1]
-assert(mutualCard.wins == 1 and mutualCard.losses == 1)
-assert(mutualCard.opponentDeathIndex == 1 and mutualCard.playerDeathIndex == 2)
-
-mutual.events = {
-    { kind = "kill", actorID = "rival", targetID = "me" },
-    { kind = "kill", actorID = "me", targetID = "rival", contributors = { me = false } },
-}
-addon.RecordSkirmish("mutual-fight", mutual)
-CheckScore(mutualID, 1, 1)
-assert(#addon.RivalEncounters(addon.db, mutualID) == 1)
-print("Mutual kills count once per opponent in either death order")
-
-mutual.allies[2] = { id = "brother" }
-mutual.events[2].actorID = "brother"
-addon.RecordSkirmish("mutual-fight", mutual)
-CheckScore(mutualID, 1, 1)
-local assistedCard = addon.RivalEncounters(addon.db, mutualID)[1]
-assert(assistedCard.wins == 1 and assistedCard.losses == 1)
-assert(assistedCard.playerDeathIndex == 1 and assistedCard.opponentDeathIndex == 2)
-assert(addon.db.skirmishes[assistedCard.skirmishID].events[2].actorID == "brother")
-print("A confirmed assist counts when a teammate finishes the kill after the player dies")
+CheckScore(shamanID, 1, 1)
+assert(earlier.events[1].targetID == "orc")
+print("Team outcomes, casualty markers, and independent rewards checks passed")
 
 rows, now = nil, 2000
 onEvent()

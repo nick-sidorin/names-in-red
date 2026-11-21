@@ -1,16 +1,16 @@
 local _, addon = ...
 -- Wins, losses, empty state, level label.
 local strings = {
-    enUS = { "Wins", "Losses", "No encounters recorded yet.", "Level" },
-    ruRU = { "Победы", "Поражения", "Встреч пока нет.", "Уровень" },
-    deDE = { "Siege", "Niederlagen", "Noch keine Begegnungen erfasst.", "Stufe" },
-    frFR = { "Victoires", "Défaites", "Aucune rencontre enregistrée.", "Niveau" },
-    esES = { "Victorias", "Derrotas", "Aún no hay encuentros registrados.", "Nivel" },
-    itIT = { "Vittorie", "Sconfitte", "Nessun incontro registrato.", "Livello" },
-    ptBR = { "Vitórias", "Derrotas", "Nenhum encontro registrado.", "Nível" },
-    koKR = { "승리", "패배", "기록된 전투가 없습니다.", "레벨" },
-    zhCN = { "胜利", "失败", "尚无交锋记录。", "等级" },
-    zhTW = { "勝利", "失敗", "尚無交鋒紀錄。", "等級" },
+    enUS = { "Skirmishes won", "Skirmishes lost", "No encounters recorded yet.", "Level" },
+    ruRU = { "Выиграно стычек", "Проиграно стычек", "Встреч пока нет.", "Уровень" },
+    deDE = { "Gefechte gewonnen", "Gefechte verloren", "Noch keine Begegnungen erfasst.", "Stufe" },
+    frFR = { "Escarmouches gagnées", "Escarmouches perdues", "Aucune rencontre enregistrée.", "Niveau" },
+    esES = { "Escaramuzas ganadas", "Escaramuzas perdidas", "Aún no hay encuentros registrados.", "Nivel" },
+    itIT = { "Schermaglie vinte", "Schermaglie perse", "Nessun incontro registrato.", "Livello" },
+    ptBR = { "Escaramuças vencidas", "Escaramuças perdidas", "Nenhum encontro registrado.", "Nível" },
+    koKR = { "교전 승리", "교전 패배", "기록된 전투가 없습니다.", "레벨" },
+    zhCN = { "交锋胜场", "交锋负场", "尚无交锋记录。", "等级" },
+    zhTW = { "交鋒勝場", "交鋒敗場", "尚無交鋒紀錄。", "等級" },
 }
 strings.enGB = strings.enUS
 strings.esMX = strings.esES
@@ -20,16 +20,16 @@ addon.L = { wins = text[1], losses = text[2], empty = text[3], level = text[4] }
 
 -- Add button, dialog title, name label, win choice, loss choice, manual marker.
 local manualStrings = {
-    enUS = { "Add", "Add an encounter", "Full character name", "I killed them", "They killed me", "Added manually" },
-    ruRU = { "Добавить", "Добавить стычку", "Полное имя персонажа", "Мой фраг", "Фраг противника", "Добавлено вручную" },
-    deDE = { "Hinzufügen", "Begegnung hinzufügen", "Vollständiger Charaktername", "Ich habe gewonnen", "Ich wurde getötet", "Manuell hinzugefügt" },
-    frFR = { "Ajouter", "Ajouter une rencontre", "Nom complet du personnage", "J’ai tué ce rival", "Ce rival m’a tué", "Ajouté manuellement" },
-    esES = { "Añadir", "Añadir un encuentro", "Nombre completo del personaje", "Derroté al rival", "El rival me derrotó", "Añadido manualmente" },
-    itIT = { "Aggiungi", "Aggiungi un incontro", "Nome completo del personaggio", "Ho ucciso il rivale", "Il rivale mi ha ucciso", "Aggiunto manualmente" },
-    ptBR = { "Adicionar", "Adicionar um encontro", "Nome completo do personagem", "Matei o rival", "O rival me matou", "Adicionado manualmente" },
-    koKR = { "추가", "전투 추가", "캐릭터 전체 이름", "내가 처치함", "상대에게 죽음", "수동으로 추가됨" },
-    zhCN = { "添加", "添加交锋", "角色全名", "我击杀了对手", "对手击杀了我", "手动添加" },
-    zhTW = { "新增", "新增交鋒", "角色全名", "我擊殺了對手", "對手擊殺了我", "手動新增" },
+    enUS = { "Add", "Add an encounter", "Full character name", "We won", "We lost", "Added manually" },
+    ruRU = { "Добавить", "Добавить стычку", "Полное имя персонажа", "Мы победили", "Мы проиграли", "Добавлено вручную" },
+    deDE = { "Hinzufügen", "Begegnung hinzufügen", "Vollständiger Charaktername", "Wir haben gewonnen", "Wir haben verloren", "Manuell hinzugefügt" },
+    frFR = { "Ajouter", "Ajouter une rencontre", "Nom complet du personnage", "Nous avons gagné", "Nous avons perdu", "Ajouté manuellement" },
+    esES = { "Añadir", "Añadir un encuentro", "Nombre completo del personaje", "Ganamos", "Perdimos", "Añadido manualmente" },
+    itIT = { "Aggiungi", "Aggiungi un incontro", "Nome completo del personaggio", "Abbiamo vinto", "Abbiamo perso", "Aggiunto manualmente" },
+    ptBR = { "Adicionar", "Adicionar um encontro", "Nome completo do personagem", "Vencemos", "Perdemos", "Adicionado manualmente" },
+    koKR = { "추가", "전투 추가", "캐릭터 전체 이름", "아군 승리", "아군 패배", "수동으로 추가됨" },
+    zhCN = { "添加", "添加交锋", "角色全名", "我方获胜", "我方落败", "手动添加" },
+    zhTW = { "新增", "新增交鋒", "角色全名", "我方獲勝", "我方落敗", "手動新增" },
 }
 manualStrings.enGB = manualStrings.enUS
 manualStrings.esMX = manualStrings.esES
@@ -55,37 +55,39 @@ local search = searchStrings[GetLocale()] or searchStrings.enUS
 addon.L.noMatches, addon.L.deleteConfirm = search[1], search[2]
 
 local scoreStrings = {
-    enUS = { "Personal score", "My victory", "My defeat", "Open skirmish" },
-    ruRU = { "Личный счёт", "Моя победа", "Моё поражение", "Открыть стычку" },
-    deDE = { "Persönliche Bilanz", "Mein Sieg", "Meine Niederlage", "Gefecht öffnen" },
-    frFR = { "Bilan personnel", "Ma victoire", "Ma défaite", "Voir l’escarmouche" },
-    esES = { "Balance personal", "Mi victoria", "Mi derrota", "Ver escaramuza" },
-    itIT = { "Bilancio personale", "La mia vittoria", "La mia sconfitta", "Vedi schermaglia" },
-    ptBR = { "Placar pessoal", "Minha vitória", "Minha derrota", "Ver escaramuça" },
-    koKR = { "개인 전적", "나의 승리", "나의 패배", "교전 보기" },
-    zhCN = { "个人战绩", "我的胜利", "我的失败", "查看交锋" },
-    zhTW = { "個人戰績", "我的勝利", "我的失敗", "查看交鋒" },
+    enUS = { "Skirmish stats", "Our team won", "Our team lost", "Open skirmish", "Honorable kills", "Honor", "Skirmish outcome unknown" },
+    ruRU = { "Статистика встреч", "Наша команда победила", "Наша команда проиграла", "Открыть стычку", "Почётные победы", "Честь", "Исход стычки неизвестен" },
+    deDE = { "Gefechtsstatistik", "Unser Team hat gewonnen", "Unser Team hat verloren", "Gefecht öffnen", "Ehrenhafte Siege", "Ehre", "Gefechtsausgang unbekannt" },
+    frFR = { "Bilan des escarmouches", "Notre équipe a gagné", "Notre équipe a perdu", "Voir l’escarmouche", "Victoires honorables", "Honneur", "Issue de l’escarmouche inconnue" },
+    esES = { "Estadísticas de escaramuza", "Nuestro equipo ganó", "Nuestro equipo perdió", "Ver escaramuza", "Muertes con honor", "Honor", "Resultado de la escaramuza desconocido" },
+    itIT = { "Statistiche schermaglie", "La nostra squadra ha vinto", "La nostra squadra ha perso", "Vedi schermaglia", "Uccisioni onorevoli", "Onore", "Esito della schermaglia sconosciuto" },
+    ptBR = { "Estatísticas de escaramuças", "Nossa equipe venceu", "Nossa equipe perdeu", "Ver escaramuça", "Abates honrosos", "Honra", "Resultado da escaramuça desconhecido" },
+    koKR = { "교전 통계", "아군이 승리했습니다", "아군이 패배했습니다", "교전 보기", "명예 승수", "명예", "교전 결과 미확인" },
+    zhCN = { "交锋统计", "我方获胜", "我方落败", "查看交锋", "荣誉击杀", "荣誉", "交锋结果未知" },
+    zhTW = { "交鋒統計", "我方獲勝", "我方落敗", "查看交鋒", "榮譽擊殺", "榮譽", "交鋒結果未知" },
 }
 scoreStrings.enGB = scoreStrings.enUS
 scoreStrings.esMX = scoreStrings.esES
 addon.L.personalScore, addon.L.winTooltip, addon.L.lossTooltip, addon.L.openSkirmish =
-    unpack(scoreStrings[GetLocale()] or scoreStrings.enUS)
+    unpack(scoreStrings[GetLocale()] or scoreStrings.enUS, 1, 4)
+addon.L.honorableKills, addon.L.honor, addon.L.unknownOutcome =
+    unpack(scoreStrings[GetLocale()] or scoreStrings.enUS, 5)
 
 local portraitOutcomeStrings = {
-    enUS = { "Killed an opponent", "Died" },
-    ruRU = { "Убил противника", "Погиб" },
-    deDE = { "Gegner getötet", "Gestorben" },
-    frFR = { "A tué un adversaire", "Est mort" },
-    esES = { "Mató a un oponente", "Murió" },
-    itIT = { "Ha ucciso un avversario", "È morto" },
-    ptBR = { "Matou um oponente", "Morreu" },
-    koKR = { "상대 처치", "사망" },
-    zhCN = { "击杀对手", "死亡" },
-    zhTW = { "擊殺對手", "死亡" },
+    enUS = "Died",
+    ruRU = "Погиб",
+    deDE = "Gestorben",
+    frFR = "Est mort",
+    esES = "Murió",
+    itIT = "È morto",
+    ptBR = "Morreu",
+    koKR = "사망",
+    zhCN = "死亡",
+    zhTW = "死亡",
 }
 portraitOutcomeStrings.enGB = portraitOutcomeStrings.enUS
 portraitOutcomeStrings.esMX = portraitOutcomeStrings.esES
-addon.L.portraitKill, addon.L.portraitDeath = unpack(portraitOutcomeStrings[GetLocale()] or portraitOutcomeStrings.enUS)
+addon.L.portraitDeath = portraitOutcomeStrings[GetLocale()] or portraitOutcomeStrings.enUS
 
 -- Info tab, history tab, last encounter, map action, unknown location, levels, map error, empty history.
 local encounterStrings = {

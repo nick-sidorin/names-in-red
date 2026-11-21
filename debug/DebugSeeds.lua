@@ -43,13 +43,13 @@ local squad = {
 }
 local opposing = { 4, 7, 2, 8, 3, 6 }
 
-local function SeedBattle(index, now, zoneNames, allyCount, enemyCount, complete, blows)
+local function SeedBattle(index, now, zoneNames, allyCount, enemyCount, complete, blows, rewards)
     local zone = (index - 1) % #zones + 1
     local battle = {
         time = now - index * 290,
         startedAt = now - index * 290 - 95,
         zone = zoneNames[zone], mapID = zones[zone][1], x = 0.42 + index * 0.03, y = 0.51,
-        rosterComplete = complete, allies = {}, enemies = {}, events = {},
+        rosterComplete = complete, allies = {}, enemies = {}, events = {}, rewards = rewards,
     }
     for i = 1, allyCount do
         local player = {}
@@ -127,6 +127,10 @@ function addon.AddDebugSeeds(now)
     SeedBattle(1, now, zoneNames, 2, 2, true, {
         { "ally:1", "seed:7", { me = true, ["ally:1"] = true } },
         { "seed:4", "me", { ["seed:4"] = true, ["seed:7"] = false } },
+        { "ally:1", "seed:4" },
+    }, {
+        ["seed:7"] = { honorableKills = 1, honor = 7 },
+        ["seed:4"] = { honorableKills = 1, honor = 6 },
     })
     SeedBattle(2, now, zoneNames, 1, 1, true, {
         { "me", "seed:4", { me = true } },
@@ -140,6 +144,9 @@ function addon.AddDebugSeeds(now)
     SeedBattle(5, now, zoneNames, 2, 1, true, {
         { "seed:4", "me" },
         { "ally:1", "seed:4", { me = false } },
+    })
+    SeedBattle(6, now, zoneNames, 2, 1, true, {
+        { "seed:4", "me" }, { "seed:4", "ally:1" },
     })
     return #names
 end

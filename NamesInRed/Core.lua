@@ -16,6 +16,8 @@ end
 function addon.ResetData()
     if not addon.db then return end
     if addon.CancelPendingDeath then addon.CancelPendingDeath() end
+    if addon.ResetWorldTracking then addon.ResetWorldTracking() end
+    if addon.ResetHonorTracking then addon.ResetHonorTracking() end
     addon.Ledger.Clear(addon.db)
     if addon.ClearDiagnostics then addon.ClearDiagnostics() end
     if addon.RefreshBook then addon.RefreshBook(true) end

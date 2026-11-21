@@ -72,11 +72,46 @@ function Ledger.RemoveSkirmish(db, id)
     end
 end
 
-local function ContributedToDeath(id, finisherID, contributors)
-    -- Both boolean values confirm a contribution in saved records.
-    return id == finisherID or (contributors and type(contributors[id]) == "boolean")
+function Ledger.EncounterOutcome(encounter)
+    if encounter.outcome == "win" or encounter.outcome == "loss" then return encounter.outcome end
+    if encounter.manual then
+        if encounter.direction == "killsAgainstThem" then return "win" end
+        if encounter.direction == "deathsToThem" then return "loss" end
+    end
 end
 
+local function Deaths(battle)
+    local dead = {}
+    for index, event in ipairs(battle.events) do
+        if event.kind == "kill" and event.targetID then
+            dead[event.targetID] = dead[event.targetID] or index
+        elseif event.kind == "revive" and event.targetID then
+            dead[event.targetID] = nil
+        end
+    end
+    return dead
+end
+
+local function SideEliminated(side, dead)
+    for _, participant in ipairs(side) do
+        if not dead[participant.id] then return false end
+    end
+    return #side > 0
+end
+
+local function SkirmishOutcome(battle, dead)
+    local outcome = Ledger.EncounterOutcome(battle)
+    if outcome then return outcome end
+    if battle.rosterComplete ~= true or #battle.allies == 0 or #battle.enemies == 0 then return end
+    local alliesEliminated = SideEliminated(battle.allies, dead)
+    local enemiesEliminated = SideEliminated(battle.enemies, dead)
+    if alliesEliminated ~= enemiesEliminated then
+        return enemiesEliminated and "win" or "loss"
+    end
+end
+
+-- Use deaths across the whole battle for the portrait markers, including
+-- players who were later resurrected. The outcome uses the final known state.
 local function IndexSkirmish(index, id, battle)
     local player
     for _, ally in ipairs(battle.allies) do
@@ -85,49 +120,39 @@ local function IndexSkirmish(index, id, battle)
             break
         end
     end
-    local opponents = {}
+    local outcome = player and SkirmishOutcome(battle, Deaths(battle))
+    local firstDeath = {}
+    for index, event in ipairs(battle.events) do
+        if event.kind == "kill" and event.targetID then
+            firstDeath[event.targetID] = firstDeath[event.targetID] or index
+        end
+    end
+    local counted = {}
     for _, opponent in ipairs(battle.enemies) do
-        if opponent.id and opponent.rivalID then
-            local rival = index[opponent.rivalID]
+        local rivalID = opponent.rivalID
+        if rivalID and opponent.id and not counted[rivalID] then
+            counted[rivalID] = true
+            local rival = index[rivalID]
             if not rival then
-                rival = { wins = 0, losses = 0, encounters = {} }
-                index[opponent.rivalID] = rival
+                rival = { wins = 0, losses = 0, honorableKills = 0, honor = 0, encounters = {} }
+                index[rivalID] = rival
             end
+            local reward = battle.rewards and battle.rewards[opponent.id]
+            local honorableKills, honor = reward and reward.honorableKills or 0, reward and reward.honor or 0
             local summary = {
                 skirmishID = id, time = battle.time or battle.startedAt, sequence = battle.sequence,
                 zone = battle.zone, mapID = battle.mapID, x = battle.x, y = battle.y,
                 playerLevel = player and player.level, rivalLevel = opponent.level,
-                player = player, opponent = opponent,
-                wins = 0, losses = 0,
+                player = player, opponent = opponent, outcome = outcome,
+                playerDeathIndex = player and firstDeath[player.id], opponentDeathIndex = firstDeath[opponent.id],
+                honorableKills = honorableKills, honor = honor,
             }
-            opponents[opponent.id] = { index = rival, summary = summary }
+            if outcome == "win" then rival.wins = rival.wins + 1 end
+            if outcome == "loss" then rival.losses = rival.losses + 1 end
+            rival.honorableKills = rival.honorableKills + honorableKills
+            rival.honor = rival.honor + honor
             rival.encounters[#rival.encounters + 1] = summary
         end
-    end
-    local playerDeathIndex
-    for index, event in ipairs(battle.events) do
-        if event.kind == "kill" then
-            local target = opponents[event.targetID]
-            local contributors = type(event.contributors) == "table" and event.contributors
-            if target then
-                target.summary.opponentDeathIndex = target.summary.opponentDeathIndex or index
-                if player and ContributedToDeath(player.id, event.actorID, contributors) then
-                    target.index.wins = target.index.wins + 1
-                    target.summary.wins = target.summary.wins + 1
-                end
-            elseif player and event.targetID == player.id then
-                playerDeathIndex = playerDeathIndex or index
-                for opponentID, opponent in pairs(opponents) do
-                    if ContributedToDeath(opponentID, event.actorID, contributors) then
-                        opponent.index.losses = opponent.index.losses + 1
-                        opponent.summary.losses = opponent.summary.losses + 1
-                    end
-                end
-            end
-        end
-    end
-    if playerDeathIndex then
-        for _, opponent in pairs(opponents) do opponent.summary.playerDeathIndex = playerDeathIndex end
     end
 end
 
@@ -146,8 +171,13 @@ end
 function Ledger.PersonalScore(db, id)
     local rival = db.rivals[id]
     local battles = RivalSkirmishIndex(db, id)
-    return (rival and rival.killsAgainstThem or 0) + (battles and battles.wins or 0),
-        (rival and rival.deathsToThem or 0) + (battles and battles.losses or 0)
+    local wins, losses = battles and battles.wins or 0, battles and battles.losses or 0
+    for _, encounter in ipairs(rival and rival.encounters or {}) do
+        local outcome = Ledger.EncounterOutcome(encounter)
+        if outcome == "win" then wins = wins + 1 end
+        if outcome == "loss" then losses = losses + 1 end
+    end
+    return wins, losses, battles and battles.honorableKills or 0, battles and battles.honor or 0
 end
 
 function Ledger.RivalSkirmishes(db, id)

@@ -70,7 +70,7 @@ local function Record(death)
     death.context.rivalLevel = observed and observed.level
     death.context.attackers = attackers
     addon.db.lastDeathTimestamp = stamp
-    addon.RecordEncounter(guid, observed and observed.fullName or name, "deathsToThem", death.context)
+    addon.RecordWorldEncounter(guid, observed and observed.fullName or name, "deathsToThem", death.context)
     return true
 end
 

@@ -6,6 +6,7 @@ local victoryGlyph = ("|T%s:14:14:0:1:128:128:%d:%d:%d:%d|t"):format(
 local deathGlyph = "|T" .. addon.smallSkullIconPath .. ":14:14:0:1|t"
 local window, names, details, heading, portrait, summary, wins, losses, status, selected, empty
 local search, levelBadge, tabBar, latestCard, latestEmpty, historyEmpty
+local honorableKills, honor
 local deletePopup = "NAMES_IN_RED_DELETE_RIVAL"
 local lower = strlower or string.lower
 local buttons, sideTabs = {}, {}
@@ -103,11 +104,18 @@ local function Stat(parent, y, texture, tooltipText)
     slot:SetScript("OnLeave", HideTooltip)
     slot:SetScript("OnHide", HideTooltip)
 
-    local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     label:SetPoint("LEFT", holder, "RIGHT", 10, 0)
-    label:SetWidth(cardWidth - holder:GetWidth() - 10)
+    label:SetWidth(cardWidth / 2 - holder:GetWidth() - 14)
     label:SetJustifyH("LEFT")
-    label:SetWordWrap(false)
+    return label
+end
+
+local function RewardStat(parent, y)
+    local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    label:SetPoint("LEFT", parent, "TOPLEFT", profileInset + cardWidth / 2 + 6, y)
+    label:SetWidth(cardWidth / 2 - 6)
+    label:SetJustifyH("LEFT")
     return label
 end
 
@@ -173,9 +181,11 @@ local function ShowDetails()
             profile = profile ~= "" and profile .. "\n" .. L.manual or L.manual
         end
         status:SetText(profile)
-        local winCount, lossCount = addon.Ledger.PersonalScore(addon.db, selected)
+        local winCount, lossCount, honorableKillCount, honorTotal = addon.Ledger.PersonalScore(addon.db, selected)
         wins:SetText(("%s: %d"):format(L.wins, winCount))
         losses:SetText(("%s: %d"):format(L.losses, lossCount))
+        honorableKills:SetText(("%s: %d"):format(L.honorableKills, honorableKillCount))
+        honor:SetText(("%s: %d"):format(L.honor, honorTotal))
         addon.SetRivalPortrait(portrait, rival, selected)
         latestCard:SetEncounter(history[1], rival, selected)
         latestEmpty:SetShown(history[1] == nil)
@@ -562,6 +572,8 @@ local function ToggleBook()
         end
         wins = Stat(summary, -112, addon.swordsIconPath, L.winTooltip)
         losses = Stat(summary, -162, addon.skullIconPath, L.lossTooltip)
+        honorableKills = RewardStat(summary, -131)
+        honor = RewardStat(summary, -181)
         local latestHeading = summary:CreateFontString(nil, "OVERLAY", sectionFont)
         latestHeading:SetPoint("TOPLEFT", profileInset, -215)
         latestHeading:SetText(L.latestEncounter)

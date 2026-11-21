@@ -67,7 +67,7 @@ published evidence.
 | One opposing player kills the local player in world PvP and in a battleground | Fresh recap associates a unique lethal row with the actual attacker |
 | Several attackers, NPC or fall as finisher, pet or guardian, exact-lethal damage | No attribution to a recent attacker or guessed owner |
 | Rapid deaths, release, resurrection and reload while dead | Old recap cannot count again or be applied to the next death |
-| Solo and party kills, group member kill, pet kill, unrelated nearby death, Feign Death | Check `PARTY_KILL` delivery and accessibility. Only a readable direct personal blow can qualify by default |
+| Solo and party kills, group member kill, pet kill, unrelated nearby death, Feign Death | Check `PARTY_KILL` delivery and accessibility for the local player and readable group members |
 | Simultaneous deaths in an active battleground and final scoreboard | Compare totals and verify that a matching delta does not qualify as an individual kill |
 | Target, mouseover and nameplate in/out of combat and across plate reuse | Match only the currently exposed unit; restricted or stale identity clears decorations |
 | Cold login, reload, switch characters, logout and relog | Verify SavedVariables loading, persistence and isolation |
@@ -177,15 +177,29 @@ The test suite exercises card reuse across different roster sizes and verifies
 that fixture removal preserves other saved records. Card rendering still
 needs a Forever client check.
 
-The reciprocal-kill fixture in the 1 × 1 fight against Dargun credits both
-confirmed finishing blows, including one whose author was already dead. The
-personal score and card should show one win and one loss. Verify the game's
-honor awards separately with both characters' logs from a real fight.
+The reciprocal-kill fixture against Dargun ends with both sides dead and
+has an unknown result. The Feralas 2 × 1 fixture records a team win after
+the local player dies and an ally lands the final blow. In a complete
+multi-opponent win, each opposing profile receives one win. Test one
+confirmed loss and the incomplete Tanaris fixture as well.
 
-The 2 × 1 fixture in Feralas credits a confirmed assist after the local
-player dies. The opponent kills the local player and an ally lands the
-finishing blow. That encounter adds one win and one loss to the profile.
-The full timeline credits the second finishing blow to the ally.
+The live observer uses `PARTY_KILL` and local death recap rows to assemble
+a partial open-world record. Killing-blow identity can come from the player
+or a readable party member. A short tail after leaving combat lets a nearby
+teammate's finishing blow join the same record. A long gap after combat, a
+world change or resurrection starts a fresh observation. Check missing targets, ghost state
+and the timing of kills your group makes after you die.
+
+The user's 70959 group log showed a session HK increase from four to five
+317 ms after a readable player death credited to another attacker, followed
+roughly one second after the kill by a localized honor message. The preview
+correlates a single plausible player death with one session HK increment, using
+`GetPVPSessionStats` and `PLAYER_PVP_KILLS_CHANGED`. Repeated notifications
+are coalesced by the cumulative counter. For honor, it uses a single
+`CHAT_MSG_COMBAT_HONOR_GAIN` delivery and the observed ruRU amount or a
+numeric `CURRENCY_DISPLAY_UPDATE` for an honor currency. These events still
+lack a shared victim identifier. Verify an isolated kill, simultaneous kills,
+reward-only messages and secret data in the live client.
 
 From preview.6 onward, a rival's linked cards open a full-width battle in
 the same book. This follows the in-window detail transition in
@@ -327,17 +341,13 @@ tooltips and click handling supplied by `UIButtonMixin`. Its icons come from
 32 units square with 16-unit icons. Center the icon at rest and restore that
 center after `SquareIconButtonMixin:OnMouseUp`. The
 header uses the square template's scaled four-unit inset to match the date-to-map
-and map-to-information gaps. Both portraits use the profile's 64-unit ring and
-24-unit level badge. The markers share the nameplate artwork. The skull frames
-are slightly larger to match the visible area of the cropped swords. A single
-portrait marker uses the upper-right of the local player and upper-left of the
-opponent. When both are shown, the skull uses the other upper corner. Hover
-each portrait marker for its own tooltip, then switch cards to check cleanup.
-When both central outcomes appear, swords sit up and left and the skull sits
-down and right. The separator pairs two textures with `SetGradient`, as used by
-`NamePlateBorderTemplateMixin:SetUnderlineColor` in `Blizzard_NamePlates.lua`,
-and `SetVertexOffset`, as used for diagonal line geometry in
-`Blizzard_ArtifactPerks.lua`. Check the faded tips and the spacing in Forever.
+and map-to-information gaps. The compact action icons use a half-unit upward
+adjustment, including after the native mouse-up handler. The full history
+map button keeps the unshifted native center. Verify both at the same UI scale.
+Both portraits use the profile's 64-unit ring and 24-unit level badge. The
+center uses one team-result marker. Portrait skulls indicate recorded deaths
+regardless of the result. Hover the markers and rebind the card to check
+tooltip cleanup.
 A local portrait with no saved race portrait uses `SetPortraitTexture`, as in Camelot's
 `CharacterFrameMixin:UpdateCharacterModeTabPortrait`. Race portraits use the
 `resetTexCoords` argument to `SetAtlas`. The compact rival portrait flips its
@@ -345,13 +355,13 @@ full atlas region horizontally with `SetTexCoord(1, 0, 0, 1)`, following
 `Blizzard_OrderHallUI/Blizzard_OrderHallTalents.lua` where the same talent atlas
 is drawn facing either way. Check the full crop in the profile and the compact
 card, and click the same rival repeatedly to verify the direction.
-Check that the personal score labels start at the same left edge when their
+Check that the skirmish score and reward columns have stable left edges and that the labels start at the same left edge when their
 counts change from one to multiple digits.
 `PVPMatchStyle.GetLocalPlayerFactionTheme` uses the first return from
 `UnitFactionGroup("player")`. The skirmish cards use the same faction tag to
 order the existing blue and red palette. Check both factions in the full and
 compact cards. Include a win, a loss and the Borin fixture, where the timeline
-records two deaths without personal credit. Verify that a card rebind clears
+records two deaths with an unknown team outcome. Verify that a card rebind clears
 stale tooltips and that the map action remains available on mapped legacy cards.
 
 For the map diamond, see `WaypointLocationDataProviderMixin:HandleClick` and

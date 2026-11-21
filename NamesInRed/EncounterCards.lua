@@ -142,13 +142,17 @@ end
 local finishingBlowFirstRow = 26
 local finishingBlowStep = 19
 
-local function FinishingBlowsHeight(battle)
-    return #battle.events > 0 and finishingBlowFirstRow + finishingBlowStep * #battle.events or 0
+local function FinishingBlowsHeight(count)
+    return count > 0 and finishingBlowFirstRow + finishingBlowStep * count or 0
 end
 
 function addon.SkirmishCardHeight(battle)
     local rosterHeight = 29 * math.max(#battle.allies, #battle.enemies, 1)
-    return 80 + rosterHeight + FinishingBlowsHeight(battle)
+    local count = 0
+    for _, event in ipairs(battle.events) do
+        if event.kind == "kill" then count = count + 1 end
+    end
+    return 80 + rosterHeight + FinishingBlowsHeight(count)
 end
 
 local function Divider(card, top)
@@ -165,15 +169,16 @@ local compactActionInset = 4
 local compactHeaderGap = 6
 local compactActionStep = compactActionSize - 2 * compactActionInset + compactHeaderGap
 local compactActionRight = 11
+local compactIconY = 0.5
 
-local function CardActionButton(card)
+local function CardActionButton(card, iconY)
     local button = CreateFrame("Button", nil, card, "CommonSquareIconButtonTemplate")
     button:SetSize(compactActionSize, compactActionSize)
     button:SetHitRectInsets(compactActionInset, compactActionInset, compactActionInset, compactActionInset)
     button:RegisterForClicks("LeftButtonUp")
     button.Icon:SetSize(16, 16)
     local function CenterIcon(self)
-        self.Icon:SetPoint("CENTER", self, "CENTER", 0, 0)
+        self.Icon:SetPoint("CENTER", self, "CENTER", 0, iconY or 0)
     end
     CenterIcon(button)
     button:HookScript("OnMouseUp", CenterIcon)
@@ -182,8 +187,8 @@ local function CardActionButton(card)
     return button
 end
 
-local function MapAction(card, onClick)
-    local map = CardActionButton(card)
+local function MapAction(card, onClick, iconY)
+    local map = CardActionButton(card, iconY)
     map:SetAtlas("Waypoint-MapPin-Untracked")
     map:SetTooltipInfo(L.showOnMap)
     map:SetOnClickHandler(onClick)
@@ -197,13 +202,19 @@ end
 local function OutcomeMarker(parent, size, victory, tooltipText)
     local marker = CreateFrame("Frame", nil, parent)
     marker:SetSize(size, size)
-    local icon = marker:CreateTexture(nil, "OVERLAY", nil, 1)
-    icon:SetSize(size, size)
-    icon:SetPoint("CENTER")
-    icon:SetTexture(victory and addon.swordsIconPath or addon.smallSkullIconPath)
-    if victory then
-        local inset = addon.smallSwordsInset / 128
-        icon:SetTexCoord(inset, 1 - inset, inset, 1 - inset)
+    if victory == nil then
+        local mark = marker:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        mark:SetPoint("CENTER")
+        mark:SetText("?")
+    else
+        local icon = marker:CreateTexture(nil, "OVERLAY", nil, 1)
+        icon:SetSize(size, size)
+        icon:SetPoint("CENTER")
+        icon:SetTexture(victory and addon.swordsIconPath or addon.smallSkullIconPath)
+        if victory then
+            local inset = addon.smallSwordsInset / 128
+            icon:SetTexCoord(inset, 1 - inset, inset, 1 - inset)
+        end
     end
     marker:SetMouseMotionEnabled(true)
     marker:SetScript("OnEnter", function(self)
@@ -226,42 +237,13 @@ local function CompactParticipant(card, x, size, nameWidth, markerCorner)
     name:SetWidth(nameWidth)
     name:SetJustifyH("CENTER")
     name:SetWordWrap(false)
-    local oppositeCorner = markerCorner == "TOPRIGHT" and "TOPLEFT" or "TOPRIGHT"
     local cornerX = markerCorner == "TOPRIGHT" and -10 or 10
-    local victory = OutcomeMarker(card, 14, true, L.portraitKill)
-    victory:SetPoint("CENTER", rim, markerCorner, cornerX, -10)
     local death = OutcomeMarker(card, 16, false, L.portraitDeath)
-    local function SetMarkers(won, died)
-        death:SetPoint("CENTER", rim, won and oppositeCorner or markerCorner, won and -cornerX or cornerX, -10)
-        victory:SetShown(won)
-        death:SetShown(died)
-    end
-    return { portrait = portrait, level = level, name = name, victory = victory, death = death, SetMarkers = SetMarkers }
+    death:SetPoint("CENTER", rim, markerCorner, cornerX, -10)
+    return { portrait = portrait, level = level, name = name, death = death }
 end
 
 local compactOutcomeY = -79
-
-local function OutcomeSeparator(card)
-    local separator = CreateFrame("Frame", nil, card)
-    separator:SetSize(20, 32)
-    separator:SetPoint("CENTER", card, "TOP", 0, compactOutcomeY)
-    local clear = CreateColor(0.71, 0.54, 0.33, 0)
-    local bronze = CreateColor(0.71, 0.54, 0.33, 0.8)
-    local function FadeHalf(point, x, bottomColor, topColor)
-        local half = separator:CreateTexture(nil, "ARTWORK")
-        half:SetSize(1.75, 16)
-        half:SetPoint(point, separator, "CENTER", x, 0)
-        half:SetColorTexture(1, 1, 1)
-        half:SetGradient("VERTICAL", bottomColor, topColor)
-        half:SetVertexOffset(UPPER_LEFT_VERTEX, 5, 0)
-        half:SetVertexOffset(UPPER_RIGHT_VERTEX, 5, 0)
-        half:SetVertexOffset(LOWER_LEFT_VERTEX, -5, 0)
-        half:SetVertexOffset(LOWER_RIGHT_VERTEX, -5, 0)
-    end
-    FadeHalf("BOTTOM", 5, bronze, clear)
-    FadeHalf("TOP", -5, clear, bronze)
-    return separator
-end
 
 function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmish)
     local card = CreateCard(parent, width, addon.compactEncounterCardHeight)
@@ -276,14 +258,17 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
     local portraitSize = 64
     local mine = CompactParticipant(card, width / 4, portraitSize, width / 2 - 18, "TOPRIGHT")
     local theirs = CompactParticipant(card, 3 * width / 4, portraitSize, width / 2 - 18, "TOPLEFT")
-    local separator = OutcomeSeparator(card)
     local victory = OutcomeMarker(card, 24, true, L.winTooltip)
     local defeat = OutcomeMarker(card, 27, false, L.lossTooltip)
+    local unknown = OutcomeMarker(card, 24, nil, L.unknownOutcome)
+    victory:SetPoint("CENTER", card, "TOP", 0, compactOutcomeY)
+    defeat:SetPoint("CENTER", card, "TOP", 0, compactOutcomeY)
+    unknown:SetPoint("CENTER", card, "TOP", 0, compactOutcomeY)
 
     local map = MapAction(card, function()
         if card.encounter then ActivateWaypoint(card.encounter, onMapShown) end
-    end)
-    local info = CardActionButton(card)
+    end, compactIconY)
+    local info = CardActionButton(card, compactIconY)
     info:SetPoint("TOPRIGHT", -compactActionRight, -5)
     info:SetIcon("Interface\\FriendsFrame\\InformationIcon")
     info:SetOnEnterHandler(function(self)
@@ -309,9 +294,8 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
             HideTooltip(info)
             HideTooltip(victory)
             HideTooltip(defeat)
-            HideTooltip(mine.victory)
+            HideTooltip(unknown)
             HideTooltip(mine.death)
-            HideTooltip(theirs.victory)
             HideTooltip(theirs.death)
         end
         self.encounter = encounter
@@ -341,16 +325,14 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         mine.level:SetLevel(encounter.playerLevel)
         theirs.level:SetLevel(encounter.rivalLevel)
 
-        local won = encounter.direction == "killsAgainstThem" or (encounter.wins or 0) > 0
-        local lost = encounter.direction == "deathsToThem" or (encounter.losses or 0) > 0
-        local both = won and lost
-        victory:SetPoint("CENTER", card, "TOP", both and -16 or 0, compactOutcomeY + (both and 9 or 0))
-        defeat:SetPoint("CENTER", card, "TOP", both and 16 or 0, compactOutcomeY - (both and 9 or 0))
-        separator:SetShown(both)
-        victory:SetShown(won)
-        defeat:SetShown(lost)
-        mine.SetMarkers(won, lost or encounter.playerDeathIndex ~= nil)
-        theirs.SetMarkers(lost, won or encounter.opponentDeathIndex ~= nil)
+        local outcome = addon.Ledger.EncounterOutcome(encounter)
+        victory:SetShown(outcome == "win")
+        defeat:SetShown(outcome == "loss")
+        unknown:SetShown(outcome == nil)
+        mine.death:SetShown(encounter.playerDeathIndex ~= nil
+            or (not encounter.manual and encounter.direction == "deathsToThem"))
+        theirs.death:SetShown(encounter.opponentDeathIndex ~= nil
+            or (not encounter.manual and encounter.direction == "killsAgainstThem"))
 
         local hasWaypoint = WaypointMap(encounter) ~= nil
         local hasInfo = encounter.skirmishID ~= nil or type(encounter.attackers) == "table" and #encounter.attackers > 0
@@ -496,12 +478,16 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
         for _, player in ipairs(battle.allies) do players[player.id], colors[player.id] = player, allyColor end
         for _, player in ipairs(battle.enemies) do players[player.id], colors[player.id] = player, enemyColor end
 
+        local blows = {}
+        for _, event in ipairs(battle.events) do
+            if event.kind == "kill" then blows[#blows + 1] = event end
+        end
         events:ClearAllPoints()
         events:SetPoint("TOPLEFT", 0, -66 - 29 * math.max(#battle.allies, #battle.enemies, 1))
-        events:SetHeight(math.max(1, FinishingBlowsHeight(battle)))
-        events:SetShown(#battle.events > 0)
-        for i = 1, math.max(#battle.events, #eventRows) do
-            local event, row = battle.events[i], eventRows[i]
+        events:SetHeight(math.max(1, FinishingBlowsHeight(#blows)))
+        events:SetShown(#blows > 0)
+        for i = 1, math.max(#blows, #eventRows) do
+            local event, row = blows[i], eventRows[i]
             if not row then
                 local y = -finishingBlowFirstRow - (i - 1) * finishingBlowStep
                 local from = Label(events, "GameFontHighlightSmall", "TOPLEFT", 64, y, columnWidth - 52)

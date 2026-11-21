@@ -224,14 +224,15 @@ local function LegacySkirmish(db, entry, playerAppearance)
         end
     end
     local events = {}
-    if encounter.direction == "killsAgainstThem" then
+    if not encounter.outcome and encounter.direction == "killsAgainstThem" then
         events[1] = { kind = "kill", actorID = player.id, targetID = rival.id, time = encounter.time }
-    elseif encounter.direction == "deathsToThem" then
+    elseif not encounter.outcome and encounter.direction == "deathsToThem" then
         events[1] = { kind = "kill", actorID = rival.id, targetID = player.id, time = encounter.time }
     end
     -- A legacy entry records one death and the observed participants, without a complete roster.
     return {
         time = encounter.time, manual = encounter.manual, zone = encounter.zone,
+        outcome = addon.Ledger.EncounterOutcome(encounter),
         mapID = encounter.mapID, x = encounter.x, y = encounter.y,
         rosterComplete = false, allies = { player }, enemies = opponents, events = events,
     }
@@ -345,6 +346,9 @@ function addon.AddManualEncounter(input, direction, target)
     local snapshot = target and target.name == name and target
     local id = snapshot and snapshot.guid
         or ("manual:" .. (strlower or string.lower)(name))
-    addon.RecordEncounter(id, name, direction, { manual = true, rivalLevel = snapshot and snapshot.level or nil }, snapshot)
+    addon.RecordEncounter(id, name, direction, {
+        manual = true, outcome = direction == "killsAgainstThem" and "win" or "loss",
+        rivalLevel = snapshot and snapshot.level or nil,
+    }, snapshot)
     return id
 end

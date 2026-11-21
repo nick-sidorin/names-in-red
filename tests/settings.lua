@@ -111,6 +111,7 @@ local db = addon.db
 local rivalID = "Player-rival"
 addon.Ledger.Add(db, rivalID, "Test Rival")
 addon.Ledger.SaveSkirmish(db, "one", {
+    rosterComplete = true,
     allies = { { id = "me", isSelf = true } },
     enemies = { { id = "them", rivalID = rivalID } },
     events = { { kind = "kill", actorID = "me", targetID = "them" } },

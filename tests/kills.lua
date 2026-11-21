@@ -32,6 +32,14 @@ local function Kill(attacker, victim)
     onEvent(nil, "PARTY_KILL", attacker, victim)
 end
 
+-- Keep this suite focused on event filtering and visible player identity.
+addon.RecordWorldEncounter = addon.RecordEncounter
+function addon.ObserveHonorKill() end
+function addon.ObservedWorldOpponent() end
+function addon.WorldAllyUnit(guid)
+    if guid == units.player.guid then return "player" end
+end
+
 assert(loadfile("NamesInRed/Kills.lua"))("NamesInRed", addon)
 Kill("Player-self", "Player-rival")
 addon.db = assert(addon.Ledger.Open(nil))

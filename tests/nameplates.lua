@@ -1,4 +1,4 @@
-local rival = { displayName = "Cute Rock", killsAgainstThem = 1, deathsToThem = 0 }
+local rival = { displayName = "Cute Rock", encounters = { { outcome = "win" } } }
 local addon = { db = { rivals = { ["Player-rival"] = rival } }, L = {} }
 local secret = {}
 function issecretvalue(value) return value == secret end
@@ -67,7 +67,7 @@ assert(not badge.shown and lookups == 1)
 addon.db.showNameplateIcons = true
 addon.RefreshNameplates()
 assert(badge.shown and lookups == 2)
-rival.deathsToThem = 2
+rival.encounters[2] = { outcome = "loss" }
 addon.RefreshNameplates()
 assert(badge.shown and badge.text:find("TooltipSkull", 1, true))
 name.shown = false
@@ -92,10 +92,10 @@ assert(not badge.shown)
 addon.db.rivals["manual:cute rock"] = rival
 addon.RefreshNameplates()
 assert(badge.shown)
-rival.killsAgainstThem, rival.deathsToThem = 0, 0
+rival.encounters = {}
 addon.RefreshNameplates()
 assert(not badge.shown)
-rival.killsAgainstThem = 1
+rival.encounters[1] = { outcome = "win" }
 addon.RefreshNameplates()
 assert(badge.shown)
 
