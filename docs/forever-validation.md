@@ -329,8 +329,10 @@ center after `SquareIconButtonMixin:OnMouseUp`. The
 header uses the square template's scaled four-unit inset to match the date-to-map
 and map-to-information gaps. Both portraits use the profile's 64-unit ring and
 24-unit level badge. The central and portrait markers share the nameplate sword
-crop and small skull texture. A local portrait with no saved race portrait uses
-`SetPortraitTexture`, as in Camelot's
+crop and small skull texture. Portrait markers sit at the upper-right of the
+local player and upper-left of the opponent. When both markers are visible on
+one portrait, the skull moves inward along the top edge. A local portrait with
+no saved race portrait uses `SetPortraitTexture`, as in Camelot's
 `CharacterFrameMixin:UpdateCharacterModeTabPortrait`. Race portraits use the
 `resetTexCoords` argument to `SetAtlas`. The compact rival portrait flips its
 full atlas region horizontally with `SetTexCoord(1, 0, 0, 1)`, following

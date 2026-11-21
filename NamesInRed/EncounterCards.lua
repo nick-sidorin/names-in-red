@@ -205,7 +205,7 @@ local function OutcomeTexture(parent, size, victory)
     return icon
 end
 
-local function CompactParticipant(card, x, size, nameWidth)
+local function CompactParticipant(card, x, size, nameWidth, markerCorner)
     local portrait, rim = addon.CreateRoundIcon(card, size)
     rim:SetPoint("TOPLEFT", x - size / 2, -47)
     local level = addon.CreateLevelBadge(card, rim)
@@ -214,11 +214,19 @@ local function CompactParticipant(card, x, size, nameWidth)
     name:SetWidth(nameWidth)
     name:SetJustifyH("CENTER")
     name:SetWordWrap(false)
-    local victory = OutcomeTexture(card, 14, true)
-    victory:SetPoint("CENTER", rim, "TOPRIGHT", -10, -10)
-    local death = OutcomeTexture(card, 14, false)
-    death:SetPoint("CENTER", rim, "TOPLEFT", 10, -10)
-    return { portrait = portrait, level = level, name = name, victory = victory, death = death }
+    local markerSize, markerGap = 14, 2
+    local direction = markerCorner == "TOPRIGHT" and -1 or 1
+    local cornerInset = 10
+    local victory = OutcomeTexture(card, markerSize, true)
+    victory:SetPoint("CENTER", rim, markerCorner, direction * cornerInset, -10)
+    local death = OutcomeTexture(card, markerSize, false)
+    local function SetMarkers(won, died)
+        local inset = cornerInset + (won and markerSize + markerGap or 0)
+        death:SetPoint("CENTER", rim, markerCorner, direction * inset, -10)
+        victory:SetShown(won)
+        death:SetShown(died)
+    end
+    return { portrait = portrait, level = level, name = name, SetMarkers = SetMarkers }
 end
 
 local function CompactOutcome(card, victory)
@@ -248,8 +256,8 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
     Divider(card, -41)
 
     local portraitSize = 64
-    local mine = CompactParticipant(card, width / 4, portraitSize, width / 2 - 18)
-    local theirs = CompactParticipant(card, 3 * width / 4, portraitSize, width / 2 - 18)
+    local mine = CompactParticipant(card, width / 4, portraitSize, width / 2 - 18, "TOPRIGHT")
+    local theirs = CompactParticipant(card, 3 * width / 4, portraitSize, width / 2 - 18, "TOPLEFT")
     local victory = CompactOutcome(card, true)
     local defeat = CompactOutcome(card, false)
 
@@ -316,10 +324,8 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         defeat:SetPoint("CENTER", card, "TOP", won and 15 or 0, -79)
         victory:SetShown(won)
         defeat:SetShown(lost)
-        mine.victory:SetShown(won)
-        theirs.victory:SetShown(lost)
-        mine.death:SetShown(lost or encounter.playerDeathIndex ~= nil)
-        theirs.death:SetShown(won or encounter.opponentDeathIndex ~= nil)
+        mine.SetMarkers(won, lost or encounter.playerDeathIndex ~= nil)
+        theirs.SetMarkers(lost, won or encounter.opponentDeathIndex ~= nil)
 
         local hasWaypoint = WaypointMap(encounter) ~= nil
         local hasInfo = encounter.skirmishID ~= nil or type(encounter.attackers) == "table" and #encounter.attackers > 0
