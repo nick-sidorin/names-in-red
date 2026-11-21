@@ -331,11 +331,14 @@ and map-to-information gaps. Both portraits use the profile's 64-unit ring and
 24-unit level badge. The central and portrait markers share the nameplate sword
 crop and small skull texture. A local portrait with no saved race portrait uses
 `SetPortraitTexture`, as in Camelot's
-`CharacterFrameMixin:UpdateCharacterModeTabPortrait`. The rival's race portrait
-uses the metadata from `C_Texture.GetAtlasInfo` to set the mirrored coordinates
-on every bind. `Blizzard_SharedXML/NineSlice.lua` also uses atlas metadata to set
-explicit texture coordinates. Reassigning the same atlas can retain custom
-coordinates. Check repeated clicks on the same rival to verify the direction.
+`CharacterFrameMixin:UpdateCharacterModeTabPortrait`. Race portraits use the
+`resetTexCoords` argument to `SetAtlas`. The compact rival portrait flips its
+full atlas region horizontally with `SetTexCoord(1, 0, 0, 1)`, following
+`Blizzard_OrderHallUI/Blizzard_OrderHallTalents.lua` where the same talent atlas
+is drawn facing either way. Check the full crop in the profile and the compact
+card, and click the same rival repeatedly to verify the direction.
+Check that the personal score labels start at the same left edge when their
+counts change from one to multiple digits.
 `PVPMatchStyle.GetLocalPlayerFactionTheme` uses the first return from
 `UnitFactionGroup("player")`. The skirmish cards use the same faction tag to
 order the existing blue and red palette. Check both factions in the full and
@@ -352,8 +355,10 @@ different zone. Check that the world map opens on that zone, places its
 standard user pin at the saved coordinates and replaces any previous user
 pin. The full card uses the same map pin button as the compact card, anchored
 beside the timestamp. Check the common header centerline and the spacing in
-the finishing-blow list. The roster count always shows the participants in the
-card. A passive `UIPanelInfoButton` from `SharedUIPanelTemplates.xml` shows
+the finishing-blow list. Check that the Skirmish History scrollbar is centered
+in the gutter between the cards and the decorative frame. The roster count
+always shows the participants in the card. A passive `UIPanelInfoButton` from
+`SharedUIPanelTemplates.xml` shows
 the coverage tooltip when `rosterComplete` is false or absent. Seed fixtures
 set this flag explicitly. Converted one-death entries lack a complete roster
 confirmation, so their displayed counts show the known participants.

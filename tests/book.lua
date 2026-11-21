@@ -148,12 +148,10 @@ local function MockRegion(parent)
     function region:SetSize(width, height) self.width, self.height = width, height end
     function region:SetTexture(texture) self.texture, self.atlas = texture, nil end
     function region:SetTexCoord(...) self.texcoords = { ... } end
-    function region:SetAtlas(atlas)
+    function region:SetAtlas(atlas, _, _, resetTexCoords)
         -- Reassigning an atlas already on the texture preserves its custom coordinates.
-        if self.atlas == atlas then return end
+        if self.atlas ~= atlas or resetTexCoords then self:SetTexCoord(0, 1, 0, 1) end
         self.atlas = atlas
-        local info = C_Texture.GetAtlasInfo(atlas)
-        self:SetTexCoord(info.leftTexCoord, info.rightTexCoord, info.topTexCoord, info.bottomTexCoord)
     end
     function region:SetHitRectInsets(...) self.insets = { ... } end
     function region:SetShown(shown) self.shown = shown end
@@ -280,8 +278,16 @@ local myRim, opponentRim = myName.anchor[2], opponentName.anchor[2]
 assert(myRim.width == 64 and opponentRim.width == 64)
 local playerPortrait = assert(FindRegion(compact, "atlas", "orc-male"))
 local rivalPortrait = assert(FindRegion(compact, "atlas", "human-female"))
-assert(playerPortrait.texcoords[1] == 0.2 and playerPortrait.texcoords[2] == 0.4)
-assert(rivalPortrait.texcoords[1] == 0.4 and rivalPortrait.texcoords[2] == 0.2)
+local function AssertFullPortrait(portrait, mirrored)
+    local left, right, top, bottom = unpack(portrait.texcoords)
+    assert(left == (mirrored and 1 or 0) and right == (mirrored and 0 or 1))
+    assert(top == 0 and bottom == 1)
+end
+AssertFullPortrait(playerPortrait, false)
+AssertFullPortrait(rivalPortrait, true)
+local profilePortrait = MockRegion()
+addon.SetRivalPortrait(profilePortrait, first.opponent)
+AssertFullPortrait(profilePortrait, false)
 local function CenterMarker(texture)
     for _, child in ipairs(compact.children) do
         if child.shown and child.scripts.OnEnter and child.children[1] and child.children[1].texture == texture then
@@ -303,9 +309,9 @@ CheckFactionColors(myName, opponentName)
 faction = "Horde"
 compact:SetEncounter(first)
 CheckFactionColors(opponentName, myName)
-assert(rivalPortrait.texcoords[1] == 0.4 and rivalPortrait.texcoords[2] == 0.2)
+AssertFullPortrait(rivalPortrait, true)
 compact:SetEncounter(first)
-assert(rivalPortrait.texcoords[1] == 0.4 and rivalPortrait.texcoords[2] == 0.2)
+AssertFullPortrait(rivalPortrait, true)
 faction = "Alliance"
 local open = assert(FindRegion(compact, "title", addon.L.openSkirmish))
 local map = assert(FindRegion(compact, "title", addon.L.showOnMap))
@@ -362,6 +368,8 @@ assert(FindText(compact, "Legacy Rival") and loadedSelfPortrait and not open.sho
 assert(rivalPortrait.texture == "Interface\\Icons\\INV_Misc_QuestionMark")
 assert(rivalPortrait.texcoords[1] < rivalPortrait.texcoords[2])
 assert(CenterMarker(swords))
+compact:SetEncounter(first)
+AssertFullPortrait(rivalPortrait, true)
 compact:SetEncounter(nil)
 assert(not compact.shown)
 print("Compact skirmish factions, personal outcomes, casualties and actions checks passed")

@@ -104,7 +104,10 @@ local function Stat(parent, y, texture, tooltipText)
     slot:SetScript("OnHide", HideTooltip)
 
     local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    label:SetPoint("LEFT", slot, "RIGHT", 10, 0)
+    label:SetPoint("LEFT", holder, "RIGHT", 10, 0)
+    label:SetWidth(cardWidth - holder:GetWidth() - 10)
+    label:SetJustifyH("LEFT")
+    label:SetWordWrap(false)
     return label
 end
 
@@ -663,8 +666,14 @@ local function ToggleBook()
         recentEmpty = journal:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         recentEmpty:SetPoint("CENTER")
         recentEmpty:SetText(L.noSkirmishes)
-        recentList = CardList(journal, 20, -42, journal:GetWidth() - 62, bodyHeight - 56,
+        local journalLeftInset, journalRightGutter = 20, 42
+        local journalCardWidth = journal:GetWidth() - journalLeftInset - journalRightGutter
+        recentList = CardList(journal, journalLeftInset, -42, journalCardWidth, bodyHeight - 56,
             CreateBattleCard, function(card, battle) card:SetSkirmish(battle) end, addon.SkirmishCardHeight)
+        local journalBar = recentList.ScrollBar
+        journalBar:ClearAllPoints()
+        journalBar:SetPoint("TOP", recentList, "TOPRIGHT", journalRightGutter / 2, 0)
+        journalBar:SetPoint("BOTTOM", recentList, "BOTTOMRIGHT", journalRightGutter / 2, 0)
 
         battlePage = Pane(window, 5, -contentTop, fullPaneWidth, bodyHeight)
         ListBackground(battlePage)
