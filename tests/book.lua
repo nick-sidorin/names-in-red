@@ -38,9 +38,12 @@ for _, supported in ipairs({
         "rivalsView", "recentView", "unknownRival",
         "alliedSide", "enemySide", "partialRoster", "finishingBlows", "unknownPlayer", "minimapHint",
         "openSkirmish", "partialRosterHint", "portraitKill", "portraitDeath",
+        "showNameplateIcons", "showUnitTooltip", "resetData", "resetDataConfirm", "reportIssue", "reportIssueLink",
     }) do
         assert(type(addon.L[key]) == "string" and addon.L[key] ~= "")
     end
+    local _, lineBreaks = addon.L.minimapHint:gsub("\n", "")
+    assert(lineBreaks == 2)
 end
 
 local secret = {}
@@ -67,6 +70,10 @@ local art = "|TInterface\\AddOns\\NamesInRed\\Art\\"
 local victory = art .. "CrossedSwords.tga:14:14:0:1:128:128:22:106:22:106|t"
 local death = art .. "TooltipSkull.tga:14:14:0:1|t"
 assert(tooltipLines[3] == victory .. " 2   " .. death .. " 1")
+addon.db.showUnitTooltip = false
+callback(GameTooltip, { guid = "Player-test" })
+assert(#tooltipLines == 3)
+addon.db.showUnitTooltip = true
 print("Rival tooltip and locale checks passed")
 
 function UnitIsPlayer(unit) return unit == "target" end

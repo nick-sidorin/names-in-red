@@ -214,6 +214,16 @@ local function NameMatches(name, query)
     return false
 end
 
+local function SetBookView(view)
+    activeView = view
+    rivalsPage:SetShown(view == rivalsView)
+    recentPage:SetShown(view == recentView)
+    battlePage:SetShown(view == battleView)
+    if view ~= battleView then selectedSkirmishID = nil end
+    local sideView = view == battleView and rivalsView or view
+    for index, tab in ipairs(sideTabs) do tab:SetChecked(index == sideView) end
+end
+
 function addon.RefreshBook(resetSearch)
     if resetSearch and search and search:GetText() ~= "" then
         search:SetText("")
@@ -224,8 +234,12 @@ function addon.RefreshBook(resetSearch)
     end
     if activeView == battleView then
         local battle = addon.db.skirmishes and addon.db.skirmishes[selectedSkirmishID]
-        battleList:SetEntries(battle and { battle } or {})
-        return
+        if battle then
+            battleList:SetEntries({ battle })
+            return
+        end
+        battleList:SetEntries({})
+        SetBookView(recentView)
     end
     if activeView == recentView then
         local entries = addon.RecentSkirmishes(addon.db, recentLimit)
@@ -363,16 +377,6 @@ local function MakeDraggable(frame)
     end)
     drag:SetScript("OnDragStop", Stop)
     frame:HookScript("OnHide", Stop)
-end
-
-local function SetBookView(view)
-    activeView = view
-    rivalsPage:SetShown(view == rivalsView)
-    recentPage:SetShown(view == recentView)
-    battlePage:SetShown(view == battleView)
-    if view ~= battleView then selectedSkirmishID = nil end
-    local sideView = view == battleView and rivalsView or view
-    for index, tab in ipairs(sideTabs) do tab:SetChecked(index == sideView) end
 end
 
 local function OpenSkirmish(id)
@@ -751,9 +755,11 @@ local function CreateShortcut()
         button:SetScript("OnUpdate", nil)
         if GameTooltip:IsOwned(button) then GameTooltip:Hide() end
     end
-    button:RegisterForClicks("LeftButtonUp")
+    button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     button:RegisterForDrag("LeftButton")
-    button:SetScript("OnMouseDown", function(self) self.dragged = false end)
+    button:SetScript("OnMouseDown", function(self, mouseButton)
+        if mouseButton == "LeftButton" then self.dragged = false end
+    end)
     button:SetScript("OnDragStart", function(self)
         self.dragging, self.dragged = true, true
         if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
@@ -768,8 +774,14 @@ local function CreateShortcut()
     end)
     button:SetScript("OnDragStop", StopDrag)
     button:SetScript("OnHide", StopDrag)
-    button:SetScript("OnClick", function(self)
-        if not self.dragged then ToggleBook() end
+    button:SetScript("OnClick", function(self, mouseButton)
+        if self.dragging then return end
+        if mouseButton == "RightButton" then
+            if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
+            addon.OpenSettings()
+        elseif not self.dragged then
+            ToggleBook()
+        end
     end)
     button:SetScript("OnEnter", function(self)
         if self.dragging then return end
@@ -815,9 +827,19 @@ local function TooltipRival(tooltip, data)
     return addon.FindVisibleRival(guid, unit)
 end
 
-if TooltipDataProcessor and Enum and Enum.TooltipDataType then
-    TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, function(tooltip, data)
-        if tooltip ~= GameTooltip or not addon.db then return end
+local unitTooltipType = Enum and Enum.TooltipDataType and Enum.TooltipDataType.Unit
+
+function addon.RefreshUnitTooltip()
+    local tooltip = GameTooltip
+    if unitTooltipType and tooltip and tooltip.RefreshDataNextUpdate and tooltip.IsTooltipType
+        and tooltip:IsShown() and tooltip:IsTooltipType(unitTooltipType) then
+        tooltip:RefreshDataNextUpdate()
+    end
+end
+
+if TooltipDataProcessor and unitTooltipType then
+    TooltipDataProcessor.AddTooltipPostCall(unitTooltipType, function(tooltip, data)
+        if tooltip ~= GameTooltip or not addon.db or not addon.IsUnitTooltipEnabled() then return end
         local rival, id = TooltipRival(tooltip, data)
         local counters = rival and addon.RivalCounters(id)
         if counters then

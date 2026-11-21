@@ -7,6 +7,18 @@ local combat
 local limit = 1000
 local plateTokens = {}
 
+local function ClearDiagnostics()
+    if not db then
+        NamesInRedDebugDB = nil
+        return
+    end
+    db.rows, db.dropped = {}, 0
+    deathSequence = deathSequence + 1
+    combatSequence, combat = 0, nil
+end
+
+if addon then addon.ClearDiagnostics = ClearDiagnostics end
+
 local function Value(value)
     if issecretvalue and issecretvalue(value) then
         return nil, "secret"
@@ -400,7 +412,9 @@ function handlers.PLAYER_REGEN_ENABLED()
     row.groupChanges, row.groupChangeCount = finished.groupChanges, finished.groupChangeCount
     row.meterUpdates, row.meterUpdateCount = finished.meterUpdates, finished.meterUpdateCount
     row.restrictedPartyKills = finished.restrictedKills
+    local rows = db.rows
     local function ReadMeter()
+        if rows ~= db.rows then return end
         local inCombat = Value(InCombatLockdown and InCombatLockdown())
         if finished.sequence ~= combatSequence or inCombat ~= false then
             row.status.meter = "interrupted"
@@ -541,11 +555,12 @@ frame:SetScript("OnEvent", function(self, event, ...)
     if NamesInRedDebugDB == nil then
         NamesInRedDebugDB = { version = 1, session = 0, dropped = 0, rows = {} }
     end
-    db = NamesInRedDebugDB
-    if type(db) ~= "table" or db.version ~= 1 or type(db.rows) ~= "table"
-        or type(db.session) ~= "number" or type(db.dropped) ~= "number" then
+    local saved = NamesInRedDebugDB
+    if type(saved) ~= "table" or saved.version ~= 1 or type(saved.rows) ~= "table"
+        or type(saved.session) ~= "number" or type(saved.dropped) ~= "number" then
         return
     end
+    db = saved
     db.session = db.session + 1
     local row = Add("SESSION")
     local _, build, _, interface = GetBuildInfo()

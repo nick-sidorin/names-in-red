@@ -14,7 +14,7 @@ end
 local function Refresh(unit)
     Hide(unit)
     active[unit] = false
-    if not addon.db then return end
+    if not addon.db or not addon.AreNameplateIconsEnabled() then return end
 
     local guid = Readable(UnitGUID(unit))
     local playerGUID = Readable(UnitGUID("player"))

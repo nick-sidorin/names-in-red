@@ -400,11 +400,31 @@ supplies drag behavior for registered Blizzard frames. The book uses native
 top-level ordering and raises its own frame when shown.
 
 The minimap tooltip follows Azeroth Fitness's `Shortcut:Init` implementation
-in `Minimap.lua`, using a left anchor, title and a two-line localized hint.
+in `Minimap.lua`, using a left anchor, title and a three-line localized hint.
 Check first open, reopen, Escape and the close button for one sound per
 visibility change. With DeModal and BlizzMove, overlap the book and
 Engineering, then click the visible part or header of each alternately.
 Check that both remain open and the clicked panel comes to the front.
+
+## AddOn settings and data reset
+
+Use `Settings.RegisterVerticalLayoutCategory`, `RegisterProxySetting` and
+`CreateCheckbox` from `Blizzard_Settings_Shared/Blizzard_Settings.lua`.
+Use `CreateSettingsButtonInitializer` from `Blizzard_SettingControls.lua` for
+both actions. `Settings.OpenToCategory` opens the registered category from
+the minimap right-click. Confirm that left-click still opens the journal
+and dragging only moves the shortcut. With a known rival present, toggle
+each display setting independently, confirm the change on the visible UI and
+reload to check persistence. Unit tooltip refresh uses
+`GameTooltipDataMixin:RefreshDataNextUpdate` from `Blizzard_GameTooltip`.
+
+The custom confirmation and copyable URL use `StaticPopup_Show` and
+`GameDialogMixin:GetEditBox`. `LaunchURL` is restricted in the client's
+`URLDocumentation.lua`. Test Cancel, Escape and then Reset data on a character
+with seeded records and diagnostic rows. Check the empty journal and confirm
+that the two display flags and minimap position persist. Check that diagnostic
+recording resumes with new events. The support dialog should select the
+project's Issues URL for copying.
 
 ## Cross-rival skirmish history
 

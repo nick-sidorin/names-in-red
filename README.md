@@ -22,6 +22,15 @@ rivals show the same score in the standard unit tooltip.
 Download the latest ZIP from [Releases](https://github.com/nick-sidorin/names-in-red/releases)
 and extract `NamesInRed/` into `_forever_/Interface/AddOns/`.
 
+## Settings
+
+Right-click the minimap icon or open **Options → AddOns → Names in Red**.
+Nameplate icons and unit tooltip information are enabled by default and can
+be toggled independently. **Reset data** confirms before deleting the current
+character's rivals, skirmishes and diagnostic logs. Display preferences and
+the minimap icon position are kept. **Report an issue** shows a copyable link
+to [GitHub Issues](https://github.com/nick-sidorin/names-in-red/issues).
+
 ## How the personal score works
 
 - **Win.** You landed the confirmed finishing blow or contributed to this

@@ -21,7 +21,11 @@ local plate = Anchor()
 plate.IsForbidden = function(self) return self.forbidden end
 plate.UnitFrame = parent
 plate.unitToken = unit
-C_NamePlate = { GetNamePlateForUnit = function(token) if token == plate.unitToken then return plate end end }
+local lookups = 0
+C_NamePlate = { GetNamePlateForUnit = function(token)
+    lookups = lookups + 1
+    if token == plate.unitToken then return plate end
+end }
 
 local onEvent, badge
 function CreateFrame(_, _, owner)
@@ -56,6 +60,13 @@ end
 onEvent(nil, "NAME_PLATE_UNIT_ADDED", unit)
 assert(badge.shown and badge.anchor == name)
 assert(badge.text:find("CrossedSwords.tga", 1, true) and not badge.text:find("TooltipSkull", 1, true))
+addon.db.showNameplateIcons = false
+addon.RefreshNameplates()
+onEvent(nil, "NAME_PLATE_UNIT_ADDED", unit)
+assert(not badge.shown and lookups == 1)
+addon.db.showNameplateIcons = true
+addon.RefreshNameplates()
+assert(badge.shown and lookups == 2)
 rival.deathsToThem = 2
 addon.RefreshNameplates()
 assert(badge.shown and badge.text:find("TooltipSkull", 1, true))

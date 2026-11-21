@@ -2,6 +2,10 @@ local _, addon = ...
 local Readable = addon.Readable
 local sequence = 0
 
+function addon.CancelPendingDeath()
+    sequence = sequence + 1
+end
+
 local function ReadTable(value)
     value = Readable(value)
     if type(value) == "table" and (not canaccesstable or canaccesstable(value)) then

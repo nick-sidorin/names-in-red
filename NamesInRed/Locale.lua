@@ -161,17 +161,74 @@ rosterHints.esMX = rosterHints.esES
 addon.L.partialRosterHint = rosterHints[GetLocale()] or rosterHints.enUS
 
 local minimapHints = {
-    enUS = "Left-click — open the journal\nDrag — move the icon",
-    ruRU = "ЛКМ — открыть журнал\nПеретащи — переместить значок",
-    deDE = "Linksklick — Journal öffnen\nZiehen — Symbol verschieben",
-    frFR = "Clic gauche — ouvrir le journal\nGlisser — déplacer l’icône",
-    esES = "Clic izquierdo — abrir el diario\nArrastra — mover el icono",
-    itIT = "Clic sinistro — apri il diario\nTrascina — sposta l’icona",
-    ptBR = "Clique esquerdo — abrir o diário\nArraste — mover o ícone",
-    koKR = "왼쪽 클릭 — 기록 열기\n드래그 — 아이콘 이동",
-    zhCN = "左键点击 — 打开日志\n拖动 — 移动图标",
-    zhTW = "按左鍵 — 開啟日誌\n拖曳 — 移動圖示",
+    enUS = "Left-click — open the journal\nRight-click — open settings\nDrag — move the icon",
+    ruRU = "ЛКМ — открыть журнал\nПКМ — открыть настройки\nПеретащи — переместить значок",
+    deDE = "Linksklick — Journal öffnen\nRechtsklick — Einstellungen öffnen\nZiehen — Symbol verschieben",
+    frFR = "Clic gauche — ouvrir le journal\nClic droit — ouvrir les paramètres\nGlisser — déplacer l’icône",
+    esES = "Clic izquierdo — abrir el diario\nClic derecho — abrir los ajustes\nArrastra — mover el icono",
+    itIT = "Clic sinistro — apri il diario\nClic destro — apri le impostazioni\nTrascina — sposta l’icona",
+    ptBR = "Clique esquerdo — abrir o diário\nClique direito — abrir as configurações\nArraste — mover o ícone",
+    koKR = "왼쪽 클릭 — 기록 열기\n오른쪽 클릭 — 설정 열기\n드래그 — 아이콘 이동",
+    zhCN = "左键点击 — 打开日志\n右键点击 — 打开设置\n拖动 — 移动图标",
+    zhTW = "按左鍵 — 開啟日誌\n按右鍵 — 開啟設定\n拖曳 — 移動圖示",
 }
 minimapHints.enGB = minimapHints.enUS
 minimapHints.esMX = minimapHints.esES
 addon.L.minimapHint = minimapHints[GetLocale()] or minimapHints.enUS
+
+local settingsStrings = {
+    enUS = {
+        "Show icons above players", "Show information in unit tooltips", "Reset data",
+        "Delete all rivals, skirmishes and diagnostic logs for this character?",
+        "Report an issue", "Copy this link and open it in your browser to report an issue on GitHub.",
+    },
+    ruRU = {
+        "Показывать значки над головой", "Показывать информацию во всплывающей подсказке", "Сбросить данные",
+        "Удалить всех противников, стычки и диагностические записи этого персонажа?",
+        "Сообщить о проблеме", "Скопируй ссылку и открой её в браузере, чтобы сообщить о проблеме на GitHub.",
+    },
+    deDE = {
+        "Symbole über Spielern anzeigen", "Infos in Einheitentooltips anzeigen", "Daten zurücksetzen",
+        "Alle Rivalen, Gefechte und Diagnoseprotokolle dieses Charakters löschen?",
+        "Problem melden", "Kopiere den Link und öffne ihn im Browser, um ein Problem auf GitHub zu melden.",
+    },
+    frFR = {
+        "Afficher les icônes au-dessus des joueurs", "Afficher les infos dans les infobulles", "Réinitialiser les données",
+        "Supprimer tous les rivaux, les escarmouches et les journaux de diagnostic de ce personnage ?",
+        "Signaler un problème", "Copiez ce lien et ouvrez-le dans votre navigateur pour signaler un problème sur GitHub.",
+    },
+    esES = {
+        "Mostrar iconos sobre los jugadores", "Mostrar información en las descripciones emergentes", "Restablecer datos",
+        "¿Eliminar todos los rivales, escaramuzas y registros de diagnóstico de este personaje?",
+        "Informar de un problema", "Copia este enlace y ábrelo en el navegador para informar de un problema en GitHub.",
+    },
+    itIT = {
+        "Mostra le icone sopra i giocatori", "Mostra le informazioni nei tooltip", "Reimposta i dati",
+        "Eliminare tutti i rivali, le schermaglie e i registri diagnostici di questo personaggio?",
+        "Segnala un problema", "Copia il link e aprilo nel browser per segnalare un problema su GitHub.",
+    },
+    ptBR = {
+        "Mostrar ícones acima dos jogadores", "Mostrar informações nas dicas de interface", "Redefinir dados",
+        "Excluir todos os rivais, escaramuças e registros de diagnóstico deste personagem?",
+        "Relatar um problema", "Copie este link e abra-o no navegador para relatar um problema no GitHub.",
+    },
+    koKR = {
+        "플레이어 위에 아이콘 표시", "툴팁에 정보 표시", "데이터 초기화",
+        "이 캐릭터의 모든 상대, 교전 기록 및 진단 로그를 삭제하시겠습니까?",
+        "문제 신고", "이 링크를 복사해 브라우저에서 열고 GitHub에 문제를 신고하세요.",
+    },
+    zhCN = {
+        "在玩家头顶显示图标", "在单位鼠标提示中显示信息", "重置数据",
+        "删除此角色的所有对手、交锋记录和诊断日志？",
+        "报告问题", "复制此链接并在浏览器中打开，即可在 GitHub 报告问题。",
+    },
+    zhTW = {
+        "在玩家頭頂顯示圖示", "在單位提示中顯示資訊", "重設資料",
+        "刪除此角色的所有對手、交鋒紀錄及診斷日誌？",
+        "回報問題", "複製此連結並在瀏覽器中開啟，即可在 GitHub 回報問題。",
+    },
+}
+settingsStrings.enGB = settingsStrings.enUS
+settingsStrings.esMX = settingsStrings.esES
+addon.L.showNameplateIcons, addon.L.showUnitTooltip, addon.L.resetData, addon.L.resetDataConfirm,
+    addon.L.reportIssue, addon.L.reportIssueLink = unpack(settingsStrings[GetLocale()] or settingsStrings.enUS)

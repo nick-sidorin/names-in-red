@@ -243,3 +243,15 @@ assert(assistedCard.wins == 1 and assistedCard.losses == 1)
 assert(assistedCard.playerDeathIndex == 1 and assistedCard.opponentDeathIndex == 2)
 assert(addon.db.skirmishes[assistedCard.skirmishID].events[2].actorID == "brother")
 print("A confirmed assist counts when a teammate finishes the kill after the player dies")
+
+rows, now = nil, 2000
+onEvent()
+local firstPending = #timers - 2
+addon.CancelPendingDeath()
+ledger.Clear(addon.db)
+rows = { Hit(2000, 1) }
+for index = firstPending, #timers do timers[index]() end
+assert(next(addon.db.rivals) == nil)
+onEvent()
+assert(addon.db.rivals["Player-rival"].deathsToThem == 1)
+print("Reset cancels pending death retries and allows new encounters")

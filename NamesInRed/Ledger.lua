@@ -12,6 +12,14 @@ function Ledger.Open(saved)
     end
 end
 
+function Ledger.Clear(db)
+    db.rivals = {}
+    db.skirmishes = nil
+    db.encounterSequence = nil
+    db.lastDeathTimestamp = nil
+    skirmishIndexes[db] = nil
+end
+
 -- The caller resolves a stable identifier before writing to the ledger.
 function Ledger.Find(db, id)
     return db.rivals[id]

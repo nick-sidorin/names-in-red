@@ -234,3 +234,13 @@ Event("PLAYER_REGEN_DISABLED")
 timers[#timers][2]()
 assert(ended.status.meter == "interrupted" and ended.meter == nil)
 print("Post-combat diagnostic capture checks passed")
+
+Event("PLAYER_DEAD")
+local firstPending = #timers - 2
+addon.ClearDiagnostics()
+for index = firstPending, #timers do timers[index][2]() end
+Event("PLAYER_REGEN_ENABLED")
+assert(#db.rows == 0 and db.dropped == 0)
+Event("PLAYER_PVP_KILLS_CHANGED", "player")
+assert(#db.rows == 1 and db.rows[1].kind == "PLAYER_PVP_KILLS_CHANGED" and not db.rows[1].combatSequence)
+print("Diagnostic reset cancels pending recap and continues recording")
