@@ -112,8 +112,15 @@ for key, rival in pairs(addon.db.rivals) do
     end
 end
 assert(manual == 6 and automatic == 24)
+local seeded = addon.db.skirmishes
+assert(#seeded["seed:battle:1"].allies == 2 and #seeded["seed:battle:1"].enemies == 2)
+assert(seeded["seed:battle:1"].events[1].actorID == "ally:1")
+assert(#seeded["seed:battle:2"].allies == 1 and #seeded["seed:battle:2"].enemies == 1)
+assert(#seeded["seed:battle:3"].enemies == 6 and not seeded["seed:battle:4"].rosterComplete)
+addon.Ledger.SaveSkirmish(addon.db, "existing-battle", { allies = {}, enemies = {}, events = {} })
 SlashCmdList.NAMESINREDDEBUG("clear-seed")
 for key in pairs(addon.db.rivals) do assert(not key:match("^seed:")) end
+assert(next(seeded) == "existing-battle" and next(seeded, "existing-battle") == nil)
 assert(addon.db.rivals["Player-existing"] == existing)
 assert(addon.db.rivals["manual:existing"] == existingManual)
 print("Debug seed checks passed")

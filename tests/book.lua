@@ -31,6 +31,7 @@ for _, supported in ipairs({
         "noMatches", "deleteConfirm", "statistics", "winTooltip", "lossTooltip", "infoTab", "historyTab",
         "latestEncounter", "showOnMap", "unknownLocation", "myLevel", "rivalLevel", "waypointError", "noSkirmishes",
         "rivalsView", "recentView", "unknownRival",
+        "alliedSide", "enemySide", "partialRoster", "finishingBlows", "unknownPlayer",
     }) do
         assert(type(addon.L[key]) == "string" and addon.L[key] ~= "")
     end
@@ -124,3 +125,51 @@ assert(addon.AddManualEncounter(addon.ManualTarget().name, "killsAgainstThem", a
 callback(GameTooltip, { guid = secret })
 assert(#tooltipLines == 12)
 print("Full-name manual tooltip checks passed")
+
+local function MockRegion(parent)
+    local region = { parent = parent, children = {}, shown = true, scripts = {} }
+    if parent then parent.children[#parent.children + 1] = region end
+    function region:CreateFontString() return MockRegion(self) end
+    function region:CreateTexture() return MockRegion(self) end
+    function region:SetText(text)
+        assert(text ~= nil)
+        self.text = text
+    end
+    function region:SetShown(shown) self.shown = shown end
+    function region:SetHeight(height) self.height = height end
+    function region:SetScript(event, handler) self.scripts[event] = handler end
+    return setmetatable(region, { __index = function() return function() end end })
+end
+
+function CreateFrame(_, _, parent) return MockRegion(parent) end
+date = os.date
+local selectedRival
+local card = addon.CreateSkirmishCard(MockRegion(), 630, function() end, function(id) selectedRival = id end)
+local allies = { { id = "me", name = "My Character", isSelf = true }, { id = "ally", name = "Ally Warrior" } }
+local enemies = {
+    { id = "enemy", name = "Test Rival", rivalID = "Player-test", class = "MAGE", level = 42 },
+    { id = "other", name = "Other Rival" },
+}
+local large = { time = 100, startedAt = 80, allies = allies, enemies = enemies, rosterComplete = true, events = {
+    { actorID = "ally", targetID = "enemy", time = 91 }, { actorID = "other", targetID = "me", time = 97 },
+} }
+local function FindText(region, expected)
+    if not region.shown then return end
+    if rawget(region, "text") == expected then return region end
+    for _, child in ipairs(region.children) do
+        local match = FindText(child, expected)
+        if match then return match end
+    end
+end
+card:SetSkirmish(large)
+local largeHeight = card.height
+assert(FindText(card, "2 × 2") and FindText(card, "Ally Warrior") and FindText(card, "0:11"))
+local name = assert(FindText(card, "Test Rival"))
+name.parent.scripts.OnClick(name.parent)
+assert(selectedRival == "Player-test")
+card:SetSkirmish({ allies = { allies[1] }, enemies = { enemies[1] }, events = {} })
+assert(card.height < largeHeight and FindText(card, addon.L.partialRoster))
+assert(not FindText(card, "Ally Warrior") and not FindText(card, "Other Rival") and not FindText(card, "0:11"))
+card:SetSkirmish(nil)
+assert(not card.shown)
+print("Skirmish card roster and recycling checks passed")

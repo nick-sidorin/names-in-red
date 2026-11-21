@@ -2,9 +2,17 @@
 
 Versions 0.0.x were diagnostic previews. Version 0.1.0 shipped only the rival
 journal. Starting with 0.1.1, the standard addon also collects diagnostic data
-automatically. To enable fictional test rivals in a development copy, copy
-`debug/DebugSeeds.lua` into the addon folder and add it to the TOC before
-`Debug.lua`.
+automatically. Pull request preview artifacts include `DebugSeeds.lua` with
+fictional rivals and full-battle examples. A development copy can load it by
+copying `debug/DebugSeeds.lua` into the addon folder and listing it in the TOC.
+
+Run `/nirdebug seed` and open **Skirmish History** to preview 2×2, 1×1, 5×6,
+and partial-roster cards. The global list mixes these saved battles with the
+existing per-rival records. Run `/nirdebug clear-seed` to remove the fixtures.
+The preview stores full battles separately by ID. Each record holds the time
+range, location, the observed sides and their available player metadata, and
+chronological finishing blows keyed by participant ID. Live capture still
+writes the existing per-rival records while participation is being validated.
 
 
 Install the ZIP by extracting its `NamesInRed/` folder into

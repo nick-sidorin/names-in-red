@@ -109,3 +109,21 @@ local bookViews = {
 bookViews.enGB = bookViews.enUS
 bookViews.esMX = bookViews.esES
 addon.L.rivalsView, addon.L.recentView, addon.L.unknownRival = unpack(bookViews[GetLocale()] or bookViews.enUS)
+
+-- Side labels, incomplete roster, timeline and anonymous participant.
+local skirmishStrings = {
+    enUS = { "Your side", "Opponents", "Partial roster", "Finishing blows", "Unknown player" },
+    ruRU = { "Твоя сторона", "Противники", "Неполный состав", "Добивающие удары", "Неизвестный игрок" },
+    deDE = { "Deine Seite", "Gegner", "Unvollständige Besetzung", "Todesstöße", "Unbekannter Spieler" },
+    frFR = { "Ton camp", "Adversaires", "Composition partielle", "Coups fatals", "Joueur inconnu" },
+    esES = { "Tu bando", "Oponentes", "Lista incompleta", "Golpes de gracia", "Jugador desconocido" },
+    itIT = { "La tua squadra", "Avversari", "Formazione parziale", "Colpi di grazia", "Giocatore sconosciuto" },
+    ptBR = { "Seu lado", "Adversários", "Lista incompleta", "Golpes fatais", "Jogador desconhecido" },
+    koKR = { "아군", "적군", "일부 참가자 확인", "결정타", "알 수 없는 플레이어" },
+    zhCN = { "己方", "对手", "阵容不完整", "最后一击", "未知玩家" },
+    zhTW = { "己方", "對手", "陣容不完整", "最後一擊", "未知玩家" },
+}
+skirmishStrings.enGB = skirmishStrings.enUS
+skirmishStrings.esMX = skirmishStrings.esES
+addon.L.alliedSide, addon.L.enemySide, addon.L.partialRoster, addon.L.finishingBlows, addon.L.unknownPlayer =
+    unpack(skirmishStrings[GetLocale()] or skirmishStrings.enUS)

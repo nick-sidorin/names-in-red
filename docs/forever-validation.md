@@ -166,6 +166,17 @@ Compare both players' saves after a fight in a party and a fight outside it.
 Have one attack while the other lands the finishing blow. This probe needs
 live-client validation.
 
+### Seeded full-battle cards
+
+The 0.1.3-preview.2 cards use the existing book frames, text and world map
+action. For class icons they use the native class sheet and UVs, following
+`Blizzard_PVPMatch/PVPMatchTable.lua`. Class colors use the client's
+`RAID_CLASS_COLORS` as in `Blizzard_FriendsFrame/Mainline/FriendsFrame.lua`.
+The two-column roster and the time-ordered blow list are owned by Names in Red.
+The test suite exercises card reuse across different roster sizes and verifies
+that fixture removal preserves other saved records. Card rendering still
+needs a Forever client check.
+
 The UI uses the Forever Blizzard PortraitFrameTemplate,
 UIPanelScrollFrameTemplate and UIPanelButtonTemplate, and a unit-only
 TooltipDataProcessor post-call for GameTooltip. The minimap button follows

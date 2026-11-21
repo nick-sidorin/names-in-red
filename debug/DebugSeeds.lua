@@ -34,6 +34,43 @@ local function ClassName(class, sex, fallback)
     return dictionary and dictionary[class] or fallback
 end
 
+local squad = {
+    { id = "me", name = "Alden Dawnshield", class = "WARRIOR", classLabel = "Warrior", level = 51, isSelf = true },
+    { id = "ally:1", name = "Mira Goldwhisper", class = "PRIEST", classLabel = "Priest", level = 50, sex = 3 },
+    { id = "ally:2", name = "Thoren Ironbrook", class = "PALADIN", classLabel = "Paladin", level = 52 },
+    { id = "ally:3", name = "Lysa Starwind", class = "MAGE", classLabel = "Mage", level = 48, sex = 3 },
+    { id = "ally:4", name = "Daren Wildwood", class = "HUNTER", classLabel = "Hunter", level = 53 },
+}
+local opposing = { 4, 7, 2, 8, 3, 6 }
+
+local function SeedBattle(index, now, zoneNames, allyCount, enemyCount, complete, blows)
+    local zone = (index - 1) % #zones + 1
+    local battle = {
+        time = now - index * 290,
+        startedAt = now - index * 290 - 95,
+        zone = zoneNames[zone], mapID = zones[zone][1], x = 0.42 + index * 0.03, y = 0.51,
+        rosterComplete = complete, allies = {}, enemies = {}, events = {},
+    }
+    for i = 1, allyCount do
+        local player = {}
+        for key, value in pairs(squad[i]) do player[key] = value end
+        battle.allies[i] = player
+    end
+    for i = 1, enemyCount do
+        local id = "seed:" .. opposing[i]
+        local rival = addon.db.rivals[id]
+        battle.enemies[i] = {
+            id = id, rivalID = id, name = rival.displayName, race = rival.race, sex = rival.sex,
+            class = rival.class, classLabel = rival.classLabel, level = rival.encounters[1].rivalLevel,
+        }
+    end
+    for i, blow in ipairs(blows) do
+        battle.events[i] = { kind = "kill", actorID = blow[1], targetID = blow[2],
+            time = battle.startedAt + i * 17 }
+    end
+    addon.Ledger.SaveSkirmish(addon.db, "seed:battle:" .. index, battle)
+end
+
 function addon.ClearDebugSeeds()
     local removed = 0
     for id in pairs(addon.db.rivals) do
@@ -41,6 +78,9 @@ function addon.ClearDebugSeeds()
             addon.Ledger.Remove(addon.db, id)
             removed = removed + 1
         end
+    end
+    for id in pairs(addon.db.skirmishes or {}) do
+        if id:match("^seed:") then addon.db.skirmishes[id] = nil end
     end
     return removed
 end
@@ -84,5 +124,11 @@ function addon.AddDebugSeeds(now)
             rival.encounters[encounter] = row
         end
     end
+    SeedBattle(1, now, zoneNames, 2, 2, true, { { "ally:1", "seed:7" }, { "me", "seed:4" } })
+    SeedBattle(2, now, zoneNames, 1, 1, true, { { "seed:4", "me" } })
+    SeedBattle(3, now, zoneNames, 5, 6, true, {
+        { "seed:4", "ally:2" }, { "ally:4", "seed:2" }, { "seed:7", "me" },
+    })
+    SeedBattle(4, now, zoneNames, 2, 1, false, { { "seed:4", "me" } })
     return #names
 end

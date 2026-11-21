@@ -12,7 +12,7 @@ local rivalsView, recentView = 1, 2
 local activeView = rivalsView
 local recentLimit = 100
 local infoTab, historyTab = 1, 2
-local cardStride = addon.encounterCardHeight + 8
+local cardGap = 8
 local cardWidth = 332
 local sectionFont = "GameFontNormal"
 local statSwordInset = 0.11
@@ -132,29 +132,37 @@ local function CloseForMap()
     window:Hide()
 end
 
-local function CardList(parent, x, y, width, height, createCard, bindCard)
+local function CardList(parent, x, y, width, height, createCard, bindCard, measure)
     local content, scroll = Scroll(parent, x, y, width, height, true)
-    local entries, cards = {}, {}
+    local entries, cards, offsets = {}, {}, {}
     local function Render()
         if not scroll:IsVisible() then return end
-        local first = math.floor(scroll:GetVerticalScroll() / cardStride) + 1
-        local visibleCount = math.ceil(scroll:GetHeight() / cardStride) + 1
-        local count = math.max(0, math.min(visibleCount, #entries - first + 1))
-        for index = 1, count do
-            local card = cards[index]
-            if not card then
-                card = createCard(content, width, CloseForMap)
-                cards[index] = card
+        local top = scroll:GetVerticalScroll()
+        local bottom = top + scroll:GetHeight()
+        local index = 0
+        for itemIndex, offset in ipairs(offsets) do
+            if offset >= bottom then break end
+            if (offsets[itemIndex + 1] or content:GetHeight()) > top then
+                index = index + 1
+                local card = cards[index]
+                if not card then
+                    card = createCard(content, width, CloseForMap)
+                    cards[index] = card
+                end
+                card:SetPoint("TOPLEFT", 0, -offset)
+                bindCard(card, entries[itemIndex])
             end
-            local itemIndex = first + index - 1
-            card:SetPoint("TOPLEFT", 0, -(itemIndex - 1) * cardStride)
-            bindCard(card, entries[itemIndex])
         end
-        for index = count + 1, #cards do bindCard(cards[index], nil) end
+        for unused = index + 1, #cards do bindCard(cards[unused], nil) end
     end
     function scroll:SetEntries(newEntries)
-        entries = newEntries
-        content:SetHeight(math.max(1, #entries * cardStride - 8))
+        entries, offsets = newEntries, {}
+        local offset = 0
+        for index, entry in ipairs(entries) do
+            offsets[index] = offset
+            offset = offset + (measure and measure(entry) or addon.encounterCardHeight) + cardGap
+        end
+        content:SetHeight(math.max(1, offset - cardGap))
         local maxScroll = math.max(0, content:GetHeight() - self:GetHeight())
         if self:GetVerticalScroll() > maxScroll then self:SetVerticalScroll(maxScroll) end
         Render()
@@ -413,7 +421,7 @@ local function OpenRival(id)
     addon.RefreshBook(true)
 end
 
-local function CreateRecentCard(parent, width, onMapShown)
+local function CreateSingleRecentCard(parent, width, onMapShown)
     local card = addon.CreateEncounterCard(parent, width, onMapShown, 265)
     local profile = card.profile
     local icon, rim = addon.CreateRoundIcon(profile)
@@ -453,6 +461,36 @@ local function CreateRecentCard(parent, width, onMapShown)
         UpdatePortrait(icon, rival, entry.id)
     end
     return card
+end
+
+local function RecentCardHeight(entry)
+    return entry.skirmish and addon.SkirmishCardHeight(entry.skirmish) or addon.encounterCardHeight
+end
+
+local function CreateRecentCard(parent, width, onMapShown)
+    local holder = CreateFrame("Frame", nil, parent)
+    holder:SetWidth(width)
+    function holder:SetEntry(entry)
+        self:SetShown(entry ~= nil)
+        if not entry then return end
+        self:SetHeight(RecentCardHeight(entry))
+        if entry.skirmish then
+            if self.single then self.single:SetEntry(nil) end
+            if not self.battle then
+                self.battle = addon.CreateSkirmishCard(self, width, onMapShown, OpenRival)
+                self.battle:SetPoint("TOPLEFT")
+            end
+            self.battle:SetSkirmish(entry.skirmish)
+        else
+            if self.battle then self.battle:SetSkirmish(nil) end
+            if not self.single then
+                self.single = CreateSingleRecentCard(self, width, onMapShown)
+                self.single:SetPoint("TOPLEFT")
+            end
+            self.single:SetEntry(entry)
+        end
+    end
+    return holder
 end
 
 local function CreateSideTabs()
@@ -699,7 +737,7 @@ local function ToggleBook()
         recentEmpty:SetPoint("CENTER")
         recentEmpty:SetText(L.noSkirmishes)
         recentList = CardList(journal, 20, -42, journal:GetWidth() - 62, bodyHeight - 56,
-            CreateRecentCard, function(card, entry) card:SetEntry(entry) end)
+            CreateRecentCard, function(card, entry) card:SetEntry(entry) end, RecentCardHeight)
 
         CreateSideTabs()
         SetBookView(activeView)
