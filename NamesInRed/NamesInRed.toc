@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: Names in Red
 ## Notes: Remember your rivals and review open-world PvP skirmishes.
-## Version: 0.1.3-preview.24
+## Version: 0.1.3-preview.25
 ## IconTexture: Interface\AddOns\NamesInRed\Art\CrossedSwords.tga
 ## SavedVariablesPerCharacter: NamesInRedDB, NamesInRedDebugDB
 

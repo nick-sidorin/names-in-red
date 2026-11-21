@@ -55,6 +55,7 @@ frame:SetScript("OnEvent", function(self, event, loadedName)
 
     local db = addon.Ledger.Open(NamesInRedDB)
     if db then
+        if addon.RestoreDeathLevels then addon.RestoreDeathLevels(db, NamesInRedDebugDB) end
         NamesInRedDB = db
         addon.db = db
         self:RegisterEvent("PLAYER_TARGET_CHANGED")

@@ -93,6 +93,31 @@ addon.db = assert(addon.Ledger.Open(nil))
 local existing = addon.Ledger.Add(addon.db, "Player-existing", "Existing")
 local existingManual = addon.Ledger.Add(addon.db, "manual:existing", "Existing")
 Login(addon)
+
+local self, rival = "Player-test", "Player-rival"
+local function OldLoss(id, stamp, zone, level)
+    local enemy = { id = rival, rivalID = rival, level = level }
+    local fight = { zone = zone, allies = { { id = self, isSelf = true } }, enemies = { enemy },
+        events = { { kind = "kill", actorID = rival, targetID = self, time = stamp } } }
+    addon.Ledger.SaveSkirmish(addon.db, id, fight)
+    return enemy
+end
+local match = OldLoss("world:1", 100, "Test Zone")
+local known = OldLoss("world:2", 100, "Test Zone", 30)
+local earlier = OldLoss("world:3", 99, "Test Zone")
+local ambiguous = OldLoss("world:4", 101, "Test Zone")
+local otherZone = OldLoss("world:5", 100, "Another Zone")
+local function CombatEnd(stamp)
+    return { kind = "COMBAT_END", instanceType = "none", time = stamp, zone = "Test Zone", player = { guid = self },
+        contacts = { [self] = { latest = { guid = self, dead = true } },
+            [rival] = { latest = { guid = rival, level = 32 } } } }
+end
+addon.RestoreDeathLevels(addon.db, { version = 1, rows = { CombatEnd(100), CombatEnd(101), CombatEnd(101) } })
+assert(match.level == 32 and known.level == 30)
+assert(not earlier.level and not ambiguous.level and not otherZone.level)
+for i = 1, 5 do addon.Ledger.RemoveSkirmish(addon.db, "world:" .. i) end
+print("Death levels restored only for matching combat observations")
+
 SlashCmdList.NAMESINREDDEBUG("seed")
 SlashCmdList.NAMESINREDDEBUG("seed")
 

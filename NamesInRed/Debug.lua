@@ -17,7 +17,53 @@ local function ClearDiagnostics()
     combatSequence, combat = 0, nil
 end
 
-if addon then addon.ClearDiagnostics = ClearDiagnostics end
+local function ReadDeathLevel(row, victim, attacker)
+    if not row.player or row.player.guid ~= victim then return end
+    local player = row.contacts[victim] and row.contacts[victim].latest
+    local rival = row.contacts[attacker] and row.contacts[attacker].latest
+    if player and player.guid == victim and player.dead == true
+        and rival and rival.guid == attacker and type(rival.level) == "number" and rival.level > 0 then
+        return rival.level
+    end
+end
+
+local function RestoreDeathLevels(journal, diagnostics)
+    if type(journal.skirmishes) ~= "table" or type(diagnostics) ~= "table"
+        or diagnostics.version ~= 1 or type(diagnostics.rows) ~= "table" then return end
+    local combatEnds = {}
+    for _, row in ipairs(diagnostics.rows) do
+        if type(row) == "table" and row.kind == "COMBAT_END" and row.instanceType == "none" and type(row.time) == "number"
+            and type(row.contacts) == "table" and type(row.zone) == "string" then
+            -- Leave colliding timestamps ambiguous.
+            local previous = combatEnds[row.time]
+            combatEnds[row.time] = previous == nil and row or false
+        end
+    end
+    if not next(combatEnds) then return end
+    for id, battle in pairs(journal.skirmishes) do
+        if type(id) == "string" and id:match("^world:%d+$") and type(battle) == "table"
+            and type(battle.events) == "table" and type(battle.enemies) == "table" then
+            for _, event in ipairs(battle.events) do
+                local row = event.kind == "kill" and combatEnds[event.time]
+                local level = row and row.zone == battle.zone and ReadDeathLevel(row, event.targetID, event.actorID)
+                if level then
+                    for _, rival in ipairs(battle.enemies) do
+                        if rival.id == event.actorID and rival.level == nil then
+                            rival.level = level
+                            addon.Ledger.SaveSkirmish(journal, id, battle)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+if addon then
+    addon.ClearDiagnostics = ClearDiagnostics
+    addon.RestoreDeathLevels = RestoreDeathLevels
+end
 
 local function Value(value)
     if issecretvalue and issecretvalue(value) then

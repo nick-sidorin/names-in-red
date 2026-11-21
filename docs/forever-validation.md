@@ -200,8 +200,9 @@ before waiting for the recap. `C_NamePlate.GetNamePlates` follows the same
 visible-plate path as the kill handler. Only recap-confirmed attackers enter
 the roster. Verify a hostile finishing blow while targeting nothing, including
 a delayed recap after the nameplate disappears. Old cards use known class and
-portrait details and mark a rival's last known level with `~` if the fight
-itself lacks a level.
+portrait details. A missing attacker level can be recovered from an outdoor
+combat-end observation in the same second and zone, with matching participant
+GUIDs and a recorded local death. The cards otherwise leave the level unknown.
 
 An open-world skirmish with one recorded rival, the local player alone on
 their side and direct finishing blows between them is treated as an observed

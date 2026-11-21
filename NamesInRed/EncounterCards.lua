@@ -113,12 +113,6 @@ local function Label(parent, font, point, x, y, width, relativePoint)
     return label
 end
 
-local function ParticipantLevel(level, rivalID)
-    if type(level) == "number" and level > 0 then return level end
-    local lastKnown = rivalID and addon.LastKnownRivalLevel(addon.db, rivalID)
-    return lastKnown, lastKnown ~= nil
-end
-
 local function EncounterDate(encounter)
     if not encounter.time then return encounter.manual and L.manual or "—", "" end
     local calendar = date("*t", encounter.time)
@@ -374,7 +368,7 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         if not appearance.race and rival and rival.race then appearance = rival end
         addon.SetRivalPortrait(theirs.portrait, appearance, rivalID, portraitSize, true)
         mine.level:SetLevel(encounter.playerLevel)
-        theirs.level:SetLevel(ParticipantLevel(encounter.rivalLevel, rivalID))
+        theirs.level:SetLevel(encounter.rivalLevel)
 
         mine.death:SetShown(encounter.playerDeathIndex ~= nil
             or (not encounter.manual and encounter.direction == "deathsToThem"))
@@ -494,8 +488,8 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
                     local sex = player.sex or known.sex
                     local classes = sex == 3 and LOCALIZED_CLASS_NAMES_FEMALE or LOCALIZED_CLASS_NAMES_MALE
                     row.class:SetText(classes and classes[class] or player.classLabel or known.classLabel or "")
-                    local level, lastKnown = ParticipantLevel(player.level, player.rivalID)
-                    row.level:SetText(lastKnown and ("~" .. level) or level or "—")
+                    local level = player.level
+                    row.level:SetText(type(level) == "number" and level > 0 and level or "—")
                     local coords = CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[class]
                     row.icon:SetTexture(coords and "Interface\\TargetingFrame\\UI-Classes-Circles"
                         or "Interface\\Icons\\INV_Misc_QuestionMark")
