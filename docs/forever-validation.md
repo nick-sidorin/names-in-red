@@ -177,6 +177,27 @@ The test suite exercises card reuse across different roster sizes and verifies
 that fixture removal preserves other saved records. Card rendering still
 needs a Forever client check.
 
+### Expanded evidence in 0.1.3-preview.3
+
+The old preview captured kills, honor changes and death recaps. The next
+preview added combat boundaries, party snapshots and post-combat meter data.
+This preview adds visible player observations from target, mouseover and
+ordinary nameplate events, plus readable target, pet, combat and death state.
+The probe uses the unit tokens documented in Forever's
+`NamePlateManagerDocumentation.lua` and `UnitDocumentation.lua`. It does not
+read forbidden nameplates. Observations are candidates for investigation.
+Visibility, a target change or a group entry alone does not prove participation.
+
+Group and pet context is sampled around combat and readable kill events.
+Group changes and damage-meter update IDs are recorded within the combat
+window. The post-combat read probes deaths, interrupts and dispels alongside
+the existing damage and healing categories when supported.
+Observations are bounded to 32 readable contacts and eight previous states per
+contact. Repeated flags are throttled. The first eight fully obscured kill
+events in a combat are stored individually, with the total retained at combat
+end. Protected fields remain unavailable. The collector is local and the
+additional event coverage needs a check in the Forever client.
+
 The UI uses the Forever Blizzard PortraitFrameTemplate,
 UIPanelScrollFrameTemplate and UIPanelButtonTemplate, and a unit-only
 TooltipDataProcessor post-call for GameTooltip. The minimap button follows

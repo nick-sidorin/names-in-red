@@ -126,6 +126,7 @@ assert(addon.db.rivals["manual:existing"] == existingManual)
 print("Debug seed checks passed")
 
 local inCombat, groupSize = false, 1
+local visibleTarget = "Player-rival"
 function InCombatLockdown() return inCombat end
 function GetNumSubgroupMembers() return groupSize end
 function GetNumGroupMembers() return groupSize > 0 and groupSize + 1 or 0 end
@@ -133,6 +134,8 @@ function IsInRaid() return false end
 function UnitGUID(unit)
     if unit == "player" then return "Player-test" end
     if unit == "party1" then return "Player-ally" end
+    if unit == "nameplate1" then return "Player-rival" end
+    if unit == "nameplate1target" then return visibleTarget end
 end
 
 Enum = {
@@ -164,18 +167,38 @@ C_DamageMeter = {
     end,
 }
 
+Event("NAME_PLATE_UNIT_ADDED", "nameplate1")
 inCombat = true
 Event("PLAYER_REGEN_DISABLED")
 local started = db.rows[#db.rows]
 assert(started.kind == "COMBAT_START" and started.group[1].guid == "Player-ally")
 Event("PARTY_KILL", "Player-ally", "Player-rival")
 assert(db.rows[#db.rows].combatSequence == started.combatSequence)
+local function countKills()
+    local count = 0
+    for _, row in ipairs(db.rows) do
+        if row.kind == "PARTY_KILL" and row.combatSequence == started.combatSequence then count = count + 1 end
+    end
+    return count
+end
+for _ = 1, 12 do Event("PARTY_KILL", secret, secret) end
+assert(countKills() == 9)
+visibleTarget = "Player-ally"
+Event("NAME_PLATE_UNIT_REMOVED", "nameplate1")
+Event("GROUP_ROSTER_UPDATE")
+Event("DAMAGE_METER_COMBAT_SESSION_UPDATED", 1, 2)
+Event("DAMAGE_METER_COMBAT_SESSION_UPDATED", 1, 2)
 sessions[2] = { sessionID = 2 }
 inCombat = false
 Event("PLAYER_REGEN_ENABLED")
 local ended = db.rows[#db.rows]
 timers[#timers][2]()
 assert(ended.kind == "COMBAT_END" and ended.combatSequence == started.combatSequence)
+local observed = ended.contacts["Player-rival"]
+assert(observed.changes[1].targetGUID == "Player-rival" and observed.latest.targetGUID == "Player-ally")
+assert(observed.signals["combat-start"] == 1 and observed.signals["nameplate-removed"] == 1)
+assert(#ended.groupChanges == 1 and ended.groupChanges[1].group[1].guid == "Player-ally")
+assert(ended.meterUpdates["2:1"].count == 2 and ended.restrictedPartyKills == 12)
 assert(ended.meterSelection == "new-archived" and ended.meterSessionID == 2 and archivedReads == 4)
 assert(ended.meter.DamageTaken.status.session == "restricted-table")
 local sources = ended.meter.DamageDone.sources
