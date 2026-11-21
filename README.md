@@ -16,8 +16,10 @@ to see both sides, levels, classes, and the finishing blows
 in the same window. **Back** returns to the rival and the same place in their
 history. The side tab shows the latest 100 skirmishes across all opponents using
 the same two-sided layout for both battle records and earlier individual
-encounters. The full card shows the game's PvP faction emblems beside the side
-headings. The header shows the number of recorded participants on each side.
+encounters. The full card groups portraits in centered rows beneath the game's
+PvP faction emblems. The outcome has a circular frame and label between the
+sides. Expand **Finishing blows** to see the recorded kills in order. The header
+shows the number of recorded participants on each side.
 Cards show a rival's level when an observation from that fight is available.
 An information icon beside those counts explains when the full team sizes are
 unconfirmed. Older saved battles can still open from a rival's history.

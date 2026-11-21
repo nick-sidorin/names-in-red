@@ -4,6 +4,8 @@ addon.swordsIconPath = artPath .. "CrossedSwords.tga"
 addon.smallSkullIconPath = artPath .. "TooltipSkull.tga"
 addon.defeatBannerPath = artPath .. "DefeatBanner.tga"
 addon.defeatStatIconPath = artPath .. "DefeatStatIcon.tga"
+addon.battlefieldArtPath = artPath .. "Battlefield.tga"
+addon.levelBadgePath = artPath .. "LevelBadge.tga"
 addon.smallSwordsInset = 22
 
 function addon.RewardIconPath(faction, isHonor)

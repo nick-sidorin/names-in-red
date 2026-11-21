@@ -175,6 +175,7 @@ local function MockRegion(parent)
     end
     function region:SetHitRectInsets(...) self.insets = { ... } end
     function region:SetShown(shown) self.shown = shown end
+    function region:Show() self:SetShown(true) end
     function region:Hide() self:SetShown(false) end
     function region:SetHeight(height) self.height = height end
     function region:SetScript(event, handler) self.scripts[event] = handler end
@@ -213,9 +214,9 @@ C_Texture = {
     end,
 }
 date = os.date
-local selectedRival, journalMapOpened
+local selectedRival, journalMapOpened, timelineRequested
 local card = addon.CreateSkirmishCard(MockRegion(), 630, function() journalMapOpened = true end,
-    function(id) selectedRival = id end)
+    function(id) selectedRival = id end, function(battle) timelineRequested = battle end)
 local allies = { { id = "me", name = "My Character", isSelf = true }, { id = "ally", name = "Ally Warrior" } }
 local enemies = {
     { id = "enemy", name = "Test Rival", rivalID = "Player-test", class = "MAGE", level = 42 },
@@ -252,7 +253,14 @@ local function CheckFactionColors(left, right)
     assert(left.color[3] > left.color[1] and right.color[1] > right.color[3])
 end
 card:SetSkirmish(large, "Player-test")
+local collapsedHeight = card.height
+assert(collapsedHeight == addon.SkirmishCardHeight(large) and not FindText(card, "0:11"))
+local timelineTitle = assert(FindText(card, addon.L.finishingBlows))
+timelineTitle.parent.scripts.OnClick(timelineTitle.parent)
+assert(timelineRequested == large)
+card:SetSkirmish(large, "Player-test", true)
 local largeHeight = card.height
+assert(largeHeight == addon.SkirmishCardHeight(large, true) and collapsedHeight < largeHeight)
 assert(FindText(card, "2 × 2") and FindText(card, "Ally Warrior") and FindText(card, "0:11"))
 assert(not FindText(card, "0:15"))
 assert(not FindText(card, addon.L.showOnMap) and not FindText(card, "45.0, 51.0"))
@@ -262,28 +270,27 @@ local stamp = assert(FindText(card, date("%x", large.time) .. "  " .. date("%H:%
 assert(journalMap.template == "CommonSquareIconButtonTemplate" and stamp.anchor[4] < journalMap.anchor[4])
 assert(zone.anchor[5] == stamp.anchor[5] and stamp.anchor[5] == journalMap.anchor[5])
 assert(FindText(card, "2 × 2").anchor[5] == stamp.anchor[5] - 2)
-local eventTitle, firstTime = FindText(card, addon.L.finishingBlows), FindText(card, "0:11")
+local eventTitle, firstTime = timelineTitle, FindText(card, "0:11")
 local secondTime = FindText(card, "0:17")
-assert(eventTitle.anchor[3] - firstTime.anchor[3] == firstTime.anchor[3] - secondTime.anchor[3])
-local headerLine, blowsLine = assert(FindDivider(card)), assert(FindDivider(eventTitle.parent))
+assert(firstTime.anchor[3] > secondTime.anchor[3])
+local headerLine, blowsLine = assert(FindDivider(card)), assert(FindDivider(eventTitle.parent.parent))
 assert(headerLine.anchor[3] - 2 == 2 * journalMap.anchor[5])
 addon.ShowEncounterWaypoint = function(battle) assert(battle == large); return true end
 journalMap.scripts.OnClick()
 assert(journalMapOpened)
 assert(not FindRegion(card, "template", "UIPanelInfoButton"))
 local allyHeading, enemyHeading = FindText(card, addon.L.alliedSide), FindText(card, addon.L.enemySide)
-assert(headerLine.anchor[3] - allyHeading.anchor[3] == blowsLine.anchor[3] - eventTitle.anchor[3])
 local allyEmblem = assert(FindRegion(card, "atlas", allianceAtlas))
 local enemyEmblem = assert(FindRegion(card, "atlas", hordeAtlas))
-assert(allyEmblem.anchor[4] == eventTitle.anchor[2] + 5.5)
-assert(allyEmblem.anchor[4] + 9.5 == allyHeading.anchor[2] and enemyEmblem.anchor[4] + 9.5 == enemyHeading.anchor[2])
-assert(allyEmblem.height == 11 and allyEmblem.width == 8.25 and enemyEmblem.height == 11 and enemyEmblem.width == 5.5)
+assert(allyEmblem.anchor[2] == allyHeading and enemyEmblem.anchor[2] == enemyHeading)
+assert(allyEmblem.height == 18 and allyEmblem.width == 13.5 and enemyEmblem.height == 18 and enemyEmblem.width == 9)
+assert(FindRegion(card, "texture", addon.battlefieldArtPath))
 CheckFactionColors(allyHeading, enemyHeading)
 faction = "Horde"
 card:SetSkirmish(large, "Player-test")
 CheckFactionColors(enemyHeading, allyHeading)
-assert(allyEmblem.atlas == hordeAtlas and allyEmblem.width == 5.5)
-assert(enemyEmblem.atlas == allianceAtlas and enemyEmblem.width == 8.25)
+assert(allyEmblem.atlas == hordeAtlas and allyEmblem.width == 9)
+assert(enemyEmblem.atlas == allianceAtlas and enemyEmblem.width == 13.5)
 missingAtlas = hordeAtlas
 card:SetSkirmish(large, "Player-test")
 assert(not allyEmblem.shown and enemyEmblem.shown)
@@ -291,6 +298,7 @@ missingAtlas = nil
 faction = "Alliance"
 local name = assert(FindText(card, "Test Rival"))
 assert(name.parent.selection.shown)
+assert(name.parent.death.shown and FindRegion(name.parent.death, "atlas", "UI-HUD-UnitFrame-SmallCircle"))
 name.parent.scripts.OnClick(name.parent)
 assert(selectedRival == "Player-test")
 local finished = { allies = { allies[1] }, enemies = { enemies[1] }, rosterComplete = true,
@@ -298,12 +306,15 @@ local finished = { allies = { allies[1] }, enemies = { enemies[1] }, rosterCompl
 card:SetSkirmish(finished)
 assert(allyEmblem.shown and allyEmblem.atlas == allianceAtlas and enemyEmblem.atlas == hordeAtlas)
 local fullVictory = assert(FindRegion(card, "texture", addon.swordsIconPath)).parent
-assert(fullVictory.anchor[4] == 0 and fullVictory.anchor[5] == allyEmblem.anchor[5])
+local fullOutcome = fullVictory.parent
+assert(fullOutcome.anchor[4] == 0 and FindText(fullOutcome, addon.L.winTooltip))
+assert(FindRegion(fullVictory, "atlas", "UI-HUD-UnitFrame-SmallCircle"))
 fullVictory.scripts.OnEnter(fullVictory)
 assert(GameTooltip.shown and GameTooltip.title == addon.L.winTooltip)
 card:SetSkirmish({ allies = finished.allies, enemies = finished.enemies, outcome = "loss", events = {} })
 assert(not GameTooltip.shown and not fullVictory.shown)
 local fullDefeat = assert(FindRegion(card, "texture", addon.defeatBannerPath)).parent
+assert(FindText(fullOutcome, addon.L.lossTooltip))
 fullDefeat.scripts.OnEnter(fullDefeat)
 assert(GameTooltip.shown and GameTooltip.title == addon.L.lossTooltip)
 card:SetSkirmish({ allies = { allies[1] }, enemies = { enemies[1] }, events = {} })
@@ -321,6 +332,32 @@ assert(tooltipLines[#tooltipLines] == addon.L.partialRosterHint)
 card:SetSkirmish(nil)
 assert(not card.shown and not GameTooltip.shown)
 print("Skirmish card roster, faction emblems, outcomes and recycling checks passed")
+
+local patterns = { { 1 }, { 2 }, { 2, 1 }, { 2, 2 }, { 3, 2 }, { 3, 3 }, { 3, 2, 2 },
+    { 3, 3, 2 }, { 3, 3, 3 }, { 3, 3, 2, 2 } }
+local roster = {}
+for i = 1, #patterns do roster[i] = { id = "ally:" .. i, name = "Ally " .. i } end
+for count = #patterns, 1, -1 do
+    local battle = { allies = { unpack(roster, 1, count) }, enemies = enemies, events = {} }
+    card:SetSkirmish(battle)
+    assert(card.height == addon.SkirmishCardHeight(battle))
+    local i, priorY = 0, 0
+    for _, slots in ipairs(patterns[count]) do
+        local center, y, priorX = 0, nil, -math.huge
+        for _ = 1, slots do
+            i = i + 1
+            local tile = assert(FindText(card, roster[i].name)).parent
+            local x, rowY = tile.anchor[4], tile.anchor[5]
+            assert(x > priorX and (not y or y == rowY))
+            y, priorX, center = rowY, x, center + x
+            assert(not tile.death.shown)
+        end
+        assert(center == 0 and y < priorY)
+        priorY = y
+    end
+    assert(i == count and not FindText(card, "Ally " .. (count + 1)))
+end
+print("Skirmish portraits use balanced, centered rows and clear recycled casualties")
 
 local openedSkirmish, openedMap, mapped
 local compact = addon.CreateCompactEncounterCard(MockRegion(), 332, function() openedMap = true end,
@@ -472,8 +509,9 @@ addon.Ledger.SaveSkirmish(addon.db, "sparse", older)
 addon.Ledger.SaveSkirmish(addon.db, "observed", observed)
 CLASS_ICON_TCOORDS = { ROGUE = { 0.5, 0.75, 0, 0.25 }, MAGE = { 0.25, 0.5, 0, 0.25 } }
 card:SetSkirmish(older)
-assert(FindText(card, "Rogue") and FindText(card, "Mage") and FindText(FindText(card, "Rogue").parent, "—"))
-assert(FindText(card, "Rogue").parent.icon.texcoords[1] == 0.5)
+assert(FindText(card, "Rogue") and FindText(card, "Mage"))
+local fullRival = FindText(card, "Rogue").parent
+assert(fullRival.portrait.atlas == "scourge-male" and not fullRival.level.shown and not fullRival.death.shown)
 local history = addon.RivalEncounters(addon.db, rivalID)
 compact:SetEncounter(history[2], knownRival, rivalID)
 assert(FindRegion(compact, "atlas", "human-female") and FindRegion(compact, "atlas", "scourge-male"))

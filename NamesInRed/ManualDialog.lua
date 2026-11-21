@@ -69,15 +69,15 @@ function addon.SetRivalPortrait(portrait, rival, id, size, mirrored)
     end
 end
 
-function addon.CreateLevelBadge(parent, rim, rightSide)
-    local size = 24
+function addon.CreateLevelBadge(parent, rim, rightSide, size)
+    size = size or 24
     local badge = CreateFrame("Frame", nil, parent)
     badge:SetSize(size, size)
     badge:SetPoint("CENTER", rim, rightSide and "BOTTOMRIGHT" or "BOTTOMLEFT",
         rightSide and -size / 2 or size / 2, size / 2)
     local circle = badge:CreateTexture(nil, "ARTWORK")
     circle:SetAllPoints()
-    circle:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\LevelBadge.tga")
+    circle:SetTexture(addon.levelBadgePath)
     local label = badge:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     label:SetPoint("CENTER", 0, -0.5)
     label:SetSize(size, size)

@@ -369,13 +369,17 @@ map button keeps the unshifted native center. Verify both at the same UI scale.
 All dividers use the factor from Blizzard's `PixelUtil.lua` divided by the
 texture's effective scale to target one physical pixel. Their positions snap
 to the pixel grid. The full header centers the map control between the inner
-top edge and divider. Both sections use the same separator-to-title gap.
+top edge and divider. The roster headers and timeline use the same dividers.
 Check dividers and headings at different resolutions and UI scales.
-Both portraits use the profile's 64-unit ring and 24-unit level badge. The
-compact badges sit at the outer bottom corners. Both layouts center crossed
+Compact portraits use the profile's 64-unit ring and 24-unit level badge. The
+full card uses a 50-unit ring and 20-unit badge, with the same circular mask
+and portrait assets. The ring comes from `Mode-Selection-Ring` in
+`Blizzard_GlueXML/Mainline/SuperDistrict.xml`. Both layouts center crossed
 swords, the torn gray banner or a question mark between the sides, using the
-same outcome calculation as the profile score. Portrait skulls indicate recorded
-deaths. Hover the markers and rebind the card to check tooltip cleanup.
+same outcome calculation as the profile score. The full card adds a label
+and frames its outcome and casualty markers with the `UI-HUD-UnitFrame-SmallCircle`
+atlas from Camelot's `TargetFrameTemplates.xml`. Hover the markers and rebind
+the card to check tooltip cleanup.
 A local portrait with no saved race portrait uses `SetPortraitTexture`, as in Camelot's
 `CharacterFrameMixin:UpdateCharacterModeTabPortrait`. Race portraits use the
 `resetTexCoords` argument to `SetAtlas`. The compact rival portrait flips its
@@ -395,11 +399,22 @@ order the existing blue and red palette. `Blizzard_UnitFrame/Camelot/TargetFrame
 directs `TargetFrameMixin:GetPvPIndicatorElements` to `PvpBackgroundIcon`. The
 full card uses its `UI-HUD-UnitFrame-SmallCircle-Alliance` and
 `UI-HUD-UnitFrame-SmallCircle-Horde` atlases from Camelot's
-`UnitFramePvPIndicatorStyle.lua`. Each emblem fits an 11-unit box at its
-authored aspect ratio before the heading. Check the colors and emblem order
+`UnitFramePvPIndicatorStyle.lua`. Each emblem fits an 18-unit box at its
+authored aspect ratio before the heading. The two panels use faction tints and
+share a translucent battlefield illustration behind them. Check the colors and emblem order
 for both factions. Include the Borin fixture, where a defeat also awards honor,
 and the incomplete Ashenvale fixture. Verify that a card rebind clears stale
 tooltips and that the map action remains available on mapped legacy cards.
+
+Roster rows center independently on each side. One or two portraits use one
+row. Three or four use two rows. Larger groups use the fewest rows that fit
+three per row, with any extra portraits assigned to the upper rows. Verify
+3, 4, 5, 6 and 7 portraits, including a sparse side opposite a full group.
+The timeline header uses the native `common-icon-forwardarrow` art on a
+button owned by the card list. Unlike the client `ExpandBarMixin`, this
+button remeasures the scrolling list when the rows change. Test expansion,
+collapse and card reuse while scrolling. History starts collapsed and the
+linked detail view starts expanded.
 
 For the map diamond, see `WaypointLocationDataProviderMixin:HandleClick` and
 the MAPPIN slash command in

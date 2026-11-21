@@ -116,9 +116,18 @@ local function CloseForMap()
     window:Hide()
 end
 
-local function CardList(parent, x, y, width, height, createCard, bindCard, measure)
+local function CardList(parent, x, y, width, height, createCard, bindCard, measure, initiallyExpanded)
     local content, scroll = Scroll(parent, x, y, width, height, true)
     local entries, cards, offsets = {}, {}, {}
+    local expansion = setmetatable({}, { __mode = "k" })
+    local function IsExpanded(entry)
+        if expansion[entry] ~= nil then return expansion[entry] end
+        return initiallyExpanded
+    end
+    local function ToggleTimeline(entry)
+        expansion[entry] = not IsExpanded(entry)
+        scroll:SetEntries(entries)
+    end
     local function Render()
         if not scroll:IsVisible() then return end
         local top = scroll:GetVerticalScroll()
@@ -130,11 +139,12 @@ local function CardList(parent, x, y, width, height, createCard, bindCard, measu
                 index = index + 1
                 local card = cards[index]
                 if not card then
-                    card = createCard(content, width, CloseForMap)
+                    card = createCard(content, width, CloseForMap, ToggleTimeline)
                     cards[index] = card
                 end
                 card:SetPoint("TOPLEFT", 0, -offset)
-                bindCard(card, entries[itemIndex])
+                local entry = entries[itemIndex]
+                bindCard(card, entry, IsExpanded(entry))
             end
         end
         for unused = index + 1, #cards do bindCard(cards[unused], nil) end
@@ -144,7 +154,7 @@ local function CardList(parent, x, y, width, height, createCard, bindCard, measu
         local offset = 0
         for index, entry in ipairs(entries) do
             offsets[index] = offset
-            offset = offset + measure(entry) + cardGap
+            offset = offset + measure(entry, IsExpanded(entry)) + cardGap
         end
         content:SetHeight(math.max(1, offset - cardGap))
         local maxScroll = math.max(0, content:GetHeight() - self:GetHeight())
@@ -345,7 +355,7 @@ end
 local function DetailBackground(parent)
     local size = math.min(parent:GetWidth() * 0.58, parent:GetHeight() * 0.56)
     local illustration = parent:CreateTexture(nil, "BACKGROUND")
-    illustration:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\Battlefield.tga")
+    illustration:SetTexture(addon.battlefieldArtPath)
     illustration:SetPoint("BOTTOMRIGHT", -9, 13)
     illustration:SetSize(size, size)
     illustration:SetAlpha(0.24)
@@ -403,8 +413,8 @@ local function OpenRival(id)
     addon.RefreshBook(true)
 end
 
-local function CreateBattleCard(parent, width, onMapShown)
-    return addon.CreateSkirmishCard(parent, width, onMapShown, OpenRival)
+local function CreateBattleCard(parent, width, onMapShown, toggleTimeline)
+    return addon.CreateSkirmishCard(parent, width, onMapShown, OpenRival, toggleTimeline)
 end
 
 local function CreateSideTabs()
@@ -677,7 +687,8 @@ local function ToggleBook()
         local journalLeftInset, journalRightGutter = 20, 42
         local journalCardWidth = journal:GetWidth() - journalLeftInset - journalRightGutter
         recentList = CardList(journal, journalLeftInset, -42, journalCardWidth, bodyHeight - 56,
-            CreateBattleCard, function(card, battle) card:SetSkirmish(battle) end, addon.SkirmishCardHeight)
+            CreateBattleCard, function(card, battle, expanded) card:SetSkirmish(battle, nil, expanded) end,
+            addon.SkirmishCardHeight)
         local journalBar = recentList.ScrollBar
         journalBar:ClearAllPoints()
         journalBar:SetPoint("TOP", recentList, "TOPRIGHT", journalRightGutter / 2, 0)
@@ -698,7 +709,8 @@ local function ToggleBook()
         end)
         battleList = CardList(battlePage, 20, -42, battlePage:GetWidth() - 62, bodyHeight - 56,
             CreateBattleCard,
-            function(card, battle) card:SetSkirmish(battle, selected) end, addon.SkirmishCardHeight)
+            function(card, battle, expanded) card:SetSkirmish(battle, selected, expanded) end,
+            addon.SkirmishCardHeight, true)
 
         CreateSideTabs()
         SetBookView(activeView)

@@ -73,6 +73,15 @@ addon.L.personalScore, addon.L.winTooltip, addon.L.lossTooltip, addon.L.openSkir
 addon.L.honorableKills, addon.L.honor, addon.L.unknownOutcome =
     unpack(scoreStrings[GetLocale()] or scoreStrings.enUS, 5)
 
+local shortUnknownOutcome = {
+    enUS = "Outcome unknown", ruRU = "Исход неизвестен", deDE = "Ausgang unbekannt",
+    frFR = "Issue inconnue", esES = "Resultado incierto", itIT = "Esito sconosciuto",
+    ptBR = "Resultado incerto", koKR = "결과 미확인", zhCN = "结果未知", zhTW = "結果未知",
+}
+shortUnknownOutcome.enGB = shortUnknownOutcome.enUS
+shortUnknownOutcome.esMX = shortUnknownOutcome.esES
+addon.L.shortUnknownOutcome = shortUnknownOutcome[GetLocale()] or shortUnknownOutcome.enUS
+
 local portraitOutcomeStrings = {
     enUS = "Died",
     ruRU = "Погиб",
