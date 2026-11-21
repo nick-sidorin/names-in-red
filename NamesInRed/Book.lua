@@ -567,7 +567,7 @@ local function ToggleBook()
             pcall(C_AddOns.LoadAddOn, "Blizzard_ProfessionsTemplates")
         end
         wins = Stat(summary, profileInset, -112, addon.swordsIconPath, L.winTooltip)
-        losses = Stat(summary, profileInset, -162, addon.defeatBannerPath, L.lossTooltip)
+        losses = Stat(summary, profileInset, -162, addon.defeatStatIconPath, L.lossTooltip)
         local rewardColumn = profileInset + cardWidth / 2 + 6
         local faction = UnitFactionGroup and Readable(UnitFactionGroup("player"))
         honorableKills, honorableKillsIcon = Stat(summary, rewardColumn, -112,

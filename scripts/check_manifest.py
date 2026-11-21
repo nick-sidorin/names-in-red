@@ -12,7 +12,7 @@ assets = {
     "Art/Battlefield.tga": (512, 32),
     "Art/CrossedSwords.tga": (128, 32),
     "Art/DefeatBanner.tga": (128, 32),
-    "Art/FactionEmblems.tga": (64, 32),
+    "Art/DefeatStatIcon.tga": (128, 32),
     "Art/LevelBadge.tga": (64, 32),
     "Art/TooltipSkull.tga": (64, 32),
 }

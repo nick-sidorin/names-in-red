@@ -371,10 +371,13 @@ Check that skirmish and reward labels keep their left edge when their counts
 change from one to multiple digits.
 `PVPMatchStyle.GetLocalPlayerFactionTheme` uses the first return from
 `UnitFactionGroup("player")`. The skirmish cards use the same faction tag to
-order the existing blue and red palette. The full card samples the supplied
-emblems from a transparent atlas and displays them at 11 units before the side
-headings. Check the colors and emblem order for both factions. Include the
-Borin fixture, where a defeat also awards honor,
+order the existing blue and red palette. `Blizzard_UnitFrame/Camelot/TargetFrame.lua`
+directs `TargetFrameMixin:GetPvPIndicatorElements` to `PvpBackgroundIcon`. The
+full card uses its `UI-HUD-UnitFrame-SmallCircle-Alliance` and
+`UI-HUD-UnitFrame-SmallCircle-Horde` atlases from Camelot's
+`UnitFramePvPIndicatorStyle.lua`. Each emblem fits an 11-unit box at its
+authored aspect ratio before the heading. Check the colors and emblem order
+for both factions. Include the Borin fixture, where a defeat also awards honor,
 and the incomplete Ashenvale fixture. Verify that a card rebind clears stale
 tooltips and that the map action remains available on mapped legacy cards.
 
@@ -498,8 +501,10 @@ The minimap samples the same artwork in a 23.5-unit square centered on its
 existing circle mask. The
 stock mask, reagent frame and texture anchors remain native. Reference mode
 uses the full native icon and restores the branded crops when it exits.
-The gray banner marks defeats in the statistics, cards, manual dialog, nameplates
-and unit tooltip. The small pink skull marks recorded deaths on portraits.
+The defeat statistics slot uses the painted square banner with a background.
+The wide transparent banner marks defeats on cards, in the manual dialog, on
+nameplates and in the unit tooltip. The small pink skull marks recorded deaths
+on portraits.
 Compare the header to First Aid and both statistics slots to reagent icons
 in the live client at normal and reduced UI scales.
 

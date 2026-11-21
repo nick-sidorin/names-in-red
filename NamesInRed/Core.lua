@@ -3,7 +3,7 @@ local artPath = "Interface\\AddOns\\NamesInRed\\Art\\"
 addon.swordsIconPath = artPath .. "CrossedSwords.tga"
 addon.smallSkullIconPath = artPath .. "TooltipSkull.tga"
 addon.defeatBannerPath = artPath .. "DefeatBanner.tga"
-addon.factionEmblemsPath = artPath .. "FactionEmblems.tga"
+addon.defeatStatIconPath = artPath .. "DefeatStatIcon.tga"
 addon.smallSwordsInset = 22
 
 function addon.RewardIconPath(faction, isHonor)

@@ -8,6 +8,8 @@ addon.compactEncounterCardHeight = 138
 local allianceColor = { 0.65, 0.83, 1 }
 local hordeColor = { 1, 0.61, 0.52 }
 local neutralColor = { 0.77, 0.71, 0.61 }
+local allianceEmblem = "UI-HUD-UnitFrame-SmallCircle-Alliance"
+local hordeEmblem = "UI-HUD-UnitFrame-SmallCircle-Horde"
 
 local function SideColors()
     local faction = UnitFactionGroup and addon.Readable(UnitFactionGroup("player"))
@@ -426,9 +428,7 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
         local emblemSize, emblemGap = 11, 4
         local titleInset = emblemSize + emblemGap
         local emblem = card:CreateTexture(nil, "ARTWORK")
-        emblem:SetTexture(addon.factionEmblemsPath)
-        emblem:SetSize(emblemSize, emblemSize)
-        emblem:SetPoint("LEFT", card, "TOPLEFT", x, titleCenter)
+        emblem:SetPoint("CENTER", card, "TOPLEFT", x + emblemSize / 2, titleCenter)
         local title = Label(card, "GameFontNormalSmall", "TOPLEFT", x + titleInset, rosterTitleY, columnWidth - titleInset)
         title:SetText(caption)
         local side = CreateFrame("Frame", nil, card)
@@ -437,8 +437,14 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
         local rows = {}
         return function(players, color, horde, selectedRivalID)
             title:SetTextColor(unpack(color))
-            local left = horde and 0.5 or 0
-            emblem:SetTexCoord(left, left + 0.5, 0, 0.5)
+            local atlas = horde and hordeEmblem or allianceEmblem
+            local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas)
+            if info then
+                local scale = emblemSize / math.max(info.width, info.height)
+                emblem:SetAtlas(atlas)
+                emblem:SetSize(info.width * scale, info.height * scale)
+            end
+            emblem:SetShown(info ~= nil)
             side:SetHeight(math.max(1, #players * rosterRowStep))
             for i = 1, math.max(#players, #rows) do
                 local player, row = players[i], rows[i]

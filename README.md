@@ -7,16 +7,17 @@ Names in Red targets Forever 1.60.1 (interface 16001). Click the crossed swords
 on the minimap to browse rivals. Information shows your skirmish stats and the
 latest skirmish. The Skirmishes tab lists that rival's recorded history, newest
 first. Compact cards show both portraits and levels. Both card layouts show
-crossed swords for a victory and a torn gray banner for a defeat. The same
-banner marks the defeat count. A small skull on a portrait marks a recorded
-death. The reward icons use the current character's faction.
+crossed swords for a victory and a torn gray banner for a defeat. The defeat
+count uses a square version of the banner on a painted background. A small
+skull on a portrait marks a recorded death. The reward icons use the current
+character's faction.
 Alliance is blue and Horde is red. Use the information icon on a linked card
 to see both sides, levels, classes, and the finishing blows
 in the same window. **Back** returns to the rival and the same place in their
 history. The side tab shows the latest 100 skirmishes across all opponents using
 the same two-sided layout for both battle records and earlier individual
-encounters. The full card shows each faction's emblem beside its side heading.
-The header shows the number of recorded participants on each side.
+encounters. The full card shows the game's PvP faction emblems beside the side
+headings. The header shows the number of recorded participants on each side.
 An information icon beside those counts explains when the full team sizes are
 unconfirmed. Older saved battles can still open from a rival's history.
 The map pin places a waypoint when the saved location supports one. Known

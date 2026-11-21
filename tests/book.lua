@@ -201,8 +201,14 @@ function CreateFrame(_, _, parent, template)
     return region
 end
 assert(loadfile("NamesInRed/ManualDialog.lua"))("NamesInRed", addon)
+local allianceAtlas = "UI-HUD-UnitFrame-SmallCircle-Alliance"
+local hordeAtlas = "UI-HUD-UnitFrame-SmallCircle-Horde"
+local missingAtlas
 C_Texture = {
-    GetAtlasInfo = function()
+    GetAtlasInfo = function(atlas)
+        if atlas == missingAtlas then return end
+        if atlas == allianceAtlas then return { width = 24, height = 32 } end
+        if atlas == hordeAtlas then return { width = 16, height = 32 } end
         return { leftTexCoord = 0.2, rightTexCoord = 0.4, topTexCoord = 0.3, bottomTexCoord = 0.5 }
     end,
 }
@@ -267,20 +273,21 @@ assert(journalMapOpened)
 assert(not FindRegion(card, "template", "UIPanelInfoButton"))
 local allyHeading, enemyHeading = FindText(card, addon.L.alliedSide), FindText(card, addon.L.enemySide)
 assert(headerLine.anchor[3] - allyHeading.anchor[3] == blowsLine.anchor[3] - eventTitle.anchor[3])
-local function HeadingEmblem(heading)
-    for _, region in ipairs(card.children) do
-        if rawget(region, "texture") == addon.factionEmblemsPath
-            and region.anchor[4] + region.width + 4 == heading.anchor[2] then return region end
-    end
-end
-local allyEmblem, enemyEmblem = assert(HeadingEmblem(allyHeading)), assert(HeadingEmblem(enemyHeading))
-assert(allyEmblem.anchor[4] == eventTitle.anchor[2] and allyEmblem.height == 11 and enemyEmblem.height == 11)
-assert(allyEmblem.texcoords[1] == 0 and enemyEmblem.texcoords[1] == 0.5)
+local allyEmblem = assert(FindRegion(card, "atlas", allianceAtlas))
+local enemyEmblem = assert(FindRegion(card, "atlas", hordeAtlas))
+assert(allyEmblem.anchor[4] == eventTitle.anchor[2] + 5.5)
+assert(allyEmblem.anchor[4] + 9.5 == allyHeading.anchor[2] and enemyEmblem.anchor[4] + 9.5 == enemyHeading.anchor[2])
+assert(allyEmblem.height == 11 and allyEmblem.width == 8.25 and enemyEmblem.height == 11 and enemyEmblem.width == 5.5)
 CheckFactionColors(allyHeading, enemyHeading)
 faction = "Horde"
 card:SetSkirmish(large, "Player-test")
 CheckFactionColors(enemyHeading, allyHeading)
-assert(allyEmblem.texcoords[1] == 0.5 and enemyEmblem.texcoords[1] == 0)
+assert(allyEmblem.atlas == hordeAtlas and allyEmblem.width == 5.5)
+assert(enemyEmblem.atlas == allianceAtlas and enemyEmblem.width == 8.25)
+missingAtlas = hordeAtlas
+card:SetSkirmish(large, "Player-test")
+assert(not allyEmblem.shown and enemyEmblem.shown)
+missingAtlas = nil
 faction = "Alliance"
 local name = assert(FindText(card, "Test Rival"))
 assert(name.parent.selection.shown)
@@ -289,6 +296,7 @@ assert(selectedRival == "Player-test")
 local finished = { allies = { allies[1] }, enemies = { enemies[1] }, rosterComplete = true,
     events = { { kind = "kill", actorID = "me", targetID = "enemy" } } }
 card:SetSkirmish(finished)
+assert(allyEmblem.shown and allyEmblem.atlas == allianceAtlas and enemyEmblem.atlas == hordeAtlas)
 local fullVictory = assert(FindRegion(card, "texture", addon.swordsIconPath)).parent
 assert(fullVictory.anchor[4] == 0 and fullVictory.anchor[5] == allyEmblem.anchor[5])
 fullVictory.scripts.OnEnter(fullVictory)
