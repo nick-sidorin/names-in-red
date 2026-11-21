@@ -153,7 +153,11 @@ print("Full-name manual tooltip checks passed")
 local function MockRegion(parent)
     local region = { parent = parent, children = {}, shown = true, scripts = {} }
     if parent then parent.children[#parent.children + 1] = region end
-    function region:CreateFontString() return MockRegion(self) end
+    function region:CreateFontString(_, _, font)
+        local label = MockRegion(self)
+        label.font = font
+        return label
+    end
     function region:CreateTexture() return MockRegion(self) end
     function region:CreateMaskTexture() return MockRegion(self) end
     function region:SetText(text)
@@ -162,6 +166,7 @@ local function MockRegion(parent)
     end
     function region:SetTextColor(r, g, b) self.color = { r, g, b } end
     function region:SetColorTexture(_, _, _, opacity) self.fillOpacity = opacity end
+    function region:SetBackdropColor(...) self.backdropColor = { ... } end
     function region:GetEffectiveScale() return dividerScale end
     function region:SetPoint(...) self.anchor = { ... } end
     function region:SetAllPoints(target) self.bounds = target end
@@ -284,7 +289,17 @@ local allyEmblem = assert(FindRegion(card, "atlas", allianceAtlas))
 local enemyEmblem = assert(FindRegion(card, "atlas", hordeAtlas))
 assert(allyEmblem.anchor[2] == allyHeading and enemyEmblem.anchor[2] == enemyHeading)
 assert(allyEmblem.height == 18 and allyEmblem.width == 13.5 and enemyEmblem.height == 18 and enemyEmblem.width == 9)
-assert(FindRegion(card, "texture", addon.battlefieldArtPath))
+local battlefield = assert(FindRegion(card, "texture", addon.battlefieldArtPath))
+local allyPanel, enemyPanel = allyHeading.parent, enemyHeading.parent
+for _, panel in ipairs({ allyPanel, enemyPanel }) do
+    local r, g, b, alpha = unpack(panel.backdropColor)
+    assert(r == g and g == b and alpha < 0.5)
+end
+assert(battlefield.parent == card and battlefield.anchor[4] == 0)
+assert((630 - battlefield.width) / 2 < allyPanel.anchor[2] + allyPanel.width)
+assert((630 + battlefield.width) / 2 > enemyPanel.anchor[2])
+assert(battlefield.texcoords[3] >= 0 and battlefield.texcoords[4] <= 1)
+assert(math.abs((battlefield.texcoords[4] - battlefield.texcoords[3]) * battlefield.width - battlefield.height) < 0.01)
 CheckFactionColors(allyHeading, enemyHeading)
 faction = "Horde"
 card:SetSkirmish(large, "Player-test")
@@ -299,6 +314,7 @@ faction = "Alliance"
 local name = assert(FindText(card, "Test Rival"))
 assert(name.parent.selection.shown)
 assert(name.parent.death.shown and FindRegion(name.parent.death, "atlas", "UI-HUD-UnitFrame-SmallCircle"))
+assert(FindText(name.parent.level, 42).font == "SystemFont_Tiny")
 name.parent.scripts.OnClick(name.parent)
 assert(selectedRival == "Player-test")
 local finished = { allies = { allies[1] }, enemies = { enemies[1] }, rosterComplete = true,
@@ -308,6 +324,7 @@ assert(allyEmblem.shown and allyEmblem.atlas == allianceAtlas and enemyEmblem.at
 local fullVictory = assert(FindRegion(card, "texture", addon.swordsIconPath)).parent
 local fullOutcome = fullVictory.parent
 assert(fullOutcome.anchor[4] == 0 and FindText(fullOutcome, addon.L.winTooltip))
+assert(fullVictory.width == 56 and fullVictory.height == 56)
 assert(FindRegion(fullVictory, "atlas", "UI-HUD-UnitFrame-SmallCircle"))
 fullVictory.scripts.OnEnter(fullVictory)
 assert(GameTooltip.shown and GameTooltip.title == addon.L.winTooltip)
@@ -315,6 +332,7 @@ card:SetSkirmish({ allies = finished.allies, enemies = finished.enemies, outcome
 assert(not GameTooltip.shown and not fullVictory.shown)
 local fullDefeat = assert(FindRegion(card, "texture", addon.defeatBannerPath)).parent
 assert(FindText(fullOutcome, addon.L.lossTooltip))
+assert(fullDefeat.width == fullVictory.width and fullDefeat.height == fullVictory.height)
 fullDefeat.scripts.OnEnter(fullDefeat)
 assert(GameTooltip.shown and GameTooltip.title == addon.L.lossTooltip)
 card:SetSkirmish({ allies = { allies[1] }, enemies = { enemies[1] }, events = {} })
@@ -341,6 +359,7 @@ for count = #patterns, 1, -1 do
     local battle = { allies = { unpack(roster, 1, count) }, enemies = enemies, events = {} }
     card:SetSkirmish(battle)
     assert(card.height == addon.SkirmishCardHeight(battle))
+    assert(battlefield.height <= battlefield.width and battlefield.texcoords[4] <= 1)
     local i, priorY = 0, 0
     for _, slots in ipairs(patterns[count]) do
         local center, y, priorX = 0, nil, -math.huge
@@ -385,6 +404,7 @@ assert(FindText(compact, 51).width == 24 and FindText(compact, 42).width == 24)
 local myBadge, opponentBadge = FindText(compact, 51).parent, FindText(compact, 42).parent
 assert(myBadge.anchor[3] == "BOTTOMLEFT" and opponentBadge.anchor[3] == "BOTTOMRIGHT")
 assert(myBadge.anchor[4] == -opponentBadge.anchor[4] and myBadge.anchor[5] == opponentBadge.anchor[5])
+assert(FindText(myBadge, 51).font == "GameFontHighlightSmall")
 local myName, opponentName = FindText(compact, "My Character"), FindText(compact, "Test Rival")
 local myRim, opponentRim = myName.anchor[2], opponentName.anchor[2]
 assert(myRim.width == 64 and opponentRim.width == 64)
@@ -402,8 +422,7 @@ addon.SetRivalPortrait(profilePortrait, first.opponent)
 AssertFullPortrait(profilePortrait, false)
 local function PortraitMarker(anchor, texture)
     for _, child in ipairs(compact.children) do
-        if child.shown and child.scripts.OnEnter and child.children[1] and child.children[1].texture == texture
-            and child.anchor[2] == anchor then
+        if child.shown and child.scripts.OnEnter and child.anchor[2] == anchor and FindRegion(child, "texture", texture) then
             return child
         end
     end
@@ -419,6 +438,7 @@ local swords, skull, banner = addon.swordsIconPath, addon.smallSkullIconPath, ad
 local victory = assert(CenterMarker(swords))
 assert(victory.anchor[4] == 0 and not CenterMarker(banner))
 local portraitDeath = CheckPortraitMarker(opponentRim, skull, "TOPLEFT")
+assert(FindRegion(portraitDeath, "atlas", "UI-HUD-UnitFrame-SmallCircle"))
 assert(not PortraitMarker(myRim, skull) and not PortraitMarker(opponentRim, swords))
 CheckFactionColors(myName, opponentName)
 faction = "Horde"

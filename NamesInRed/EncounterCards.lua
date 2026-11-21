@@ -299,7 +299,7 @@ local function CompactParticipant(card, x, size, nameWidth, isOpponent)
     name:SetWidth(nameWidth)
     name:SetJustifyH("CENTER")
     name:SetWordWrap(false)
-    local death = OutcomeMarker(card, 16, addon.smallSkullIconPath, L.portraitDeath)
+    local death = OutcomeMarker(card, 17, addon.smallSkullIconPath, L.portraitDeath, true)
     death:SetPoint("CENTER", rim, isOpponent and "TOPLEFT" or "TOPRIGHT", isOpponent and 10 or -10, -10)
     return { portrait = portrait, level = level, name = name, death = death }
 end
@@ -480,10 +480,13 @@ end
 local function CreateSkirmishSide(card, x, width, caption, isOpponent, openRival)
     local side = CreateCard(card, width, 1)
     side:SetPoint("TOPLEFT", x, rosterTop)
+    side:SetBackdropColor(0, 0, 0, 0.22)
+    side:SetBackdropBorderColor(0.47, 0.36, 0.25, 0.68)
     local header = side:CreateTexture(nil, "BACKGROUND", nil, 1)
     header:SetPoint("TOPLEFT", 2, -2)
     header:SetPoint("TOPRIGHT", -2, -2)
     header:SetHeight(rosterHeaderHeight - 2)
+    header:SetColorTexture(0, 0, 0, 0.14)
     Divider(side, -rosterHeaderHeight, 2)
 
     local title = side:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -493,13 +496,6 @@ local function CreateSkirmishSide(card, x, width, caption, isOpponent, openRival
     local tiles = {}
     return function(players, height, horde, color, selectedRivalID, casualties)
         side:SetHeight(height)
-        if horde then
-            side:SetBackdropColor(0.19, 0.095, 0.073, 0.90)
-        else
-            side:SetBackdropColor(0.075, 0.125, 0.155, 0.90)
-        end
-        side:SetBackdropBorderColor(color[1] * 0.43, color[2] * 0.43, color[3] * 0.43, 0.85)
-        header:SetColorTexture(color[1], color[2], color[3], 0.08)
         title:ClearAllPoints()
         title:SetTextColor(unpack(color))
         local atlas = horde and hordeEmblem or allianceEmblem
@@ -548,9 +544,9 @@ end
 
 local function CreateSkirmishResult(card)
     local center = CreateFrame("Frame", nil, card)
-    center:SetSize(rosterGutter - 8, 65)
-    local setMarker = CreateOutcomeMarkers(center, -22, 44, 44, true)
-    local resultText = Label(center, "GameFontNormalSmall", "TOP", 0, -48, rosterGutter - 8)
+    center:SetSize(rosterGutter - 8, 80)
+    local setMarker = CreateOutcomeMarkers(center, -28, 56, 56, true)
+    local resultText = Label(center, "GameFontNormalSmall", "TOP", 0, -60, rosterGutter - 8)
     resultText:SetJustifyH("CENTER")
     resultText:SetWordWrap(true)
     resultText:SetMaxLines(2)
@@ -676,7 +672,8 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
 
     local illustration = card:CreateTexture(nil, "BACKGROUND", nil, 1)
     illustration:SetTexture(addon.battlefieldArtPath)
-    illustration:SetAlpha(0.28)
+    illustration:SetAlpha(0.32)
+    local illustrationWidth = math.floor(width * 0.68)
     local setAllies = CreateSkirmishSide(card, cardInset, sideWidth, L.alliedSide, false, openRival)
     local setEnemies = CreateSkirmishSide(card, width - cardInset - sideWidth, sideWidth, L.enemySide, true, openRival)
     local setResult = CreateSkirmishResult(card)
@@ -698,12 +695,17 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
             return
         end
         local height = RosterHeight(battle)
+        local bottom = RosterBottom(height)
         local middle = rosterTop - height / 2
         setResult(addon.Ledger.SkirmishOutcome(battle) or "unknown", changed, middle)
+        -- Sample the square art at its original proportions down to the timeline divider.
+        local visibleHeight = math.min(illustrationWidth, -bottom - 2)
+        local visibleRatio = visibleHeight / illustrationWidth
+        local cropTop = (1 - visibleRatio) * 0.58
         illustration:ClearAllPoints()
-        illustration:SetPoint("CENTER", card, "TOP", 0, middle)
-        local size = math.min(height, 230)
-        illustration:SetSize(size, size)
+        illustration:SetPoint("CENTER", card, "TOP", 0, (bottom - 2) / 2)
+        illustration:SetSize(illustrationWidth, visibleHeight)
+        illustration:SetTexCoord(0, 1, cropTop, cropTop + visibleRatio)
         zone:SetText(battle.zone and battle.zone ~= "" and battle.zone or L.unknownLocation)
         score:SetText(("%d × %d"):format(#battle.allies, #battle.enemies))
         coverage:SetShown(battle.rosterComplete ~= true)
@@ -726,7 +728,6 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
         end
         setAllies(battle.allies, height, alliesHorde, allyColor, nil, casualties)
         setEnemies(battle.enemies, height, not alliesHorde, enemyColor, selectedRivalID, casualties)
-        local bottom = RosterBottom(height)
         setTimeline(battle, blows, expanded, bottom, players, colors)
         card:SetHeight(-bottom + TimelineHeight(#blows, expanded))
     end

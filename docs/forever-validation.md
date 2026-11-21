@@ -373,13 +373,15 @@ top edge and divider. The roster headers and timeline use the same dividers.
 Check dividers and headings at different resolutions and UI scales.
 Compact portraits use the profile's 64-unit ring and 24-unit level badge. The
 full card uses a 50-unit ring and 20-unit badge, with the same circular mask
-and portrait assets. The ring comes from `Mode-Selection-Ring` in
+and portrait assets. The 20-unit badge uses `SystemFont_Tiny` from
+`Blizzard_Fonts_Shared/Shared/Fonts.xml`. The ring comes from `Mode-Selection-Ring` in
 `Blizzard_GlueXML/Mainline/SuperDistrict.xml`. Both layouts center crossed
 swords, the torn gray banner or a question mark between the sides, using the
-same outcome calculation as the profile score. The full card adds a label
-and frames its outcome and casualty markers with the `UI-HUD-UnitFrame-SmallCircle`
-atlas from Camelot's `TargetFrameTemplates.xml`. Hover the markers and rebind
-the card to check tooltip cleanup.
+same outcome calculation as the profile score. The full card uses a 56-unit
+outcome frame with a label. The result art can extend beyond the decorative
+rim. Both cards frame their casualty markers with `UI-HUD-UnitFrame-SmallCircle`
+from Camelot's `TargetFrameTemplates.xml`, which also frames the full outcome.
+Hover the markers and rebind the card to check tooltip cleanup.
 A local portrait with no saved race portrait uses `SetPortraitTexture`, as in Camelot's
 `CharacterFrameMixin:UpdateCharacterModeTabPortrait`. Race portraits use the
 `resetTexCoords` argument to `SetAtlas`. The compact rival portrait flips its
@@ -400,8 +402,10 @@ directs `TargetFrameMixin:GetPvPIndicatorElements` to `PvpBackgroundIcon`. The
 full card uses its `UI-HUD-UnitFrame-SmallCircle-Alliance` and
 `UI-HUD-UnitFrame-SmallCircle-Horde` atlases from Camelot's
 `UnitFramePvPIndicatorStyle.lua`. Each emblem fits an 18-unit box at its
-authored aspect ratio before the heading. The two panels use faction tints and
-share a translucent battlefield illustration behind them. Check the colors and emblem order
+authored aspect ratio before the heading. The two panels use translucent
+neutral darkening over one battlefield illustration. The square artwork
+spans 68 percent of the card width and uses a vertical texture crop on
+short cards. Check the art under both panels, the colors and emblem order
 for both factions. Include the Borin fixture, where a defeat also awards honor,
 and the incomplete Ashenvale fixture. Verify that a card rebind clears stale
 tooltips and that the map action remains available on mapped legacy cards.
