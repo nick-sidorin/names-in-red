@@ -117,6 +117,8 @@ local seeded = addon.db.skirmishes
 assert(#seeded["seed:battle:1"].allies == 2 and #seeded["seed:battle:1"].enemies == 2)
 assert(seeded["seed:battle:1"].events[1].actorID == "ally:1")
 assert(#seeded["seed:battle:2"].allies == 1 and #seeded["seed:battle:2"].enemies == 1)
+local mutual = addon.RivalEncounters(addon.db, "seed:4")[2]
+assert(mutual.skirmishID == "seed:battle:2" and mutual.wins == 1 and mutual.losses == 1)
 assert(#seeded["seed:battle:3"].enemies == 6 and not seeded["seed:battle:4"].rosterComplete)
 local borin = addon.RivalEncounters(addon.db, "seed:2")[1]
 assert(borin.skirmishID == "seed:battle:3" and borin.wins == 0 and borin.losses == 0)

@@ -177,6 +177,11 @@ The test suite exercises card reuse across different roster sizes and verifies
 that fixture removal preserves other saved records. Card rendering still
 needs a Forever client check.
 
+The reciprocal-kill fixture in the 1 × 1 fight against Dargun credits both
+confirmed finishing blows, including one whose author was already dead. The
+personal score and card should show one win and one loss. Verify the game's
+honor awards separately with both characters' logs from a real fight.
+
 From preview.6 onward, a rival's linked cards open a full-width battle in
 the same book. This follows the in-window detail transition in
 `ProfessionsCraftingPageMixin:SelectRecipe` in `Blizzard_ProfessionsCrafting.lua`.

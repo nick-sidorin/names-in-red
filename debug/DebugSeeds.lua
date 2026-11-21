@@ -128,7 +128,10 @@ function addon.AddDebugSeeds(now)
         { "ally:1", "seed:7", { me = true, ["ally:1"] = true } },
         { "seed:4", "me", { ["seed:4"] = true, ["seed:7"] = false } },
     })
-    SeedBattle(2, now, zoneNames, 1, 1, true, { { "seed:4", "me", { ["seed:4"] = true } } })
+    SeedBattle(2, now, zoneNames, 1, 1, true, {
+        { "me", "seed:4", { me = true } },
+        { "seed:4", "me", { ["seed:4"] = false } },
+    })
     SeedBattle(3, now, zoneNames, 5, 6, true, {
         { "seed:4", "ally:2" }, { "ally:4", "seed:2" },
         { "seed:7", "me", { ["seed:4"] = true, ["seed:7"] = true } },

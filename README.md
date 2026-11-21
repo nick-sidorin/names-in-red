@@ -21,18 +21,21 @@ and extract `NamesInRed/` into `_forever_/Interface/AddOns/`.
 
 ## How the personal score works
 
-- **Win.** You contributed to this opponent's confirmed PvP death and were
-  alive when they died. An ally can land the finishing blow.
-- **Loss.** This opponent contributed damage to your confirmed PvP death and
-  was alive when you died. Several opponents can receive credit for the same
-  death. Each adds a loss in your personal score with them.
+- **Win.** You landed the confirmed finishing blow or contributed while alive
+  at this opponent's death.
+- **Loss.** This opponent landed the confirmed finishing blow or contributed
+  damage while alive at your death. Several opponents can receive credit for
+  the same death. Each adds a loss in your personal score with them.
+- A confirmed finishing blow counts even when its author has already died. If
+  you kill an opponent and then die to their lingering damage, the two confirmed
+  finishing blows give you a win and a loss against that opponent.
 - A later death leaves earlier results intact. If your brother finishes an orc
   you wounded and a shaman kills you afterwards, the orc's profile gains a win
   and the shaman's profile gains a loss. The battle shows both finishing blows
   with their actual authors.
-- Participation alone puts a battle in a known rival's history. When there is
-  insufficient evidence about a specific death or who was alive at that moment,
-  the corresponding tally stays unchanged.
+- Participation alone puts a battle in a known rival's history. When the
+  finishing blow is unknown, scoring requires confirmation of each qualifying
+  contribution and the contributor's life state at that death.
 
 The score describes your history with each rival. Honor awards and the outcome
 of an entire battle or battleground follow the game's own rules. Existing
@@ -50,10 +53,10 @@ GitHub Actions runs the same suite. For a developer smoke test, copy the
 client test matrix. See [idea.md](idea.md) for the full scope.
 
 The scoring logic consumes normalized, chronologically ordered confirmed PvP
-deaths. Each death has one `kind = "kill"` event with a local `targetID`, an
-optional finishing-blow `actorID`, and an optional `contributors` map keyed by
-local participant ID. `true` identifies a confirmed contributor who was alive
-at that death. `false` identifies a confirmed contributor who was already dead.
+deaths. Each death has one `kind = "kill"` event with a local `targetID`. Set
+`actorID` only for a confirmed finishing blow. The optional `contributors` map
+uses local participant IDs as keys. `true` identifies a confirmed contributor
+who was alive at that death. `false` identifies one who was already dead.
 Omit an entry when either part of the evidence is missing. Mark the local player
 `isSelf` in the allies roster. An opponent's `rivalID` links the battle to their
 profile. Re-saving the same battle ID replaces its results. Record each death

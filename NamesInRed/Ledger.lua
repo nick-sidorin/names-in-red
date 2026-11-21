@@ -96,22 +96,20 @@ local function IndexSkirmish(index, id, battle)
         if event.kind == "kill" then
             local target = opponents[event.targetID]
             local contributors = type(event.contributors) == "table" and event.contributors
-            -- True identifies a confirmed contributor who was alive at this death.
+            -- A confirmed finishing blow remains credited after its author's death.
+            -- Other contributors must have been alive when the victim died.
             if target then
                 target.summary.opponentDeathIndex = target.summary.opponentDeathIndex or index
-                if player and contributors and contributors[player.id] == true then
+                if player and (event.actorID == player.id or contributors and contributors[player.id] == true) then
                     target.index.wins = target.index.wins + 1
                     target.summary.wins = target.summary.wins + 1
                 end
             elseif player and event.targetID == player.id then
                 playerDeathIndex = playerDeathIndex or index
-                if contributors then
-                    for contributorID, alive in pairs(contributors) do
-                        local opponent = opponents[contributorID]
-                        if opponent and alive == true then
-                            opponent.index.losses = opponent.index.losses + 1
-                            opponent.summary.losses = opponent.summary.losses + 1
-                        end
+                for opponentID, opponent in pairs(opponents) do
+                    if event.actorID == opponentID or contributors and contributors[opponentID] == true then
+                        opponent.index.losses = opponent.index.losses + 1
+                        opponent.summary.losses = opponent.summary.losses + 1
                     end
                 end
             end

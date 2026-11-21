@@ -172,7 +172,7 @@ CheckScore(orcID, 2, 0)
 local followUp = {
     time = 1220, allies = earlier.allies, enemies = earlier.enemies,
     events = {
-        { kind = "kill", actorID = "me", targetID = "orc" },
+        { kind = "kill", actorID = "brother", targetID = "orc" },
         { kind = "kill", targetID = "me", contributors = { shaman = true, bystander = true } },
     },
 }
@@ -193,3 +193,27 @@ CheckScore(orcID, 0, 0)
 CheckScore(shamanID, 0, 2)
 assert(#addon.RivalEncounters(addon.db, orcID) == 0 and earlier.events[1].targetID == "orc")
 print("Personal score, incomplete evidence and shared skirmish history checks passed")
+
+local mutualID = "Player-mutual"
+local mutual = {
+    allies = { { id = "me", isSelf = true } },
+    enemies = { { id = "rival", rivalID = mutualID, name = "Mutual Rival" } },
+    events = {
+        { kind = "kill", actorID = "me", targetID = "rival", contributors = { me = true } },
+        { kind = "kill", actorID = "rival", targetID = "me", contributors = { rival = false } },
+    },
+}
+addon.RecordSkirmish("mutual-fight", mutual)
+CheckScore(mutualID, 1, 1)
+local mutualCard = addon.RivalEncounters(addon.db, mutualID)[1]
+assert(mutualCard.wins == 1 and mutualCard.losses == 1)
+assert(mutualCard.opponentDeathIndex == 1 and mutualCard.playerDeathIndex == 2)
+
+mutual.events = {
+    { kind = "kill", actorID = "rival", targetID = "me" },
+    { kind = "kill", actorID = "me", targetID = "rival", contributors = { me = false } },
+}
+addon.RecordSkirmish("mutual-fight", mutual)
+CheckScore(mutualID, 1, 1)
+assert(#addon.RivalEncounters(addon.db, mutualID) == 1)
+print("Mutual kills count once per opponent in either death order")
