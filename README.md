@@ -63,7 +63,8 @@ Run `bash scripts/check.sh` with Python 3, Bash, `lua5.1` and `luac5.1` installe
 GitHub Actions runs the same suite. For a developer smoke test, copy the
 `NamesInRed/` folder into `_forever_/Interface/AddOns/`. See
 [Forever validation](docs/forever-validation.md) for gameplay research and the
-client test matrix. See [idea.md](idea.md) for the full scope.
+client test matrix. See [idea.md](idea.md) for the full scope and
+[Future ideas](docs/future-ideas.md) for features under consideration.
 
 Each skirmish owns its roster, timeline and rewards. Store an explicit
 `outcome` of `"win"` or `"loss"` when known. Otherwise a complete roster
