@@ -91,26 +91,34 @@ local function IndexSkirmish(index, id, battle)
             rival.encounters[#rival.encounters + 1] = summary
         end
     end
-    if not player then return end
-    for _, event in ipairs(battle.events) do
-        -- True identifies a confirmed contributor who was alive at this death.
-        if event.kind == "kill" and type(event.contributors) == "table" then
-            if event.targetID == player.id then
-                for contributorID, alive in pairs(event.contributors) do
-                    local opponent = opponents[contributorID]
-                    if opponent and alive == true then
-                        opponent.index.losses = opponent.index.losses + 1
-                        opponent.summary.losses = opponent.summary.losses + 1
-                    end
+    local playerDeathIndex
+    for index, event in ipairs(battle.events) do
+        if event.kind == "kill" then
+            local target = opponents[event.targetID]
+            local contributors = type(event.contributors) == "table" and event.contributors
+            -- True identifies a confirmed contributor who was alive at this death.
+            if target then
+                target.summary.opponentDeathIndex = target.summary.opponentDeathIndex or index
+                if player and contributors and contributors[player.id] == true then
+                    target.index.wins = target.index.wins + 1
+                    target.summary.wins = target.summary.wins + 1
                 end
-            elseif event.contributors[player.id] == true then
-                local opponent = opponents[event.targetID]
-                if opponent then
-                    opponent.index.wins = opponent.index.wins + 1
-                    opponent.summary.wins = opponent.summary.wins + 1
+            elseif player and event.targetID == player.id then
+                playerDeathIndex = playerDeathIndex or index
+                if contributors then
+                    for contributorID, alive in pairs(contributors) do
+                        local opponent = opponents[contributorID]
+                        if opponent and alive == true then
+                            opponent.index.losses = opponent.index.losses + 1
+                            opponent.summary.losses = opponent.summary.losses + 1
+                        end
+                    end
                 end
             end
         end
+    end
+    if playerDeathIndex then
+        for _, opponent in pairs(opponents) do opponent.summary.playerDeathIndex = playerDeathIndex end
     end
 end
 

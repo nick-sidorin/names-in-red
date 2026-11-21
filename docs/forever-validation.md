@@ -310,14 +310,16 @@ scrolled.
 The compact rival card uses `CommonSquareIconButtonTemplate` from
 `Blizzard_SharedXML/Shared/Button/IconButtonTemplate.xml`, including native
 tooltips and click handling supplied by `UIButtonMixin`. Its icons come from
-`WaypointLocationPinTemplate` and `UIPanelInfoButton`. The outcome arrows use
-the same paired atlases as `GamepadPrevPageButtonTemplate` and
-`GamepadNextPageButtonTemplate`. Both portraits reuse the profile ring and level
+`WaypointLocationPinTemplate` and `UIPanelInfoButton`. The button frames are
+32 units square with 16-unit icons. Both portraits reuse the profile ring and level
 badge. A local portrait with no saved race portrait uses `SetPortraitTexture`,
 as in Camelot's `CharacterFrameMixin:UpdateCharacterModeTabPortrait`.
-Check both tabs with wins, losses and partial records, including long names and
-both action icons at the same time. Verify that a card rebind clears stale
-tooltips and that the map action remains available on mapped legacy cards.
+`PVPMatchStyle.GetLocalPlayerFactionTheme` uses the first return from
+`UnitFactionGroup("player")`. The skirmish cards use the same faction tag to
+order the existing blue and red palette. Check both factions in the full and
+compact cards. Include a win, a loss and the Borin fixture, where the timeline
+records two deaths without personal credit. Verify that a card rebind clears
+stale tooltips and that the map action remains available on mapped legacy cards.
 
 For the map diamond, see `WaypointLocationDataProviderMixin:HandleClick` and
 the MAPPIN slash command in

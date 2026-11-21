@@ -33,7 +33,7 @@ for _, supported in ipairs({
         "latestEncounter", "showOnMap", "unknownLocation", "myLevel", "rivalLevel", "waypointError", "noSkirmishes",
         "rivalsView", "recentView", "unknownRival",
         "alliedSide", "enemySide", "partialRoster", "finishingBlows", "unknownPlayer", "minimapHint",
-        "openSkirmish",
+        "openSkirmish", "opponentFell", "playerFell", "outcomeUnknown",
     }) do
         assert(type(addon.L[key]) == "string" and addon.L[key] ~= "")
     end
@@ -138,6 +138,9 @@ local function MockRegion(parent)
         assert(text ~= nil)
         self.text = text
     end
+    function region:SetTextColor(r, g, b) self.color = { r, g, b } end
+    function region:SetPoint(...) self.anchor = { ... } end
+    function region:SetSize(width, height) self.width, self.height = width, height end
     function region:SetShown(shown) self.shown = shown end
     function region:Hide() self:SetShown(false) end
     function region:SetHeight(height) self.height = height end
@@ -180,10 +183,24 @@ end
 local function FindText(region, expected)
     return FindRegion(region, "text", expected)
 end
+local faction = "Alliance"
+function UnitFactionGroup(unit)
+    assert(unit == "player")
+    return faction
+end
+local function CheckFactionColors(left, right)
+    assert(left.color[3] > left.color[1] and right.color[1] > right.color[3])
+end
 card:SetSkirmish(large, "Player-test")
 local largeHeight = card.height
 assert(FindText(card, "2 × 2") and FindText(card, "Ally Warrior") and FindText(card, "0:11"))
 assert(FindText(card, addon.L.showOnMap) and not FindText(card, "45.0, 51.0"))
+local allyHeading, enemyHeading = FindText(card, addon.L.alliedSide), FindText(card, addon.L.enemySide)
+CheckFactionColors(allyHeading, enemyHeading)
+faction = "Horde"
+card:SetSkirmish(large, "Player-test")
+CheckFactionColors(enemyHeading, allyHeading)
+faction = "Alliance"
 local name = assert(FindText(card, "Test Rival"))
 assert(name.parent.selection.shown)
 name.parent.scripts.OnClick(name.parent)
@@ -206,11 +223,17 @@ compact:SetEncounter(first)
 assert(FindText(compact, "Hillsbrad Foothills") and FindText(compact, date("%x", first.time)))
 assert(FindText(compact, "My Character") and FindText(compact, "Test Rival"))
 assert(FindText(compact, 51) and FindText(compact, 42))
-assert(FindRegion(compact, "atlas", "common-icon-forwardarrow"))
-assert(not FindRegion(compact, "atlas", "common-icon-backarrow"))
+assert(FindText(compact, addon.L.winTooltip) and not FindText(compact, addon.L.lossTooltip))
+local myName, opponentName = FindText(compact, "My Character"), FindText(compact, "Test Rival")
+CheckFactionColors(myName, opponentName)
+faction = "Horde"
+compact:SetEncounter(first)
+CheckFactionColors(opponentName, myName)
+faction = "Alliance"
 local open = assert(FindRegion(compact, "title", addon.L.openSkirmish))
 local map = assert(FindRegion(compact, "title", addon.L.showOnMap))
 assert(not FindText(compact, addon.L.openSkirmish) and not FindText(compact, addon.L.showOnMap))
+assert(open.width == 32 and map.width == 32 and open.Icon.width == 16 and map.Icon.width == 16)
 open.scripts.OnClick()
 assert(openedSkirmish == "battle-one")
 addon.ShowEncounterWaypoint = function(encounter) mapped = encounter; return true end
@@ -218,12 +241,18 @@ map.scripts.OnClick()
 assert(openedMap and mapped == first)
 
 compact:SetEncounter({ skirmishID = "battle-loss", wins = 0, losses = 1 })
-assert(FindRegion(compact, "atlas", "common-icon-backarrow"))
-assert(not FindRegion(compact, "atlas", "common-icon-forwardarrow"))
+assert(FindText(compact, addon.L.lossTooltip) and not FindText(compact, addon.L.winTooltip))
 compact:SetEncounter({ skirmishID = "battle-both", wins = 1, losses = 1 })
-assert(FindRegion(compact, "atlas", "common-icon-backarrow") and FindRegion(compact, "atlas", "common-icon-forwardarrow"))
+assert(FindText(compact, addon.L.winTooltip) and FindText(compact, addon.L.lossTooltip))
+compact:SetEncounter({ skirmishID = "battle-casualties", opponentDeathIndex = 1, playerDeathIndex = 2 })
+local enemyDeath, playerDeath = FindText(compact, addon.L.opponentFell), FindText(compact, addon.L.playerFell)
+assert(enemyDeath.anchor[5] > playerDeath.anchor[5])
+compact:SetEncounter({ skirmishID = "battle-reversed", playerDeathIndex = 1, opponentDeathIndex = 2 })
+enemyDeath, playerDeath = FindText(compact, addon.L.opponentFell), FindText(compact, addon.L.playerFell)
+assert(playerDeath.anchor[5] > enemyDeath.anchor[5])
 compact:SetEncounter({ skirmishID = "battle-two", wins = 0, losses = 0 })
-assert(not FindRegion(compact, "atlas", "common-icon-backarrow") and not FindRegion(compact, "atlas", "common-icon-forwardarrow"))
+assert(FindText(compact, addon.L.outcomeUnknown))
+assert(not FindText(compact, addon.L.opponentFell) and not FindText(compact, addon.L.playerFell))
 assert(not FindText(compact, 51) and not FindText(compact, 42) and not map.shown)
 open.scripts.OnClick()
 assert(openedSkirmish == "battle-two")
@@ -234,7 +263,7 @@ function SetPortraitTexture(_, unit, disableMasking)
 end
 compact:SetEncounter({ direction = "killsAgainstThem" }, { displayName = "Legacy Rival" })
 assert(FindText(compact, "Legacy Rival") and loadedSelfPortrait and not open.shown)
-assert(FindRegion(compact, "atlas", "common-icon-forwardarrow"))
+assert(FindText(compact, addon.L.winTooltip))
 compact:SetEncounter(nil)
 assert(not compact.shown)
-print("Compact skirmish portraits, direction, actions and reuse checks passed")
+print("Compact skirmish factions, personal outcomes, casualties and actions checks passed")
