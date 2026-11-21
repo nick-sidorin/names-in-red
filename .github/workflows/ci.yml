@@ -22,6 +22,9 @@ jobs:
           echo "name=NamesInRed-$version" >> "$GITHUB_OUTPUT"
           mkdir -p preview
           cp -R NamesInRed preview/
+          cp debug/DebugSeeds.lua preview/NamesInRed/
+          printf '\nDebugSeeds.lua\n' >> preview/NamesInRed/NamesInRed.toc
+          (cd preview && python3 ../scripts/check_manifest.py)
       - name: Upload debug preview
         if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'feature/')
         uses: actions/upload-artifact@v4

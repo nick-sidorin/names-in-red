@@ -91,9 +91,9 @@ local function EncounterDate(encounter)
     return day, time
 end
 
-function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
+local function CreateCard(parent, width, height)
     local card = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-    card:SetSize(width, addon.encounterCardHeight)
+    card:SetSize(width, height)
     card:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -102,6 +102,11 @@ function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
     })
     card:SetBackdropColor(0.085, 0.06, 0.04, 0.72)
     card:SetBackdropBorderColor(0.56, 0.42, 0.27, 0.9)
+    return card
+end
+
+function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
+    local card = CreateCard(parent, width, addon.encounterCardHeight)
 
     local body = card
     if profileWidth then
@@ -133,9 +138,7 @@ function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
     divider:SetColorTexture(0.56, 0.42, 0.27, 0.45)
 
     local zone = Label(body, "GameFontHighlight", "TOPLEFT", 13, -54, width - 26)
-    local coords = Label(body, "GameFontHighlightSmall", "TOPLEFT", 13, -73, width - 26)
     time:SetTextColor(0.77, 0.71, 0.61)
-    coords:SetTextColor(0.77, 0.71, 0.61)
 
     local myCaption = Label(body, "GameFontNormalSmall", "TOPLEFT", 13, -96, 79)
     myCaption:SetText(L.myLevel)
@@ -152,13 +155,6 @@ function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
     local function HideTooltip(self)
         if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
     end
-    map:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(card.coordinateText)
-        GameTooltip:Show()
-    end)
-    map:SetScript("OnLeave", HideTooltip)
-    map:HookScript("OnHide", HideTooltip)
     map:SetScript("OnClick", function()
         if addon.ShowEncounterWaypoint(card.encounter) then
             onMapShown()
@@ -185,7 +181,6 @@ function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
 
     function card:SetEncounter(encounter)
         if self.encounter ~= encounter then
-            HideTooltip(map)
             HideTooltip(attackers)
         end
         self.encounter = encounter
@@ -204,14 +199,171 @@ function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
         local hasWaypoint = WaypointMap(encounter) ~= nil
         zone:SetWidth(hasWaypoint and width - 33 - mapButtonWidth or width - 26)
         zone:SetText(encounter.zone and encounter.zone ~= "" and encounter.zone or L.unknownLocation)
-        self.coordinateText = HasCoordinates(encounter)
-            and ("%.1f, %.1f"):format(encounter.x * 100, encounter.y * 100) or ""
-        coords:SetText(hasWaypoint and "" or self.coordinateText)
         myLevel:SetText(LevelText(encounter.playerLevel))
         rivalLevel:SetText(LevelText(encounter.rivalLevel))
         map:SetShown(hasWaypoint)
         attackers:SetShown(type(encounter.attackers) == "table" and #encounter.attackers > 0)
     end
 
+    return card
+end
+
+function addon.SkirmishCardHeight(battle)
+    local rosterHeight = 29 * math.max(#battle.allies, #battle.enemies, 1)
+    local eventHeight = #battle.events > 0 and 22 + 19 * #battle.events or 0
+    return 102 + rosterHeight + eventHeight
+end
+
+local function Divider(card, top)
+    local line = card:CreateTexture(nil, "ARTWORK")
+    line:SetPoint("TOPLEFT", 14, top)
+    line:SetPoint("TOPRIGHT", -14, top)
+    line:SetHeight(1)
+    line:SetColorTexture(0.56, 0.42, 0.27, 0.45)
+    return line
+end
+
+local allyColor = { 0.65, 0.83, 1 }
+local enemyColor = { 1, 0.61, 0.52 }
+
+function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
+    local card = CreateCard(parent, width, 1)
+    local columnWidth = math.floor(width / 2) - 26
+    local zone = Label(card, "GameFontHighlight", "TOPLEFT", 14, -16, columnWidth - 76)
+    local score = Label(card, "GameFontNormal", "TOP", 0, -15, 194)
+    score:SetJustifyH("CENTER")
+    local stamp = Label(card, "GameFontHighlightSmall", "TOPRIGHT", -14, -17, columnWidth - 76)
+    stamp:SetTextColor(0.77, 0.71, 0.61)
+    Divider(card, -36)
+
+    local function CreateSide(x, caption, color)
+        local title = Label(card, "GameFontNormalSmall", "TOPLEFT", x, -47, columnWidth)
+        title:SetText(caption)
+        title:SetTextColor(unpack(color))
+        local side = CreateFrame("Frame", nil, card)
+        side:SetPoint("TOPLEFT", x, -62)
+        side:SetSize(columnWidth, 1)
+        local rows = {}
+        return function(players)
+            side:SetHeight(math.max(1, #players * 29))
+            for i = 1, math.max(#players, #rows) do
+                local player, row = players[i], rows[i]
+                if not row then
+                    row = CreateFrame("Button", nil, side)
+                    row:SetSize(columnWidth, 27)
+                    row:SetPoint("TOPLEFT", 0, -(i - 1) * 29)
+                    local hover = row:CreateTexture(nil, "HIGHLIGHT")
+                    hover:SetAllPoints(row)
+                    hover:SetTexture("Interface\\QuestFrame\\UI-QuestLogTitleHighlight")
+                    hover:SetVertexColor(0.70, 0.54, 0.36)
+                    hover:SetAlpha(0.24)
+                    row:SetHighlightTexture(hover, "ADD")
+                    row:SetScript("OnClick", function(self)
+                        if self.rivalID then openRival(self.rivalID) end
+                    end)
+                    row.icon = row:CreateTexture(nil, "ARTWORK")
+                    row.icon:SetSize(22, 22)
+                    row.icon:SetPoint("LEFT", 2, 0)
+                    row.name = Label(row, "GameFontHighlightSmall", "TOPLEFT", 31, -2, columnWidth - 67)
+                    row.class = Label(row, "GameFontHighlightSmall", "TOPLEFT", 31, -14, columnWidth - 67)
+                    row.class:SetTextColor(0.76, 0.70, 0.62)
+                    row.level = Label(row, "GameFontNormal", "TOPRIGHT", -5, -7, 34)
+                    rows[i] = row
+                end
+                row:SetShown(player ~= nil)
+                if player then
+                    local name = player.name or L.unknownPlayer
+                    row.name:SetText(player.isSelf and YOU and (name .. " • " .. YOU) or name)
+                    local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[player.class]
+                    row.name:SetTextColor(classColor and classColor.r or 1, classColor and classColor.g or 1,
+                        classColor and classColor.b or 1)
+                    local classes = player.sex == 3 and LOCALIZED_CLASS_NAMES_FEMALE or LOCALIZED_CLASS_NAMES_MALE
+                    row.class:SetText(classes and classes[player.class] or player.classLabel or "")
+                    row.level:SetText(LevelText(player.level))
+                    local coords = CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[player.class]
+                    row.icon:SetTexture(coords and "Interface\\TargetingFrame\\UI-Classes-Circles"
+                        or "Interface\\Icons\\INV_Misc_QuestionMark")
+                    if coords then row.icon:SetTexCoord(unpack(coords)) else row.icon:SetTexCoord(0, 1, 0, 1) end
+                    local rival = player.rivalID and addon.db.rivals[player.rivalID]
+                    row.rivalID = rival and addon.IsRosterRival(player.rivalID, rival) and player.rivalID or nil
+                    row:EnableMouse(row.rivalID ~= nil)
+                end
+            end
+        end
+    end
+
+    local setAllies = CreateSide(14, L.alliedSide, allyColor)
+    local setEnemies = CreateSide(math.floor(width / 2) + 12, L.enemySide, enemyColor)
+    local events = CreateFrame("Frame", nil, card)
+    events:SetSize(width, 1)
+    Divider(events, 0)
+    local eventTitle = Label(events, "GameFontNormalSmall", "TOPLEFT", 14, -7, width - 28)
+    eventTitle:SetText(L.finishingBlows)
+    local eventRows = {}
+    local map = CreateFrame("Button", nil, card, "SharedButtonSmallTemplate")
+    map:SetPoint("BOTTOMRIGHT", -14, 10)
+    map:SetSize(130, 25)
+    map:SetText(L.showOnMap)
+    map:SetScript("OnClick", function()
+        if addon.ShowEncounterWaypoint(card.skirmish) then
+            onMapShown()
+        elseif UIErrorsFrame then
+            UIErrorsFrame:AddMessage(L.waypointError, 1, 0.25, 0.25)
+        end
+    end)
+    function card:SetSkirmish(battle)
+        self.skirmish = battle
+        self:SetShown(battle ~= nil)
+        if not battle then return end
+        self:SetHeight(addon.SkirmishCardHeight(battle))
+        zone:SetText(battle.zone or L.unknownLocation)
+        score:SetText(battle.rosterComplete and ("%d × %d"):format(#battle.allies, #battle.enemies)
+            or L.partialRoster)
+        local day, time = EncounterDate(battle)
+        stamp:SetText(day .. "  " .. time)
+        setAllies(battle.allies)
+        setEnemies(battle.enemies)
+        local players, colors = {}, {}
+        for _, player in ipairs(battle.allies) do players[player.id], colors[player.id] = player, allyColor end
+        for _, player in ipairs(battle.enemies) do players[player.id], colors[player.id] = player, enemyColor end
+
+        events:ClearAllPoints()
+        events:SetPoint("TOPLEFT", 0, -66 - 29 * math.max(#battle.allies, #battle.enemies, 1))
+        events:SetHeight(math.max(1, 22 + 19 * #battle.events))
+        events:SetShown(#battle.events > 0)
+        for i = 1, math.max(#battle.events, #eventRows) do
+            local event, row = battle.events[i], eventRows[i]
+            if not row then
+                local y = -22 - (i - 1) * 19
+                local from = Label(events, "GameFontHighlightSmall", "TOPLEFT", 64, y, columnWidth - 52)
+                local arrow = events:CreateTexture(nil, "ARTWORK")
+                if addon.ApplyAtlas(arrow, "common-icon-forwardarrow") then
+                    arrow:SetPoint("TOP", 0, y - 2)
+                    arrow:SetSize(10, 10)
+                    arrow:SetAlpha(0.75)
+                else
+                    arrow = Label(events, "GameFontNormalSmall", "TOP", 0, y, 18)
+                    arrow:SetJustifyH("CENTER")
+                    arrow:SetText(">")
+                end
+                row = {
+                    Label(events, "GameFontHighlightSmall", "TOPLEFT", 15, y, 45), from, arrow,
+                    Label(events, "GameFontHighlightSmall", "TOPLEFT", math.floor(width / 2) + 14, y, columnWidth),
+                }
+                eventRows[i] = row
+            end
+            for _, region in ipairs(row) do region:SetShown(event ~= nil) end
+            if event then
+                local actor, target = players[event.actorID], players[event.targetID]
+                local elapsed = event.time and battle.startedAt and math.max(0, event.time - battle.startedAt)
+                row[1]:SetText(elapsed and ("%d:%02d"):format(math.floor(elapsed / 60), elapsed % 60) or "")
+                row[2]:SetText(actor and actor.name or L.unknownPlayer)
+                row[2]:SetTextColor(unpack(colors[event.actorID] or enemyColor))
+                row[4]:SetText(target and target.name or L.unknownPlayer)
+                row[4]:SetTextColor(unpack(colors[event.targetID] or enemyColor))
+            end
+        end
+        map:SetShown(WaypointMap(battle) ~= nil)
+    end
     return card
 end

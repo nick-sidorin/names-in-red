@@ -129,26 +129,33 @@ end
 
 function addon.RecentEncounters(db, limit)
     local entries = {}
-    for id, rival in pairs(db.rivals) do
-        for index, encounter in ipairs(rival.encounters or {}) do
-            local entry = {
-                id = id, rival = rival, encounter = encounter, index = index,
-                time = encounter.time or encounter.recordedAt or 0, sequence = encounter.sequence or 0,
-            }
-            if #entries < limit or MoreRecent(entry, entries[limit]) then
-                local low, high = 1, #entries
-                while low <= high do
-                    local middle = math.floor((low + high) / 2)
-                    if MoreRecent(entry, entries[middle]) then
-                        high = middle - 1
-                    else
-                        low = middle + 1
-                    end
-                end
-                table.insert(entries, low, entry)
-                entries[limit + 1] = nil
+    local function Insert(entry)
+        if #entries >= limit and not MoreRecent(entry, entries[limit]) then return end
+        local low, high = 1, #entries
+        while low <= high do
+            local middle = math.floor((low + high) / 2)
+            if MoreRecent(entry, entries[middle]) then
+                high = middle - 1
+            else
+                low = middle + 1
             end
         end
+        table.insert(entries, low, entry)
+        entries[limit + 1] = nil
+    end
+    for id, rival in pairs(db.rivals) do
+        for index, encounter in ipairs(rival.encounters or {}) do
+            Insert({
+                id = id, rival = rival, encounter = encounter, index = index,
+                time = encounter.time or encounter.recordedAt or 0, sequence = encounter.sequence or 0,
+            })
+        end
+    end
+    for id, battle in pairs(db.skirmishes or {}) do
+        Insert({
+            id = id, skirmish = battle, index = 0,
+            time = battle.time or battle.startedAt or 0, sequence = battle.sequence or 0,
+        })
     end
     return entries
 end

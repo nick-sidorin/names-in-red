@@ -34,3 +34,16 @@ function Ledger.Remove(db, id)
         db.rivals[id] = nil
     end
 end
+
+-- One battle record owns its roster and events. IDs in events are local to
+-- that battle, and rival IDs are optional links to the personal ledger.
+function Ledger.SaveSkirmish(db, id, skirmish)
+    if type(id) ~= "string" or id == "" or type(skirmish) ~= "table"
+        or type(skirmish.allies) ~= "table" or type(skirmish.enemies) ~= "table"
+        or type(skirmish.events) ~= "table" then
+        return
+    end
+    db.skirmishes = db.skirmishes or {}
+    db.skirmishes[id] = skirmish
+    return skirmish
+end

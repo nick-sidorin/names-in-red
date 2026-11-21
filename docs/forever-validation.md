@@ -166,6 +166,38 @@ Compare both players' saves after a fight in a party and a fight outside it.
 Have one attack while the other lands the finishing blow. This probe needs
 live-client validation.
 
+### Seeded full-battle cards
+
+The 0.1.3-preview.2 cards use the existing book frames, text and world map
+action. For class icons they use the native class sheet and UVs, following
+`Blizzard_PVPMatch/PVPMatchTable.lua`. Class colors use the client's
+`RAID_CLASS_COLORS` as in `Blizzard_FriendsFrame/Mainline/FriendsFrame.lua`.
+The two-column roster and the time-ordered blow list are owned by Names in Red.
+The test suite exercises card reuse across different roster sizes and verifies
+that fixture removal preserves other saved records. Card rendering still
+needs a Forever client check.
+
+### Expanded evidence in 0.1.3-preview.3
+
+The old preview captured kills, honor changes and death recaps. The next
+preview added combat boundaries, party snapshots and post-combat meter data.
+This preview adds visible player observations from target, mouseover and
+ordinary nameplate events, plus readable target, pet, combat and death state.
+The probe uses the unit tokens documented in Forever's
+`NamePlateManagerDocumentation.lua` and `UnitDocumentation.lua`. It does not
+read forbidden nameplates. Observations are candidates for investigation.
+Visibility, a target change or a group entry alone does not prove participation.
+
+Group and pet context is sampled around combat and readable kill events.
+Group changes and damage-meter update IDs are recorded within the combat
+window. The post-combat read probes deaths, interrupts and dispels alongside
+the existing damage and healing categories when supported.
+Observations are bounded to 32 readable contacts and eight previous states per
+contact. Repeated flags are throttled. The first eight fully obscured kill
+events in a combat are stored individually, with the total retained at combat
+end. Protected fields remain unavailable. The collector is local and the
+additional event coverage needs a check in the Forever client.
+
 The UI uses the Forever Blizzard PortraitFrameTemplate,
 UIPanelScrollFrameTemplate and UIPanelButtonTemplate, and a unit-only
 TooltipDataProcessor post-call for GameTooltip. The minimap button follows
@@ -271,14 +303,44 @@ the MAPPIN slash command in
 uses the command's waypoint flow, including `OpenMapToUserWaypoint` from
 `Blizzard_WorldMap/Blizzard_WorldMap.lua`. Test with a seeded card from a
 different zone. Check that the world map opens on that zone, places its
-standard user pin at the displayed coordinates and replaces any previous user
+standard user pin at the saved coordinates and replaces any previous user
 pin. The map action uses `SharedButtonSmallTemplate` from
 `Blizzard_SharedXML/Shared/Button/ThreeSliceButtonTemplate.xml`.
 For legacy cards the addon uses `C_Map.GetMapChildrenInfo` from
 `Blizzard_APIDocumentationGenerated/MapDocumentation.lua` to index Azeroth's
 zone maps by localized name. Check older Hillsbrad and Stranglethorn cards
-like the owner's screenshots, plus an unresolved zone. Verify coordinates
-on button hover and that a rejected waypoint leaves the book open.
+like the owner's screenshots, plus an unresolved zone. Verify the saved
+location through the map action and that a rejected waypoint leaves the book open.
+
+Preview.4 uses one tinted `Professions-background-summarylist` texture from
+`ProfessionsRecipeListTemplate` across the entire right side of the rival
+book. The inset frame and translucent battlefield illustration are separate
+layers. The roster hover uses the native quest list texture from
+`QuestLogFrame.xml` with reduced intensity. The finishing blow marker reuses
+`common-icon-forwardarrow` from `GamepadNextPageButtonTemplate`.
+
+### Window ordering, sounds and minimap hint
+
+Forever 70959 loads the Camelot `ProfessionsFrame` from
+`Blizzard_Professions/Camelot/Blizzard_ProfessionsFrame.xml`. The shared
+`ProfessionsFrameBase` uses `PortraitFrameTemplate` with `toplevel=true`.
+`ProfessionsMixin:OnShow` and `OnHide` play the two
+`UI_PROFESSIONS_WINDOW_*` sound kits. The book uses the same portrait
+template and sound kits in its own visibility handlers.
+
+The book remains a movable, independent top-level frame and uses the
+ordinary MEDIUM strata. The old DIALOG strata always drew above a MEDIUM
+frame regardless of its level. DeModal's `HookMovable` sets the supported
+profession window to top-level and raises it on show, while BlizzMove
+supplies drag behavior for registered Blizzard frames. The book uses native
+top-level ordering and raises its own frame when shown.
+
+The minimap tooltip follows Azeroth Fitness's `Shortcut:Init` implementation
+in `Minimap.lua`, using a left anchor, title and a two-line localized hint.
+Check first open, reopen, Escape and the close button for one sound per
+visibility change. With DeModal and BlizzMove, overlap the book and
+Engineering, then click the visible part or header of each alternately.
+Check that both remain open and the clicked panel comes to the front.
 
 ## Cross-rival skirmish history
 

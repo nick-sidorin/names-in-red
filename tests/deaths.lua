@@ -127,4 +127,8 @@ end
 recent = addon.RecentEncounters(addon.db, 100)
 assert(#recent == 100 and recent[1].time == 1210 and recent[100].time == 1111)
 assert(#addon.db.rivals["Player-one"].encounters == 111 and addon.db.rivals[manualID])
+local battle = { time = 1212, allies = {}, enemies = {}, events = {} }
+assert(addon.Ledger.SaveSkirmish(addon.db, "battle-one", battle) == battle)
+recent = addon.RecentEncounters(addon.db, 2)
+assert(#recent == 2 and recent[1].skirmish == battle and recent[2].time == 1210)
 print("Cross-rival skirmish order and display limit checks passed")

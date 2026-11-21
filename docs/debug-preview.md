@@ -2,9 +2,17 @@
 
 Versions 0.0.x were diagnostic previews. Version 0.1.0 shipped only the rival
 journal. Starting with 0.1.1, the standard addon also collects diagnostic data
-automatically. To enable fictional test rivals in a development copy, copy
-`debug/DebugSeeds.lua` into the addon folder and add it to the TOC before
-`Debug.lua`.
+automatically. Pull request preview artifacts include `DebugSeeds.lua` with
+fictional rivals and full-battle examples. A development copy can load it by
+copying `debug/DebugSeeds.lua` into the addon folder and listing it in the TOC.
+
+Run `/nirdebug seed` and open **Skirmish History** to preview 2×2, 1×1, 5×6,
+and partial-roster cards. The global list mixes these saved battles with the
+existing per-rival records. Run `/nirdebug clear-seed` to remove the fixtures.
+The preview stores full battles separately by ID. Each record holds the time
+range, location, the observed sides and their available player metadata, and
+chronological finishing blows keyed by participant ID. Live capture still
+writes the existing per-rival records while participation is being validated.
 
 
 Install the ZIP by extracting its `NamesInRed/` folder into
@@ -64,9 +72,9 @@ debug captures are preserved as evidence and left out of the live totals.
 
 Encounter metadata uses the local character's map position and map ID at
 capture time. Show on Map opens the world map with the native user waypoint.
-Hover over Show on Map to see the recorded coordinates. Older records can
-also open the map when their saved zone name matches exactly one localized
-Azeroth zone map. Coordinates for unresolved zones stay visible on the card.
+Older records can also open the map when their saved zone name matches
+exactly one localized Azeroth zone map. Coordinates remain in saved data
+for waypoint placement.
 The previous twenty-record cap cannot recover data already discarded.
 The rival's level is included only when a readable target or mouseover GUID
 matches. Party encounters and battlegrounds remain diagnostic.

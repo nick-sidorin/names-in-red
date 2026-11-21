@@ -109,3 +109,37 @@ local bookViews = {
 bookViews.enGB = bookViews.enUS
 bookViews.esMX = bookViews.esES
 addon.L.rivalsView, addon.L.recentView, addon.L.unknownRival = unpack(bookViews[GetLocale()] or bookViews.enUS)
+
+-- Side labels, incomplete roster, timeline and anonymous participant.
+local skirmishStrings = {
+    enUS = { "Allies", "Opponents", "Partial roster", "Finishing blows", "Unknown player" },
+    ruRU = { "Союзники", "Противники", "Неполный состав", "Добивающие удары", "Неизвестный игрок" },
+    deDE = { "Verbündete", "Gegner", "Unvollständige Besetzung", "Todesstöße", "Unbekannter Spieler" },
+    frFR = { "Alliés", "Adversaires", "Composition partielle", "Coups fatals", "Joueur inconnu" },
+    esES = { "Aliados", "Oponentes", "Lista incompleta", "Golpes de gracia", "Jugador desconocido" },
+    itIT = { "Alleati", "Avversari", "Formazione parziale", "Colpi di grazia", "Giocatore sconosciuto" },
+    ptBR = { "Aliados", "Adversários", "Lista incompleta", "Golpes fatais", "Jogador desconhecido" },
+    koKR = { "아군", "적군", "일부 참가자 확인", "결정타", "알 수 없는 플레이어" },
+    zhCN = { "盟友", "对手", "阵容不完整", "最后一击", "未知玩家" },
+    zhTW = { "盟友", "對手", "陣容不完整", "最後一擊", "未知玩家" },
+}
+skirmishStrings.enGB = skirmishStrings.enUS
+skirmishStrings.esMX = skirmishStrings.esES
+addon.L.alliedSide, addon.L.enemySide, addon.L.partialRoster, addon.L.finishingBlows, addon.L.unknownPlayer =
+    unpack(skirmishStrings[GetLocale()] or skirmishStrings.enUS)
+
+local minimapHints = {
+    enUS = "Left-click — open the journal\nDrag — move the icon",
+    ruRU = "ЛКМ — открыть журнал\nПеретащи — переместить значок",
+    deDE = "Linksklick — Journal öffnen\nZiehen — Symbol verschieben",
+    frFR = "Clic gauche — ouvrir le journal\nGlisser — déplacer l’icône",
+    esES = "Clic izquierdo — abrir el diario\nArrastra — mover el icono",
+    itIT = "Clic sinistro — apri il diario\nTrascina — sposta l’icona",
+    ptBR = "Clique esquerdo — abrir o diário\nArraste — mover o ícone",
+    koKR = "왼쪽 클릭 — 기록 열기\n드래그 — 아이콘 이동",
+    zhCN = "左键点击 — 打开日志\n拖动 — 移动图标",
+    zhTW = "按左鍵 — 開啟日誌\n拖曳 — 移動圖示",
+}
+minimapHints.enGB = minimapHints.enUS
+minimapHints.esMX = minimapHints.esES
+addon.L.minimapHint = minimapHints[GetLocale()] or minimapHints.enUS

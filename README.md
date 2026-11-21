@@ -8,7 +8,7 @@ Names in Red targets Forever 1.60.1 (interface 16001). It keeps separate
 per-character totals for confirmed personal killing blows and single-attacker
 deaths in open-world PvP. Click the crossed-swords icon on the minimap to browse rivals.
 Information shows totals and the latest skirmish. Skirmishes lists the complete
-recorded history, newest first. Cards show the date, zone, coordinates and levels
+recorded history, newest first. Cards show the date, zone and levels
 when available. The side tabs switch between the rival book and the latest
 100 skirmishes across all opponents. Each identified opponent's card can open
 the Information tab for that rival. Show on Map opens the world map with a waypoint when the
