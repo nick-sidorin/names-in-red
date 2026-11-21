@@ -71,6 +71,22 @@ scoreStrings.esMX = scoreStrings.esES
 addon.L.personalScore, addon.L.winTooltip, addon.L.lossTooltip, addon.L.openSkirmish =
     unpack(scoreStrings[GetLocale()] or scoreStrings.enUS)
 
+local portraitOutcomeStrings = {
+    enUS = { "Killed an opponent", "Died" },
+    ruRU = { "Убил противника", "Погиб" },
+    deDE = { "Gegner getötet", "Gestorben" },
+    frFR = { "A tué un adversaire", "Est mort" },
+    esES = { "Mató a un oponente", "Murió" },
+    itIT = { "Ha ucciso un avversario", "È morto" },
+    ptBR = { "Matou um oponente", "Morreu" },
+    koKR = { "상대 처치", "사망" },
+    zhCN = { "击杀对手", "死亡" },
+    zhTW = { "擊殺對手", "死亡" },
+}
+portraitOutcomeStrings.enGB = portraitOutcomeStrings.enUS
+portraitOutcomeStrings.esMX = portraitOutcomeStrings.esES
+addon.L.portraitKill, addon.L.portraitDeath = unpack(portraitOutcomeStrings[GetLocale()] or portraitOutcomeStrings.enUS)
+
 -- Info tab, history tab, last encounter, map action, unknown location, levels, map error, empty history.
 local encounterStrings = {
     enUS = { "Information", "Skirmishes", "Last skirmish", "Show on map", "Location unknown", "My level", "Opponent’s level", "The map waypoint could not be placed.", "No skirmishes recorded." },

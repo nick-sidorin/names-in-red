@@ -37,7 +37,7 @@ for _, supported in ipairs({
         "latestEncounter", "showOnMap", "unknownLocation", "myLevel", "rivalLevel", "waypointError", "noSkirmishes",
         "rivalsView", "recentView", "unknownRival",
         "alliedSide", "enemySide", "partialRoster", "finishingBlows", "unknownPlayer", "minimapHint",
-        "openSkirmish", "partialRosterHint",
+        "openSkirmish", "partialRosterHint", "portraitKill", "portraitDeath",
     }) do
         assert(type(addon.L[key]) == "string" and addon.L[key] ~= "")
     end
@@ -148,6 +148,7 @@ local function MockRegion(parent)
     function region:SetSize(width, height) self.width, self.height = width, height end
     function region:SetTexture(texture) self.texture, self.atlas = texture, nil end
     function region:SetTexCoord(...) self.texcoords = { ... } end
+    function region:SetGradient(...) self.gradient = { ... } end
     function region:SetAtlas(atlas, _, _, resetTexCoords)
         -- Reassigning an atlas already on the texture preserves its custom coordinates.
         if self.atlas ~= atlas or resetTexCoords then self:SetTexCoord(0, 1, 0, 1) end
@@ -169,6 +170,9 @@ local function MockRegion(parent)
     function region:SetTooltipInfo(title) self.title = title end
     return setmetatable(region, { __index = function() return function() end end })
 end
+
+function CreateColor(r, g, b, a) return { r = r, g = g, b = b, a = a } end
+UPPER_LEFT_VERTEX, LOWER_LEFT_VERTEX, UPPER_RIGHT_VERTEX, LOWER_RIGHT_VERTEX = 1, 2, 3, 4
 
 function CreateFrame(_, _, parent, template)
     local region = MockRegion(parent)
@@ -288,28 +292,38 @@ AssertFullPortrait(rivalPortrait, true)
 local profilePortrait = MockRegion()
 addon.SetRivalPortrait(profilePortrait, first.opponent)
 AssertFullPortrait(profilePortrait, false)
-local function CenterMarker(texture)
+local function PortraitMarker(anchor, texture)
     for _, child in ipairs(compact.children) do
-        if child.shown and child.scripts.OnEnter and child.children[1] and child.children[1].texture == texture then
+        if child.shown and child.scripts.OnEnter and child.children[1] and child.children[1].texture == texture
+            and child.anchor[2] == anchor then
             return child
         end
     end
 end
-local function PortraitMarker(rim, texture)
+local function CenterMarker(texture) return PortraitMarker(compact, texture) end
+local function FindSeparator()
     for _, child in ipairs(compact.children) do
-        if child.shown and rawget(child, "texture") == texture and child.anchor[2] == rim then return child end
+        if child.children[1] and rawget(child.children[1], "gradient") then return child end
     end
 end
-local function CheckPortraitMarker(rim, texture, corner, inset)
+local function CheckPortraitMarker(rim, texture, corner)
     local marker = assert(PortraitMarker(rim, texture))
-    local x = corner == "TOPRIGHT" and -inset or inset
+    local x = corner == "TOPRIGHT" and -10 or 10
     assert(marker.anchor[3] == corner and marker.anchor[4] == x and marker.anchor[5] == -10)
+    return marker
 end
 local swords, skull = addon.swordsIconPath, addon.smallSkullIconPath
 local victory = assert(CenterMarker(swords))
+local separator = assert(FindSeparator())
+assert(not separator.shown and victory.anchor[4] == 0)
 assert(not CenterMarker(skull) and not FindText(compact, addon.L.winTooltip))
-CheckPortraitMarker(myRim, swords, "TOPRIGHT", 10)
-CheckPortraitMarker(opponentRim, skull, "TOPLEFT", 10)
+local portraitVictory = CheckPortraitMarker(myRim, swords, "TOPRIGHT")
+local portraitDeath = CheckPortraitMarker(opponentRim, skull, "TOPLEFT")
+assert(portraitDeath.width > portraitVictory.width)
+portraitVictory.scripts.OnEnter(portraitVictory)
+assert(GameTooltip.shown and GameTooltip.title == addon.L.portraitKill)
+portraitVictory.scripts.OnLeave(portraitVictory)
+assert(not GameTooltip.shown)
 assert(not PortraitMarker(myRim, skull) and not PortraitMarker(opponentRim, swords))
 CheckFactionColors(myName, opponentName)
 faction = "Horde"
@@ -343,8 +357,9 @@ assert(not GameTooltip.shown and not CenterMarker(swords))
 local defeat = assert(CenterMarker(skull))
 defeat.scripts.OnEnter(defeat)
 assert(GameTooltip.shown and GameTooltip.title == addon.L.lossTooltip)
-CheckPortraitMarker(myRim, skull, "TOPRIGHT", 10)
-CheckPortraitMarker(opponentRim, swords, "TOPLEFT", 10)
+CheckPortraitMarker(myRim, skull, "TOPRIGHT")
+CheckPortraitMarker(opponentRim, swords, "TOPLEFT")
+assert(not separator.shown and defeat.anchor[4] == 0 and defeat.width > victory.width)
 defeat.scripts.OnLeave(defeat)
 assert(not GameTooltip.shown)
 compact:SetEncounter({ skirmishID = "win-then-death", wins = 1, playerDeathIndex = 2, opponentDeathIndex = 1 })
@@ -352,14 +367,21 @@ assert(CenterMarker(swords) and not CenterMarker(skull))
 assert(PortraitMarker(myRim, swords) and PortraitMarker(myRim, skull) and PortraitMarker(opponentRim, skull))
 compact:SetEncounter({ skirmishID = "battle-both", wins = 1, losses = 1 })
 assert(CenterMarker(swords) and CenterMarker(skull))
-CheckPortraitMarker(myRim, swords, "TOPRIGHT", 10)
-CheckPortraitMarker(myRim, skull, "TOPRIGHT", 26)
-CheckPortraitMarker(opponentRim, swords, "TOPLEFT", 10)
-CheckPortraitMarker(opponentRim, skull, "TOPLEFT", 26)
+CheckPortraitMarker(myRim, swords, "TOPRIGHT")
+CheckPortraitMarker(myRim, skull, "TOPLEFT")
+CheckPortraitMarker(opponentRim, swords, "TOPLEFT")
+CheckPortraitMarker(opponentRim, skull, "TOPRIGHT")
+assert(separator.shown and victory.anchor[5] > separator.anchor[5] and separator.anchor[5] > defeat.anchor[5])
+local upperFade, lowerFade = separator.children[1].gradient, separator.children[2].gradient
+assert(upperFade[1] == "VERTICAL" and upperFade[2].a > 0 and upperFade[3].a == 0)
+assert(lowerFade[1] == "VERTICAL" and lowerFade[2].a == 0 and lowerFade[3].a == upperFade[2].a)
+portraitDeath.scripts.OnEnter(portraitDeath)
+assert(GameTooltip.shown and GameTooltip.title == addon.L.portraitDeath)
 compact:SetEncounter({ skirmishID = "battle-casualties", opponentDeathIndex = 1, playerDeathIndex = 2 })
+assert(not GameTooltip.shown and not separator.shown)
 assert(not CenterMarker(swords) and not CenterMarker(skull))
-CheckPortraitMarker(myRim, skull, "TOPRIGHT", 10)
-CheckPortraitMarker(opponentRim, skull, "TOPLEFT", 10)
+CheckPortraitMarker(myRim, skull, "TOPRIGHT")
+CheckPortraitMarker(opponentRim, skull, "TOPLEFT")
 assert(not PortraitMarker(myRim, swords) and not PortraitMarker(opponentRim, swords))
 compact:SetEncounter({ skirmishID = "player-casualty", playerDeathIndex = 1 })
 assert(PortraitMarker(myRim, skull) and not PortraitMarker(opponentRim, skull))

@@ -328,11 +328,17 @@ tooltips and click handling supplied by `UIButtonMixin`. Its icons come from
 center after `SquareIconButtonMixin:OnMouseUp`. The
 header uses the square template's scaled four-unit inset to match the date-to-map
 and map-to-information gaps. Both portraits use the profile's 64-unit ring and
-24-unit level badge. The central and portrait markers share the nameplate sword
-crop and small skull texture. Portrait markers sit at the upper-right of the
-local player and upper-left of the opponent. When both markers are visible on
-one portrait, the skull moves inward along the top edge. A local portrait with
-no saved race portrait uses `SetPortraitTexture`, as in Camelot's
+24-unit level badge. The markers share the nameplate artwork. The skull frames
+are slightly larger to match the visible area of the cropped swords. A single
+portrait marker uses the upper-right of the local player and upper-left of the
+opponent. When both are shown, the skull uses the other upper corner. Hover
+each portrait marker for its own tooltip, then switch cards to check cleanup.
+When both central outcomes appear, swords sit up and left and the skull sits
+down and right. The separator pairs two textures with `SetGradient`, as used by
+`NamePlateBorderTemplateMixin:SetUnderlineColor` in `Blizzard_NamePlates.lua`,
+and `SetVertexOffset`, as used for diagonal line geometry in
+`Blizzard_ArtifactPerks.lua`. Check the faded tips and the spacing in Forever.
+A local portrait with no saved race portrait uses `SetPortraitTexture`, as in Camelot's
 `CharacterFrameMixin:UpdateCharacterModeTabPortrait`. Race portraits use the
 `resetTexCoords` argument to `SetAtlas`. The compact rival portrait flips its
 full atlas region horizontally with `SetTexCoord(1, 0, 0, 1)`, following

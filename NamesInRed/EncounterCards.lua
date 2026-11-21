@@ -194,15 +194,27 @@ local function StampRight(actionRight)
     return actionRight and actionRight + compactActionSize - compactActionInset + compactHeaderGap or 13
 end
 
-local function OutcomeTexture(parent, size, victory)
-    local icon = parent:CreateTexture(nil, "OVERLAY", nil, 1)
+local function OutcomeMarker(parent, size, victory, tooltipText)
+    local marker = CreateFrame("Frame", nil, parent)
+    marker:SetSize(size, size)
+    local icon = marker:CreateTexture(nil, "OVERLAY", nil, 1)
     icon:SetSize(size, size)
+    icon:SetPoint("CENTER")
     icon:SetTexture(victory and addon.swordsIconPath or addon.smallSkullIconPath)
     if victory then
         local inset = addon.smallSwordsInset / 128
         icon:SetTexCoord(inset, 1 - inset, inset, 1 - inset)
     end
-    return icon
+    marker:SetMouseMotionEnabled(true)
+    marker:SetScript("OnEnter", function(self)
+        local tooltip = GetAppropriateTooltip and GetAppropriateTooltip() or GameTooltip
+        tooltip:SetOwner(self, "ANCHOR_TOP")
+        tooltip:SetText(tooltipText)
+        tooltip:Show()
+    end)
+    marker:SetScript("OnLeave", HideTooltip)
+    marker:SetScript("OnHide", HideTooltip)
+    return marker
 end
 
 local function CompactParticipant(card, x, size, nameWidth, markerCorner)
@@ -214,35 +226,41 @@ local function CompactParticipant(card, x, size, nameWidth, markerCorner)
     name:SetWidth(nameWidth)
     name:SetJustifyH("CENTER")
     name:SetWordWrap(false)
-    local markerSize, markerGap = 14, 2
-    local direction = markerCorner == "TOPRIGHT" and -1 or 1
-    local cornerInset = 10
-    local victory = OutcomeTexture(card, markerSize, true)
-    victory:SetPoint("CENTER", rim, markerCorner, direction * cornerInset, -10)
-    local death = OutcomeTexture(card, markerSize, false)
+    local oppositeCorner = markerCorner == "TOPRIGHT" and "TOPLEFT" or "TOPRIGHT"
+    local cornerX = markerCorner == "TOPRIGHT" and -10 or 10
+    local victory = OutcomeMarker(card, 14, true, L.portraitKill)
+    victory:SetPoint("CENTER", rim, markerCorner, cornerX, -10)
+    local death = OutcomeMarker(card, 16, false, L.portraitDeath)
     local function SetMarkers(won, died)
-        local inset = cornerInset + (won and markerSize + markerGap or 0)
-        death:SetPoint("CENTER", rim, markerCorner, direction * inset, -10)
+        death:SetPoint("CENTER", rim, won and oppositeCorner or markerCorner, won and -cornerX or cornerX, -10)
         victory:SetShown(won)
         death:SetShown(died)
     end
-    return { portrait = portrait, level = level, name = name, SetMarkers = SetMarkers }
+    return { portrait = portrait, level = level, name = name, victory = victory, death = death, SetMarkers = SetMarkers }
 end
 
-local function CompactOutcome(card, victory)
-    local marker = CreateFrame("Frame", nil, card)
-    marker:SetSize(24, 24)
-    OutcomeTexture(marker, 24, victory):SetPoint("CENTER")
-    marker:SetMouseMotionEnabled(true)
-    marker:SetScript("OnEnter", function(self)
-        local tooltip = GetAppropriateTooltip and GetAppropriateTooltip() or GameTooltip
-        tooltip:SetOwner(self, "ANCHOR_TOP")
-        tooltip:SetText(victory and L.winTooltip or L.lossTooltip)
-        tooltip:Show()
-    end)
-    marker:SetScript("OnLeave", HideTooltip)
-    marker:SetScript("OnHide", HideTooltip)
-    return marker
+local compactOutcomeY = -79
+
+local function OutcomeSeparator(card)
+    local separator = CreateFrame("Frame", nil, card)
+    separator:SetSize(20, 32)
+    separator:SetPoint("CENTER", card, "TOP", 0, compactOutcomeY)
+    local clear = CreateColor(0.71, 0.54, 0.33, 0)
+    local bronze = CreateColor(0.71, 0.54, 0.33, 0.8)
+    local function FadeHalf(point, x, bottomColor, topColor)
+        local half = separator:CreateTexture(nil, "ARTWORK")
+        half:SetSize(1.75, 16)
+        half:SetPoint(point, separator, "CENTER", x, 0)
+        half:SetColorTexture(1, 1, 1)
+        half:SetGradient("VERTICAL", bottomColor, topColor)
+        half:SetVertexOffset(UPPER_LEFT_VERTEX, 5, 0)
+        half:SetVertexOffset(UPPER_RIGHT_VERTEX, 5, 0)
+        half:SetVertexOffset(LOWER_LEFT_VERTEX, -5, 0)
+        half:SetVertexOffset(LOWER_RIGHT_VERTEX, -5, 0)
+    end
+    FadeHalf("BOTTOM", 5, bronze, clear)
+    FadeHalf("TOP", -5, clear, bronze)
+    return separator
 end
 
 function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmish)
@@ -258,8 +276,9 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
     local portraitSize = 64
     local mine = CompactParticipant(card, width / 4, portraitSize, width / 2 - 18, "TOPRIGHT")
     local theirs = CompactParticipant(card, 3 * width / 4, portraitSize, width / 2 - 18, "TOPLEFT")
-    local victory = CompactOutcome(card, true)
-    local defeat = CompactOutcome(card, false)
+    local separator = OutcomeSeparator(card)
+    local victory = OutcomeMarker(card, 24, true, L.winTooltip)
+    local defeat = OutcomeMarker(card, 27, false, L.lossTooltip)
 
     local map = MapAction(card, function()
         if card.encounter then ActivateWaypoint(card.encounter, onMapShown) end
@@ -290,6 +309,10 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
             HideTooltip(info)
             HideTooltip(victory)
             HideTooltip(defeat)
+            HideTooltip(mine.victory)
+            HideTooltip(mine.death)
+            HideTooltip(theirs.victory)
+            HideTooltip(theirs.death)
         end
         self.encounter = encounter
         self:SetShown(encounter ~= nil)
@@ -320,8 +343,10 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
 
         local won = encounter.direction == "killsAgainstThem" or (encounter.wins or 0) > 0
         local lost = encounter.direction == "deathsToThem" or (encounter.losses or 0) > 0
-        victory:SetPoint("CENTER", card, "TOP", lost and -15 or 0, -79)
-        defeat:SetPoint("CENTER", card, "TOP", won and 15 or 0, -79)
+        local both = won and lost
+        victory:SetPoint("CENTER", card, "TOP", both and -16 or 0, compactOutcomeY + (both and 9 or 0))
+        defeat:SetPoint("CENTER", card, "TOP", both and 16 or 0, compactOutcomeY - (both and 9 or 0))
+        separator:SetShown(both)
         victory:SetShown(won)
         defeat:SetShown(lost)
         mine.SetMarkers(won, lost or encounter.playerDeathIndex ~= nil)
