@@ -132,3 +132,63 @@ assert(addon.Ledger.SaveSkirmish(addon.db, "battle-one", battle) == battle)
 recent = addon.RecentEncounters(addon.db, 2)
 assert(#recent == 2 and recent[1].skirmish == battle and recent[2].time == 1210)
 print("Cross-rival skirmish order and display limit checks passed")
+
+local ledger = addon.Ledger
+local orcID, shamanID, bystanderID = "Player-orc", "Player-shaman", "Player-bystander"
+addon.RecordEncounter(orcID, "Orc Gruntsong", "killsAgainstThem", { time = 1080 })
+local earlier = {
+    time = 1090, allies = { { id = "me", isSelf = true, level = 51 }, { id = "brother" } },
+    enemies = {
+        { id = "orc", rivalID = orcID, name = "Orc Gruntsong", level = 52 },
+        { id = "shaman", rivalID = shamanID, name = "Shaman Windsong" },
+        { id = "bystander", rivalID = bystanderID, name = "Rogue Knifeblade" },
+    },
+    events = {
+        { kind = "kill", actorID = "brother", targetID = "orc", contributors = { me = true } },
+        { kind = "kill", actorID = "shaman", targetID = "me", contributors = { shaman = true, orc = false } },
+        { kind = "kill", actorID = "brother", targetID = "bystander", contributors = { me = false } },
+    },
+}
+assert(addon.RecordSkirmish("earlier-team-fight", earlier) == earlier)
+local function CheckScore(id, expectedWins, expectedLosses)
+    local wins, losses = ledger.PersonalScore(addon.db, id)
+    assert(wins == expectedWins and losses == expectedLosses)
+end
+CheckScore(orcID, 2, 0)
+CheckScore(shamanID, 0, 1)
+CheckScore(bystanderID, 0, 0)
+assert(ledger.Find(addon.db, shamanID).displayName == "Shaman Windsong")
+local personalHistory = addon.RivalEncounters(addon.db, orcID)
+assert(#personalHistory == 2 and personalHistory[2].direction == "killsAgainstThem")
+local compact = personalHistory[1]
+assert(compact.skirmishID == "earlier-team-fight" and compact.playerLevel == 51 and compact.rivalLevel == 52)
+assert(compact.wins == 1 and compact.losses == 0 and addon.db.skirmishes[compact.skirmishID] == earlier)
+assert(addon.RivalEncounters(addon.db, bystanderID)[1].skirmishID == compact.skirmishID)
+assert(addon.RecentEncounters(addon.db, 100)[100].time > earlier.time)
+
+addon.RecordSkirmish("earlier-team-fight", earlier)
+CheckScore(orcID, 2, 0)
+local followUp = {
+    time = 1220, allies = earlier.allies, enemies = earlier.enemies,
+    events = {
+        { kind = "kill", actorID = "me", targetID = "orc" },
+        { kind = "kill", targetID = "me", contributors = { shaman = true, bystander = true } },
+    },
+}
+-- Missing alive/participation evidence in the timeline does not grant a score.
+addon.RecordSkirmish("follow-up", followUp)
+CheckScore(orcID, 2, 0)
+CheckScore(shamanID, 0, 2)
+CheckScore(bystanderID, 0, 1)
+followUp.events[1].contributors = { me = true }
+addon.RecordSkirmish("follow-up", followUp)
+CheckScore(orcID, 3, 0)
+assert(#addon.RivalEncounters(addon.db, orcID) == 3)
+local reopened = assert(ledger.Open({ version = 1, rivals = addon.db.rivals, skirmishes = addon.db.skirmishes }))
+assert(ledger.PersonalScore(reopened, orcID) == 3)
+ledger.Remove(addon.db, orcID)
+ledger.Add(addon.db, orcID, "Orc Gruntsong")
+CheckScore(orcID, 0, 0)
+CheckScore(shamanID, 0, 2)
+assert(#addon.RivalEncounters(addon.db, orcID) == 0 and earlier.events[1].targetID == "orc")
+print("Personal score, incomplete evidence and shared skirmish history checks passed")

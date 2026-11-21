@@ -66,21 +66,21 @@ local function SeedBattle(index, now, zoneNames, allyCount, enemyCount, complete
     end
     for i, blow in ipairs(blows) do
         battle.events[i] = { kind = "kill", actorID = blow[1], targetID = blow[2],
-            time = battle.startedAt + i * 17 }
+            time = battle.startedAt + i * 17, contributors = blow[3] }
     end
-    addon.Ledger.SaveSkirmish(addon.db, "seed:battle:" .. index, battle)
+    addon.RecordSkirmish("seed:battle:" .. index, battle)
 end
 
 function addon.ClearDebugSeeds()
     local removed = 0
+    for id in pairs(addon.db.skirmishes or {}) do
+        if id:match("^seed:") then addon.Ledger.RemoveSkirmish(addon.db, id) end
+    end
     for id in pairs(addon.db.rivals) do
         if id:match("^seed:") then
             addon.Ledger.Remove(addon.db, id)
             removed = removed + 1
         end
-    end
-    for id in pairs(addon.db.skirmishes or {}) do
-        if id:match("^seed:") then addon.db.skirmishes[id] = nil end
     end
     return removed
 end
@@ -124,10 +124,14 @@ function addon.AddDebugSeeds(now)
             rival.encounters[encounter] = row
         end
     end
-    SeedBattle(1, now, zoneNames, 2, 2, true, { { "ally:1", "seed:7" }, { "me", "seed:4" } })
-    SeedBattle(2, now, zoneNames, 1, 1, true, { { "seed:4", "me" } })
+    SeedBattle(1, now, zoneNames, 2, 2, true, {
+        { "ally:1", "seed:7", { me = true, ["ally:1"] = true } },
+        { "seed:4", "me", { ["seed:4"] = true, ["seed:7"] = false } },
+    })
+    SeedBattle(2, now, zoneNames, 1, 1, true, { { "seed:4", "me", { ["seed:4"] = true } } })
     SeedBattle(3, now, zoneNames, 5, 6, true, {
-        { "seed:4", "ally:2" }, { "ally:4", "seed:2" }, { "seed:7", "me" },
+        { "seed:4", "ally:2" }, { "ally:4", "seed:2" },
+        { "seed:7", "me", { ["seed:4"] = true, ["seed:7"] = true } },
     })
     SeedBattle(4, now, zoneNames, 2, 1, false, { { "seed:4", "me" } })
     return #names

@@ -105,7 +105,7 @@ local function CreateCard(parent, width, height)
     return card
 end
 
-function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
+function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth, openSkirmish)
     local card = CreateCard(parent, width, addon.encounterCardHeight)
 
     local body = card
@@ -179,6 +179,17 @@ function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
     attackers:SetScript("OnLeave", HideTooltip)
     attackers:HookScript("OnHide", HideTooltip)
 
+    local open
+    if openSkirmish then
+        open = CreateFrame("Button", nil, body, "SharedButtonSmallTemplate")
+        open:SetPoint("BOTTOMRIGHT", -12, 11)
+        open:SetSize(mapButtonWidth, 25)
+        open:SetText(L.openSkirmish)
+        open:SetScript("OnClick", function()
+            if card.encounter and card.encounter.skirmishID then openSkirmish(card.encounter.skirmishID) end
+        end)
+    end
+
     function card:SetEncounter(encounter)
         if self.encounter ~= encounter then
             HideTooltip(attackers)
@@ -187,12 +198,22 @@ function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
         self:SetShown(encounter ~= nil)
         if not encounter then return end
 
-        local victory = encounter.direction == "killsAgainstThem"
-        icon:SetTexture(victory and addon.swordsIconPath or addon.skullIconPath)
-        local inset = victory and 0.16 or 0.08
+        local battle = encounter.skirmishID ~= nil
+        local victory = encounter.direction == "killsAgainstThem" or (battle and encounter.wins > 0 and encounter.losses == 0)
+        local defeat = encounter.direction == "deathsToThem" or (battle and encounter.losses > 0 and encounter.wins == 0)
+        icon:SetTexture(defeat and addon.skullIconPath or addon.swordsIconPath)
+        local inset = defeat and 0.08 or 0.16
         icon:SetTexCoord(inset, 1 - inset, inset, 1 - inset)
-        outcome:SetText(victory and L.win or L.loss)
-        if victory then outcome:SetTextColor(0.65, 0.83, 1) else outcome:SetTextColor(1, 0.61, 0.52) end
+        if victory then
+            outcome:SetText(battle and L.winTooltip or L.win)
+            outcome:SetTextColor(0.65, 0.83, 1)
+        elseif defeat then
+            outcome:SetText(battle and L.lossTooltip or L.loss)
+            outcome:SetTextColor(1, 0.61, 0.52)
+        else
+            outcome:SetText(L.skirmish)
+            outcome:SetTextColor(1, 0.82, 0)
+        end
         local encounterDay, encounterTime = EncounterDate(encounter)
         day:SetText(encounterDay)
         time:SetText(encounterTime)
@@ -202,7 +223,8 @@ function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
         myLevel:SetText(LevelText(encounter.playerLevel))
         rivalLevel:SetText(LevelText(encounter.rivalLevel))
         map:SetShown(hasWaypoint)
-        attackers:SetShown(type(encounter.attackers) == "table" and #encounter.attackers > 0)
+        attackers:SetShown(not battle and type(encounter.attackers) == "table" and #encounter.attackers > 0)
+        if open then open:SetShown(battle) end
     end
 
     return card
@@ -244,7 +266,7 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
         side:SetPoint("TOPLEFT", x, -62)
         side:SetSize(columnWidth, 1)
         local rows = {}
-        return function(players)
+        return function(players, selectedRivalID)
             side:SetHeight(math.max(1, #players * 29))
             for i = 1, math.max(#players, #rows) do
                 local player, row = players[i], rows[i]
@@ -258,6 +280,10 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
                     hover:SetVertexColor(0.70, 0.54, 0.36)
                     hover:SetAlpha(0.24)
                     row:SetHighlightTexture(hover, "ADD")
+                    row.selection = row:CreateTexture(nil, "ARTWORK")
+                    row.selection:SetAllPoints()
+                    addon.ApplyAtlas(row.selection, "Professions_Recipe_Active")
+                    row.selection:SetAlpha(0.45)
                     row:SetScript("OnClick", function(self)
                         if self.rivalID then openRival(self.rivalID) end
                     end)
@@ -272,6 +298,7 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
                 end
                 row:SetShown(player ~= nil)
                 if player then
+                    row.selection:SetShown(selectedRivalID ~= nil and player.rivalID == selectedRivalID)
                     local name = player.name or L.unknownPlayer
                     row.name:SetText(player.isSelf and YOU and (name .. " • " .. YOU) or name)
                     local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[player.class]
@@ -311,7 +338,7 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
             UIErrorsFrame:AddMessage(L.waypointError, 1, 0.25, 0.25)
         end
     end)
-    function card:SetSkirmish(battle)
+    function card:SetSkirmish(battle, selectedRivalID)
         self.skirmish = battle
         self:SetShown(battle ~= nil)
         if not battle then return end
@@ -322,7 +349,7 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
         local day, time = EncounterDate(battle)
         stamp:SetText(day .. "  " .. time)
         setAllies(battle.allies)
-        setEnemies(battle.enemies)
+        setEnemies(battle.enemies, selectedRivalID)
         local players, colors = {}, {}
         for _, player in ipairs(battle.allies) do players[player.id], colors[player.id] = player, allyColor end
         for _, player in ipairs(battle.enemies) do players[player.id], colors[player.id] = player, enemyColor end

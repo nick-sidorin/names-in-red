@@ -20,8 +20,8 @@ local function Refresh(unit)
     local playerGUID = Readable(UnitGUID("player"))
     if type(guid) ~= "string" or not guid:match("^Player%-.+") or type(playerGUID) ~= "string"
         or guid == playerGUID then return end
-    local rival = addon.FindVisibleRival(guid, unit)
-    local text = rival and addon.RivalCounters(rival, true)
+    local rival, id = addon.FindVisibleRival(guid, unit)
+    local text = rival and addon.RivalCounters(id, true)
     if not text then return end
 
     local plate = Readable(C_NamePlate.GetNamePlateForUnit(unit))

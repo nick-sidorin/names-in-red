@@ -177,6 +177,16 @@ The test suite exercises card reuse across different roster sizes and verifies
 that fixture removal preserves other saved records. Card rendering still
 needs a Forever client check.
 
+From preview.6 onward, a rival's linked cards open a full-width battle in
+the same book. This follows the in-window detail transition in
+`ProfessionsCraftingPageMixin:SelectRecipe` in `Blizzard_ProfessionsCrafting.lua`.
+The Back control uses the native `UIPanelButtonTemplate` and `BACK` text as
+in `Blizzard_ProfessionsCrafterOrderView.xml`. The chosen rival's highlight
+uses the same `Professions_Recipe_Active` atlas as the book roster.
+In Forever, check **Open skirmish** from Information and a scrolled rival
+history, then **Back**. Include an old saved battle outside the latest 100
+and a partial record. Check the selected highlight and localized button widths.
+
 ### Expanded evidence in 0.1.3-preview.3
 
 The old preview captured kills, honor changes and death recaps. The next

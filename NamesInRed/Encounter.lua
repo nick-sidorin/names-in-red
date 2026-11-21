@@ -63,13 +63,14 @@ function addon.RivalAppearance(guid)
     return race, sex, class, addon.Readable(raceLabel), addon.Readable(classLabel)
 end
 
-function addon.RecordEncounter(guid, name, direction, context, appearance)
+local function UpdateRival(guid, name, appearance, manual)
     name = addon.ManualName(name)
     local fullName = addon.HasFullName(name) and name or nil
     local rival = addon.Ledger.Find(addon.db, guid)
     if not rival then
         rival = addon.Ledger.Add(addon.db, guid, fullName)
-        if context.manual then rival.addedManually = true end
+        if not rival then return end
+        if manual then rival.addedManually = true end
     end
     -- Later sightings can complete a name even when an earlier event only exposed its first part.
     if fullName then
@@ -88,6 +89,17 @@ function addon.RecordEncounter(guid, name, direction, context, appearance)
     if class then rival.class = class end
     if type(raceLabel) == "string" and raceLabel ~= "" then rival.raceLabel = raceLabel end
     if type(classLabel) == "string" and classLabel ~= "" then rival.classLabel = classLabel end
+    return rival
+end
+
+local function RefreshRivals()
+    if addon.RefreshBook then addon.RefreshBook() end
+    if addon.RefreshNameplates then addon.RefreshNameplates() end
+end
+
+function addon.RecordEncounter(guid, name, direction, context, appearance)
+    local rival = UpdateRival(guid, name, appearance, context.manual)
+    if not rival then return end
     rival[direction] = rival[direction] + 1
     rival.encounters = rival.encounters or {}
     context.direction = direction
@@ -95,10 +107,18 @@ function addon.RecordEncounter(guid, name, direction, context, appearance)
     context.sequence = addon.db.encounterSequence
     if not context.time then context.recordedAt = SafeRead(GetServerTime) end
     table.insert(rival.encounters, 1, context)
-    if addon.RefreshBook then
-        addon.RefreshBook()
+    RefreshRivals()
+end
+
+function addon.RecordSkirmish(id, battle)
+    if not addon.Ledger.SaveSkirmish(addon.db, id, battle) then return end
+    for _, opponent in ipairs(battle.enemies) do
+        if type(opponent.rivalID) == "string" then
+            UpdateRival(opponent.rivalID, opponent.name, opponent)
+        end
     end
-    if addon.RefreshNameplates then addon.RefreshNameplates() end
+    RefreshRivals()
+    return battle
 end
 
 function addon.ManualName(input)
@@ -125,6 +145,23 @@ local function MoreRecent(a, b)
     if a.sequence ~= b.sequence then return a.sequence > b.sequence end
     if a.id ~= b.id then return a.id < b.id end
     return a.index < b.index
+end
+
+function addon.RivalEncounters(db, id)
+    local rival = db.rivals[id]
+    if not rival then return {} end
+    local entries = {}
+    for _, encounters in ipairs({ rival.encounters or {}, addon.Ledger.RivalSkirmishes(db, id) }) do
+        for _, encounter in ipairs(encounters) do
+            entries[#entries + 1] = {
+                encounter = encounter, id = encounter.skirmishID or id, index = #entries + 1,
+                time = encounter.time or encounter.recordedAt or 0, sequence = encounter.sequence or 0,
+            }
+        end
+    end
+    table.sort(entries, MoreRecent)
+    for index, entry in ipairs(entries) do entries[index] = entry.encounter end
+    return entries
 end
 
 function addon.RecentEncounters(db, limit)
@@ -163,7 +200,10 @@ end
 function addon.FindVisibleRival(guid, unit)
     local rivals = addon.db.rivals
     local rival = type(guid) == "string" and rivals[guid]
-    if rival then return addon.HasFullName(rival.displayName) and rival or nil end
+    if rival then
+        if addon.HasFullName(rival.displayName) then return rival, guid end
+        return
+    end
     if type(unit) ~= "string" then return end
 
     local name = addon.UnitPlayerName(unit)
@@ -172,15 +212,15 @@ function addon.FindVisibleRival(guid, unit)
     -- Only an unambiguous full name can match an entry without a GUID.
     local lower = strlower or string.lower
     local key = lower(name)
-    local matched
+    local matched, matchedID
     for id, entry in pairs(rivals) do
         local stored = not id:match("^seed:") and addon.ManualName(entry.displayName)
         if stored and (lower(stored) == key or (strcmputf8i and strcmputf8i(stored, name) == 0)) then
             if matched or not id:match("^manual:") then return end
-            matched = entry
+            matched, matchedID = entry, id
         end
     end
-    return matched
+    return matched, matchedID
 end
 
 local function CombineName(given, surname)
@@ -210,8 +250,7 @@ function addon.ResolveRivalName(unit)
     local name = addon.UnitPlayerName(unit)
     if addon.HasFullName(name) then
         rival.displayName = name
-        if addon.RefreshBook then addon.RefreshBook() end
-        if addon.RefreshNameplates then addon.RefreshNameplates() end
+        RefreshRivals()
     end
 end
 

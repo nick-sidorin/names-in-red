@@ -6,6 +6,7 @@ end
 
 local tooltipLines = {}
 GameTooltip = {
+    IsOwned = function() return false end,
     AddLine = function(_, text)
         assert(type(text) == "string" and text ~= "")
         table.insert(tooltipLines, text)
@@ -27,11 +28,12 @@ for _, supported in ipairs({
     assert(addon.title == "Names in Red")
     assert(addon.L.deleteConfirm:format("Rival"):find("Rival", 1, true))
     for _, key in ipairs({
-        "kills", "deaths", "empty", "level", "add", "addTitle", "fullName", "win", "loss", "manual",
-        "noMatches", "deleteConfirm", "statistics", "winTooltip", "lossTooltip", "infoTab", "historyTab",
+        "wins", "losses", "empty", "level", "add", "addTitle", "fullName", "win", "loss", "manual",
+        "noMatches", "deleteConfirm", "personalScore", "winTooltip", "lossTooltip", "infoTab", "historyTab",
         "latestEncounter", "showOnMap", "unknownLocation", "myLevel", "rivalLevel", "waypointError", "noSkirmishes",
         "rivalsView", "recentView", "unknownRival",
         "alliedSide", "enemySide", "partialRoster", "finishingBlows", "unknownPlayer", "minimapHint",
+        "skirmish", "openSkirmish",
     }) do
         assert(type(addon.L[key]) == "string" and addon.L[key] ~= "")
     end
@@ -39,6 +41,7 @@ end
 
 local secret = {}
 function issecretvalue(value) return value == secret end
+assert(loadfile("NamesInRed/Ledger.lua"))("NamesInRed", addon)
 assert(loadfile("NamesInRed/Encounter.lua"))("NamesInRed", addon)
 assert(loadfile("NamesInRed/EncounterCards.lua"))("NamesInRed", addon)
 assert(loadfile("NamesInRed/Core.lua"))("NamesInRed", addon)
@@ -62,7 +65,6 @@ local death = art .. "TooltipSkull.tga:14:14:0:1|t"
 assert(tooltipLines[3] == victory .. " 2   " .. death .. " 1")
 print("Rival tooltip and locale checks passed")
 
-assert(loadfile("NamesInRed/Ledger.lua"))("NamesInRed", addon)
 function UnitIsPlayer(unit) return unit == "target" end
 function UnitName() return "Test Rival" end
 local targetGUID = "Player-target"
@@ -166,16 +168,34 @@ local function FindText(region, expected)
         if match then return match end
     end
 end
-card:SetSkirmish(large)
+card:SetSkirmish(large, "Player-test")
 local largeHeight = card.height
 assert(FindText(card, "2 × 2") and FindText(card, "Ally Warrior") and FindText(card, "0:11"))
 assert(FindText(card, addon.L.showOnMap) and not FindText(card, "45.0, 51.0"))
 local name = assert(FindText(card, "Test Rival"))
+assert(name.parent.selection.shown)
 name.parent.scripts.OnClick(name.parent)
 assert(selectedRival == "Player-test")
 card:SetSkirmish({ allies = { allies[1] }, enemies = { enemies[1] }, events = {} })
+assert(not name.parent.selection.shown)
 assert(card.height < largeHeight and FindText(card, addon.L.partialRoster))
 assert(not FindText(card, "Ally Warrior") and not FindText(card, "Other Rival") and not FindText(card, "0:11"))
 card:SetSkirmish(nil)
 assert(not card.shown)
 print("Skirmish card roster and recycling checks passed")
+
+local openedSkirmish
+local compact = addon.CreateEncounterCard(MockRegion(), 332, function() end, nil,
+    function(id) openedSkirmish = id end)
+compact:SetEncounter({ skirmishID = "battle-one", wins = 1, losses = 0, mapID = 1424, x = 0.45, y = 0.51 })
+assert(FindText(compact, addon.L.winTooltip) and FindText(compact, addon.L.showOnMap))
+local open = assert(FindText(compact, addon.L.openSkirmish))
+open.scripts.OnClick()
+assert(openedSkirmish == "battle-one")
+compact:SetEncounter({ skirmishID = "battle-two", wins = 0, losses = 0 })
+assert(FindText(compact, addon.L.skirmish))
+open.scripts.OnClick()
+assert(openedSkirmish == "battle-two")
+compact:SetEncounter({ direction = "killsAgainstThem" })
+assert(FindText(compact, addon.L.win) and not FindText(compact, addon.L.openSkirmish))
+print("Compact skirmish link and reuse checks passed")

@@ -8,7 +8,8 @@ local deletePopup = "NAMES_IN_RED_DELETE_RIVAL"
 local lower = strlower or string.lower
 local buttons, sideTabs = {}, {}
 local rivalsPage, recentPage, recentList, recentEmpty
-local rivalsView, recentView = 1, 2
+local battlePage, battleList, selectedSkirmishID
+local rivalsView, recentView, battleView = 1, 2, 3
 local activeView = rivalsView
 local recentLimit = 100
 local infoTab, historyTab = 1, 2
@@ -26,10 +27,12 @@ local function SetStatIconCrop(icon, texture)
     icon:SetTexCoord(inset + shift, 1 - inset + shift, inset, 1 - inset)
 end
 
-function addon.RivalCounters(rival, hideZero)
+function addon.RivalCounters(id, hideZero)
+    local winCount, lossCount = addon.Ledger.PersonalScore(addon.db, id)
+    if winCount == 0 and lossCount == 0 then return end
     local wins, losses
-    if not hideZero or rival.killsAgainstThem > 0 then wins = victoryGlyph .. " " .. rival.killsAgainstThem end
-    if not hideZero or rival.deathsToThem > 0 then losses = deathGlyph .. " " .. rival.deathsToThem end
+    if not hideZero or winCount > 0 then wins = victoryGlyph .. " " .. winCount end
+    if not hideZero or lossCount > 0 then losses = deathGlyph .. " " .. lossCount end
     if wins and losses then return wins .. "   " .. losses end
     return wins or losses
 end
@@ -177,7 +180,7 @@ local function ShowDetails()
     local showInfo = rival ~= nil and activeTab == infoTab
     local showHistory = rival ~= nil and activeTab == historyTab
     summary:SetShown(showInfo)
-    local history = rival and rival.encounters or {}
+    local history = rival and addon.RivalEncounters(addon.db, selected) or {}
     if showInfo then
         heading:SetText(rival.displayName)
         local manual = rival.addedManually or selected:match("^manual:") or selected:match("^seed:manual:")
@@ -190,8 +193,9 @@ local function ShowDetails()
             profile = profile ~= "" and profile .. "\n" .. L.manual or L.manual
         end
         status:SetText(profile)
-        wins:SetText(("%s: %d"):format(L.kills, rival.killsAgainstThem))
-        losses:SetText(("%s: %d"):format(L.deaths, rival.deathsToThem))
+        local winCount, lossCount = addon.Ledger.PersonalScore(addon.db, selected)
+        wins:SetText(("%s: %d"):format(L.wins, winCount))
+        losses:SetText(("%s: %d"):format(L.losses, lossCount))
         UpdatePortrait(portrait, rival, selected)
         latestCard:SetEncounter(history[1])
         latestEmpty:SetShown(history[1] == nil)
@@ -237,6 +241,11 @@ function addon.RefreshBook(resetSearch)
         return
     end
     if not window or not window:IsShown() then
+        return
+    end
+    if activeView == battleView then
+        local battle = addon.db.skirmishes and addon.db.skirmishes[selectedSkirmishID]
+        battleList:SetEntries(battle and { battle } or {})
         return
     end
     if activeView == recentView then
@@ -382,7 +391,18 @@ local function SetBookView(view)
     activeView = view
     rivalsPage:SetShown(view == rivalsView)
     recentPage:SetShown(view == recentView)
-    for index, tab in ipairs(sideTabs) do tab:SetChecked(index == view) end
+    battlePage:SetShown(view == battleView)
+    if view ~= battleView then selectedSkirmishID = nil end
+    local sideView = view == battleView and rivalsView or view
+    for index, tab in ipairs(sideTabs) do tab:SetChecked(index == sideView) end
+end
+
+local function OpenSkirmish(id)
+    if not (addon.db.skirmishes and addon.db.skirmishes[id]) then return end
+    selectedSkirmishID = id
+    battleList:SetVerticalScroll(0)
+    SetBookView(battleView)
+    addon.RefreshBook()
 end
 
 local function SelectRivalTab(id)
@@ -589,8 +609,11 @@ local function ToggleBook()
         end
 
         local historyTop = 16
+        local function CreateRivalCard(parent, width, onMapShown)
+            return addon.CreateEncounterCard(parent, width, onMapShown, nil, OpenSkirmish)
+        end
         details = CardList(right, 25, -historyTop, cardWidth, rightHeight - historyTop - 12,
-            addon.CreateEncounterCard, function(card, encounter) card:SetEncounter(encounter) end)
+            CreateRivalCard, function(card, encounter) card:SetEncounter(encounter) end)
         historyEmpty = right:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         historyEmpty:SetPoint("CENTER", 0, 5)
         historyEmpty:SetText(L.noSkirmishes)
@@ -627,7 +650,7 @@ local function ToggleBook()
         status:SetTextColor(0.72, 0.67, 0.59)
         local statsTitle = summary:CreateFontString(nil, "OVERLAY", sectionFont)
         statsTitle:SetPoint("TOPLEFT", 25, -92)
-        statsTitle:SetText(L.statistics)
+        statsTitle:SetText(L.personalScore)
         if not ProfessionsReagentSlotButtonMixin and C_AddOns and C_AddOns.LoadAddOn then
             pcall(C_AddOns.LoadAddOn, "Blizzard_ProfessionsTemplates")
         end
@@ -639,7 +662,7 @@ local function ToggleBook()
         latestEmpty = summary:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         latestEmpty:SetPoint("TOPLEFT", 25, -240)
         latestEmpty:SetText(L.noSkirmishes)
-        latestCard = addon.CreateEncounterCard(summary, cardWidth, CloseForMap)
+        latestCard = CreateRivalCard(summary, cardWidth, CloseForMap)
         latestCard:SetPoint("TOPLEFT", 25, -234)
         empty = right:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         empty:SetPoint("CENTER", 0, 5)
@@ -723,6 +746,23 @@ local function ToggleBook()
         recentEmpty:SetText(L.noSkirmishes)
         recentList = CardList(journal, 20, -42, journal:GetWidth() - 62, bodyHeight - 56,
             CreateRecentCard, function(card, entry) card:SetEntry(entry) end, RecentCardHeight)
+
+        battlePage = Pane(window, 5, -contentTop, window:GetWidth() - 10, bodyHeight)
+        ListBackground(battlePage)
+        local battleTrim = battlePage:CreateTexture(nil, "BORDER")
+        battleTrim:SetAllPoints()
+        addon.ApplyAtlas(battleTrim, "common-insideframe")
+        local back = CreateFrame("Button", nil, battlePage, "UIPanelButtonTemplate")
+        back:SetPoint("TOPLEFT", 20, -11)
+        back:SetSize(92, 23)
+        back:SetText(BACK)
+        back:SetScript("OnClick", function()
+            SetBookView(rivalsView)
+            addon.RefreshBook()
+        end)
+        battleList = CardList(battlePage, 20, -42, battlePage:GetWidth() - 62, bodyHeight - 56,
+            function(parent, width, onMapShown) return addon.CreateSkirmishCard(parent, width, onMapShown, OpenRival) end,
+            function(card, battle) card:SetSkirmish(battle, selected) end, addon.SkirmishCardHeight)
 
         CreateSideTabs()
         SetBookView(activeView)
@@ -850,11 +890,12 @@ end
 if TooltipDataProcessor and Enum and Enum.TooltipDataType then
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, function(tooltip, data)
         if tooltip ~= GameTooltip or not addon.db then return end
-        local rival = TooltipRival(tooltip, data)
-        if rival and (rival.killsAgainstThem > 0 or rival.deathsToThem > 0) then
+        local rival, id = TooltipRival(tooltip, data)
+        local counters = rival and addon.RivalCounters(id)
+        if counters then
             tooltip:AddLine(" ")
             tooltip:AddLine(addon.title, 1, 0.82, 0)
-            tooltip:AddLine(addon.RivalCounters(rival), 1, 1, 1)
+            tooltip:AddLine(counters, 1, 1, 1)
         end
     end)
 end
