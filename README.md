@@ -18,6 +18,8 @@ history. The side tab shows the latest 100 skirmishes across all opponents using
 the same two-sided layout for both battle records and earlier individual
 encounters. The full card shows the game's PvP faction emblems beside the side
 headings. The header shows the number of recorded participants on each side.
+If a rival's level was unavailable in one fight, `~` marks the last known level
+from their history.
 An information icon beside those counts explains when the full team sizes are
 unconfirmed. Older saved battles can still open from a rival's history.
 The map pin places a waypoint when the saved location supports one. Known
@@ -69,7 +71,9 @@ the same skirmish ID replaces the indexed result and rewards.
 
 Live open-world capture groups readable player kills and local death recaps
 within the observed combat window. A current party member's finishing blow
-can add that ally to the roster. The live observer records a partial roster
+can add that ally to the roster. At death, visible nameplates can supply
+participant details when the target and mouseover are unavailable. The live
+observer records a partial roster
 when the full fight is unavailable. Honor correlation uses one readable
 opponent death and a single increase in the session honorable kill count.
 An honor amount also requires one award message and a readable amount from

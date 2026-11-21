@@ -443,8 +443,11 @@ function SetPortraitTexture(_, unit, disableMasking)
     assert(unit == "player" and disableMasking)
     loadedSelfPortrait = true
 end
+local unitRace = UnitRace
+UnitRace = nil
 compact:SetEncounter({ direction = "killsAgainstThem" }, { displayName = "Legacy Rival" })
 assert(FindText(compact, "Legacy Rival") and loadedSelfPortrait and not open.shown)
+UnitRace = unitRace
 assert(rivalPortrait.texture == "Interface\\Icons\\INV_Misc_QuestionMark")
 assert(rivalPortrait.texcoords[1] < rivalPortrait.texcoords[2])
 assert(not CenterMarker(swords) and unknownMark.parent.shown)
@@ -453,3 +456,30 @@ AssertFullPortrait(rivalPortrait, true)
 compact:SetEncounter(nil)
 assert(not compact.shown)
 print("Compact skirmish factions, team outcomes, casualties and actions checks passed")
+
+local rivalID = "Player-sparse"
+local knownRival = addon.Ledger.Add(addon.db, rivalID, "Sparse Rival")
+knownRival.class, knownRival.classLabel, knownRival.race, knownRival.sex = "ROGUE", "Rogue", "scourge", 2
+local self = { id = "Player-self", name = "Local Player", isSelf = true, level = 32 }
+local opponent = { id = rivalID, rivalID = rivalID, name = knownRival.displayName }
+local older = { time = 10, allies = { self }, enemies = { opponent }, events = {
+    { kind = "kill", actorID = rivalID, targetID = self.id },
+} }
+local observed = { time = 20, allies = { self }, enemies = {
+    { id = rivalID, rivalID = rivalID, name = knownRival.displayName, level = 32, class = "WARRIOR", classLabel = "Warrior" },
+}, events = {} }
+addon.Ledger.SaveSkirmish(addon.db, "sparse", older)
+addon.Ledger.SaveSkirmish(addon.db, "observed", observed)
+CLASS_ICON_TCOORDS = { ROGUE = { 0.5, 0.75, 0, 0.25 }, MAGE = { 0.25, 0.5, 0, 0.25 } }
+card:SetSkirmish(older)
+assert(FindText(card, "Rogue") and FindText(card, "Mage") and FindText(card, "~32"))
+assert(FindText(card, "Rogue").parent.icon.texcoords[1] == 0.5)
+local history = addon.RivalEncounters(addon.db, rivalID)
+compact:SetEncounter(history[2], knownRival, rivalID)
+assert(FindRegion(compact, "atlas", "human-female") and FindRegion(compact, "atlas", "scourge-male"))
+assert(FindText(compact, "~32") and not history[2].rivalLevel and not opponent.level)
+compact:SetEncounter(history[1], knownRival, rivalID)
+assert(FindText(compact, 32) and not FindText(compact, "~32"))
+card:SetSkirmish(observed)
+assert(FindText(card, "Warrior") and not FindText(card, "Rogue") and not FindText(card, "~32"))
+print("Sparse histories use known identity and distinguish last-known levels from snapshots")

@@ -185,14 +185,7 @@ local function ShowDetails()
         addon.SetRivalPortrait(portrait, rival, selected)
         latestCard:SetEncounter(history[1], rival, selected)
         latestEmpty:SetShown(history[1] == nil)
-        local lastLevel
-        for _, encounter in ipairs(history) do
-            if type(encounter.rivalLevel) == "number" and encounter.rivalLevel > 0 then
-                lastLevel = encounter.rivalLevel
-                break
-            end
-        end
-        levelBadge:SetLevel(lastLevel)
+        levelBadge:SetLevel(addon.LastKnownRivalLevel(addon.db, selected))
     end
     empty:SetShown(rival == nil)
 

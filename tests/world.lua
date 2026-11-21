@@ -125,3 +125,40 @@ addon.Ledger.Clear(addon.db)
 Advance(2.1)
 assert(next(addon.db.rivals) == nil and not addon.db.skirmishes)
 print("Live world skirmish grouping, isolated honor attribution, and reset checks passed")
+
+-- The lethal player's unit is visible on a nameplate, without being targeted.
+units.target, units.mouseover = nil, nil
+units.nameplate1 = { "Player-rogue", "Test Rogue", "Horde" }
+units.nameplate2 = { "Player-bystander", "Other Player", "Horde" }
+function UnitLevel(unit) return units[unit] and 32 end
+function UnitRace(unit)
+    if unit == "player" then return "Night Elf", "NightElf" end
+    if unit == "nameplate1" then return "Undead", "Scourge" end
+end
+function UnitSex(unit) return unit == "player" and 3 or 2 end
+function UnitClass(unit)
+    if unit == "player" then return "Hunter", "HUNTER" end
+    if unit == "nameplate1" then return "Rogue", "ROGUE" end
+end
+C_NamePlate = { GetNamePlates = function() return {
+    { unitToken = "nameplate1", IsForbidden = function() return false end },
+    { unitToken = "nameplate2", IsForbidden = function() return false end },
+    { IsForbidden = function() return true end },
+} end }
+bit = { band = function() return 0x440 end }
+local recap
+C_DeathRecap = { GetRecapEvents = function() return recap end }
+assert(loadfile("NamesInRed/Deaths.lua"))("NamesInRed", addon)
+Fire("PLAYER_DEAD")
+assert(not addon.db.skirmishes)
+units.nameplate1 = nil
+recap = { { sourceGUID = "Player-rogue", sourceName = "Test Rogue", sourceFlags = 0x440,
+    timestamp = time, overkill = 2 } }
+Advance(0.3)
+local recorded = assert(addon.db.skirmishes["world:1"])
+assert(#recorded.enemies == 1 and recorded.enemies[1].id == "Player-rogue")
+local rogue, player = recorded.enemies[1], recorded.allies[1]
+assert(rogue.level == 32 and rogue.class == "ROGUE" and rogue.race == "scourge" and rogue.sex == 2)
+assert(player.level == 32 and player.class == "HUNTER" and player.race == "nightelf" and player.sex == 3)
+assert(not recorded.rosterComplete and not addon.Ledger.SkirmishOutcome(recorded))
+print("Delayed death recap retains previously visible nameplate appearance")

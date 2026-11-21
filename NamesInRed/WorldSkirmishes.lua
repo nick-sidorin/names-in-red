@@ -37,15 +37,27 @@ function addon.ResetWorldTracking()
     active = nil
 end
 
-local function Participant(side, guid, name, level, rivalID, isSelf)
+local appearanceFields = { "race", "raceLabel", "sex", "class", "classLabel" }
+
+local function Participant(side, guid, name, level, rivalID, isSelf, appearance)
+    local participant
     for _, player in ipairs(side) do
         if player.id == guid then
-            player.name = addon.HasFullName(name) and name or player.name or name
-            player.level = level or player.level
-            return
+            participant = player
+            break
         end
     end
-    side[#side + 1] = { id = guid, rivalID = rivalID, name = name, level = level, isSelf = isSelf }
+    if not participant then
+        participant = { id = guid, rivalID = rivalID, isSelf = isSelf }
+        side[#side + 1] = participant
+    end
+    participant.name = addon.HasFullName(name) and name or participant.name or name
+    participant.level = level or participant.level
+    if appearance then
+        for _, key in ipairs(appearanceFields) do
+            participant[key] = appearance[key] or participant[key]
+        end
+    end
 end
 
 function addon.RecordWorldEncounter(guid, name, direction, context)
@@ -68,18 +80,22 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
         battle.mapID, battle.x, battle.y = context.mapID, context.x, context.y
     end
     battle.time = math.max(battle.time or 0, context.time or 0)
-    Participant(battle.allies, playerGUID, addon.UnitPlayerName("player"), context.playerLevel, nil, true)
-    Participant(battle.enemies, guid, name, context.rivalLevel, guid)
+    Participant(battle.allies, playerGUID, addon.UnitPlayerName("player"), context.playerLevel, nil, true,
+        addon.UnitAppearance("player"))
+    Participant(battle.enemies, guid, name, context.rivalLevel, guid, nil, context.rivalAppearance)
     local actorID, targetID
     if direction == "killsAgainstThem" then
         actorID, targetID = context.actorID or playerGUID, guid
         if actorID ~= playerGUID then
-            Participant(battle.allies, actorID, context.actorName, context.actorLevel)
+            Participant(battle.allies, actorID, context.actorName, context.actorLevel, nil, nil,
+                context.actorAppearance)
         end
     else
         actorID, targetID = guid, playerGUID
         for _, attacker in ipairs(context.attackers or {}) do
-            Participant(battle.enemies, attacker.guid, attacker.name, nil, attacker.guid)
+            local appearance = attacker.appearance
+            Participant(battle.enemies, attacker.guid, attacker.name, appearance and appearance.level,
+                attacker.guid, nil, appearance)
         end
     end
     local event = { kind = "kill", actorID = actorID, targetID = targetID, time = context.time }

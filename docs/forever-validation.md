@@ -192,6 +192,17 @@ teammate's finishing blow join the same record. A long gap after combat, a
 world change or resurrection starts a fresh observation. Check missing targets, ghost state
 and the timing of kills your group makes after you die.
 
+In the 0.1.3-preview.22 solo replay, two lethal recaps had no matching target
+or mouseover. At both deaths the diagnostic log could still read the same
+attacker's class and level from a nameplate. The death handler now takes a
+GUID-keyed snapshot from ordinary nameplates as well as target and mouseover
+before waiting for the recap. `C_NamePlate.GetNamePlates` follows the same
+visible-plate path as the kill handler. Only recap-confirmed attackers enter
+the roster. Verify a hostile finishing blow while targeting nothing, including
+a delayed recap after the nameplate disappears. Old cards use known class and
+portrait details and mark a rival's last known level with `~` if the fight
+itself lacks a level. The team result still depends on roster coverage.
+
 The user's 70959 group log showed a session HK increase from four to five
 317 ms after a readable player death credited to another attacker, followed
 roughly one second after the kill by a localized honor message. The preview

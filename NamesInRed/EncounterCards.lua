@@ -113,8 +113,10 @@ local function Label(parent, font, point, x, y, width, relativePoint)
     return label
 end
 
-local function LevelText(level)
-    return type(level) == "number" and level > 0 and level or "—"
+local function ParticipantLevel(level, rivalID)
+    if type(level) == "number" and level > 0 then return level end
+    local lastKnown = rivalID and addon.LastKnownRivalLevel(addon.db, rivalID)
+    return lastKnown, lastKnown ~= nil
 end
 
 local function EncounterDate(encounter)
@@ -355,8 +357,12 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         local allyColor, enemyColor = SideColors()
         mine.name:SetTextColor(unpack(allyColor))
         theirs.name:SetTextColor(unpack(enemyColor))
-        if player and player.race and player.sex then
-            addon.SetRivalPortrait(mine.portrait, player, nil, portraitSize)
+        local playerAppearance = addon.UnitAppearance("player")
+        local race = player and player.race or playerAppearance.race
+        local sex = player and player.sex or playerAppearance.sex
+        if race and sex then
+            addon.SetRivalPortrait(mine.portrait, { race = race, sex = sex,
+                class = player and player.class or playerAppearance.class }, nil, portraitSize)
         elseif SetPortraitTexture then
             mine.portrait:SetSize(portraitSize * 13 / 16, portraitSize * 13 / 16)
             SetPortraitTexture(mine.portrait, "player", true)
@@ -368,7 +374,7 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         if not appearance.race and rival and rival.race then appearance = rival end
         addon.SetRivalPortrait(theirs.portrait, appearance, rivalID, portraitSize, true)
         mine.level:SetLevel(encounter.playerLevel)
-        theirs.level:SetLevel(encounter.rivalLevel)
+        theirs.level:SetLevel(ParticipantLevel(encounter.rivalLevel, rivalID))
 
         mine.death:SetShown(encounter.playerDeathIndex ~= nil
             or (not encounter.manual and encounter.direction == "deathsToThem"))
@@ -479,17 +485,21 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
                     row.selection:SetShown(selectedRivalID ~= nil and player.rivalID == selectedRivalID)
                     local name = player.name or (player.isSelf and YOU) or L.unknownPlayer
                     row.name:SetText(player.isSelf and player.name and YOU and (name .. " • " .. YOU) or name)
-                    local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[player.class]
+                    local rival = player.rivalID and addon.db.rivals[player.rivalID]
+                    local known = rival or (player.isSelf and addon.UnitAppearance("player")) or {}
+                    local class = player.class or known.class
+                    local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
                     row.name:SetTextColor(classColor and classColor.r or 1, classColor and classColor.g or 1,
                         classColor and classColor.b or 1)
-                    local classes = player.sex == 3 and LOCALIZED_CLASS_NAMES_FEMALE or LOCALIZED_CLASS_NAMES_MALE
-                    row.class:SetText(classes and classes[player.class] or player.classLabel or "")
-                    row.level:SetText(LevelText(player.level))
-                    local coords = CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[player.class]
+                    local sex = player.sex or known.sex
+                    local classes = sex == 3 and LOCALIZED_CLASS_NAMES_FEMALE or LOCALIZED_CLASS_NAMES_MALE
+                    row.class:SetText(classes and classes[class] or player.classLabel or known.classLabel or "")
+                    local level, lastKnown = ParticipantLevel(player.level, player.rivalID)
+                    row.level:SetText(lastKnown and ("~" .. level) or level or "—")
+                    local coords = CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[class]
                     row.icon:SetTexture(coords and "Interface\\TargetingFrame\\UI-Classes-Circles"
                         or "Interface\\Icons\\INV_Misc_QuestionMark")
                     if coords then row.icon:SetTexCoord(unpack(coords)) else row.icon:SetTexCoord(0, 1, 0, 1) end
-                    local rival = player.rivalID and addon.db.rivals[player.rivalID]
                     row.rivalID = rival and addon.IsRosterRival(player.rivalID, rival) and player.rivalID or nil
                     row:EnableMouse(row.rivalID ~= nil)
                 end

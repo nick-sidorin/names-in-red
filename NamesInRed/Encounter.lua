@@ -22,6 +22,32 @@ local function Level(unit)
     end
 end
 
+function addon.UnitAppearance(unit)
+    local raceLabel, race = SafeRead(UnitRace, unit)
+    local classLabel, class = SafeRead(UnitClass, unit)
+    local sex = SafeRead(UnitSex, unit)
+    return {
+        level = Level(unit),
+        race = type(race) == "string" and race ~= "" and race:lower() or nil,
+        raceLabel = raceLabel,
+        sex = (sex == 2 or sex == 3) and sex or nil,
+        class = type(class) == "string" and class ~= "" and class or nil,
+        classLabel = classLabel,
+    }
+end
+
+function addon.VisitVisibleNameplateUnits(visit)
+    local plates = C_NamePlate and SafeRead(C_NamePlate.GetNamePlates)
+    if type(plates) ~= "table" or (canaccesstable and not canaccesstable(plates)) then return end
+    for _, plate in ipairs(plates) do
+        plate = addon.Readable(plate)
+        if plate and not plate:IsForbidden() then
+            local token = addon.Readable(plate.unitToken)
+            if type(token) == "string" and visit(token) then return end
+        end
+    end
+end
+
 function addon.EncounterContext(unit)
     local result = {
         time = SafeRead(GetServerTime),
@@ -162,6 +188,23 @@ function addon.RivalEncounters(db, id)
     table.sort(entries, MoreRecent)
     for index, entry in ipairs(entries) do entries[index] = entry.encounter end
     return entries
+end
+
+function addon.LastKnownRivalLevel(db, id)
+    local rival = db.rivals[id]
+    if not rival then return end
+    local best
+    for _, encounters in ipairs({ rival.encounters or {}, addon.Ledger.RivalSkirmishes(db, id) }) do
+        for _, encounter in ipairs(encounters) do
+            if type(encounter.rivalLevel) == "number" and encounter.rivalLevel > 0 then
+                local entry = { time = encounter.time or encounter.recordedAt or 0,
+                    sequence = encounter.sequence or 0, id = encounter.skirmishID or id, index = 0,
+                    level = encounter.rivalLevel }
+                if not best or MoreRecent(entry, best) then best = entry end
+            end
+        end
+    end
+    return best and best.level
 end
 
 function addon.RecentEncounters(db, limit)
@@ -320,21 +363,11 @@ function addon.ManualTarget()
         or type(playerGUID) ~= "string" or guid == playerGUID then
         return
     end
-    local raceLabel, race = SafeRead(UnitRace, "target")
-    local classLabel, class = SafeRead(UnitClass, "target")
-    local sex = SafeRead(UnitSex, "target")
+    local snapshot = addon.UnitAppearance("target")
     local _, factionLabel = SafeRead(UnitFactionGroup, "target")
-    return {
-        guid = guid,
-        name = name,
-        level = Level("target"),
-        race = type(race) == "string" and race ~= "" and race:lower() or nil,
-        raceLabel = raceLabel,
-        sex = (sex == 2 or sex == 3) and sex or nil,
-        class = type(class) == "string" and class ~= "" and class or nil,
-        classLabel = classLabel,
-        factionLabel = type(factionLabel) == "string" and factionLabel ~= "" and factionLabel or nil,
-    }
+    snapshot.guid, snapshot.name = guid, name
+    snapshot.factionLabel = type(factionLabel) == "string" and factionLabel ~= "" and factionLabel or nil
+    return snapshot
 end
 
 function addon.AddManualEncounter(input, direction, target)

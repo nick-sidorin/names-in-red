@@ -45,29 +45,21 @@ frame:SetScript("OnEvent", function(_, _, attacker, victim)
             name, unit = hoveredName, unit or hoveredUnit
         end
     end
-    if not unit and C_NamePlate and C_NamePlate.GetNamePlates then
-        local plates = Readable(C_NamePlate.GetNamePlates())
-        if type(plates) == "table" and (not canaccesstable or canaccesstable(plates)) then
-            for _, plate in ipairs(plates) do
-                plate = Readable(plate)
-                if plate and not plate:IsForbidden() then
-                    local token = Readable(plate.unitToken)
-                    if type(token) == "string" then
-                        name, unit = RivalName(token, victim, faction)
-                        if unit then break end
-                    end
-                end
-            end
-        end
+    if not unit then
+        addon.VisitVisibleNameplateUnits(function(token)
+            name, unit = RivalName(token, victim, faction)
+            return unit ~= nil
+        end)
     end
     local context = addon.EncounterContext(unit)
     local opponent = not unit and addon.ObservedWorldOpponent(victim, context)
     if unit or opponent then
         if opponent then name, context.rivalLevel = opponent.name, opponent.level end
+        context.rivalAppearance = unit and addon.UnitAppearance(unit)
         context.actorID = attacker
         context.actorName = addon.UnitPlayerName(actorUnit)
-        local level = UnitLevel and Readable(UnitLevel(actorUnit))
-        context.actorLevel = type(level) == "number" and level > 0 and level or nil
+        context.actorAppearance = addon.UnitAppearance(actorUnit)
+        context.actorLevel = context.actorAppearance.level
         local id, battle = addon.RecordWorldEncounter(victim, name, "killsAgainstThem", context)
         addon.ObserveHonorKill(id, battle, victim)
     else

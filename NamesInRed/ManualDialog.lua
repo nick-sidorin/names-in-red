@@ -84,10 +84,10 @@ function addon.CreateLevelBadge(parent, rim, rightSide)
     label:SetJustifyH("CENTER")
     label:SetJustifyV("MIDDLE")
     label:SetShadowOffset(0, 0)
-    function badge:SetLevel(level)
+    function badge:SetLevel(level, lastKnown)
         local known = type(level) == "number" and level > 0
         self:SetShown(known)
-        label:SetText(known and level or "")
+        label:SetText(known and (lastKnown and ("~" .. level) or level) or "")
     end
     badge:Hide()
     return badge
