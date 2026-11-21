@@ -20,9 +20,10 @@ function addon.SetBookPortrait(frame)
     backing:AddMaskTexture(container.CircleMask)
 end
 
-function addon.CreateRoundIcon(parent)
+function addon.CreateRoundIcon(parent, size)
+    size = size or 64
     local icon = parent:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(52, 52)
+    icon:SetSize(size * 13 / 16, size * 13 / 16)
     local mask = parent:CreateMaskTexture()
     mask:SetAllPoints(icon)
     if not addon.ApplyAtlas(mask, "CircleMask") then
@@ -30,13 +31,62 @@ function addon.CreateRoundIcon(parent)
     end
     icon:AddMaskTexture(mask)
     local ring = parent:CreateTexture(nil, "OVERLAY")
-    ring:SetSize(64, 64)
+    ring:SetSize(size, size)
     icon:SetPoint("CENTER", ring)
     if not addon.ApplyAtlas(ring, "Mode-Selection-Ring") then
         ring:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
         ring:SetTexCoord(0, 0.68, 0, 0.68)
     end
     return icon, ring
+end
+
+function addon.SetRivalPortrait(portrait, rival, id, size)
+    size = size or 64
+    portrait:SetSize(size * 13 / 16, size * 13 / 16)
+    local race, sex, class = rival.race, rival.sex, rival.class
+    if not race then
+        local knownRace, knownSex, knownClass = addon.RivalAppearance(id)
+        race, sex, class = knownRace, knownSex, class or knownClass
+    end
+    if race and (sex == 2 or sex == 3) and GetRaceAtlas then
+        local gender = sex == 3 and "female" or "male"
+        if addon.ApplyAtlas(portrait, GetRaceAtlas(race, gender, true))
+            or addon.ApplyAtlas(portrait, GetRaceAtlas(race, gender)) then
+            return
+        end
+    end
+    local coords = CLASS_ICON_TCOORDS and class and CLASS_ICON_TCOORDS[class]
+    if coords then
+        portrait:SetTexture("Interface\\TargetingFrame\\UI-Classes-Circles")
+        portrait:SetTexCoord(unpack(coords))
+    else
+        portrait:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+        -- The inventory icon includes a light bevel inside the texture.
+        portrait:SetTexCoord(0.12, 0.88, 0.12, 0.88)
+        portrait:SetSize(size * 11 / 16, size * 11 / 16)
+    end
+end
+
+function addon.CreateLevelBadge(parent, rim, size)
+    local badge = CreateFrame("Frame", nil, parent)
+    badge:SetSize(size, size)
+    badge:SetPoint("CENTER", rim, "BOTTOMLEFT", size / 2, size / 2)
+    local circle = badge:CreateTexture(nil, "ARTWORK")
+    circle:SetAllPoints()
+    circle:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\LevelBadge.tga")
+    local label = badge:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    label:SetPoint("CENTER", 0, -0.5)
+    label:SetSize(size, size)
+    label:SetJustifyH("CENTER")
+    label:SetJustifyV("MIDDLE")
+    label:SetShadowOffset(0, 0)
+    function badge:SetLevel(level)
+        local known = type(level) == "number" and level > 0
+        self:SetShown(known)
+        label:SetText(known and level or "")
+    end
+    badge:Hide()
+    return badge
 end
 
 local function Choice(parent, x, title, texture, direction, choose)

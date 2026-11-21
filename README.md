@@ -6,11 +6,12 @@ what happened, and where you last met.
 Names in Red targets Forever 1.60.1 (interface 16001). Click the crossed swords
 on the minimap to browse rivals. Information shows your personal score and the
 latest skirmish. The Skirmishes tab lists that rival's recorded history, newest
-first. Use **Open skirmish** on a linked card to see both sides, levels, classes,
-and the finishing-blow timeline in the same window. **Back** returns to the rival
-and the same place in their history. The side tab shows the latest 100 skirmishes
+first. Compact cards show both portraits and levels, with an arrow for a confirmed
+personal result. Use the information icon on a linked card to see both sides,
+levels, classes, and the finishing blows in the same window. **Back** returns
+to the rival and the same place in their history. The side tab shows the latest 100 skirmishes
 across all opponents. Older saved battles can still open from a rival's history.
-**Show on map** places a waypoint when the saved location supports one. Known
+The map pin places a waypoint when the saved location supports one. Known
 rivals show the same score in the standard unit tooltip.
 
 Download the latest ZIP from [Releases](https://github.com/nick-sidorin/names-in-red/releases)

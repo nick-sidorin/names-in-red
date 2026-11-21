@@ -35,7 +35,7 @@ local function ClassName(class, sex, fallback)
 end
 
 local squad = {
-    { id = "me", name = "Alden Dawnshield", class = "WARRIOR", classLabel = "Warrior", level = 51, isSelf = true },
+    { id = "me", name = "Alden Dawnshield", race = "human", sex = 2, class = "WARRIOR", classLabel = "Warrior", level = 51, isSelf = true },
     { id = "ally:1", name = "Mira Goldwhisper", class = "PRIEST", classLabel = "Priest", level = 50, sex = 3 },
     { id = "ally:2", name = "Thoren Ironbrook", class = "PALADIN", classLabel = "Paladin", level = 52 },
     { id = "ally:3", name = "Lysa Starwind", class = "MAGE", classLabel = "Mage", level = 48, sex = 3 },

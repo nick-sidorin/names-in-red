@@ -33,7 +33,7 @@ for _, supported in ipairs({
         "latestEncounter", "showOnMap", "unknownLocation", "myLevel", "rivalLevel", "waypointError", "noSkirmishes",
         "rivalsView", "recentView", "unknownRival",
         "alliedSide", "enemySide", "partialRoster", "finishingBlows", "unknownPlayer", "minimapHint",
-        "skirmish", "openSkirmish",
+        "openSkirmish",
     }) do
         assert(type(addon.L[key]) == "string" and addon.L[key] ~= "")
     end
@@ -133,17 +133,26 @@ local function MockRegion(parent)
     if parent then parent.children[#parent.children + 1] = region end
     function region:CreateFontString() return MockRegion(self) end
     function region:CreateTexture() return MockRegion(self) end
+    function region:CreateMaskTexture() return MockRegion(self) end
     function region:SetText(text)
         assert(text ~= nil)
         self.text = text
     end
     function region:SetShown(shown) self.shown = shown end
+    function region:Hide() self:SetShown(false) end
     function region:SetHeight(height) self.height = height end
     function region:SetScript(event, handler) self.scripts[event] = handler end
+    function region:SetOnClickHandler(handler) self.scripts.OnClick = handler end
+    function region:SetTooltipInfo(title) self.title = title end
     return setmetatable(region, { __index = function() return function() end end })
 end
 
-function CreateFrame(_, _, parent) return MockRegion(parent) end
+function CreateFrame(_, _, parent, template)
+    local region = MockRegion(parent)
+    if template == "CommonSquareIconButtonTemplate" then region.Icon = MockRegion(region) end
+    return region
+end
+assert(loadfile("NamesInRed/ManualDialog.lua"))("NamesInRed", addon)
 function addon.ApplyAtlas(region, atlas)
     region.atlas = atlas
     return true
@@ -160,13 +169,16 @@ local large = { time = 100, startedAt = 80, mapID = 1424, x = 0.45, y = 0.51,
     allies = allies, enemies = enemies, rosterComplete = true, events = {
     { actorID = "ally", targetID = "enemy", time = 91 }, { actorID = "other", targetID = "me", time = 97 },
 } }
-local function FindText(region, expected)
+local function FindRegion(region, key, expected)
     if not region.shown then return end
-    if rawget(region, "text") == expected then return region end
+    if rawget(region, key) == expected then return region end
     for _, child in ipairs(region.children) do
-        local match = FindText(child, expected)
+        local match = FindRegion(child, key, expected)
         if match then return match end
     end
+end
+local function FindText(region, expected)
+    return FindRegion(region, "text", expected)
 end
 card:SetSkirmish(large, "Player-test")
 local largeHeight = card.height
@@ -184,18 +196,45 @@ card:SetSkirmish(nil)
 assert(not card.shown)
 print("Skirmish card roster and recycling checks passed")
 
-local openedSkirmish
-local compact = addon.CreateEncounterCard(MockRegion(), 332, function() end, nil,
+local openedSkirmish, openedMap, mapped
+local compact = addon.CreateCompactEncounterCard(MockRegion(), 332, function() openedMap = true end,
     function(id) openedSkirmish = id end)
-compact:SetEncounter({ skirmishID = "battle-one", wins = 1, losses = 0, mapID = 1424, x = 0.45, y = 0.51 })
-assert(FindText(compact, addon.L.winTooltip) and FindText(compact, addon.L.showOnMap))
-local open = assert(FindText(compact, addon.L.openSkirmish))
+local first = { skirmishID = "battle-one", wins = 1, losses = 0, mapID = 1424, x = 0.45, y = 0.51,
+    zone = "Hillsbrad Foothills", time = 100, player = allies[1], opponent = enemies[1],
+    playerLevel = 51, rivalLevel = 42 }
+compact:SetEncounter(first)
+assert(FindText(compact, "Hillsbrad Foothills") and FindText(compact, date("%x", first.time)))
+assert(FindText(compact, "My Character") and FindText(compact, "Test Rival"))
+assert(FindText(compact, 51) and FindText(compact, 42))
+assert(FindRegion(compact, "atlas", "common-icon-forwardarrow"))
+assert(not FindRegion(compact, "atlas", "common-icon-backarrow"))
+local open = assert(FindRegion(compact, "title", addon.L.openSkirmish))
+local map = assert(FindRegion(compact, "title", addon.L.showOnMap))
+assert(not FindText(compact, addon.L.openSkirmish) and not FindText(compact, addon.L.showOnMap))
 open.scripts.OnClick()
 assert(openedSkirmish == "battle-one")
+addon.ShowEncounterWaypoint = function(encounter) mapped = encounter; return true end
+map.scripts.OnClick()
+assert(openedMap and mapped == first)
+
+compact:SetEncounter({ skirmishID = "battle-loss", wins = 0, losses = 1 })
+assert(FindRegion(compact, "atlas", "common-icon-backarrow"))
+assert(not FindRegion(compact, "atlas", "common-icon-forwardarrow"))
+compact:SetEncounter({ skirmishID = "battle-both", wins = 1, losses = 1 })
+assert(FindRegion(compact, "atlas", "common-icon-backarrow") and FindRegion(compact, "atlas", "common-icon-forwardarrow"))
 compact:SetEncounter({ skirmishID = "battle-two", wins = 0, losses = 0 })
-assert(FindText(compact, addon.L.skirmish))
+assert(not FindRegion(compact, "atlas", "common-icon-backarrow") and not FindRegion(compact, "atlas", "common-icon-forwardarrow"))
+assert(not FindText(compact, 51) and not FindText(compact, 42) and not map.shown)
 open.scripts.OnClick()
 assert(openedSkirmish == "battle-two")
-compact:SetEncounter({ direction = "killsAgainstThem" })
-assert(FindText(compact, addon.L.win) and not FindText(compact, addon.L.openSkirmish))
-print("Compact skirmish link and reuse checks passed")
+local loadedSelfPortrait
+function SetPortraitTexture(_, unit, disableMasking)
+    assert(unit == "player" and disableMasking)
+    loadedSelfPortrait = true
+end
+compact:SetEncounter({ direction = "killsAgainstThem" }, { displayName = "Legacy Rival" })
+assert(FindText(compact, "Legacy Rival") and loadedSelfPortrait and not open.shown)
+assert(FindRegion(compact, "atlas", "common-icon-forwardarrow"))
+compact:SetEncounter(nil)
+assert(not compact.shown)
+print("Compact skirmish portraits, direction, actions and reuse checks passed")

@@ -4,6 +4,7 @@ local azerothMapID = 947
 local mapsByName
 
 addon.encounterCardHeight = 136
+addon.compactEncounterCardHeight = 116
 
 local function HasCoordinates(encounter)
     local x, y = encounter.x, encounter.y
@@ -68,6 +69,30 @@ function addon.ShowEncounterWaypoint(encounter)
     return ok and opened == true
 end
 
+local function ActivateWaypoint(encounter, onMapShown)
+    if addon.ShowEncounterWaypoint(encounter) then
+        onMapShown()
+    elseif UIErrorsFrame then
+        UIErrorsFrame:AddMessage(L.waypointError, 1, 0.25, 0.25)
+    end
+end
+
+local function HideTooltip(button)
+    local tooltip = GetAppropriateTooltip and GetAppropriateTooltip() or GameTooltip
+    if tooltip:IsOwned(button) then tooltip:Hide() end
+end
+
+local function ShowAttackers(button, attackers)
+    local tooltip = GetAppropriateTooltip and GetAppropriateTooltip() or GameTooltip
+    tooltip:SetOwner(button, "ANCHOR_RIGHT")
+    tooltip:SetText(L.attackers)
+    for index, attacker in ipairs(attackers) do
+        local name = attacker.name or L.unknownRival
+        tooltip:AddLine(index == 1 and L.finishingBlow:format(name) or name, 1, 1, 1, true)
+    end
+    tooltip:Show()
+end
+
 local function Label(parent, font, point, x, y, width)
     local label = parent:CreateFontString(nil, "OVERLAY", font)
     label:SetPoint(point, x, y)
@@ -105,7 +130,7 @@ local function CreateCard(parent, width, height)
     return card
 end
 
-function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth, openSkirmish)
+function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth)
     local card = CreateCard(parent, width, addon.encounterCardHeight)
 
     local body = card
@@ -152,15 +177,8 @@ function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth, open
     map:SetSize(mapButtonWidth, 25)
     map:SetText(L.showOnMap)
 
-    local function HideTooltip(self)
-        if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
-    end
     map:SetScript("OnClick", function()
-        if addon.ShowEncounterWaypoint(card.encounter) then
-            onMapShown()
-        elseif UIErrorsFrame then
-            UIErrorsFrame:AddMessage(L.waypointError, 1, 0.25, 0.25)
-        end
+        ActivateWaypoint(card.encounter, onMapShown)
     end)
 
     local attackers = CreateFrame("Button", nil, body, "SharedButtonSmallTemplate")
@@ -168,27 +186,10 @@ function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth, open
     attackers:SetSize(130, 25)
     attackers:SetText(L.attackers)
     attackers:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(L.attackers)
-        for index, attacker in ipairs(card.encounter.attackers) do
-            local name = attacker.name or L.unknownRival
-            GameTooltip:AddLine(index == 1 and L.finishingBlow:format(name) or name, 1, 1, 1, true)
-        end
-        GameTooltip:Show()
+        ShowAttackers(self, card.encounter.attackers)
     end)
     attackers:SetScript("OnLeave", HideTooltip)
     attackers:HookScript("OnHide", HideTooltip)
-
-    local open
-    if openSkirmish then
-        open = CreateFrame("Button", nil, body, "SharedButtonSmallTemplate")
-        open:SetPoint("BOTTOMRIGHT", -12, 11)
-        open:SetSize(mapButtonWidth, 25)
-        open:SetText(L.openSkirmish)
-        open:SetScript("OnClick", function()
-            if card.encounter and card.encounter.skirmishID then openSkirmish(card.encounter.skirmishID) end
-        end)
-    end
 
     function card:SetEncounter(encounter)
         if self.encounter ~= encounter then
@@ -198,22 +199,12 @@ function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth, open
         self:SetShown(encounter ~= nil)
         if not encounter then return end
 
-        local battle = encounter.skirmishID ~= nil
-        local victory = encounter.direction == "killsAgainstThem" or (battle and encounter.wins > 0 and encounter.losses == 0)
-        local defeat = encounter.direction == "deathsToThem" or (battle and encounter.losses > 0 and encounter.wins == 0)
-        icon:SetTexture(defeat and addon.skullIconPath or addon.swordsIconPath)
-        local inset = defeat and 0.08 or 0.16
+        local victory = encounter.direction == "killsAgainstThem"
+        icon:SetTexture(victory and addon.swordsIconPath or addon.skullIconPath)
+        local inset = victory and 0.16 or 0.08
         icon:SetTexCoord(inset, 1 - inset, inset, 1 - inset)
-        if victory then
-            outcome:SetText(battle and L.winTooltip or L.win)
-            outcome:SetTextColor(0.65, 0.83, 1)
-        elseif defeat then
-            outcome:SetText(battle and L.lossTooltip or L.loss)
-            outcome:SetTextColor(1, 0.61, 0.52)
-        else
-            outcome:SetText(L.skirmish)
-            outcome:SetTextColor(1, 0.82, 0)
-        end
+        outcome:SetText(victory and L.win or L.loss)
+        if victory then outcome:SetTextColor(0.65, 0.83, 1) else outcome:SetTextColor(1, 0.61, 0.52) end
         local encounterDay, encounterTime = EncounterDate(encounter)
         day:SetText(encounterDay)
         time:SetText(encounterTime)
@@ -223,8 +214,7 @@ function addon.CreateEncounterCard(parent, width, onMapShown, profileWidth, open
         myLevel:SetText(LevelText(encounter.playerLevel))
         rivalLevel:SetText(LevelText(encounter.rivalLevel))
         map:SetShown(hasWaypoint)
-        attackers:SetShown(not battle and type(encounter.attackers) == "table" and #encounter.attackers > 0)
-        if open then open:SetShown(battle) end
+        attackers:SetShown(type(encounter.attackers) == "table" and #encounter.attackers > 0)
     end
 
     return card
@@ -243,6 +233,144 @@ local function Divider(card, top)
     line:SetHeight(1)
     line:SetColorTexture(0.56, 0.42, 0.27, 0.45)
     return line
+end
+
+local function CompactAction(card)
+    local button = CreateFrame("Button", nil, card, "CommonSquareIconButtonTemplate")
+    button:SetSize(24, 24)
+    button:SetHitRectInsets(0, 0, 0, 0)
+    button:RegisterForClicks("LeftButtonUp")
+    button.Icon:SetSize(16, 16)
+    button:SetTooltipAnchor("ANCHOR_TOP")
+    button:HookScript("OnHide", HideTooltip)
+    return button
+end
+
+local function CompactParticipant(card, x, size, nameWidth)
+    local portrait, rim = addon.CreateRoundIcon(card, size)
+    rim:SetPoint("TOPLEFT", x - size / 2, -42)
+    local level = addon.CreateLevelBadge(card, rim, 19)
+    local name = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    name:SetPoint("TOP", rim, "BOTTOM", 0, -4)
+    name:SetWidth(nameWidth)
+    name:SetJustifyH("CENTER")
+    name:SetWordWrap(false)
+    return portrait, level, name
+end
+
+local function CompactArrow(card, atlas, fallback, r, g, b)
+    local arrow = card:CreateTexture(nil, "ARTWORK")
+    if addon.ApplyAtlas(arrow, atlas) then
+        arrow:SetSize(10, 15)
+        arrow:SetVertexColor(r, g, b)
+        return arrow
+    end
+    arrow:Hide()
+    local glyph = card:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    glyph:SetText(fallback)
+    glyph:SetTextColor(r, g, b)
+    return glyph
+end
+
+function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmish)
+    local card = CreateCard(parent, width, addon.compactEncounterCardHeight)
+    local zone = Label(card, "GameFontHighlight", "TOPLEFT", 13, -14, width - 167)
+    local day = Label(card, "GameFontHighlightSmall", "TOPRIGHT", -13, -8, 102)
+    local time = Label(card, "GameFontHighlightSmall", "TOPRIGHT", -13, -21, 102)
+    time:SetTextColor(0.77, 0.71, 0.61)
+    Divider(card, -36)
+
+    local portraitSize = 48
+    local myPortrait, myLevel, myName = CompactParticipant(card, width / 4, portraitSize, width / 2 - 18)
+    local theirPortrait, theirLevel, theirName = CompactParticipant(card, 3 * width / 4, portraitSize, width / 2 - 18)
+    local forward = CompactArrow(card, "common-icon-forwardarrow", ">", 0.65, 0.83, 1)
+    local backward = CompactArrow(card, "common-icon-backarrow", "<", 1, 0.61, 0.52)
+    local neutral = Label(card, "GameFontHighlightSmall", "TOP", 0, -59, 28)
+    neutral:SetJustifyH("CENTER")
+    neutral:SetTextColor(0.58, 0.54, 0.49)
+    neutral:SetText("—")
+
+    local map = CompactAction(card)
+    map:SetAtlas("Waypoint-MapPin-Untracked")
+    map:SetTooltipInfo(L.showOnMap)
+    map:SetOnClickHandler(function()
+        if card.encounter then ActivateWaypoint(card.encounter, onMapShown) end
+    end)
+    local info = CompactAction(card)
+    info:SetPoint("TOPRIGHT", -11, -7)
+    info:SetIcon("Interface\\FriendsFrame\\InformationIcon")
+    info:SetOnEnterHandler(function(self)
+        local encounter = card.encounter
+        if encounter and not encounter.skirmishID and encounter.attackers and #encounter.attackers > 0 then
+            ShowAttackers(self, encounter.attackers)
+            return true
+        end
+    end)
+    info:SetOnClickHandler(function(self)
+        local encounter = card.encounter
+        if not encounter then return end
+        if encounter.skirmishID then
+            openSkirmish(encounter.skirmishID)
+        elseif encounter.attackers and #encounter.attackers > 0 then
+            ShowAttackers(self, encounter.attackers)
+        end
+    end)
+
+    function card:SetEncounter(encounter, rival, rivalID)
+        if self.encounter ~= encounter then
+            HideTooltip(map)
+            HideTooltip(info)
+        end
+        self.encounter = encounter
+        self:SetShown(encounter ~= nil)
+        if not encounter then return end
+
+        local player, opponent = encounter.player, encounter.opponent
+        local playerName = player and addon.ManualName(player.name) or addon.UnitPlayerName("player")
+        local opponentName = opponent and addon.ManualName(opponent.name) or rival and addon.ManualName(rival.displayName)
+        myName:SetText(playerName or YOU or L.unknownPlayer)
+        theirName:SetText(opponentName or L.unknownRival)
+        if player and player.race and player.sex then
+            addon.SetRivalPortrait(myPortrait, player, nil, portraitSize)
+        elseif SetPortraitTexture then
+            myPortrait:SetSize(portraitSize * 13 / 16, portraitSize * 13 / 16)
+            SetPortraitTexture(myPortrait, "player", true)
+            myPortrait:SetTexCoord(0, 1, 0, 1)
+        else
+            addon.SetRivalPortrait(myPortrait, player or {}, nil, portraitSize)
+        end
+        local appearance = opponent or rival or {}
+        if not appearance.race and rival and rival.race then appearance = rival end
+        addon.SetRivalPortrait(theirPortrait, appearance, rivalID, portraitSize)
+        myLevel:SetLevel(encounter.playerLevel)
+        theirLevel:SetLevel(encounter.rivalLevel)
+
+        local won = encounter.direction == "killsAgainstThem" or (encounter.wins or 0) > 0
+        local lost = encounter.direction == "deathsToThem" or (encounter.losses or 0) > 0
+        forward:SetPoint("TOP", 0, won and lost and -52 or -58)
+        backward:SetPoint("TOP", 0, won and lost and -69 or -58)
+        forward:SetShown(won)
+        backward:SetShown(lost)
+        neutral:SetShown(not won and not lost)
+
+        local hasWaypoint = WaypointMap(encounter) ~= nil
+        local hasInfo = encounter.skirmishID ~= nil or type(encounter.attackers) == "table" and #encounter.attackers > 0
+        local actionWidth = (hasWaypoint and 27 or 0) + (hasInfo and 27 or 0)
+        local stampWidth = encounter.manual and not encounter.time and 136 or 96
+        day:SetPoint("TOPRIGHT", -13 - actionWidth, -8)
+        day:SetWidth(stampWidth)
+        time:SetPoint("TOPRIGHT", -13 - actionWidth, -21)
+        local encounterDay, encounterTime = EncounterDate(encounter)
+        day:SetText(encounterDay)
+        time:SetText(encounterTime)
+        zone:SetWidth(width - 33 - actionWidth - stampWidth)
+        zone:SetText(encounter.zone and encounter.zone ~= "" and encounter.zone or L.unknownLocation)
+        map:SetPoint("TOPRIGHT", hasInfo and -38 or -11, -7)
+        map:SetShown(hasWaypoint)
+        info:SetShown(hasInfo)
+        info:SetTooltipInfo(encounter.skirmishID and L.openSkirmish or L.attackers)
+    end
+    return card
 end
 
 local allyColor = { 0.65, 0.83, 1 }
@@ -332,11 +460,7 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival)
     map:SetSize(130, 25)
     map:SetText(L.showOnMap)
     map:SetScript("OnClick", function()
-        if addon.ShowEncounterWaypoint(card.skirmish) then
-            onMapShown()
-        elseif UIErrorsFrame then
-            UIErrorsFrame:AddMessage(L.waypointError, 1, 0.25, 0.25)
-        end
+        ActivateWaypoint(card.skirmish, onMapShown)
     end)
     function card:SetSkirmish(battle, selectedRivalID)
         self.skirmish = battle

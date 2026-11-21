@@ -84,6 +84,7 @@ local function IndexSkirmish(index, id, battle)
                 skirmishID = id, time = battle.time or battle.startedAt, sequence = battle.sequence,
                 zone = battle.zone, mapID = battle.mapID, x = battle.x, y = battle.y,
                 playerLevel = player and player.level, rivalLevel = opponent.level,
+                player = player, opponent = opponent,
                 wins = 0, losses = 0,
             }
             opponents[opponent.id] = { index = rival, summary = summary }

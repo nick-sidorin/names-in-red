@@ -162,6 +162,7 @@ local personalHistory = addon.RivalEncounters(addon.db, orcID)
 assert(#personalHistory == 2 and personalHistory[2].direction == "killsAgainstThem")
 local compact = personalHistory[1]
 assert(compact.skirmishID == "earlier-team-fight" and compact.playerLevel == 51 and compact.rivalLevel == 52)
+assert(compact.player == earlier.allies[1] and compact.opponent == earlier.enemies[1])
 assert(compact.wins == 1 and compact.losses == 0 and addon.db.skirmishes[compact.skirmishID] == earlier)
 assert(addon.RivalEncounters(addon.db, bystanderID)[1].skirmishID == compact.skirmishID)
 assert(addon.RecentEncounters(addon.db, 100)[100].time > earlier.time)

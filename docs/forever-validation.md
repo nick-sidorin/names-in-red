@@ -307,6 +307,18 @@ as the viewport scrolls. Check both tabs on 1.60.1 with empty, legacy, manual
 and seeded histories. Scroll through a long history, then switch rivals while
 scrolled.
 
+The compact rival card uses `CommonSquareIconButtonTemplate` from
+`Blizzard_SharedXML/Shared/Button/IconButtonTemplate.xml`, including native
+tooltips and click handling supplied by `UIButtonMixin`. Its icons come from
+`WaypointLocationPinTemplate` and `UIPanelInfoButton`. The outcome arrows use
+the same paired atlases as `GamepadPrevPageButtonTemplate` and
+`GamepadNextPageButtonTemplate`. Both portraits reuse the profile ring and level
+badge. A local portrait with no saved race portrait uses `SetPortraitTexture`,
+as in Camelot's `CharacterFrameMixin:UpdateCharacterModeTabPortrait`.
+Check both tabs with wins, losses and partial records, including long names and
+both action icons at the same time. Verify that a card rebind clears stale
+tooltips and that the map action remains available on mapped legacy cards.
+
 For the map diamond, see `WaypointLocationDataProviderMixin:HandleClick` and
 the MAPPIN slash command in
 `Blizzard_SharedMapDataProviders/WaypointLocationDataProvider.lua`. The book

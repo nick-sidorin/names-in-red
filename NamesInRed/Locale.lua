@@ -55,20 +55,20 @@ local search = searchStrings[GetLocale()] or searchStrings.enUS
 addon.L.noMatches, addon.L.deleteConfirm = search[1], search[2]
 
 local scoreStrings = {
-    enUS = { "Personal score", "My victory", "My defeat", "Skirmish", "Open skirmish" },
-    ruRU = { "Личный счёт", "Моя победа", "Моё поражение", "Стычка", "Открыть стычку" },
-    deDE = { "Persönliche Bilanz", "Mein Sieg", "Meine Niederlage", "Gefecht", "Gefecht öffnen" },
-    frFR = { "Bilan personnel", "Ma victoire", "Ma défaite", "Escarmouche", "Voir l’escarmouche" },
-    esES = { "Balance personal", "Mi victoria", "Mi derrota", "Escaramuza", "Ver escaramuza" },
-    itIT = { "Bilancio personale", "La mia vittoria", "La mia sconfitta", "Schermaglia", "Vedi schermaglia" },
-    ptBR = { "Placar pessoal", "Minha vitória", "Minha derrota", "Escaramuça", "Ver escaramuça" },
-    koKR = { "개인 전적", "나의 승리", "나의 패배", "교전", "교전 보기" },
-    zhCN = { "个人战绩", "我的胜利", "我的失败", "交锋", "查看交锋" },
-    zhTW = { "個人戰績", "我的勝利", "我的失敗", "交鋒", "查看交鋒" },
+    enUS = { "Personal score", "My victory", "My defeat", "Open skirmish" },
+    ruRU = { "Личный счёт", "Моя победа", "Моё поражение", "Открыть стычку" },
+    deDE = { "Persönliche Bilanz", "Mein Sieg", "Meine Niederlage", "Gefecht öffnen" },
+    frFR = { "Bilan personnel", "Ma victoire", "Ma défaite", "Voir l’escarmouche" },
+    esES = { "Balance personal", "Mi victoria", "Mi derrota", "Ver escaramuza" },
+    itIT = { "Bilancio personale", "La mia vittoria", "La mia sconfitta", "Vedi schermaglia" },
+    ptBR = { "Placar pessoal", "Minha vitória", "Minha derrota", "Ver escaramuça" },
+    koKR = { "개인 전적", "나의 승리", "나의 패배", "교전 보기" },
+    zhCN = { "个人战绩", "我的胜利", "我的失败", "查看交锋" },
+    zhTW = { "個人戰績", "我的勝利", "我的失敗", "查看交鋒" },
 }
 scoreStrings.enGB = scoreStrings.enUS
 scoreStrings.esMX = scoreStrings.esES
-addon.L.personalScore, addon.L.winTooltip, addon.L.lossTooltip, addon.L.skirmish, addon.L.openSkirmish =
+addon.L.personalScore, addon.L.winTooltip, addon.L.lossTooltip, addon.L.openSkirmish =
     unpack(scoreStrings[GetLocale()] or scoreStrings.enUS)
 
 -- Info tab, history tab, last encounter, map action, unknown location, levels, map error, empty history.

@@ -54,32 +54,6 @@ local function Scroll(parent, x, y, width, height, hideIfUnscrollable)
     return child, frame
 end
 
-local function UpdatePortrait(portrait, rival, id)
-    portrait:SetSize(52, 52)
-    local race, sex, class = rival.race, rival.sex, rival.class
-    if not race then
-        local knownRace, knownSex, knownClass = addon.RivalAppearance(id)
-        race, sex, class = knownRace, knownSex, class or knownClass
-    end
-    if race and (sex == 2 or sex == 3) and GetRaceAtlas then
-        local gender = sex == 3 and "female" or "male"
-        if addon.ApplyAtlas(portrait, GetRaceAtlas(race, gender, true))
-            or addon.ApplyAtlas(portrait, GetRaceAtlas(race, gender)) then
-            return
-        end
-    end
-    local coords = CLASS_ICON_TCOORDS and class and CLASS_ICON_TCOORDS[class]
-    if coords then
-        portrait:SetTexture("Interface\\TargetingFrame\\UI-Classes-Circles")
-        portrait:SetTexCoord(unpack(coords))
-    else
-        portrait:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
-        -- The inventory icon includes a light bevel inside the texture.
-        portrait:SetTexCoord(0.12, 0.88, 0.12, 0.88)
-        portrait:SetSize(44, 44)
-    end
-end
-
 local function Stat(parent, y, texture, tooltipText)
     local holder, slot, icon
     if ProfessionsReagentSlotButtonMixin then
@@ -196,8 +170,8 @@ local function ShowDetails()
         local winCount, lossCount = addon.Ledger.PersonalScore(addon.db, selected)
         wins:SetText(("%s: %d"):format(L.wins, winCount))
         losses:SetText(("%s: %d"):format(L.losses, lossCount))
-        UpdatePortrait(portrait, rival, selected)
-        latestCard:SetEncounter(history[1])
+        addon.SetRivalPortrait(portrait, rival, selected)
+        latestCard:SetEncounter(history[1], rival, selected)
         latestEmpty:SetShown(history[1] == nil)
         local lastLevel
         for _, encounter in ipairs(history) do
@@ -206,8 +180,7 @@ local function ShowDetails()
                 break
             end
         end
-        levelBadge:SetShown(lastLevel ~= nil)
-        levelBadge.label:SetText(lastLevel)
+        levelBadge:SetLevel(lastLevel)
     end
     empty:SetShown(rival == nil)
 
@@ -459,7 +432,7 @@ local function CreateSingleRecentCard(parent, width, onMapShown)
         if rival.raceLabel then labels[#labels + 1] = rival.raceLabel end
         if rival.classLabel then labels[#labels + 1] = rival.classLabel end
         description:SetText(table.concat(labels, " / "))
-        UpdatePortrait(icon, rival, entry.id)
+        addon.SetRivalPortrait(icon, rival, entry.id)
     end
     return card
 end
@@ -610,10 +583,12 @@ local function ToggleBook()
 
         local historyTop = 16
         local function CreateRivalCard(parent, width, onMapShown)
-            return addon.CreateEncounterCard(parent, width, onMapShown, nil, OpenSkirmish)
+            return addon.CreateCompactEncounterCard(parent, width, onMapShown, OpenSkirmish)
         end
         details = CardList(right, 25, -historyTop, cardWidth, rightHeight - historyTop - 12,
-            CreateRivalCard, function(card, encounter) card:SetEncounter(encounter) end)
+            CreateRivalCard, function(card, encounter)
+                card:SetEncounter(encounter, addon.db.rivals[selected], selected)
+            end, function() return addon.compactEncounterCardHeight end)
         historyEmpty = right:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         historyEmpty:SetPoint("CENTER", 0, 5)
         historyEmpty:SetText(L.noSkirmishes)
@@ -624,21 +599,7 @@ local function ToggleBook()
         local rim
         portrait, rim = addon.CreateRoundIcon(summary)
         rim:SetPoint("TOPLEFT", 17.5, -17.5)
-        local badgeSize = 24
-        local badge = CreateFrame("Frame", nil, summary)
-        badge:SetSize(badgeSize, badgeSize)
-        badge:SetPoint("CENTER", rim, "BOTTOMLEFT", 12, 12)
-        local circle = badge:CreateTexture(nil, "ARTWORK")
-        circle:SetAllPoints()
-        circle:SetTexture("Interface\\AddOns\\NamesInRed\\Art\\LevelBadge.tga")
-        badge.label = badge:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        badge.label:SetPoint("CENTER", badge, "CENTER", 0, -0.5)
-        badge.label:SetSize(badgeSize, badgeSize)
-        badge.label:SetJustifyH("CENTER")
-        badge.label:SetJustifyV("MIDDLE")
-        badge.label:SetShadowOffset(0, 0)
-        badge:Hide()
-        levelBadge = badge
+        levelBadge = addon.CreateLevelBadge(summary, rim, 24)
         heading = summary:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
         heading:SetPoint("TOPLEFT", 90, -26)
         heading:SetWidth(250)
