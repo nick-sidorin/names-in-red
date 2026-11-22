@@ -21,7 +21,7 @@ local function Refresh(unit)
     if type(guid) ~= "string" or not guid:match("^Player%-.+") or type(playerGUID) ~= "string"
         or guid == playerGUID then return end
     local rival, id = addon.FindVisibleRival(guid, unit)
-    local text = rival and addon.RivalCounters(id, true)
+    local text = rival and addon.RivalCounters(id, true, 0)
     if not text then return end
 
     local plate = Readable(C_NamePlate.GetNamePlateForUnit(unit))
@@ -41,12 +41,13 @@ local function Refresh(unit)
         badge:SetSize(1, 14)
         badge.label = badge:CreateFontString(nil, "OVERLAY", "GameFontNormalSmallOutline")
         badge.label:SetTextColor(1, 1, 1)
-        badge.label:SetPoint("CENTER")
         badges[parent] = badge
     end
     if badge.unit then active[badge.unit] = false end
     badge:ClearAllPoints()
     badge:SetPoint("BOTTOM", anchor, "TOP", 0, 0)
+    local factor = PixelUtil and PixelUtil.GetPixelToUIUnitFactor and PixelUtil.GetPixelToUIUnitFactor()
+    badge.label:SetPoint("CENTER", 0, factor and factor / badge:GetEffectiveScale() or 1)
     badge.label:SetText(text)
     badge.unit = unit
     active[unit] = badge
@@ -64,12 +65,15 @@ if C_NamePlate and C_NamePlate.GetNamePlateForUnit then
     events:RegisterEvent("UNIT_NAME_UPDATE")
     events:RegisterEvent("PLAYER_REGEN_DISABLED")
     events:RegisterEvent("PLAYER_REGEN_ENABLED")
+    events:RegisterEvent("UI_SCALE_CHANGED")
+    events:RegisterEvent("DISPLAY_SIZE_CHANGED")
     events:RegisterEvent("PLAYER_LEAVING_WORLD")
     events:SetScript("OnEvent", function(_, event, token)
         if event == "PLAYER_LEAVING_WORLD" then
             for unit in pairs(active) do Hide(unit) end
             active = {}
-        elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
+        elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED"
+            or event == "UI_SCALE_CHANGED" or event == "DISPLAY_SIZE_CHANGED" then
             addon.RefreshNameplates()
         else
             local unit = Readable(token)

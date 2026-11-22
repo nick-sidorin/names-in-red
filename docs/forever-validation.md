@@ -97,6 +97,9 @@ bar and the level on its right. BigDebuffs can attach side indicators outside
 the visible bar or name. The first Names in Red preview used a side anchor.
 The current preview centers the label directly above the name to keep the
 counters close to the character name and leave room for higher overlays.
+The counter font string sits one physical pixel higher, using the display
+factor from Blizzard's `PixelUtil.lua` and the badge's effective scale.
+The nameplate's inline artwork drops its former one-unit height offset.
 Check spacing with native raid markers, auras and other addons in Forever.
 See the [Camelot level template](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_NamePlates/Camelot/Blizzard_NamePlateLevelFrame.xml)
 and [BigDebuffs attachment code](https://github.com/jordonwow/bigdebuffs/blob/38690ed9d782c01c137779b7998dbe905c740fda/BigDebuffs.lua#L1596-L1630).
@@ -610,9 +613,10 @@ existing circle mask. The
 stock mask, reagent frame and texture anchors remain native. Reference mode
 uses the full native icon and restores the branded crops when it exits.
 The defeat statistics slot uses the painted square banner with a background.
-The wide transparent banner marks defeats on cards, in the manual dialog, on
-nameplates and in the unit tooltip. The small pink skull marks recorded deaths
-on portraits. The transparent banner comes from the statistics artwork.
+The wide transparent banner marks defeats on cards and in the manual dialog.
+The small pink skull marks losses in the nameplate and unit tooltip counters
+and recorded deaths on portraits. The transparent banner comes from the
+statistics artwork.
 Its lower fragment is shorter and points inward to leave clearance at the
 left edge of the result circle. Cards draw it at 95% of the circle's diameter.
 Compare the header to First Aid and both statistics slots to reagent icons
