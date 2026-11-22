@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0
+
+The first complete Names in Red release for WoW: Forever, with the rival book, skirmish history, recorded fight details, and earned PvP rewards.
+
+- Restore crossed swords for wins and the red skull for losses in rival scores on nameplates and in unit tooltips.
+- Raise nameplate numbers by one screen pixel to align them with the score icons.
+
 ## 0.1.3
 
 - Browse a searchable rival book, revisit each rival's skirmishes, and open the full record of a fight from either history view.
