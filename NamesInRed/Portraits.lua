@@ -1,5 +1,7 @@
 local _, addon = ...
 local L = addon.L
+addon.participantPortraitSize = 64
+local participantBadgeSize = 24
 
 function addon.ApplyAtlas(texture, atlas, resetTexCoords)
     if C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas) then
@@ -115,10 +117,9 @@ local function CreatePortraitBadge(parent, rim, rightSide, size)
     return badge
 end
 
-local function CreateLevelBadge(parent, rim, rightSide, size)
-    local badge = CreatePortraitBadge(parent, rim, rightSide, size)
-    local font = size < 24 and "SystemFont_Tiny" or "GameFontHighlight"
-    local label = badge:CreateFontString(nil, "OVERLAY", font)
+local function CreateLevelBadge(parent, rim, rightSide)
+    local badge = CreatePortraitBadge(parent, rim, rightSide, participantBadgeSize)
+    local label = badge:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     label:SetTextColor(1, 1, 1)
     label:SetAllPoints(badge)
     label:SetRoundLayoutToNearestPixel(true)
@@ -200,7 +201,7 @@ end
 
 function addon.CreateParticipantPortrait(parent, options)
     options = options or {}
-    local size = options.size or 64
+    local size = addon.participantPortraitSize
     local opposing = options.opposing
     local portrait, rim = addon.CreateRoundIcon(parent, size)
     if options.highlightRim then
@@ -211,14 +212,12 @@ function addon.CreateParticipantPortrait(parent, options)
         highlight:SetAlpha(0.45)
         parent:SetHighlightTexture(highlight)
     end
-    local badgeSize = options.levelSize or 24
-    local level = CreateLevelBadge(parent, rim, opposing, badgeSize)
-    local classBadge = options.showClass and CreateClassBadge(parent, rim, not opposing, badgeSize)
+    local level = CreateLevelBadge(parent, rim, opposing)
+    local classBadge = options.showClass and CreateClassBadge(parent, rim, not opposing, participantBadgeSize)
     local death
-    if options.casualtySize then
-        local inset = options.casualtyInset
-        death = addon.CreateFramedMarker(parent, options.casualtySize, addon.smallSkullIconPath, L.portraitDeath)
-        death:SetPoint("CENTER", rim, opposing and "TOPLEFT" or "TOPRIGHT", opposing and inset or -inset, -inset)
+    if options.showCasualty then
+        death = addon.CreateFramedMarker(parent, 20, addon.smallSkullIconPath, L.portraitDeath)
+        death:SetPoint("CENTER", rim, opposing and "TOPLEFT" or "TOPRIGHT", opposing and 10 or -10, -10)
         death:Hide()
     end
 
@@ -241,8 +240,8 @@ function addon.CreateParticipantPortrait(parent, options)
             local classes = appearance.sex == 3 and LOCALIZED_CLASS_NAMES_FEMALE or LOCALIZED_CLASS_NAMES_MALE
             classBadge:SetClass(class, classes and classes[class] or appearance.classLabel)
         end
-        if death then death:SetShown(died == true) end
-        if options.desaturateCasualty then
+        if death then
+            death:SetShown(died == true)
             portrait:SetDesaturated(died)
             local shade = died and 0.78 or 1
             portrait:SetVertexColor(shade, shade, shade)

@@ -135,8 +135,9 @@ local sectionPadding = 8
 local fullHeaderCenter = -18
 -- Keep equal space between the map button and the inside edges of the header.
 local fullHeaderDivider = 2 * fullHeaderCenter + 2
-local rosterTop, rosterHeaderHeight, rosterRowHeight = fullHeaderDivider - sectionPadding, 27, 81
-local portraitSize, rosterGutter = 50, 100
+local rosterTop, rosterHeaderHeight = fullHeaderDivider - sectionPadding, 27
+local portraitSize, rosterGutter = addon.participantPortraitSize, 100
+local rosterRowHeight = portraitSize + 36
 local resultWidth = rosterGutter - 8
 local compactHeaderCenter, compactHeaderDivider = -21, -41
 local compactRosterTop = compactHeaderDivider - sectionPadding
@@ -235,7 +236,8 @@ local function StampRight(actionRight)
     return actionRight and actionRight + compactActionSize - compactActionInset + compactHeaderGap or cardInset
 end
 
-local function CreateSkirmishResult(card, size)
+local function CreateSkirmishResult(card)
+    local size = 56
     local center = CreateFrame("Frame", nil, card)
     center:SetSize(resultWidth, size + 24)
     local markers = {
@@ -291,12 +293,11 @@ local function CreateParticipantTile(parent, isOpponent, openRival, compact)
     tile:SetMouseMotionEnabled(true)
 
     tile.avatar = addon.CreateParticipantPortrait(tile, {
-        size = portraitSize, levelSize = 20, opposing = isOpponent,
-        casualtySize = compact and 20 or 17, casualtyInset = compact and 10 or 7,
-        desaturateCasualty = true, highlightRim = true, showClass = true, livePlayerFallback = tile.isLocalCharacter,
+        opposing = isOpponent, showCasualty = true, showClass = true,
+        highlightRim = true, livePlayerFallback = tile.isLocalCharacter,
     })
     tile.avatar.rim:SetPoint("TOP")
-    local name = tile:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local name = tile:CreateFontString(nil, "OVERLAY", "GameFontHighlight_NoShadow")
     local nameTop = portraitSize + 2
     name:SetPoint("TOPLEFT", 2, -nameTop)
     name:SetPoint("TOPRIGHT", -2, -nameTop)
@@ -353,7 +354,7 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
     theirs:SetSize(sideWidth, rosterRowHeight)
     mine:SetPoint("TOPLEFT", cardInset, compactRosterTop)
     theirs:SetPoint("TOPRIGHT", -cardInset, compactRosterTop)
-    local setResult = CreateSkirmishResult(card, 44)
+    local setResult = CreateSkirmishResult(card)
 
     local map = MapAction(card, function()
         if card.encounter then ActivateWaypoint(card.encounter, onMapShown) end
@@ -460,7 +461,7 @@ local function CreateSkirmishSide(card, x, width, caption, isOpponent, openRival
         local rows = RosterRows(#players)
         local base, extra = math.floor(#players / rows), #players % rows
         local columns = math.max(1, math.ceil(#players / rows))
-        local slotWidth = math.min(122, math.floor((width - sectionPadding * 2) / columns))
+        local slotWidth = math.min(144, math.floor((width - sectionPadding * 2) / columns))
         local unusedHeight = height - rosterHeaderHeight - 2 * sectionPadding - rows * rosterRowHeight
         local firstTop = -rosterHeaderHeight - sectionPadding - unusedHeight / 2
         local index = 0
@@ -598,7 +599,7 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
 
     local setAllies = CreateSkirmishSide(card, cardInset, sideWidth, L.alliedSide, false, openRival)
     local setEnemies = CreateSkirmishSide(card, width - cardInset - sideWidth, sideWidth, L.enemySide, true, openRival)
-    local setResult = CreateSkirmishResult(card, 56)
+    local setResult = CreateSkirmishResult(card)
     local setTimeline = CreateTimeline(card, width, toggleTimeline)
     local map = MapAction(card, function()
         ActivateWaypoint(card.skirmish, onMapShown)

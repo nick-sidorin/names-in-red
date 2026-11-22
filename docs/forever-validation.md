@@ -387,16 +387,14 @@ texture's effective scale to target one physical pixel. Their positions snap
 to the pixel grid. The full header centers the map control between the inner
 top edge and divider. The roster headers and timeline use the same dividers.
 Check dividers and headings at different resolutions and UI scales.
-The profile uses a 64-unit ring and 24-unit level badge. Both card layouts
-share the participant tile with a 50-unit ring and a name that wraps to two
-lines. Level and class badges share the same 20-unit frame and anchor to
-opposite lower corners. Class icons use the game's `CLASS_ICON_TCOORDS`
+The profile and both card layouts use the same 64-unit portrait and 24-unit
+level badge. Card names wrap to two lines. Level and class badges share the
+same frame and anchor to opposite lower corners. Class icons use the game's `CLASS_ICON_TCOORDS`
 sheet as in `PVPCellClassMixin:Populate`, with a circular mask and a localized
 tooltip. The badge rounds its radius to a physical pixel using
 `PixelUtil.GetNearestPixelSize`. Its circle and label fill the same
 pixel-rounded bounds. The label uses horizontal center and vertical middle
-alignment with `SystemFont_Tiny` in cards and the larger `GameFontHighlight`
-in the profile. The texture disables separate texel snapping, as in
+alignment with `GameFontHighlight` throughout the journal. The texture disables separate texel snapping, as in
 `NineSliceUtil.DisableSharpening`.
 Check levels 54, 55 and 57 on both sides at different UI scales. The rim uses
 `Mode-Selection-Ring`
@@ -407,12 +405,10 @@ button's inherited `CircularGiantItemButtonTemplate` in
 selected rival keeps its rim glow via `LockHighlight`. Check that neither hover
 nor selection changes the image inside and that scrolling releases the glow
 when the tile is rebound.
-Both layouts share the result badge and localized caption. The circle is 44
-units on compact cards and 56 on full cards. Victory and defeat use captions
+Both layouts share a 56-unit result badge and localized caption. Victory and defeat use captions
 alone. The unknown result and skulls retain their tooltips. The circle art
 comes from `UI-HUD-UnitFrame-SmallCircle` in Camelot's
-`TargetFrameTemplates.xml`. The compact casualty marker uses a 20-unit circle
-for legibility at lower resolutions. Verify badge text, mirrored sides, and
+`TargetFrameTemplates.xml`. The casualty marker uses a 20-unit circle in both layouts. Verify badge text, mirrored sides, and
 tooltips at several UI scales.
 A local portrait with no saved race portrait uses `SetPortraitTexture`, as in Camelot's
 `CharacterFrameMixin:UpdateCharacterModeTabPortrait`. Race portraits use the
@@ -421,8 +417,16 @@ full atlas region horizontally with `SetTexCoord(1, 0, 0, 1)`, following
 `Blizzard_OrderHallUI/Blizzard_OrderHallTalents.lua` where the same talent atlas
 is drawn facing either way. Check the full crop in the profile and the compact
 card, and click the same rival repeatedly to verify the direction.
-The two reward rows reuse the same profession reagent controls as the score
-rows. For the reference art, the rank-12 helmet uses the client texture paths
+The book is 810 by 640 UI units, with the 304-unit Camelot recipe list width
+on the left. The right panel uses `ProfessionsReagentSlotBaseTemplate.Name`
+with its `GameFontHighlight_NoShadow` font and 46-unit horizontal offset. The
+heading uses the 20-unit `GameFontNormalSmall` label from
+`ProfessionsReagentContainerTemplate`. The score rows use the 45-unit step
+from the reagent slot height and the normal recipe's vertical spacing. The
+last encounter heading uses the 20-unit gap from `OptionalReagents` in
+`Blizzard_ProfessionsRecipeSchematicForm.xml`. Check the Information panel,
+an encounter with a 5 × 6 lineup, and the scroll area on a 1920 × 1080 client.
+The rank-12 helmet uses the client texture paths
 `Achievement_PVP_A_12` and `Achievement_PVP_H_12`. The Honor stat follows
 `TokenEntryMixin:Initialize` in `Blizzard_TokenUI/Camelot/Blizzard_TokenUI.lua`
 and displays the `iconFileID` from the native currency list. A hidden currency
@@ -583,8 +587,8 @@ The defeat statistics slot uses the painted square banner with a background.
 The wide transparent banner marks defeats on cards, in the manual dialog, on
 nameplates and in the unit tooltip. The small pink skull marks recorded deaths
 on portraits. The transparent banner comes from the statistics artwork.
-Cards draw it at 95% of the result circle's diameter so the narrow
-silhouette has a similar visual weight to the swords.
+Its lower fragment is shorter and points inward to leave clearance at the
+left edge of the result circle. Cards draw it at 95% of the circle's diameter.
 Compare the header to First Aid and both statistics slots to reagent icons
 in the live client at normal and reduced UI scales.
 

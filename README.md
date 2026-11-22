@@ -12,7 +12,7 @@ with a caption, using crossed swords for a victory and a torn gray banner on a
 broken pole for a defeat. The defeat count uses a square version on a painted
 background. A small
 skull on a portrait marks a recorded death. The reward icons use the current
-character's faction. Honor uses the Currency tab's icon.
+character's faction. The Honor Points counter uses the Currency tab's icon.
 Alliance is blue and Horde is red. Use the information icon on a linked card
 to see both sides, levels, classes, and the finishing blows
 in the same window. **Back** returns to the rival and the same place in their
@@ -64,7 +64,7 @@ The reset command was introduced in version 0.1.3-preview.33. See
 
 ## How the score works
 
-- **Skirmishes won** and **Skirmishes lost** count the result of your side.
+- **Wins** and **Losses** count the result of your side.
   A recorded result counts once in the journal and once in each opponent's
   profile. If you die and your surviving teammate finishes the opposing
   side, it counts as one win against every opponent in the battle.
@@ -74,7 +74,7 @@ The reset command was introduced in version 0.1.3-preview.33. See
 - A skirmish with an unknown outcome stays in the history. The score changes
   once the outcome is known. Older records of individual killing blows and
   deaths stay visible. Manually entered results still count.
-- **Honorable kills** and **Honor** show how much the game awarded you for
+- **Honorable kills** and **Honor Points** show how much the game awarded you for
   identifiable opponents. An award may count even when the team outcome is
   unknown. Shared or closely spaced signals can leave a reward unattributed.
 

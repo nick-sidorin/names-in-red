@@ -53,7 +53,7 @@ function CreateFrame(_, _, owner)
     return badge
 end
 
-for _, file in ipairs({ "Ledger", "Encounter", "EncounterCards", "Core", "Book", "Nameplates" }) do
+for _, file in ipairs({ "Ledger", "Encounter", "Portraits", "EncounterCards", "Core", "Book", "Nameplates" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
 

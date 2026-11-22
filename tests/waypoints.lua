@@ -1,5 +1,6 @@
 local addon = {}
 assert(loadfile("NamesInRed/Encounter.lua"))("NamesInRed", addon)
+assert(loadfile("NamesInRed/Portraits.lua"))("NamesInRed", addon)
 assert(loadfile("NamesInRed/EncounterCards.lua"))("NamesInRed", addon)
 
 local available, accept, restricted = true, true, nil

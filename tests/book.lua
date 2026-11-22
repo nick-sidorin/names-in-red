@@ -311,7 +311,7 @@ C_Texture = {
 }
 date = os.date
 local selectedRival, journalMapOpened, timelineRequested
-local card = addon.CreateSkirmishCard(MockRegion(), 630, function() journalMapOpened = true end,
+local card = addon.CreateSkirmishCard(MockRegion(), 736, function() journalMapOpened = true end,
     function(id) selectedRival = id end, function(battle) timelineRequested = battle end)
 local allies = { { id = "me", name = "My Character", isSelf = true }, { id = "ally", name = "Ally Warrior" } }
 local enemies = {
@@ -425,7 +425,8 @@ do
 end
 print("Native recipe row style, search data reuse, and rival selection checks passed")
 
-local function CheckLevelLabel(label, size)
+local function CheckLevelLabel(label)
+    local size = 24
     local badge = label.parent
     local circle = assert(FindRegion(badge, "texture", addon.levelBadgePath))
     local expectedPixels = 2 * math.floor(size / 2 * dividerScale / pixelFactor + 0.5)
@@ -433,7 +434,7 @@ local function CheckLevelLabel(label, size)
     assert(badge.width == badge.height and badge.roundToPixel and label.roundToPixel and circle.roundToPixel)
     assert(label.bounds == badge and circle.bounds == badge and circle.snapToGrid == false and circle.texelBias == 0)
     assert(label.justifyH == "CENTER" and label.justifyV == "MIDDLE" and not label.anchor)
-    assert(label.font == (size < 24 and "SystemFont_Tiny" or "GameFontHighlight"))
+    assert(label.font == "GameFontHighlight")
     return badge
 end
 local classSheet = "Interface\\TargetingFrame\\UI-Classes-Circles"
@@ -543,7 +544,7 @@ local rimHighlight = name.parent.highlight
 assert(name.parent.highlightLocked and rimHighlight.bounds == name.parent.avatar.rim)
 assert(rimHighlight.atlas == "Mode-Selection-Ring" and rimHighlight.blend == "ADD" and rimHighlight.alpha == 0.45)
 assert(name.parent.avatar.death.shown and FindRegion(name.parent.avatar.death, "atlas", "UI-HUD-UnitFrame-SmallCircle"))
-CheckLevelLabel(assert(FindText(name.parent, 42)), 20)
+CheckLevelLabel(assert(FindText(name.parent, 42)))
 name.parent.scripts.OnClick(name.parent)
 assert(selectedRival == "Player-test")
 local finished = { allies = { allies[1] }, enemies = { enemies[1] }, rosterComplete = true,
@@ -606,7 +607,7 @@ end
 print("Skirmish portraits use balanced, centered rows and clear recycled casualties")
 
 local openedSkirmish, openedMap, mapped
-local compact = addon.CreateCompactEncounterCard(MockRegion(), 332, function() openedMap = true end,
+local compact = addon.CreateCompactEncounterCard(MockRegion(), 442, function() openedMap = true end,
     function(id) openedSkirmish = id end)
 local compactLine = assert(FindDivider(compact))
 for _, line in ipairs({ headerLine, blowsLine, compactLine }) do
@@ -627,14 +628,15 @@ compact:SetEncounter(first)
 assert(FindText(compact, "Hillsbrad Foothills") and FindText(compact, date("%x", first.time)))
 assert(FindText(compact, "Hillsbrad Foothills").anchor[1] == "LEFT")
 assert(FindText(compact, "My Character") and FindText(compact, "Test Rival"))
-local myBadge = CheckLevelLabel(assert(FindText(compact, 51)), 20)
-local opponentBadge = CheckLevelLabel(assert(FindText(compact, 42)), 20)
+local myBadge = CheckLevelLabel(assert(FindText(compact, 51)))
+local opponentBadge = CheckLevelLabel(assert(FindText(compact, 42)))
 assert(myBadge.anchor[1] == "BOTTOMLEFT" and myBadge.anchor[3] == "BOTTOMLEFT")
 assert(opponentBadge.anchor[1] == "BOTTOMRIGHT" and opponentBadge.anchor[3] == "BOTTOMRIGHT")
 assert(#myBadge.anchor == 3 and #opponentBadge.anchor == 3 and myBadge.width == opponentBadge.width)
 local myName, opponentName = FindText(compact, "My Character"), FindText(compact, "Test Rival")
 local myRim, opponentRim = myName.parent.avatar.rim, opponentName.parent.avatar.rim
-assert(myRim.width == 50 and opponentRim.width == 50)
+assert(myRim.width == 64 and opponentRim.width == myRim.width)
+assert(myName.font == "GameFontHighlight_NoShadow" and opponentName.font == myName.font)
 local opponentClass = CheckClassBadge(opponentName.parent, "MAGE", "Mage", "BOTTOMLEFT")
 assert(opponentClass.width == opponentBadge.width and not FindText(opponentName.parent, "Mage"))
 assert(myName.parent.highlight.bounds == myRim and opponentName.parent.highlight.bounds == opponentRim)
@@ -651,18 +653,20 @@ local profile = MockRegion()
 local profileAvatar = addon.CreateParticipantPortrait(profile)
 profileAvatar:SetParticipant(first.opponent, nil, 58)
 AssertFullPortrait(assert(FindRegion(profile, "atlas", "human-female")), false)
-local profileBadge = CheckLevelLabel(assert(FindText(profile, 58)), 24)
+local profileBadge = CheckLevelLabel(assert(FindText(profile, 58)))
 assert(profileBadge.anchor[2] == profileAvatar.rim and profileBadge.anchor[3] == "BOTTOMLEFT")
+assert(profileAvatar.rim.width == myRim.width and myBadge.width == profileBadge.width)
+assert(name.parent.avatar.rim.width == profileAvatar.rim.width)
 assert(not profileAvatar.death and not profileAvatar.classBadge)
 profileAvatar:SetParticipant(first.opponent, nil, 9)
-assert(CheckLevelLabel(assert(FindText(profile, 9)), 24) == profileBadge)
+assert(CheckLevelLabel(assert(FindText(profile, 9))) == profileBadge)
 local previousWidth = profileBadge.width
 pixelFactor, dividerScale = 0.8, 0.7
 DisplayChanged()
 assert(profileBadge.width ~= previousWidth)
-CheckLevelLabel(assert(FindText(profile, 9)), 24)
-CheckLevelLabel(assert(FindText(compact, 51)), 20)
-CheckLevelLabel(assert(FindText(compact, 42)), 20)
+CheckLevelLabel(assert(FindText(profile, 9)))
+CheckLevelLabel(assert(FindText(compact, 51)))
+CheckLevelLabel(assert(FindText(compact, 42)))
 local function PortraitMarker(anchor, texture)
     for _, tile in ipairs({ myName.parent, opponentName.parent }) do
         local death = tile.avatar.death
@@ -684,7 +688,7 @@ local function CheckPortraitMarker(rim, texture, corner)
 end
 local swords, skull, banner = addon.swordsIconPath, addon.smallSkullIconPath, addon.defeatBannerPath
 local victory = assert(CenterMarker(swords))
-assert(victory.width == 44 and victory.parent.anchor[4] == 0 and not CenterMarker(banner))
+assert(victory.width == fullVictory.width and victory.parent.anchor[4] == 0 and not CenterMarker(banner))
 assert(FindRegion(victory, "atlas", "UI-HUD-UnitFrame-SmallCircle"))
 assert(FindText(victory.parent, addon.L.winTooltip) and not victory.scripts.OnEnter)
 assert(rivalPortrait.desaturated and not playerPortrait.desaturated)
