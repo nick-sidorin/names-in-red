@@ -17,10 +17,11 @@ The journal records real fights, **including fights with no deaths, Honorable Ki
 ## 2. Scope: open-world PvP and optional battleground PvP
 
 - Record PvP confrontations between opposing player characters in the **open world**.
-- **Battlegrounds are supported and enabled by default.** The player can opt out using one settings checkbox: **Track Battleground Skirmishes** (default **ON**).
+- **Battlegrounds are supported and enabled by default.** The player can opt out of **recording** battleground encounters using one settings checkbox: **Track Battleground Skirmishes** (default **ON**). **This option controls recording only, not recognition or display of existing rival history.**
 - When the checkbox is ON, battleground skirmishes follow the same fundamental idea as open-world skirmishes: track the **local, connected confrontation**, not automatically the entire battleground match, its full team rosters, or its final scoreboard.
-- When the checkbox is OFF, **do not capture new battleground skirmishes, change rivalry statistics due to battleground events, or show contextual rival indicators during battleground play**. Existing records remain saved and can still be browsed in the journal; open-world tracking is unaffected.
-- The same opposing player can be recognized later in the world or on another battleground. Keep **one rival identity and shared history**, with each individual encounter labelled by its origin; do not create duplicate rival profiles for each context.
+- When the checkbox is OFF, **do not record new battleground skirmishes, kills, deaths, rewards, or battleground-driven changes to rival history and scores**. Existing records remain saved and browseable; open-world tracking is unaffected.
+- **Always recognize previously recorded rivals in battlegrounds and the open world, regardless of this checkbox.** Existing history and scores appear in unit tooltips and on nameplates wherever the recognized opponent is encountered, subject only to the existing independent **unit tooltip** and **nameplate icons** display settings. Disabling battleground recording must never hide those indicators.
+- The same opposing player can be recognized later in the world or on another battleground, **even when battleground recording is disabled**. Keep **one rival identity and shared history**, with each individual encounter labelled by its origin; do not create duplicate rival profiles for each context.
 - Other instanced PvP modes are outside this specification. Do not silently expand scope to them.
 - Do not turn ordinary PvE encounters, friendly activity, nearby spectators, or independent fights into this skirmish.
 - This is a locally observed personal account, not a global reconstruction of an entire battlefield.
@@ -177,11 +178,13 @@ The old **Unknown** is not acceptable *merely because* the third enemy was last 
 15. **No rewards:** a confirmed meaningful skirmish with zero HKs or Honor Points still belongs in history.
 16. **Duskwood reference:** reconstruct observed 2 vs 3 participation, two confirmed deaths, and Victory when the opposing force has dispersed and Alliance holds the field.
 17. **Battleground enabled (default):** a real connected local battleground fight is saved as its own skirmish, with the **Battleground** context label by the location on compact and expanded cards; the match as a whole is not incorrectly treated as one giant fight.
-18. **Battleground disabled:** no new BG skirmishes or related score changes/indicators while on a BG; previous history remains accessible and open-world tracking continues.
+18. **Battleground recording disabled:** no new BG skirmishes, kills, deaths, rewards or BG-driven score changes; previously known enemies still show historical win/loss indicators in nameplates and tooltips, using the separate existing visibility settings. Open-world tracking continues.
 19. **Battleground vs match outcome:** win an objective-area clash and later lose the match; the clash retains its **Victory**, without importing the match's **Defeat**.
 20. **Distinct battleground clashes:** die or disengage, later respawn or travel to a different fight; do not merge unrelated encounters because they share a BG instance.
-21. **Cross-context rival:** face an opponent on a BG and meet them later in the open world; both encounters appear under **one rival profile**, each with the correct context.
-22. **BG unresolved fight:** a genuine clash with no clear winner, no kills, and no honor stays in history as **Unknown**.
+21. **Cross-context rival:** face an opponent on a BG and meet them later in the open world; both recorded encounters appear under **one rival profile**, each with the correct context.
+22. **Known rival on BG, recording OFF:** defeat a mage in the open world, then encounter the same mage on a BG with BG tracking disabled. Show the saved score in the mage's tooltip and nameplate, but do not add BG results or rewards to the journal.
+23. **Independent display settings:** disable nameplate icons while BG recording stays ON; BG fights are still recorded and unit tooltips can still show known rivals if their separate switch is enabled.
+24. **BG unresolved fight:** a genuine clash with no clear winner, no kills, and no honor stays in history as **Unknown**.
 
 ## 10. Boundaries and follow-up work
 
