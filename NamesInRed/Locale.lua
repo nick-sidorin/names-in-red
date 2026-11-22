@@ -15,7 +15,7 @@ local dictionaries = {
         losses = "Losses",
         winsDescription = "Skirmishes won",
         lossesDescription = "Skirmishes lost",
-        honorableKills = "Honorable kills",
+        honorableKills = "Honorable Kills",
         honor = "Honor Points",
         statValue = "%s: %d",
 

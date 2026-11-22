@@ -30,6 +30,10 @@ local function SetStatIconCrop(icon, texture)
     if texture == addon.swordsIconPath then
         shift = 1 / 128
         inset = statSwordInset
+    elseif texture == addon.honorableKillIconPath then
+        -- Center the chevron within the visible reagent frame.
+        inset = 1.5 / 128
+        shift = inset
     end
     icon:SetTexCoord(inset + shift, 1 - inset + shift, inset, 1 - inset)
 end

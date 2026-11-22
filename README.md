@@ -74,7 +74,7 @@ The reset command was introduced in version 0.1.3-preview.33. See
 - A skirmish with an unknown outcome stays in the history. The score changes
   once the outcome is known. Older records of individual killing blows and
   deaths stay visible. Manually entered results still count.
-- **Honorable kills** and **Honor Points** show how much the game awarded you for
+- **Honorable Kills** and **Honor Points** show how much the game awarded you for
   identifiable opponents. An award may count even when the team outcome is
   unknown. Shared or closely spaced signals can leave a reward unattributed.
 

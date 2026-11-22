@@ -433,10 +433,13 @@ its label. `OptionalReagents` in `Blizzard_ProfessionsRecipeSchematicForm.xml`
 supplies the 20-unit gap between sections. Portrait captions in both card
 layouts use `RAID_CLASS_COLORS`. Compare the Information panel with Enchanting
 and check a 5 × 6 lineup and the scroll area on a 1920 × 1080 client.
-The Honorable Kills slot uses the approved gold chevron on a muted gray-violet
-background. `Art/HonorableKill.tga` is 128 × 128 and uses the same native
-reagent slot for both factions. Check its legibility at normal and reduced
-UI scales. The Honor Points stat follows
+The Honorable Kills slot uses a 128 × 128 gold chevron texture with 21 texels
+of background on each side. `ProfessionsButtonMixin:OnLoad` positions the
+frame separately from the icon. To address the larger left gap in the owner’s
+preview.38 screenshot, the square crop samples 1.5 texels farther right,
+moving the chevron left by roughly half a pixel at that UI scale. Check its
+centering and legibility in Forever at normal and reduced UI scales. The
+Honor Points stat follows
 `TokenEntryMixin:Initialize` in `Blizzard_TokenUI/Camelot/Blizzard_TokenUI.lua`
 and displays the `iconFileID` from the native currency list. A hidden currency
 can still supply its icon via `C_CurrencyInfo.GetCurrencyInfo` for Classic
