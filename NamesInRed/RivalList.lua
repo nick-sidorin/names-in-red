@@ -45,7 +45,15 @@ function addon.CreateRivalList(parent, onSelect)
 
     -- Match the recipe tree's spacing and one level of recipe indentation.
     local view = CreateScrollBoxListLinearView(5, 5, recipeIndent, 5, 1)
-    local normalColor = PROFESSION_RECIPE_COLOR or CreateColor(0.83, 0.82, 0.80)
+    local recipeColor = PROFESSION_RECIPE_COLOR or CreateColor(0.83, 0.82, 0.80)
+    local red = DIM_RED_FONT_COLOR or RED_FONT_COLOR
+    local normalR, normalG, normalB = recipeColor:GetRGB()
+    if red then
+        local redR, redG, redB = red:GetRGB()
+        normalR = normalR * 0.75 + redR * 0.25
+        normalG = normalG * 0.75 + redG * 0.25
+        normalB = normalB * 0.75 + redB * 0.25
+    end
     local hoverColor = HIGHLIGHT_FONT_COLOR
     local selectedID, previousEntries
     local function OnEnter(row)
@@ -57,7 +65,7 @@ function addon.CreateRivalList(parent, onSelect)
         end
     end
     local function OnLeave(row)
-        row.Label:SetVertexColor(normalColor:GetRGB())
+        row.Label:SetVertexColor(normalR, normalG, normalB)
         addon.HideOwnedTooltip(row)
     end
     local function BindRow(row, entry)
@@ -86,8 +94,11 @@ function addon.CreateRivalList(parent, onSelect)
             row.Label:SetText(entry.name)
         end
         row:SetSelected(entry.id == selectedID)
-        local color = row:IsMouseMotionFocus() and hoverColor or normalColor
-        row.Label:SetVertexColor(color:GetRGB())
+        if row:IsMouseMotionFocus() then
+            row.Label:SetVertexColor(hoverColor:GetRGB())
+        else
+            row.Label:SetVertexColor(normalR, normalG, normalB)
+        end
     end
     view:SetElementExtent(rowHeight)
     view:SetElementInitializer(useRecipeTemplate and recipeTemplate or "Button", BindRow)

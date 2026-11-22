@@ -320,7 +320,7 @@ end
 local function BindParticipantTile(tile, player, known, level, died, selectedRivalID)
     HideParticipantTooltips(tile)
     local isSelf = player.isSelf or tile.isLocalCharacter
-    tile.avatar:SetParticipant({
+    local class = tile.avatar:SetParticipant({
         race = player.race or known.race,
         sex = player.sex or known.sex,
         class = player.class or known.class,
@@ -329,6 +329,9 @@ local function BindParticipantTile(tile, player, known, level, died, selectedRiv
     local name = addon.ManualName(player.name) or addon.ManualName(known.displayName)
     if isSelf then name = name or addon.UnitPlayerName("player") or YOU end
     tile.name:SetText(name or (tile.isOpponent and L.unknownRival or L.unknownPlayer))
+    local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+    if color then tile.name:SetTextColor(color.r, color.g, color.b)
+    else tile.name:SetTextColor(1, 1, 1) end
     tile.rivalID = tile.canOpenRival and player.rivalID and known.displayName
         and addon.IsRosterRival(player.rivalID, known) and player.rivalID or nil
     tile:SetMouseClickEnabled(tile.rivalID ~= nil)

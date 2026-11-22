@@ -4,6 +4,7 @@ addon.swordsIconPath = artPath .. "CrossedSwords.tga"
 addon.smallSkullIconPath = artPath .. "TooltipSkull.tga"
 addon.defeatBannerPath = artPath .. "DefeatBanner.tga"
 addon.defeatStatIconPath = artPath .. "DefeatStatIcon.tga"
+addon.honorableKillIconPath = artPath .. "HonorableKill.tga"
 addon.battlefieldArtPath = artPath .. "Battlefield.tga"
 addon.levelBadgePath = artPath .. "LevelBadge.tga"
 addon.smallSwordsInset = 22
@@ -43,11 +44,6 @@ function addon.HonorIconTexture(faction)
     local currencies = Constants and Constants.CurrencyConsts
     if faction == "Horde" then return currencies and currencies.PVP_CURRENCY_HONOR_HORDE_INV_ICON or 463451 end
     return currencies and currencies.PVP_CURRENCY_HONOR_ALLIANCE_INV_ICON or 463450
-end
-
-function addon.HonorableKillIconPath(faction)
-    local rank = faction == "Horde" and "H" or "A"
-    return "Interface\\Icons\\Achievement_PVP_" .. rank .. "_12"
 end
 
 function addon.AreNameplateIconsEnabled()

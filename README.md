@@ -11,8 +11,8 @@ Full names can wrap to two lines. Both layouts show a circular result badge
 with a caption, using crossed swords for a victory and a torn gray banner on a
 broken pole for a defeat. The defeat count uses a square version on a painted
 background. A small
-skull on a portrait marks a recorded death. The reward icons use the current
-character's faction. The Honor Points counter uses the Currency tab's icon.
+skull on a portrait marks a recorded death. Honorable Kills uses a gold chevron
+for both factions. The Honor Points counter uses the Currency tab's icon.
 Alliance is blue and Horde is red. Use the information icon on a linked card
 to see both sides, levels, classes, and the finishing blows
 in the same window. **Back** returns to the rival and the same place in their

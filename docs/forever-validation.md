@@ -271,7 +271,9 @@ Escape, the close button, and the parent closing.
 
 The profession-inspired revision reuses the background and row-state atlases
 from `Blizzard_ProfessionsRecipeList.xml` and the generic recipe background
-from `Blizzard_Professions.lua`. The book owns all row data and frames.
+from `Blizzard_Professions.lua`. The book owns all row data and frames. It
+blends 25% `DIM_RED_FONT_COLOR` into `PROFESSION_RECIPE_COLOR` for rival names.
+Hovered names still use `HIGHLIGHT_FONT_COLOR`.
 The add dialog uses `AutoCompleteEditBoxTemplate` with the mail recipient
 filters in `MailFrame.xml` and leaves free-form entry available. Verify a known
 character suggestion, Tab and arrow selection, Enter accepting a suggestion
@@ -421,13 +423,20 @@ The book is 810 by 640 UI units, with the 304-unit Camelot recipe list width
 on the left. The right panel uses `ProfessionsReagentSlotBaseTemplate.Name`
 with its `GameFontHighlight_NoShadow` font and 46-unit horizontal offset. The
 heading uses the 20-unit `GameFontNormalSmall` label from
-`ProfessionsReagentContainerTemplate`. The score rows use the 45-unit step
-from the reagent slot height and the normal recipe's vertical spacing. The
-last encounter heading uses the 20-unit gap from `OptionalReagents` in
-`Blizzard_ProfessionsRecipeSchematicForm.xml`. Check the Information panel,
-an encounter with a 5 × 6 lineup, and the scroll area on a 1920 × 1080 client.
-The rank-12 helmet uses the client texture paths
-`Achievement_PVP_A_12` and `Achievement_PVP_H_12`. The Honor stat follows
+`ProfessionsReagentContainerTemplate`. In `Blizzard_Professions.lua`,
+`LayoutReagentSlots` and `LayoutAndShowReagentSlotContainer` both start slots
+20 units below their heading's top. `ProfessionsReagentSlotBaseTemplate`
+centers its 39-unit button within a 50-unit row, leaving 5.5 units from the
+label box to the button. The score grid uses that inset and the native
+45-unit row step. The last encounter card uses the same 5.5-unit inset below
+its label. `OptionalReagents` in `Blizzard_ProfessionsRecipeSchematicForm.xml`
+supplies the 20-unit gap between sections. Portrait captions in both card
+layouts use `RAID_CLASS_COLORS`. Compare the Information panel with Enchanting
+and check a 5 × 6 lineup and the scroll area on a 1920 × 1080 client.
+The Honorable Kills slot uses the approved gold chevron on a muted gray-violet
+background. `Art/HonorableKill.tga` is 128 × 128 and uses the same native
+reagent slot for both factions. Check its legibility at normal and reduced
+UI scales. The Honor Points stat follows
 `TokenEntryMixin:Initialize` in `Blizzard_TokenUI/Camelot/Blizzard_TokenUI.lua`
 and displays the `iconFileID` from the native currency list. A hidden currency
 can still supply its icon via `C_CurrencyInfo.GetCurrencyInfo` for Classic

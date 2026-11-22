@@ -7,7 +7,7 @@ local defeatGlyph = "|T" .. addon.defeatBannerPath .. ":14:14:0:1|t"
 local window, names, details, heading, profilePortrait, summary, wins, losses, status, selected, empty
 local search, tabBar, latestCard, latestEmpty, historyEmpty
 local honorableKills, honor
-local honorableKillsIcon, honorIcon
+local honorIcon
 local deletePopup = "NAMES_IN_RED_DELETE_RIVAL"
 local lower = strlower or string.lower
 local sideTabs = {}
@@ -20,6 +20,7 @@ local infoTab, historyTab = 1, 2
 local cardGap = 8
 local profileInset = 25
 local sectionHeaderHeight = 20
+local reagentButtonSize = 39
 local reagentSlotHeight, reagentRowSpacing = 50, -5
 local sectionGap = 20
 local statSwordInset = 0.11
@@ -66,15 +67,15 @@ local function SectionHeading(parent, y, width, text)
     label:SetSize(width, sectionHeaderHeight)
     label:SetJustifyH("LEFT")
     label:SetText(text)
+    return label
 end
 
-local function Stat(parent, x, y, width, texture, tooltipText)
+local function Stat(parent, section, x, y, width, texture, tooltipText)
     local holder, slot, icon, label
     if ProfessionsReagentSlotButtonMixin then
         local ok, reagent = pcall(CreateFrame, "Frame", nil, parent, "ProfessionsReagentSlotBaseTemplate")
         if ok then
             holder, slot = reagent, reagent.Button
-            holder:SetSize(slot:GetSize())
             label = holder.Name
             slot.CropFrame:Hide()
             slot.InputOverlay:Hide()
@@ -85,9 +86,11 @@ local function Stat(parent, x, y, width, texture, tooltipText)
         end
     end
     if not slot then
-        slot = CreateFrame("Button", nil, parent)
-        holder = slot
-        slot:SetSize(39, 39)
+        holder = CreateFrame("Frame", nil, parent)
+        holder:SetSize(width, reagentSlotHeight)
+        slot = CreateFrame("Button", nil, holder)
+        slot:SetSize(reagentButtonSize, reagentButtonSize)
+        slot:SetPoint("LEFT")
         local background = slot:CreateTexture(nil, "BACKGROUND")
         background:SetAllPoints()
         addon.ApplyAtlas(background, "Professions-Slot-bg")
@@ -104,7 +107,7 @@ local function Stat(parent, x, y, width, texture, tooltipText)
         label:SetHeight(36)
     end
     SetStatIconCrop(icon, texture)
-    holder:SetPoint("TOPLEFT", x, y)
+    holder:SetPoint("TOPLEFT", section, "BOTTOMLEFT", x, y)
 
     slot:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -199,7 +202,6 @@ local function ShowDetails()
         honorableKills:SetText(L.statValue:format(L.honorableKills, honorableKillCount))
         honor:SetText(L.statValue:format(L.honor, honorTotal))
         local faction = rival.demoFaction or addon.PlayerFaction()
-        honorableKillsIcon:SetTexture(addon.HonorableKillIconPath(faction))
         honorIcon:SetTexture(addon.HonorIconTexture(faction))
         local level
         for _, encounter in ipairs(history) do
@@ -561,26 +563,26 @@ local function ToggleBook()
         status:SetJustifyH("LEFT")
         status:SetTextColor(0.72, 0.67, 0.59)
         local statsTop = -92
-        SectionHeading(summary, statsTop, cardWidth, L.personalScore)
-        local firstRow = statsTop - sectionHeaderHeight
-        local secondRow = firstRow - reagentSlotHeight - reagentRowSpacing
+        local statsHeading = SectionHeading(summary, statsTop, cardWidth, L.personalScore)
+        local secondRow = -reagentSlotHeight - reagentRowSpacing
         local columnGap = 12
         local columnWidth = (cardWidth - columnGap) / 2
-        local rewardColumn = profileInset + columnWidth + columnGap
-        wins = Stat(summary, profileInset, firstRow, columnWidth, addon.swordsIconPath, L.winsDescription)
-        losses = Stat(summary, profileInset, secondRow, columnWidth, addon.defeatStatIconPath, L.lossesDescription)
+        local rewardColumn = columnWidth + columnGap
+        wins = Stat(summary, statsHeading, 0, 0, columnWidth, addon.swordsIconPath, L.winsDescription)
+        losses = Stat(summary, statsHeading, 0, secondRow, columnWidth, addon.defeatStatIconPath, L.lossesDescription)
         local faction = addon.PlayerFaction()
-        honorableKills, honorableKillsIcon = Stat(summary, rewardColumn, firstRow, columnWidth,
-            addon.HonorableKillIconPath(faction), L.honorableKills)
-        honor, honorIcon = Stat(summary, rewardColumn, secondRow, columnWidth, addon.HonorIconTexture(faction), L.honor)
-        local latestHeadingTop = secondRow - reagentSlotHeight - sectionGap
-        SectionHeading(summary, latestHeadingTop, cardWidth, L.latestEncounter)
-        local latestCardTop = latestHeadingTop - sectionHeaderHeight
+        honorableKills = Stat(summary, statsHeading, rewardColumn, 0, columnWidth,
+            addon.honorableKillIconPath, L.honorableKills)
+        honor, honorIcon = Stat(summary, statsHeading, rewardColumn, secondRow, columnWidth,
+            addon.HonorIconTexture(faction), L.honor)
+        local latestHeadingTop = statsTop - sectionHeaderHeight + secondRow - reagentSlotHeight - sectionGap
+        local latestHeading = SectionHeading(summary, latestHeadingTop, cardWidth, L.latestEncounter)
+        local latestInset = (reagentSlotHeight - reagentButtonSize) / 2
         latestEmpty = summary:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-        latestEmpty:SetPoint("TOPLEFT", profileInset, latestCardTop)
+        latestEmpty:SetPoint("TOPLEFT", latestHeading, "BOTTOMLEFT", 0, -latestInset)
         latestEmpty:SetText(L.noSkirmishes)
         latestCard = CreateRivalCard(summary, cardWidth, CloseForMap)
-        latestCard:SetPoint("TOPLEFT", profileInset, latestCardTop)
+        latestCard:SetPoint("TOPLEFT", latestHeading, "BOTTOMLEFT", 0, -latestInset)
         empty = right:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         empty:SetPoint("CENTER", 0, 5)
         empty:SetWidth(305)

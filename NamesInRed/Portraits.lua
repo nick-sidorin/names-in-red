@@ -231,8 +231,8 @@ function addon.CreateParticipantPortrait(parent, options)
             SetRacePortrait(portrait, appearance, id, size, opposing)
         end
         level:SetLevel(playerLevel)
+        local class = appearance.class
         if classBadge then
-            local class = appearance.class
             if not class and id then
                 local _, _, knownClass = addon.RivalAppearance(id)
                 class = knownClass
@@ -246,6 +246,7 @@ function addon.CreateParticipantPortrait(parent, options)
             local shade = died and 0.78 or 1
             portrait:SetVertexColor(shade, shade, shade)
         end
+        return class
     end
     return component
 end

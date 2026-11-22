@@ -106,8 +106,6 @@ assert(loadfile("NamesInRed/Encounter.lua"))("NamesInRed", addon)
 assert(loadfile("NamesInRed/Portraits.lua"))("NamesInRed", addon)
 assert(loadfile("NamesInRed/EncounterCards.lua"))("NamesInRed", addon)
 assert(loadfile("NamesInRed/Core.lua"))("NamesInRed", addon)
-assert(addon.HonorableKillIconPath("Alliance") == "Interface\\Icons\\Achievement_PVP_A_12")
-assert(addon.HonorableKillIconPath("Horde") == "Interface\\Icons\\Achievement_PVP_H_12")
 assert(addon.HonorIconTexture("Alliance") == 463450 and addon.HonorIconTexture("Horde") == 463451)
 Constants = { CurrencyConsts = { CLASSIC_HONOR_CURRENCY_ID = 1901 } }
 local listedHonorIcon = 900101
@@ -311,6 +309,7 @@ C_Texture = {
 }
 date = os.date
 local selectedRival, journalMapOpened, timelineRequested
+RAID_CLASS_COLORS = { MAGE = { r = 0.25, g = 0.78, b = 0.92 } }
 local card = addon.CreateSkirmishCard(MockRegion(), 736, function() journalMapOpened = true end,
     function(id) selectedRival = id end, function(battle) timelineRequested = battle end)
 local allies = { { id = "me", name = "My Character", isSelf = true }, { id = "ally", name = "Ally Warrior" } }
@@ -340,6 +339,7 @@ assert(loadfile("NamesInRed/RivalList.lua"))("NamesInRed", addon)
 do
     local function Color(r, g, b) return { GetRGB = function() return r, g, b end } end
     PROFESSION_RECIPE_COLOR = Color(0.85, 0.84, 0.81)
+    DIM_RED_FONT_COLOR = Color(0.9, 0.22, 0.28)
     HIGHLIGHT_FONT_COLOR = Color(1, 1, 1)
     ScrollBoxConstants = { RetainScrollPosition = true }
     CreateDataProvider = function(entries) return entries end
@@ -399,7 +399,9 @@ do
     assert(view.template == "ProfessionsRecipeListRecipeTemplate")
     list:SetRivals({ firstRival, secondRival }, "second")
     local first, second = unpack(list.rows)
-    assert(first.Label:GetText() == "First Rival" and first.Label.color[1] == 0.85)
+    local normal = first.Label.color
+    assert(first.Label:GetText() == "First Rival" and normal[1] > normal[2] and normal[1] > normal[3])
+    assert(normal[2] < 0.84 and normal[3] < 0.81)
     assert(not first.SelectedOverlay.shown and first.HighlightOverlay.shown)
     assert(second.SelectedOverlay.shown and not second.HighlightOverlay.shown and not second.Count.shown)
     first.Label.truncated = true
@@ -408,7 +410,8 @@ do
     first.scripts.OnClick(first)
     assert(clicked == "first")
     first.scripts.OnLeave(first)
-    assert(first.Label.color[1] == 0.85 and not GameTooltip.owner)
+    assert(first.Label.color[1] == normal[1] and first.Label.color[2] == normal[2]
+        and first.Label.color[3] == normal[3] and not GameTooltip.owner)
     list:SetRivals({ firstRival, secondRival }, "first")
     assert(first.SelectedOverlay.shown and not second.SelectedOverlay.shown and list.providerUpdates == 1)
     list:SetRivals({ secondRival }, "second")
@@ -540,6 +543,7 @@ assert(not allyEmblem.shown and enemyEmblem.shown)
 missingAtlas = nil
 faction = "Alliance"
 local name = assert(FindText(card, "Test Rival"))
+assert(name.color[1] == 0.25 and name.color[2] == 0.78 and name.color[3] == 0.92)
 local rimHighlight = name.parent.highlight
 assert(name.parent.highlightLocked and rimHighlight.bounds == name.parent.avatar.rim)
 assert(rimHighlight.atlas == "Mode-Selection-Ring" and rimHighlight.blend == "ADD" and rimHighlight.alpha == 0.45)
@@ -576,6 +580,9 @@ assert(rosterHint.anchor[2] == partialCount and rosterHint.anchor[4] > 0)
 rosterHint.scripts.OnEnter(rosterHint)
 assert(GameTooltip.shown and GameTooltip.title == addon.L.partialRoster)
 assert(tooltipLines[#tooltipLines] == addon.L.partialRosterHint)
+card:SetSkirmish({ allies = { allies[1] }, enemies = { enemies[2] }, events = {} })
+assert(FindText(card, "Other Rival") == name)
+assert(name.color[1] == 1 and name.color[2] == 1 and name.color[3] == 1)
 card:SetSkirmish(nil)
 assert(not card.shown and not GameTooltip.shown)
 print("Skirmish card roster, faction emblems, outcomes and recycling checks passed")
@@ -634,6 +641,7 @@ assert(myBadge.anchor[1] == "BOTTOMLEFT" and myBadge.anchor[3] == "BOTTOMLEFT")
 assert(opponentBadge.anchor[1] == "BOTTOMRIGHT" and opponentBadge.anchor[3] == "BOTTOMRIGHT")
 assert(#myBadge.anchor == 3 and #opponentBadge.anchor == 3 and myBadge.width == opponentBadge.width)
 local myName, opponentName = FindText(compact, "My Character"), FindText(compact, "Test Rival")
+assert(opponentName.color[1] == 0.25 and opponentName.color[2] == 0.78 and opponentName.color[3] == 0.92)
 local myRim, opponentRim = myName.parent.avatar.rim, opponentName.parent.avatar.rim
 assert(myRim.width == 64 and opponentRim.width == myRim.width)
 assert(myName.font == "GameFontHighlight_NoShadow" and opponentName.font == myName.font)
