@@ -1,10 +1,10 @@
-# Names in Red — Open-World Skirmishes: Product Specification
+# Names in Red — PvP Skirmishes: Product Specification
 
 **Status:** Product behavior proposal, 23 November 2026. This describes what Names in Red should do, not a claim about what the current addon already implements. It is intentionally independent of code, events, and APIs.
 
 ## 1. Product goal
 
-Names in Red is a personal journal of **open-world PvP skirmishes**. A skirmish is a connected, local confrontation between opposing sides, **not** a collection of killing blows. A duel is only the simplest case. A fight may involve many people, unrelated parties, loosely allied players, controlled pets, support characters, and participants joining or leaving at different times.
+Names in Red is a personal journal of **PvP skirmishes in the open world and, optionally, on battlegrounds**. A skirmish is a connected, local confrontation between opposing sides, **not** a collection of killing blows. A duel is only the simplest case. A fight may involve many people, unrelated parties, loosely allied players, controlled pets, support characters, and participants joining or leaving at different times.
 
 When revisiting a fight, the player should understand:
 
@@ -14,10 +14,13 @@ When revisiting a fight, the player should understand:
 
 The journal records real fights, **including fights with no deaths, Honorable Kills, or Honor Points**. Never fabricate missing participants, deaths, rewards, or certainty.
 
-## 2. Scope: open-world PvP only
+## 2. Scope: open-world PvP and optional battleground PvP
 
 - Record PvP confrontations between opposing player characters in the **open world**.
-- **Do not track battleground combat.** It must not start or update skirmishes, change rival scores, or create combat indicators based on battleground encounters. Previously saved open-world history may remain browseable.
+- **Battlegrounds are supported and enabled by default.** The player can opt out using one settings checkbox: **Track Battleground Skirmishes** (default **ON**).
+- When the checkbox is ON, battleground skirmishes follow the same fundamental idea as open-world skirmishes: track the **local, connected confrontation**, not automatically the entire battleground match, its full team rosters, or its final scoreboard.
+- When the checkbox is OFF, **do not capture new battleground skirmishes, change rivalry statistics due to battleground events, or show contextual rival indicators during battleground play**. Existing records remain saved and can still be browsed in the journal; open-world tracking is unaffected.
+- The same opposing player can be recognized later in the world or on another battleground. Keep **one rival identity and shared history**, with each individual encounter labelled by its origin; do not create duplicate rival profiles for each context.
 - Other instanced PvP modes are outside this specification. Do not silently expand scope to them.
 - Do not turn ordinary PvE encounters, friendly activity, nearby spectators, or independent fights into this skirmish.
 - This is a locally observed personal account, not a global reconstruction of an entire battlefield.
@@ -43,6 +46,7 @@ A skirmish is a **continuous, connected hostile confrontation** between the two 
 - Separate nearby fights must remain separate when they are not part of the same connected confrontation.
 - A genuinely new engagement after the previous local confrontation has ended starts a new skirmish; don't merge independent fights merely because they happen near each other.
 - Do not split one continuing fight just because the local player briefly leaves combat, changes target, or loses sight of a unit.
+- **Battleground-specific:** the match can contain many independent clashes (for example, at different objectives). Record distinct local fights as distinct skirmishes. A death followed by a respawn and a later new fight is not automatically part of the first fight. Conversely, a continuing fight is not split merely because it takes place on a battleground.
 
 ## 4. Participants: the entire involved side, not only finishers
 
@@ -86,7 +90,7 @@ A disappearance from a nameplate alone is **not proof** of death, retreat, or vi
 
 ## 6. Outcome: Victory, Defeat, or genuinely Unknown
 
-The result belongs to **the local character's side**, not to the local player's personal kill count, damage, or survival.
+The result belongs to **the local character's side in this local confrontation**, not to the local player's personal kill count, damage, or survival. On battlegrounds, **winning or losing the entire match does not automatically determine the result of any individual skirmish**: a side can win a clash yet lose the match, or vice versa.
 
 ### Victory
 
@@ -132,9 +136,10 @@ A skirmish report should tell the understandable story of the event:
 - **Key events:** confirmed finishing blows, relevant deaths/revivals and other meaningful actions when available; not a noisy transcript of every spell.
 - **Rewards:** earned Honorable Kills and Honor Points when reliably attributable to the fight. **A fight can exist without either reward**, including a legitimate PvP clash with an Unknown outcome.
 - **When/where:** approximate time, zone, and location/waypoint if known.
+- **Origin:** explicitly distinguish **Open World** from **Battleground** on saved skirmishes. For battleground skirmishes, show a compact localized **Battleground** label or badge immediately beside the battleground/zone name on **both compact and expanded cards**. The location name alone is not the indicator; the provenance remains visible even if the location text is unfamiliar or localized.
 - **Coverage:** distinguish observed participants from a certified complete roster.
 
-For rivalry statistics, one recorded skirmish can count once as a side Victory or Defeat against each **confirmed opposing participant** associated with it; Unknown contributes to fight history but not either win/loss counter. Rewards are a separate concept, not proof of victory or who delivered a finishing blow.
+For rivalry statistics, one recorded skirmish can count once as a side Victory or Defeat against each **confirmed opposing participant** associated with it; Unknown contributes to fight history but not either win/loss counter. Open-world and enabled battleground encounters feed the **same rival history**; their origin is recorded on each encounter. Rewards are a separate concept, not proof of victory or who delivered a finishing blow.
 
 Do not quietly omit a demonstrated healer simply because the local character landed all finishing blows.
 
@@ -171,10 +176,16 @@ The old **Unknown** is not acceptable *merely because* the third enemy was last 
 14. **Mutual disengagement:** retain the fight with an Unknown result and no invented rewards; do not count it as a win or loss.
 15. **No rewards:** a confirmed meaningful skirmish with zero HKs or Honor Points still belongs in history.
 16. **Duskwood reference:** reconstruct observed 2 vs 3 participation, two confirmed deaths, and Victory when the opposing force has dispersed and Alliance holds the field.
-17. **Battleground:** no newly tracked skirmish, score changes, or encounter indicators from battleground combat.
+17. **Battleground enabled (default):** a real connected local battleground fight is saved as its own skirmish, with the **Battleground** context label by the location on compact and expanded cards; the match as a whole is not incorrectly treated as one giant fight.
+18. **Battleground disabled:** no new BG skirmishes or related score changes/indicators while on a BG; previous history remains accessible and open-world tracking continues.
+19. **Battleground vs match outcome:** win an objective-area clash and later lose the match; the clash retains its **Victory**, without importing the match's **Defeat**.
+20. **Distinct battleground clashes:** die or disengage, later respawn or travel to a different fight; do not merge unrelated encounters because they share a BG instance.
+21. **Cross-context rival:** face an opponent on a BG and meet them later in the open world; both encounters appear under **one rival profile**, each with the correct context.
+22. **BG unresolved fight:** a genuine clash with no clear winner, no kills, and no honor stays in history as **Unknown**.
 
 ## 10. Boundaries and follow-up work
 
+- **Do not force battleground outcomes to equal match wins/losses.** The skirmish result always belongs to the local fight.
 - **No manual editing of participants or outcomes** as part of this redesign. Do not create a correction UI just to avoid solving automatic inference.
 - Existing manual-entry features are separate and are not implicitly removed by this specification.
 - **Later, separately:** add a visible **Beta / Report a Problem** action directly within the journal, opening the project's GitHub Issues reporting path. Existing support in settings remains. Do not expose private saved-data logs automatically.
@@ -183,4 +194,4 @@ The old **Unknown** is not acceptable *merely because* the third enemy was last 
 
 ---
 
-**Guiding principle:** **Record the local fight that actually happened. Show as many genuine participants as can be observed. Award victory for a won confrontation, not only for exterminating every opponent. Keep Unknown for genuinely uncertain outcomes—not as a substitute for recognizing a clear win.**
+**Guiding principle:** **Record the local fight that actually happened, in the open world or on an enabled battleground. Show as many genuine participants as can be observed. Award victory for a won confrontation, not only for exterminating every opponent. Keep Unknown for genuinely uncertain outcomes—not as a substitute for recognizing a clear win.**
