@@ -67,7 +67,7 @@ published evidence.
 | One opposing player kills the local player in world PvP and in a battleground | Fresh recap associates a unique lethal row with the actual attacker |
 | Several attackers, NPC or fall as finisher, pet or guardian, exact-lethal damage | No attribution to a recent attacker or guessed owner |
 | Rapid deaths, release, resurrection and reload while dead | Old recap cannot count again or be applied to the next death |
-| Solo and party kills, group member kill, pet kill, unrelated nearby death, Feign Death | Check `PARTY_KILL` delivery and accessibility. Only a readable direct personal blow can qualify by default |
+| Solo and party kills, group member kill, pet kill, unrelated nearby death, Feign Death | Check `PARTY_KILL` delivery and accessibility for the local player and readable group members |
 | Simultaneous deaths in an active battleground and final scoreboard | Compare totals and verify that a matching delta does not qualify as an individual kill |
 | Target, mouseover and nameplate in/out of combat and across plate reuse | Match only the currently exposed unit; restricted or stale identity clears decorations |
 | Cold login, reload, switch characters, logout and relog | Verify SavedVariables loading, persistence and isolation |
@@ -127,7 +127,140 @@ One open-world death on 1.60.1.70959 produced two PLAYER_DEAD notifications
 hostile player, including readable GUID, display name, flags and a lethal hit
 with 87 overkill. Later reads repeated the same lethal timestamp. The test
 fixture reproduces this duplicate with synthetic identity and timestamps.
-Coverage for groups and battlegrounds still needs live data.
+
+A later open-world group session exposed two different player finishing blows
+with readable GUIDs, hostile player flags and positive overkill. Each death
+produced two notifications with the same lethal timestamp. One recap also
+contained another player and two creatures, and the other contained two
+additional players. Replaying the four notifications through the updated
+handler yielded two records with two and three hostile players respectively.
+The finishing blow is checked separately from the other recent damage rows.
+The attacker list is limited to readable hostile players in that recap.
+The new card tooltip uses the native `GameTooltip`.
+
+On the Forever 70959 source branch, `Blizzard_DeathRecap.lua` loads the event
+array through `C_DeathRecap.GetRecapEvents` and uses `overkill` in its damage
+display. Generated `UnitDocumentation.lua` documents that standalone
+`PARTY_KILL` carries attacker and target GUIDs. Neither observation establishes
+the entire participant roster. Falls, pet credit, participation on the outgoing
+kill path and battleground coverage still need validation. The new card
+tooltip has not been checked in the live client.
+
+### Participant diagnostic preview
+
+The 0.1.3-preview.1 build records a local combat sequence, group snapshots,
+and readable target metadata at combat boundaries. After combat, it samples
+Damage Done, Damage Taken, Enemy Damage Taken and Healing Done. A single
+newly archived meter session takes precedence. A Current-session sample is
+explicitly labeled as a fallback when a unique new archive is unavailable.
+The capture is scoped to its combat sequence and is marked interrupted when
+combat resumes before the read. Source and spell lists have bounded samples.
+Secret, restricted and unavailable fields retain their read status.
+
+The probe follows the supported APIs used by
+`DamageMeterSessionWindowMixin:GetCombatSession`,
+`DamageMeterSourceWindowMixin:GetCombatSessionSource` and the target fields
+used by `DamageMeterEntry.lua` in Forever 70959. A target name in an
+aggregate is evidence to inspect rather than automatic encounter attribution.
+Compare both players' saves after a fight in a party and a fight outside it.
+Have one attack while the other lands the finishing blow. This probe needs
+live-client validation.
+
+### Seeded full-battle cards
+
+The 0.1.3-preview.2 cards use the existing book frames, text and world map
+action. For class icons they use the native class sheet and UVs, following
+`Blizzard_PVPMatch/PVPMatchTable.lua`. Class colors use the client's
+`RAID_CLASS_COLORS` as in `Blizzard_FriendsFrame/Mainline/FriendsFrame.lua`.
+The two-column roster and the time-ordered blow list are owned by Names in Red.
+The test suite exercises card reuse across different roster sizes and verifies
+that fixture removal preserves other saved records. Card rendering still
+needs a Forever client check.
+
+The current sample roster uses fictional encounters with consistent portraits
+and levels. Open the Winterspring 2 × 2 rematch to test a recorded win after
+the local player dies. The Eastern Plaguelands 5 × 6 loss awards honor for
+two opponents. The Western Plaguelands crossing exercises an incomplete
+roster and unknown outcome. See [the sample roster](debug-preview.md#sample-roster-for-screenshots)
+for the screenshot sequence.
+
+The live observer uses `PARTY_KILL` and local death recap rows to assemble
+a partial open-world record. Killing-blow identity can come from the player
+or a readable party member. A short tail after leaving combat lets a nearby
+teammate's finishing blow join the same record. A long gap after combat, a
+world change or resurrection starts a fresh observation. Check missing targets, ghost state
+and the timing of kills your group makes after you die.
+
+In the 0.1.3-preview.22 solo replay, two lethal recaps had no matching target
+or mouseover. At both deaths the diagnostic log could still read the same
+attacker's class and level from a nameplate. The death handler now takes a
+GUID-keyed snapshot from ordinary nameplates as well as target and mouseover
+before waiting for the recap. `C_NamePlate.GetNamePlates` follows the same
+visible-plate path as the kill handler. Only recap-confirmed attackers enter
+the roster. Verify a hostile finishing blow while targeting nothing, including
+a delayed recap after the nameplate disappears. Old cards use known class and
+portrait details. A missing attacker level can be recovered from an outdoor
+combat-end observation in the same second and zone, with matching participant
+GUIDs and a recorded local death. The cards otherwise leave the level unknown.
+
+An open-world skirmish with one recorded rival, the local player alone on
+their side and direct finishing blows between them is treated as an observed
+duel. Use the recorded deaths to decide the result. Two eliminated sides
+still leave the result unknown. The roster is recalculated on load and after
+each update, so additional participants can reopen a provisional result.
+The live solo replay should show one win, two losses and one honorable kill
+for ten honor in the rival profile. Verify the markers in both card layouts.
+
+The user's 70959 group log showed a session HK increase from four to five
+317 ms after a readable player death credited to another attacker, followed
+roughly one second after the kill by a localized honor message. The preview
+correlates a single plausible player death with one session HK increment, using
+`GetPVPSessionStats` and `PLAYER_PVP_KILLS_CHANGED`. Repeated notifications
+are coalesced by the cumulative counter. For honor, it uses a single
+`CHAT_MSG_COMBAT_HONOR_GAIN` delivery and the observed ruRU amount or a
+numeric `CURRENCY_DISPLAY_UPDATE` for an honor currency. These events still
+lack a shared victim identifier. Verify an isolated kill, simultaneous kills,
+reward-only messages and secret data in the live client.
+
+Both card sizes display the sum of the recorded rewards for the whole battle.
+The footer follows the count-then-icon order of `BackpackTokenTemplate` in
+`Blizzard_TokenUI/Camelot/Blizzard_TokenUI.xml`. The card uses 14-unit icons
+with an 8% crop on each side to remove baked-in borders. The icon hover
+identifies the reward earned in the skirmish. The full card places rewards
+at the right of the Finishing blows heading and opens the list below it.
+Check alignment with larger counts, and compare a team skirmish in both
+card sizes and a fight without recorded finishing blows.
+
+From preview.6 onward, a rival's linked cards open a full-width battle in
+the same book. This follows the in-window detail transition in
+`ProfessionsCraftingPageMixin:SelectRecipe` in `Blizzard_ProfessionsCrafting.lua`.
+The Back control uses the native `UIPanelButtonTemplate` and `BACK` text as
+in `Blizzard_ProfessionsCrafterOrderView.xml`. The chosen rival's highlight
+uses the same `Professions_Recipe_Active` atlas as the book roster.
+In Forever, check **Open skirmish** from Information and a scrolled rival
+history, then **Back**. Include an old saved battle outside the latest 100
+and a partial record. Check the selected highlight and localized button widths.
+
+### Expanded evidence in 0.1.3-preview.3
+
+The old preview captured kills, honor changes and death recaps. The next
+preview added combat boundaries, party snapshots and post-combat meter data.
+This preview adds visible player observations from target, mouseover and
+ordinary nameplate events, plus readable target, pet, combat and death state.
+The probe uses the unit tokens documented in Forever's
+`NamePlateManagerDocumentation.lua` and `UnitDocumentation.lua`. It does not
+read forbidden nameplates. Observations are candidates for investigation.
+Visibility, a target change or a group entry alone does not prove participation.
+
+Group and pet context is sampled around combat and readable kill events.
+Group changes and damage-meter update IDs are recorded within the combat
+window. The post-combat read probes deaths, interrupts and dispels alongside
+the existing damage and healing categories when supported.
+Observations are bounded to 32 readable contacts and eight previous states per
+contact. Repeated flags are throttled. The first eight fully obscured kill
+events in a combat are stored individually, with the total retained at combat
+end. Protected fields remain unavailable. The collector is local and the
+additional event coverage needs a check in the Forever client.
 
 The UI uses the Forever Blizzard PortraitFrameTemplate,
 UIPanelScrollFrameTemplate and UIPanelButtonTemplate, and a unit-only
@@ -147,7 +280,9 @@ Escape, the close button, and the parent closing.
 
 The profession-inspired revision reuses the background and row-state atlases
 from `Blizzard_ProfessionsRecipeList.xml` and the generic recipe background
-from `Blizzard_Professions.lua`. The book owns all row data and frames.
+from `Blizzard_Professions.lua`. The book owns all row data and frames. It
+blends 25% `DIM_RED_FONT_COLOR` into `PROFESSION_RECIPE_COLOR` for rival names.
+Hovered names still use `HIGHLIGHT_FONT_COLOR`.
 The add dialog uses `AutoCompleteEditBoxTemplate` with the mail recipient
 filters in `MailFrame.xml` and leaves free-form entry available. Verify a known
 character suggestion, Tab and arrow selection, Enter accepting a suggestion
@@ -169,8 +304,10 @@ Camelot's profession overrides in `Blizzard_ProfessionsFrame.lua` and
 schematic NineSlice anchors. The book follows that treatment and uses the
 recipe atlas for the right panel's ornamental frame.
 
-The book uses the top band of Camelot's `Profession-Background-Template2`
-atlas, including its lower edge. The details panel uses a plain recipe backdrop,
+The book crops the top band of Camelot's `Profession-Background-Template2`
+atlas from `Blizzard_ProfessionsFrame.xml`. The crop stays fixed at the
+original band depth, including its lower edge, as the displayed width grows.
+The details panel uses a plain recipe backdrop,
 a proportional Engineering illustration with feathered edges in the lower right,
 and the separate `common-insideframe` trim from Camelot's schematic XML. The portrait uses the
 add dialog's circle mask and rim. UV insets remove the inventory bevel from
@@ -214,19 +351,143 @@ Camelot's `SchematicFormCraftingTemplate` in
 `Blizzard_ProfessionsRecipeSchematicForm.xml` uses that same rim on the BORDER
 layer. The full right column uses the same `Professions-background-summarylist`
 atlas as the roster and `Blizzard_ProfessionsRecipeList.xml`. The right
-column underlay lives on the page's BACKGROUND layer, below the Delete
-button's three-slice artwork. Check the button after opening and reopening
-the book and when switching pages. Delete confirmation uses the client's shared
+column underlay lives on the page's BACKGROUND layer. The inset reaches the
+bottom of the book, with a red Delete control inside its upper-right corner.
+The control follows `GearSetButtonTemplate`'s `DeleteButton` from Camelot
+`PaperDollFrame.xml`, including the `UI-GroupLoot-Pass-Up` texture and hover
+opacity. Check it on Information and confirm it is hidden on Skirmishes.
+Delete confirmation uses the client's shared
 `StaticPopupButtonTemplate` from `Blizzard_StaticPopup_Game/GameDialog.xml`.
 The book fades the left side of its illustration into the recipe
 background using the texture gradient API. Check that the upper rim is
 continuous in both tab states and that the illustration has no visible seam
 at its left edge, including at non-default UI scales.
 
-History uses the same `ScrollFrameTemplate` as the roster, with cards reused
-as the viewport scrolls. Check both tabs on 1.60.1 with empty, legacy, manual
-and seeded histories. Scroll through a long history, then switch rivals while
-scrolled.
+Encounter history uses `ScrollFrameTemplate` and reuses cards as the viewport
+scrolls. The global and linked full-skirmish views share the card-list layout,
+scrollbar gutter, and battlefield background. Their summary-list backdrop
+uses the same tint (0.76) and the illustration uses the same alpha (0.24) as
+the Information pane. Compare the empty views and check both tabs on 1.60.1 with
+empty, legacy, manual and seeded histories. Scroll through a long history,
+then switch rivals while scrolled.
+
+The rival sidebar uses the native `WowScrollBoxList`, `MinimalScrollBar`, and
+`ProfessionsRecipeListRecipeTemplate` in
+`Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeList.xml`. The recipe
+button's overlays keep the atlas dimensions, including the 0.5-alpha hover.
+`ProfessionsRecipeListRecipeMixin:GetLabelColor` and `OnEnter` supply the
+recipe and highlight colors. The journal binds its own names and click and
+hover handlers because the native handlers read crafting recipe IDs. If the
+load-on-demand recipe template is unavailable, the row uses its font and
+atlas geometry on a plain button. The linear view uses the recipe tree's
+20-unit entries, 1-unit spacing, and one level of recipe indentation.
+The 304-unit sidebar width comes from `ProfessionsCraftingPageMixin:OverrideArt`
+in Camelot's `Blizzard_ProfessionsCrafting.lua`. The search box uses the
+recipe list's anchors and height, with the add button centered over the scrollbar.
+Check the first open before opening any profession, hover and selection during
+scrolling, search while scrolled, and the adjacent add and scrollbar alignment.
+
+Both skirmish card layouts use `CommonSquareIconButtonTemplate` from
+`Blizzard_SharedXML/Shared/Button/IconButtonTemplate.xml`, including native
+tooltips and click handling supplied by `UIButtonMixin`. Its icons come from
+`WaypointLocationPinTemplate` and `UIPanelInfoButton`. The button frames are
+32 units square with 16-unit icons. Center the icon at rest and restore that
+center after `SquareIconButtonMixin:OnMouseUp`. The
+header uses the square template's scaled four-unit inset to match the date-to-map
+and map-to-information gaps. Both map buttons share the same center anchor and
+pixel rounding. The compact information icon uses a half-unit upward
+adjustment. Verify the diamond at different UI scales, before and after clicking.
+All dividers use the factor from Blizzard's `PixelUtil.lua` divided by the
+texture's effective scale. The two-pixel height and lighter opacity keep the
+line subtle and give it coverage as scrolling lands between physical pixels.
+The layout rounds to the pixel grid and the texture skips separate texel
+snapping. The full header, roster headings and timeline use the same dividers.
+Check their visibility while slowly scrolling at different UI scales.
+The profile and both card layouts use the same 64-unit portrait and 24-unit
+level badge. Card names wrap to two lines. Level and class badges share the
+same frame and anchor to opposite lower corners. Class icons use the game's `CLASS_ICON_TCOORDS`
+sheet as in `PVPCellClassMixin:Populate`, with a circular mask and a localized
+tooltip. The badge rounds its radius to a physical pixel using
+`PixelUtil.GetNearestPixelSize`. Its circle and label fill the same
+pixel-rounded bounds. The label uses horizontal center and vertical middle
+alignment with `GameFontHighlight` throughout the journal. The texture disables separate texel snapping, as in
+`NineSliceUtil.DisableSharpening`.
+Check levels 54, 55 and 57 on both sides at different UI scales. The rim uses
+`Mode-Selection-Ring`
+from `Blizzard_GlueXML/Mainline/SuperDistrict.xml`. The highlight draws the
+same rim at 0.45 alpha in additive mode, following the profession output
+button's inherited `CircularGiantItemButtonTemplate` in
+`Blizzard_ItemButton/Mainline/ItemButtonTemplate.xml`. In a linked fight, the
+selected rival keeps its rim glow via `LockHighlight`. Check that neither hover
+nor selection changes the image inside and that scrolling releases the glow
+when the tile is rebound.
+Both layouts share a 56-unit result badge and localized caption. Victory and defeat use captions
+alone. The unknown result and skulls retain their tooltips. The circle art
+comes from `UI-HUD-UnitFrame-SmallCircle` in Camelot's
+`TargetFrameTemplates.xml`. The casualty marker uses a 20-unit circle in both layouts. Verify badge text, mirrored sides, and
+tooltips at several UI scales.
+A local portrait with no saved race portrait uses `SetPortraitTexture`, as in Camelot's
+`CharacterFrameMixin:UpdateCharacterModeTabPortrait`. Race portraits use the
+`resetTexCoords` argument to `SetAtlas`. The compact rival portrait flips its
+full atlas region horizontally with `SetTexCoord(1, 0, 0, 1)`, following
+`Blizzard_OrderHallUI/Blizzard_OrderHallTalents.lua` where the same talent atlas
+is drawn facing either way. Check the full crop in the profile and the compact
+card, and click the same rival repeatedly to verify the direction.
+The book is 810 by 640 UI units, with the 304-unit Camelot recipe list width
+on the left. The right panel uses `ProfessionsReagentSlotBaseTemplate.Name`
+with its `GameFontHighlight_NoShadow` font and 46-unit horizontal offset. The
+heading uses the 20-unit `GameFontNormalSmall` label from
+`ProfessionsReagentContainerTemplate`. In `Blizzard_Professions.lua`,
+`LayoutReagentSlots` and `LayoutAndShowReagentSlotContainer` both start slots
+20 units below their heading's top. `ProfessionsReagentSlotBaseTemplate`
+centers its 39-unit button within a 50-unit row, leaving 5.5 units from the
+label box to the button. The score grid uses that inset and the native
+45-unit row step. The last encounter card uses the same 5.5-unit inset below
+its label. `OptionalReagents` in `Blizzard_ProfessionsRecipeSchematicForm.xml`
+supplies the 20-unit gap between sections. Portrait captions in both card
+layouts use `RAID_CLASS_COLORS`. Compare the Information panel with Enchanting
+and check a 5 × 6 lineup and the scroll area on a 1920 × 1080 client.
+The Honorable Kills slot uses a 128 × 128 gold chevron texture with 21 texels
+of background on each side. `ProfessionsButtonMixin:OnLoad` positions the
+frame separately from the icon. The preview.38 and preview.39 screenshots
+showed opposite imbalances. The square crop samples 0.75 texel farther right,
+half the preview.39 adjustment. Check the chevron's centering and legibility
+in Forever at normal and reduced UI scales. The
+Honor Points stat follows
+`TokenEntryMixin:Initialize` in `Blizzard_TokenUI/Camelot/Blizzard_TokenUI.lua`
+and displays the `iconFileID` from the native currency list. A hidden currency
+can still supply its icon via `C_CurrencyInfo.GetCurrencyInfo` for Classic
+Honor. The generated `PVP_CURRENCY_HONOR_*_INV_ICON` constants provide faction
+fallbacks. Compare the artwork with the Currency tab on Alliance and Horde,
+including a collapsed PvP category. Check that the stat labels keep their
+left edge as the counts change.
+`PVPMatchStyle.GetLocalPlayerFactionTheme` uses the first return from
+`UnitFactionGroup("player")`. The skirmish cards use the same faction tag to
+order the existing blue and red palette. `Blizzard_UnitFrame/Camelot/TargetFrame.lua`
+directs `TargetFrameMixin:GetPvPIndicatorElements` to `PvpBackgroundIcon`. The
+full card uses its `UI-HUD-UnitFrame-SmallCircle-Alliance` and
+`UI-HUD-UnitFrame-SmallCircle-Horde` atlases from Camelot's
+`UnitFramePvPIndicatorStyle.lua`. Each emblem fits an 18-unit box at its
+authored aspect ratio before the heading. Translucent roster panels and card
+backdrops reveal one centered battlefield texture attached to the stationary
+pane. The cards are attached to the scroll child. Scroll a long history and
+verify that the artwork stays centered. Check the colors and emblem order
+for both factions. Include the Eastern Plaguelands loss with honor and the
+incomplete Western Plaguelands fixture. Verify that a card rebind clears stale
+tooltips and that the map action remains available on mapped legacy cards.
+
+Roster rows center independently on each side. One or two portraits use one
+row. Three or four use two rows. Larger groups use the fewest rows that fit
+three per row, with any extra portraits assigned to the upper rows. Verify
+3, 4, 5, 6 and 7 portraits, including a sparse side opposite a full group.
+The timeline header uses the native `common-icon-forwardarrow` art on a
+button owned by the card list. The button sizes to the arrow, caption and
+count. Its `GameFontHighlightSmall` font state brightens the caption on hover.
+`ExpandBarMixin:OnEnter` also uses a local control highlight. The journal's
+button remeasures the scrolling list when the rows change. Each finishing
+blow arrow anchors to the target label's vertical center. Test expansion,
+collapse and card reuse while scrolling. History starts collapsed and the
+linked detail view starts expanded.
 
 For the map diamond, see `WaypointLocationDataProviderMixin:HandleClick` and
 the MAPPIN slash command in
@@ -234,14 +495,71 @@ the MAPPIN slash command in
 uses the command's waypoint flow, including `OpenMapToUserWaypoint` from
 `Blizzard_WorldMap/Blizzard_WorldMap.lua`. Test with a seeded card from a
 different zone. Check that the world map opens on that zone, places its
-standard user pin at the displayed coordinates and replaces any previous user
-pin. The map action uses `SharedButtonSmallTemplate` from
-`Blizzard_SharedXML/Shared/Button/ThreeSliceButtonTemplate.xml`.
+standard user pin at the saved coordinates and replaces any previous user
+pin. The full card uses the same map pin button as the compact card, anchored
+beside the timestamp. Check the common header centerline and the spacing in
+the finishing-blow list. Check that the Skirmish History scrollbar is centered
+in the gutter between the cards and the decorative frame. The roster count
+always shows the participants in the card. A passive `UIPanelInfoButton` from
+`SharedUIPanelTemplates.xml` shows
+the coverage tooltip when `rosterComplete` is false or absent. Seed fixtures
+set this flag explicitly. Converted one-death entries lack a complete roster
+confirmation, so their displayed counts show the known participants.
 For legacy cards the addon uses `C_Map.GetMapChildrenInfo` from
 `Blizzard_APIDocumentationGenerated/MapDocumentation.lua` to index Azeroth's
 zone maps by localized name. Check older Hillsbrad and Stranglethorn cards
-like the owner's screenshots, plus an unresolved zone. Verify coordinates
-on button hover and that a rejected waypoint leaves the book open.
+like the owner's screenshots, plus an unresolved zone. Verify the saved
+location through the map action and that a rejected waypoint leaves the book open.
+
+Preview.4 uses one tinted `Professions-background-summarylist` texture from
+`ProfessionsRecipeListTemplate` across the entire right side of the rival
+book. The inset frame and translucent battlefield illustration are separate
+layers. The roster hover uses the native quest list texture from
+`QuestLogFrame.xml` with reduced intensity. The finishing blow marker reuses
+`common-icon-forwardarrow` from `GamepadNextPageButtonTemplate`.
+
+### Window ordering, sounds and minimap hint
+
+Forever 70959 loads the Camelot `ProfessionsFrame` from
+`Blizzard_Professions/Camelot/Blizzard_ProfessionsFrame.xml`. The shared
+`ProfessionsFrameBase` uses `PortraitFrameTemplate` with `toplevel=true`.
+`ProfessionsMixin:OnShow` and `OnHide` play the two
+`UI_PROFESSIONS_WINDOW_*` sound kits. The book uses the same portrait
+template and sound kits in its own visibility handlers.
+
+The book remains a movable, independent top-level frame and uses the
+ordinary MEDIUM strata. The old DIALOG strata always drew above a MEDIUM
+frame regardless of its level. DeModal's `HookMovable` sets the supported
+profession window to top-level and raises it on show, while BlizzMove
+supplies drag behavior for registered Blizzard frames. The book uses native
+top-level ordering and raises its own frame when shown.
+
+The minimap tooltip follows Azeroth Fitness's `Shortcut:Init` implementation
+in `Minimap.lua`, using a left anchor, title and a three-line localized hint.
+Check first open, reopen, Escape and the close button for one sound per
+visibility change. With DeModal and BlizzMove, overlap the book and
+Engineering, then click the visible part or header of each alternately.
+Check that both remain open and the clicked panel comes to the front.
+
+## AddOn settings and data reset
+
+Use `Settings.RegisterVerticalLayoutCategory`, `RegisterProxySetting` and
+`CreateCheckbox` from `Blizzard_Settings_Shared/Blizzard_Settings.lua`.
+Use `CreateSettingsButtonInitializer` from `Blizzard_SettingControls.lua` for
+both actions. `Settings.OpenToCategory` opens the registered category from
+the minimap right-click. Confirm that left-click still opens the journal
+and dragging only moves the shortcut. With a known rival present, toggle
+each display setting independently, confirm the change on the visible UI and
+reload to check persistence. Unit tooltip refresh uses
+`GameTooltipDataMixin:RefreshDataNextUpdate` from `Blizzard_GameTooltip`.
+
+The custom confirmation and copyable URL use `StaticPopup_Show` and
+`GameDialogMixin:GetEditBox`. `LaunchURL` is restricted in the client's
+`URLDocumentation.lua`. Test Cancel, Escape and then Reset data on a character
+with seeded records and diagnostic rows. Check the empty journal and confirm
+that the two display flags and minimap position persist. Check that diagnostic
+recording resumes with new events. The support dialog should select the
+project's Issues URL for copying.
 
 ## Cross-rival skirmish history
 
@@ -250,9 +568,11 @@ The outer navigation follows `UI:Build` and `UI:Show` in Azeroth Fitness
 `Blizzard_Professions/Camelot/Blizzard_ProfessionsFrame.xml`. It uses
 `LargeSideTabButtonTemplate` and the native
 `SidePanelTabButtonMixin:SetCustomOnMouseUpHandler` and `SetChecked` handling.
-The two pages share the main book window. An identified rival's Information
-button opens that rival in the roster even with a previous search active.
-Unresolved identities stay anonymous until the full name is known.
+The two pages share the main book window. Clicking a known opponent in the
+journal opens their profile even with a previous search active. The journal
+uses the same two-sided battle card for all records. Older one-death entries
+show their recorded participants, finishing blow and map data with a partial
+roster tooltip. Their original saved data remains in the ledger.
 
 The journal displays at most 100 cards across the ledger. It preserves older
 saved entries and uses a bounded sorted list and a viewport-sized frame pool.
@@ -289,8 +609,12 @@ The minimap samples the same artwork in a 23.5-unit square centered on its
 existing circle mask. The
 stock mask, reagent frame and texture anchors remain native. Reference mode
 uses the full native icon and restores the branded crops when it exits.
-The main skull artwork is shared by the statistics, cards and manual dialog.
-The small pink skull remains a distinct inline indicator.
+The defeat statistics slot uses the painted square banner with a background.
+The wide transparent banner marks defeats on cards, in the manual dialog, on
+nameplates and in the unit tooltip. The small pink skull marks recorded deaths
+on portraits. The transparent banner comes from the statistics artwork.
+Its lower fragment is shorter and points inward to leave clearance at the
+left edge of the result circle. Cards draw it at 95% of the circle's diameter.
 Compare the header to First Aid and both statistics slots to reagent icons
 in the live client at normal and reduced UI scales.
 

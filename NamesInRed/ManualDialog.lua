@@ -1,44 +1,6 @@
 local _, addon = ...
 local L = addon.L
 
-function addon.ApplyAtlas(texture, atlas)
-    if C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas) then
-        texture:SetAtlas(atlas)
-        return true
-    end
-end
-
-function addon.SetBookPortrait(frame)
-    frame:SetPortraitToAsset(addon.swordsIconPath)
-    local portrait = frame:GetPortrait()
-    local inset, shift = 4 / 128, 2 / 128
-    portrait:SetTexCoord(inset + shift, 1 - inset + shift, inset, 1 - inset)
-    local container = frame.PortraitContainer
-    local backing = container:CreateTexture(nil, "BACKGROUND")
-    backing:SetAllPoints(portrait)
-    backing:SetColorTexture(0.02, 0.03, 0.055, 1)
-    backing:AddMaskTexture(container.CircleMask)
-end
-
-function addon.CreateRoundIcon(parent)
-    local icon = parent:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(52, 52)
-    local mask = parent:CreateMaskTexture()
-    mask:SetAllPoints(icon)
-    if not addon.ApplyAtlas(mask, "CircleMask") then
-        mask:SetTexture("Interface\\CHARACTERFRAME\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-    end
-    icon:AddMaskTexture(mask)
-    local ring = parent:CreateTexture(nil, "OVERLAY")
-    ring:SetSize(64, 64)
-    icon:SetPoint("CENTER", ring)
-    if not addon.ApplyAtlas(ring, "Mode-Selection-Ring") then
-        ring:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-        ring:SetTexCoord(0, 0.68, 0, 0.68)
-    end
-    return icon, ring
-end
-
 local function Choice(parent, x, title, texture, direction, choose)
     local button = CreateFrame("Button", nil, parent)
     button:SetSize(150, 102)
@@ -138,7 +100,7 @@ function addon.CreateManualDialog(parent, onAdded)
         Update()
     end
     win = Choice(dialog, 24, L.win, addon.swordsIconPath, "killsAgainstThem", Choose)
-    loss = Choice(dialog, 186, L.loss, addon.skullIconPath, "deathsToThem", Choose)
+    loss = Choice(dialog, 186, L.loss, addon.defeatBannerPath, "deathsToThem", Choose)
     local function Save()
         local id = addon.AddManualEncounter(edit:GetText(), selected, target)
         if id then

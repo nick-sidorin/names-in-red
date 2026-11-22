@@ -14,14 +14,14 @@ end
 local function Refresh(unit)
     Hide(unit)
     active[unit] = false
-    if not addon.db then return end
+    if not addon.db or not addon.AreNameplateIconsEnabled() then return end
 
     local guid = Readable(UnitGUID(unit))
     local playerGUID = Readable(UnitGUID("player"))
     if type(guid) ~= "string" or not guid:match("^Player%-.+") or type(playerGUID) ~= "string"
         or guid == playerGUID then return end
-    local rival = addon.FindVisibleRival(guid, unit)
-    local text = rival and addon.RivalCounters(rival, true)
+    local rival, id = addon.FindVisibleRival(guid, unit)
+    local text = rival and addon.RivalCounters(id, true)
     if not text then return end
 
     local plate = Readable(C_NamePlate.GetNamePlateForUnit(unit))

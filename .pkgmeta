@@ -7,7 +7,6 @@ ignore:
   - CHANGELOG.md
   - README.md
   - idea.md
-  - debug
   - docs
   - scripts
   - tests

@@ -1,11 +1,9 @@
-# PvP diagnostics preview
+# PvP diagnostics and sample data
 
 Versions 0.0.x were diagnostic previews. Version 0.1.0 shipped only the rival
 journal. Starting with 0.1.1, the standard addon also collects diagnostic data
-automatically. To enable fictional test rivals in a development copy, copy
-`debug/DebugSeeds.lua` into the addon folder and add it to the TOC before
-`Debug.lua`.
-
+automatically. Starting with 0.1.3, the standard addon also includes commands
+to load and remove fictional rivals and sample skirmishes.
 
 Install the ZIP by extracting its `NamesInRed/` folder into
 `_forever_/Interface/AddOns/`. Collection starts at addon load and works
@@ -64,9 +62,9 @@ debug captures are preserved as evidence and left out of the live totals.
 
 Encounter metadata uses the local character's map position and map ID at
 capture time. Show on Map opens the world map with the native user waypoint.
-Hover over Show on Map to see the recorded coordinates. Older records can
-also open the map when their saved zone name matches exactly one localized
-Azeroth zone map. Coordinates for unresolved zones stay visible on the card.
+Older records can also open the map when their saved zone name matches
+exactly one localized Azeroth zone map. Coordinates remain in saved data
+for waypoint placement.
 The previous twenty-record cap cannot recover data already discarded.
 The rival's level is included only when a readable target or mouseover GUID
 matches. Party encounters and battlegrounds remain diagnostic.
@@ -86,13 +84,29 @@ sex, class and faction when the form opens. Manual entries have no battle date,
 zone or coordinates. A typed name without a matching target supplies no target
 details.
 
-## Sample roster
+## Sample roster for screenshots
 
-Run `/nirdebug seed` to load 30 fictional rivals into the current character's
-book. Twenty-four have race and class information and several dated encounters
-with levels, zones and coordinates. Six are sample manual records. Running the
-command again refreshes those sample entries. Run `/nirdebug clear-seed` to
-remove only the sample roster. Your real and manually added records are kept.
+Run `/nirdebug seed` to load 12 fictional rivals
+and 12 battles across six zones over the past week. Both rosters match the
+current character's faction, and the game supplies localized zone, race and
+class names when available.
+
+Use `/nirdebug faction alliance` or `/nirdebug faction horde` to rebuild the
+demo roster, faction emblems and reward icons for either faction. Use
+`/nirdebug faction auto` to rebuild the roster for your current character.
+The selected faction is saved with the demo records and applies to those
+records in the journal. Live capture continues to use the player's faction.
+
+Open **Information** for Dargun Ironjaw on Alliance or Alden Dawnshield on
+Horde. The profile shows a recurring opponent with wins, a loss, honorable
+kills and honor. The latest encounter is a 2 × 2 rematch in Winterspring
+that your side wins after you die. Use its information button for the full
+card and finishing blows. **Skirmish History** also shows a 1 × 1 loss,
+a 3 × 3 win and a 5 × 6 loss with honor credited.
+
+Running the command again replaces the previous fixtures. Run
+`/nirdebug clear-seed` to remove them. Real and manual records stay in
+the journal and can appear alongside the demo data.
 
 ## Testing the player tooltip
 

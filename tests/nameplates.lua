@@ -1,4 +1,4 @@
-local rival = { displayName = "Cute Rock", killsAgainstThem = 1, deathsToThem = 0 }
+local rival = { displayName = "Cute Rock", encounters = { { outcome = "win" } } }
 local addon = { db = { rivals = { ["Player-rival"] = rival } }, L = {} }
 local secret = {}
 function issecretvalue(value) return value == secret end
@@ -21,7 +21,11 @@ local plate = Anchor()
 plate.IsForbidden = function(self) return self.forbidden end
 plate.UnitFrame = parent
 plate.unitToken = unit
-C_NamePlate = { GetNamePlateForUnit = function(token) if token == plate.unitToken then return plate end end }
+local lookups = 0
+C_NamePlate = { GetNamePlateForUnit = function(token)
+    lookups = lookups + 1
+    if token == plate.unitToken then return plate end
+end }
 
 local onEvent, badge
 function CreateFrame(_, _, owner)
@@ -49,16 +53,23 @@ function CreateFrame(_, _, owner)
     return badge
 end
 
-for _, file in ipairs({ "Encounter", "EncounterCards", "Core", "Book", "Nameplates" }) do
+for _, file in ipairs({ "Ledger", "Encounter", "Portraits", "EncounterCards", "Core", "Book", "Nameplates" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
 
 onEvent(nil, "NAME_PLATE_UNIT_ADDED", unit)
 assert(badge.shown and badge.anchor == name)
-assert(badge.text:find("CrossedSwords.tga", 1, true) and not badge.text:find("TooltipSkull", 1, true))
-rival.deathsToThem = 2
+assert(badge.text:find("CrossedSwords.tga", 1, true) and not badge.text:find("DefeatBanner.tga", 1, true))
+addon.db.showNameplateIcons = false
 addon.RefreshNameplates()
-assert(badge.shown and badge.text:find("TooltipSkull", 1, true))
+onEvent(nil, "NAME_PLATE_UNIT_ADDED", unit)
+assert(not badge.shown and lookups == 1)
+addon.db.showNameplateIcons = true
+addon.RefreshNameplates()
+assert(badge.shown and lookups == 2)
+rival.encounters[2] = { outcome = "loss" }
+addon.RefreshNameplates()
+assert(badge.shown and badge.text:find("DefeatBanner.tga", 1, true))
 name.shown = false
 addon.RefreshNameplates()
 assert(badge.anchor == bar)
@@ -81,10 +92,10 @@ assert(not badge.shown)
 addon.db.rivals["manual:cute rock"] = rival
 addon.RefreshNameplates()
 assert(badge.shown)
-rival.killsAgainstThem, rival.deathsToThem = 0, 0
+rival.encounters = {}
 addon.RefreshNameplates()
 assert(not badge.shown)
-rival.killsAgainstThem = 1
+rival.encounters[1] = { outcome = "win" }
 addon.RefreshNameplates()
 assert(badge.shown)
 
