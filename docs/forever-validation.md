@@ -388,17 +388,20 @@ to the pixel grid. The full header centers the map control between the inner
 top edge and divider. The roster headers and timeline use the same dividers.
 Check dividers and headings at different resolutions and UI scales.
 The profile uses a 64-unit ring and 24-unit level badge. Both card layouts
-share the participant tile with the 50-unit ring, 20-unit level badge, name,
-and class label. The badge rounds its radius to a physical pixel using
+share the participant tile with a 50-unit ring and a name that wraps to two
+lines. Level and class badges share the same 20-unit frame and anchor to
+opposite lower corners. Class icons use the game's `CLASS_ICON_TCOORDS`
+sheet as in `PVPCellClassMixin:Populate`, with a circular mask and a localized
+tooltip. The badge rounds its radius to a physical pixel using
 `PixelUtil.GetNearestPixelSize`. Its circle and label fill the same
 pixel-rounded bounds. The label uses horizontal center and vertical middle
-alignment with `SystemFont_Tiny` in cards and `GameFontHighlightSmall` in the
-profile. The texture disables separate texel snapping, as in
+alignment with `SystemFont_Tiny` in cards and the larger `GameFontHighlight`
+in the profile. The texture disables separate texel snapping, as in
 `NineSliceUtil.DisableSharpening`.
 Check levels 54, 55 and 57 on both sides at different UI scales. The rim uses
 `Mode-Selection-Ring`
 from `Blizzard_GlueXML/Mainline/SuperDistrict.xml`. The highlight draws the
-same rim at 0.2 alpha in additive mode, following the profession output
+same rim at 0.45 alpha in additive mode, following the profession output
 button's inherited `CircularGiantItemButtonTemplate` in
 `Blizzard_ItemButton/Mainline/ItemButtonTemplate.xml`. In a linked fight, the
 selected rival keeps its rim glow via `LockHighlight`. Check that neither hover
@@ -579,7 +582,9 @@ uses the full native icon and restores the branded crops when it exits.
 The defeat statistics slot uses the painted square banner with a background.
 The wide transparent banner marks defeats on cards, in the manual dialog, on
 nameplates and in the unit tooltip. The small pink skull marks recorded deaths
-on portraits.
+on portraits. The transparent banner comes from the statistics artwork.
+Cards draw it at 95% of the result circle's diameter so the narrow
+silhouette has a similar visual weight to the swords.
 Compare the header to First Aid and both statistics slots to reagent icons
 in the live client at normal and reduced UI scales.
 

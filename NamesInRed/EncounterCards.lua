@@ -293,43 +293,41 @@ local function CreateParticipantTile(parent, isOpponent, openRival, compact)
     tile.avatar = addon.CreateParticipantPortrait(tile, {
         size = portraitSize, levelSize = 20, opposing = isOpponent,
         casualtySize = compact and 20 or 17, casualtyInset = compact and 10 or 7,
-        desaturateCasualty = true, highlightRim = true, livePlayerFallback = tile.isLocalCharacter,
+        desaturateCasualty = true, highlightRim = true, showClass = true, livePlayerFallback = tile.isLocalCharacter,
     })
     tile.avatar.rim:SetPoint("TOP")
-    local function Caption(offset)
-        local label = tile:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        label:SetPoint("TOPLEFT", 2, -portraitSize - offset)
-        label:SetPoint("TOPRIGHT", -2, -portraitSize - offset)
-        label:SetJustifyH("CENTER")
-        label:SetWordWrap(false)
-        return label
-    end
-    tile.name = Caption(2)
-    tile.class = Caption(16)
+    local name = tile:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local nameTop = portraitSize + 2
+    name:SetPoint("TOPLEFT", 2, -nameTop)
+    name:SetPoint("TOPRIGHT", -2, -nameTop)
+    name:SetHeight(rosterRowHeight - nameTop)
+    name:SetJustifyH("CENTER")
+    name:SetJustifyV("TOP")
+    name:SetWordWrap(true)
+    name:SetNonSpaceWrap(true)
+    name:SetMaxLines(2)
+    tile.name = name
     return tile
 end
 
 local function HideParticipantTooltips(tile)
     HideTooltip(tile)
     HideTooltip(tile.avatar.death)
+    HideTooltip(tile.avatar.classBadge)
 end
 
 local function BindParticipantTile(tile, player, known, level, died, selectedRivalID)
     HideParticipantTooltips(tile)
     local isSelf = player.isSelf or tile.isLocalCharacter
-    local class, sex = player.class or known.class, player.sex or known.sex
-    tile.avatar:SetParticipant({ race = player.race or known.race, sex = sex, class = class },
-        player.id or player.rivalID, level, died)
+    tile.avatar:SetParticipant({
+        race = player.race or known.race,
+        sex = player.sex or known.sex,
+        class = player.class or known.class,
+        classLabel = player.classLabel or known.classLabel,
+    }, player.id or player.rivalID, level, died)
     local name = addon.ManualName(player.name) or addon.ManualName(known.displayName)
     if isSelf then name = name or addon.UnitPlayerName("player") or YOU end
     tile.name:SetText(name or (tile.isOpponent and L.unknownRival or L.unknownPlayer))
-    local classes = sex == 3 and LOCALIZED_CLASS_NAMES_FEMALE or LOCALIZED_CLASS_NAMES_MALE
-    local className = classes and classes[class] or player.classLabel or known.classLabel or ""
-    if isSelf and YOU then className = className ~= "" and (className .. " • " .. YOU) or YOU end
-    tile.class:SetText(className)
-    local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
-    if color then tile.class:SetTextColor(color.r, color.g, color.b)
-    else tile.class:SetTextColor(unpack(neutralColor)) end
     tile.rivalID = tile.canOpenRival and player.rivalID and known.displayName
         and addon.IsRosterRival(player.rivalID, known) and player.rivalID or nil
     tile:SetMouseClickEnabled(tile.rivalID ~= nil)

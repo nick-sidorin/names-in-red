@@ -255,6 +255,9 @@ local function MockRegion(parent)
     function region:SetPoint(...) self.anchor = { ... } end
     function region:SetJustifyH(value) self.justifyH = value end
     function region:SetJustifyV(value) self.justifyV = value end
+    function region:SetWordWrap(value) self.wordWrap = value end
+    function region:SetMaxLines(value) self.maxLines = value end
+    function region:AddMaskTexture(mask) self.mask = mask end
     function region:SetAllPoints(target) self.bounds = target end
     function region:SetSize(width, height) self.width, self.height = width, height end
     function region:SetTexture(texture) self.texture, self.atlas = texture, nil end
@@ -430,7 +433,28 @@ local function CheckLevelLabel(label, size)
     assert(badge.width == badge.height and badge.roundToPixel and label.roundToPixel and circle.roundToPixel)
     assert(label.bounds == badge and circle.bounds == badge and circle.snapToGrid == false and circle.texelBias == 0)
     assert(label.justifyH == "CENTER" and label.justifyV == "MIDDLE" and not label.anchor)
-    assert(label.font == (size < 24 and "SystemFont_Tiny" or "GameFontHighlightSmall"))
+    assert(label.font == (size < 24 and "SystemFont_Tiny" or "GameFontHighlight"))
+    return badge
+end
+local classSheet = "Interface\\TargetingFrame\\UI-Classes-Circles"
+CLASS_ICON_TCOORDS = {
+    MAGE = { 0.25, 0.5, 0, 0.25 },
+    ROGUE = { 0.5, 0.75, 0, 0.25 },
+    WARRIOR = { 0, 0.25, 0, 0.25 },
+}
+local function CheckClassBadge(tile, class, label, corner)
+    local badge = tile.avatar.classBadge
+    assert(badge.shown and badge.anchor[1] == corner and badge.anchor[3] == corner)
+    assert(badge.anchor[2] == tile.avatar.rim and badge.roundToPixel)
+    assert(FindRegion(badge, "texture", addon.levelBadgePath))
+    local icon = assert(FindRegion(badge, "texture", classSheet))
+    assert(icon.mask and #icon.texcoords == 4)
+    for index, coord in ipairs(CLASS_ICON_TCOORDS[class]) do assert(icon.texcoords[index] == coord) end
+    assert(tile.name.wordWrap and tile.name.maxLines == 2 and tile.name.justifyV == "TOP")
+    badge.scripts.OnEnter(badge)
+    assert(GameTooltip.shown and GameTooltip.title == label)
+    badge.scripts.OnLeave(badge)
+    assert(not GameTooltip.shown)
     return badge
 end
 local function FindDivider(region)
@@ -517,7 +541,7 @@ faction = "Alliance"
 local name = assert(FindText(card, "Test Rival"))
 local rimHighlight = name.parent.highlight
 assert(name.parent.highlightLocked and rimHighlight.bounds == name.parent.avatar.rim)
-assert(rimHighlight.atlas == "Mode-Selection-Ring" and rimHighlight.blend == "ADD" and rimHighlight.alpha == 0.2)
+assert(rimHighlight.atlas == "Mode-Selection-Ring" and rimHighlight.blend == "ADD" and rimHighlight.alpha == 0.45)
 assert(name.parent.avatar.death.shown and FindRegion(name.parent.avatar.death, "atlas", "UI-HUD-UnitFrame-SmallCircle"))
 CheckLevelLabel(assert(FindText(name.parent, 42)), 20)
 name.parent.scripts.OnClick(name.parent)
@@ -537,7 +561,8 @@ assert(not GameTooltip.shown and not fullVictory.shown)
 local fullDefeat = assert(FindRegion(card, "texture", addon.defeatBannerPath)).parent
 assert(FindText(fullOutcome, addon.L.lossTooltip))
 assert(fullDefeat.width == fullVictory.width and fullDefeat.height == fullVictory.height)
-assert(not fullDefeat.scripts.OnEnter)
+local bannerArt = assert(FindRegion(fullDefeat, "texture", addon.defeatBannerPath))
+assert(bannerArt.width >= 0.9 * fullDefeat.width and not fullDefeat.scripts.OnEnter)
 card:SetSkirmish({ allies = { allies[1] }, enemies = { enemies[1] }, events = {} })
 assert(not GameTooltip.shown and not fullDefeat.shown and FindText(card, "?"))
 assert(not name.parent.highlightLocked)
@@ -610,7 +635,8 @@ assert(#myBadge.anchor == 3 and #opponentBadge.anchor == 3 and myBadge.width == 
 local myName, opponentName = FindText(compact, "My Character"), FindText(compact, "Test Rival")
 local myRim, opponentRim = myName.parent.avatar.rim, opponentName.parent.avatar.rim
 assert(myRim.width == 50 and opponentRim.width == 50)
-assert(FindText(opponentName.parent, "Mage"))
+local opponentClass = CheckClassBadge(opponentName.parent, "MAGE", "Mage", "BOTTOMLEFT")
+assert(opponentClass.width == opponentBadge.width and not FindText(opponentName.parent, "Mage"))
 assert(myName.parent.highlight.bounds == myRim and opponentName.parent.highlight.bounds == opponentRim)
 local playerPortrait = assert(FindRegion(compact, "atlas", "orc-male"))
 local rivalPortrait = assert(FindRegion(compact, "atlas", "human-female"))
@@ -627,7 +653,7 @@ profileAvatar:SetParticipant(first.opponent, nil, 58)
 AssertFullPortrait(assert(FindRegion(profile, "atlas", "human-female")), false)
 local profileBadge = CheckLevelLabel(assert(FindText(profile, 58)), 24)
 assert(profileBadge.anchor[2] == profileAvatar.rim and profileBadge.anchor[3] == "BOTTOMLEFT")
-assert(not profileAvatar.death)
+assert(not profileAvatar.death and not profileAvatar.classBadge)
 profileAvatar:SetParticipant(first.opponent, nil, 9)
 assert(CheckLevelLabel(assert(FindText(profile, 9)), 24) == profileBadge)
 local previousWidth = profileBadge.width
@@ -754,10 +780,10 @@ local observed = { time = 20, allies = { self }, enemies = {
 }, events = {} }
 addon.Ledger.SaveSkirmish(addon.db, "sparse", older)
 addon.Ledger.SaveSkirmish(addon.db, "observed", observed)
-CLASS_ICON_TCOORDS = { ROGUE = { 0.5, 0.75, 0, 0.25 }, MAGE = { 0.25, 0.5, 0, 0.25 } }
 card:SetSkirmish(older)
-assert(FindText(card, "Rogue") and FindText(card, "Mage"))
-local fullRival = FindText(card, "Rogue").parent
+local fullRival = assert(FindText(card, "Sparse Rival")).parent
+local classBadge = CheckClassBadge(fullRival, "ROGUE", "Rogue", "BOTTOMLEFT")
+assert(not FindText(card, "Rogue") and not FindText(card, "Mage"))
 assert(FindRegion(fullRival, "atlas", "scourge-male") and not FindText(fullRival, 32) and not fullRival.avatar.death.shown)
 local history = addon.RivalEncounters(addon.db, rivalID)
 compact:SetEncounter(history[2], knownRival, rivalID)
@@ -766,5 +792,12 @@ assert(not FindText(compact, 32) and not FindText(compact, "~32") and not histor
 compact:SetEncounter(history[1], knownRival, rivalID)
 assert(FindText(compact, 32) and not FindText(compact, "~32"))
 card:SetSkirmish(observed)
-assert(FindText(card, "Warrior") and not FindText(card, "Rogue") and not FindText(card, "~32"))
+assert(CheckClassBadge(fullRival, "WARRIOR", "Warrior", "BOTTOMLEFT") == classBadge)
+assert(not FindText(card, "Warrior") and not FindText(card, "~32"))
+local unclassified = { id = "unclassified", name = "Longname Extraordinarilylongsurname", level = 54 }
+card:SetSkirmish({ allies = older.allies, enemies = { unclassified }, events = {} })
+assert(FindText(fullRival, unclassified.name).maxLines == 2 and not classBadge.shown)
+local allyTile = assert(FindText(card, "Local Player")).parent
+local allyIcon = CheckClassBadge(allyTile, "MAGE", "Mage", "BOTTOMRIGHT")
+assert(allyIcon.anchor[3] == "BOTTOMRIGHT")
 print("Sparse histories use known identity and display recorded levels only")

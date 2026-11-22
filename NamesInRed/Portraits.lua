@@ -27,16 +27,28 @@ local function SetPortraitRingArt(ring)
     end
 end
 
-function addon.CreateRoundIcon(parent, size)
-    size = size or 64
-    local icon = parent:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(size * 13 / 16, size * 13 / 16)
+local function MaskCircle(parent, icon)
     local mask = parent:CreateMaskTexture()
     mask:SetAllPoints(icon)
     if not addon.ApplyAtlas(mask, "CircleMask") then
         mask:SetTexture("Interface\\CHARACTERFRAME\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
     end
     icon:AddMaskTexture(mask)
+end
+
+local function SetClassIcon(icon, class)
+    local coords = CLASS_ICON_TCOORDS and class and CLASS_ICON_TCOORDS[class]
+    if not coords then return end
+    icon:SetTexture("Interface\\TargetingFrame\\UI-Classes-Circles")
+    icon:SetTexCoord(unpack(coords))
+    return true
+end
+
+function addon.CreateRoundIcon(parent, size)
+    size = size or 64
+    local icon = parent:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(size * 13 / 16, size * 13 / 16)
+    MaskCircle(parent, icon)
     local ring = parent:CreateTexture(nil, "OVERLAY")
     ring:SetSize(size, size)
     icon:SetPoint("CENTER", ring)
@@ -60,11 +72,7 @@ local function SetRacePortrait(portrait, rival, id, size, mirrored)
             return
         end
     end
-    local coords = CLASS_ICON_TCOORDS and class and CLASS_ICON_TCOORDS[class]
-    if coords then
-        portrait:SetTexture("Interface\\TargetingFrame\\UI-Classes-Circles")
-        portrait:SetTexCoord(unpack(coords))
-    else
+    if not SetClassIcon(portrait, class) then
         portrait:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
         -- The inventory icon includes a light bevel inside the texture.
         portrait:SetTexCoord(0.12, 0.88, 0.12, 0.88)
@@ -72,28 +80,28 @@ local function SetRacePortrait(portrait, rival, id, size, mirrored)
     end
 end
 
-local levelBadges = setmetatable({}, { __mode = "k" })
+local portraitBadges = setmetatable({}, { __mode = "k" })
 local snapPixelSize = PixelUtil and PixelUtil.GetNearestPixelSize
 
-local function SizeLevelBadge(badge, size)
+local function SizePortraitBadge(badge, size)
     -- A whole-pixel radius keeps the circle center on the same grid on either side.
     local diameter = snapPixelSize and 2 * snapPixelSize(size / 2, badge:GetEffectiveScale(), 1) or size
     badge:SetSize(diameter, diameter)
 end
 
 if snapPixelSize then
-    local levelLayout = CreateFrame("Frame")
-    levelLayout:RegisterEvent("UI_SCALE_CHANGED")
-    levelLayout:RegisterEvent("DISPLAY_SIZE_CHANGED")
-    levelLayout:SetScript("OnEvent", function()
-        for badge, size in pairs(levelBadges) do SizeLevelBadge(badge, size) end
+    local badgeLayout = CreateFrame("Frame")
+    badgeLayout:RegisterEvent("UI_SCALE_CHANGED")
+    badgeLayout:RegisterEvent("DISPLAY_SIZE_CHANGED")
+    badgeLayout:SetScript("OnEvent", function()
+        for badge, size in pairs(portraitBadges) do SizePortraitBadge(badge, size) end
     end)
 end
 
-local function CreateLevelBadge(parent, rim, rightSide, size)
+local function CreatePortraitBadge(parent, rim, rightSide, size)
     local badge = CreateFrame("Frame", nil, parent)
-    SizeLevelBadge(badge, size)
-    if snapPixelSize then levelBadges[badge] = size end
+    SizePortraitBadge(badge, size)
+    if snapPixelSize then portraitBadges[badge] = size end
     badge:SetRoundLayoutToNearestPixel(true)
     local corner = rightSide and "BOTTOMRIGHT" or "BOTTOMLEFT"
     badge:SetPoint(corner, rim, corner)
@@ -103,7 +111,13 @@ local function CreateLevelBadge(parent, rim, rightSide, size)
     circle:SetTexelSnappingBias(0)
     circle:SetSnapToPixelGrid(false)
     circle:SetTexture(addon.levelBadgePath)
-    local font = size < 24 and "SystemFont_Tiny" or "GameFontHighlightSmall"
+    badge:Hide()
+    return badge
+end
+
+local function CreateLevelBadge(parent, rim, rightSide, size)
+    local badge = CreatePortraitBadge(parent, rim, rightSide, size)
+    local font = size < 24 and "SystemFont_Tiny" or "GameFontHighlight"
     local label = badge:CreateFontString(nil, "OVERLAY", font)
     label:SetTextColor(1, 1, 1)
     label:SetAllPoints(badge)
@@ -117,13 +131,42 @@ local function CreateLevelBadge(parent, rim, rightSide, size)
         self:SetShown(known)
         label:SetText(known and level or "")
     end
-    badge:Hide()
     return badge
 end
 
 function addon.HideOwnedTooltip(button)
     local tooltip = GetAppropriateTooltip and GetAppropriateTooltip() or GameTooltip
     if tooltip:IsOwned(button) then tooltip:Hide() end
+end
+
+local function EnableMarkerTooltip(marker)
+    marker:SetMouseMotionEnabled(true)
+    marker:SetScript("OnEnter", function(self)
+        if not self.tooltipText then return end
+        local tooltip = GetAppropriateTooltip and GetAppropriateTooltip() or GameTooltip
+        tooltip:SetOwner(self, "ANCHOR_TOP")
+        tooltip:SetText(self.tooltipText)
+        tooltip:Show()
+    end)
+    marker:SetScript("OnLeave", addon.HideOwnedTooltip)
+    marker:SetScript("OnHide", addon.HideOwnedTooltip)
+end
+
+local function CreateClassBadge(parent, rim, rightSide, size)
+    local badge = CreatePortraitBadge(parent, rim, rightSide, size)
+    local icon = badge:CreateTexture(nil, "OVERLAY")
+    icon:SetPoint("TOPLEFT", 3, -3)
+    icon:SetPoint("BOTTOMRIGHT", -3, 3)
+    icon:SetRoundLayoutToNearestPixel(true)
+    MaskCircle(badge, icon)
+    EnableMarkerTooltip(badge)
+    function badge:SetClass(class, label)
+        local shown = SetClassIcon(icon, class)
+        self.tooltipText = shown and label and label ~= "" and label or nil
+        self:SetShown(shown == true)
+        self:SetMouseMotionEnabled(self.tooltipText ~= nil)
+    end
+    return badge
 end
 
 function addon.CreateFramedMarker(parent, size, texture, tooltipText)
@@ -139,7 +182,7 @@ function addon.CreateFramedMarker(parent, size, texture, tooltipText)
         mark:SetText("?")
     else
         local icon = marker:CreateTexture(nil, "OVERLAY", nil, 1)
-        local iconSize = size * 0.7
+        local iconSize = size * (texture == addon.defeatBannerPath and 0.95 or 0.7)
         icon:SetSize(iconSize, iconSize)
         icon:SetPoint("CENTER")
         icon:SetTexture(texture)
@@ -149,15 +192,8 @@ function addon.CreateFramedMarker(parent, size, texture, tooltipText)
         end
     end
     if tooltipText then
-        marker:SetMouseMotionEnabled(true)
-        marker:SetScript("OnEnter", function(self)
-            local tooltip = GetAppropriateTooltip and GetAppropriateTooltip() or GameTooltip
-            tooltip:SetOwner(self, "ANCHOR_TOP")
-            tooltip:SetText(tooltipText)
-            tooltip:Show()
-        end)
-        marker:SetScript("OnLeave", addon.HideOwnedTooltip)
-        marker:SetScript("OnHide", addon.HideOwnedTooltip)
+        marker.tooltipText = tooltipText
+        EnableMarkerTooltip(marker)
     end
     return marker
 end
@@ -172,10 +208,12 @@ function addon.CreateParticipantPortrait(parent, options)
         highlight:SetAllPoints(rim)
         SetPortraitRingArt(highlight)
         highlight:SetBlendMode("ADD")
-        highlight:SetAlpha(0.2)
+        highlight:SetAlpha(0.45)
         parent:SetHighlightTexture(highlight)
     end
-    local level = CreateLevelBadge(parent, rim, opposing, options.levelSize or 24)
+    local badgeSize = options.levelSize or 24
+    local level = CreateLevelBadge(parent, rim, opposing, badgeSize)
+    local classBadge = options.showClass and CreateClassBadge(parent, rim, not opposing, badgeSize)
     local death
     if options.casualtySize then
         local inset = options.casualtyInset
@@ -184,7 +222,7 @@ function addon.CreateParticipantPortrait(parent, options)
         death:Hide()
     end
 
-    local component = { rim = rim, death = death }
+    local component = { rim = rim, death = death, classBadge = classBadge }
     function component:SetParticipant(appearance, id, playerLevel, died)
         if options.livePlayerFallback and (not appearance.race or not appearance.sex) and SetPortraitTexture then
             portrait:SetSize(size * 13 / 16, size * 13 / 16)
@@ -194,6 +232,15 @@ function addon.CreateParticipantPortrait(parent, options)
             SetRacePortrait(portrait, appearance, id, size, opposing)
         end
         level:SetLevel(playerLevel)
+        if classBadge then
+            local class = appearance.class
+            if not class and id then
+                local _, _, knownClass = addon.RivalAppearance(id)
+                class = knownClass
+            end
+            local classes = appearance.sex == 3 and LOCALIZED_CLASS_NAMES_FEMALE or LOCALIZED_CLASS_NAMES_MALE
+            classBadge:SetClass(class, classes and classes[class] or appearance.classLabel)
+        end
         if death then death:SetShown(died == true) end
         if options.desaturateCasualty then
             portrait:SetDesaturated(died)
