@@ -72,25 +72,46 @@ local function SetRacePortrait(portrait, rival, id, size, mirrored)
     end
 end
 
+local levelBadges = setmetatable({}, { __mode = "k" })
+local snapPixelSize = PixelUtil and PixelUtil.GetNearestPixelSize
+
+local function SizeLevelBadge(badge, size)
+    -- A whole-pixel radius keeps the circle center on the same grid on either side.
+    local diameter = snapPixelSize and 2 * snapPixelSize(size / 2, badge:GetEffectiveScale(), 1) or size
+    badge:SetSize(diameter, diameter)
+end
+
+if snapPixelSize then
+    local levelLayout = CreateFrame("Frame")
+    levelLayout:RegisterEvent("UI_SCALE_CHANGED")
+    levelLayout:RegisterEvent("DISPLAY_SIZE_CHANGED")
+    levelLayout:SetScript("OnEvent", function()
+        for badge, size in pairs(levelBadges) do SizeLevelBadge(badge, size) end
+    end)
+end
+
 local function CreateLevelBadge(parent, rim, rightSide, size)
     local badge = CreateFrame("Frame", nil, parent)
-    badge:SetSize(size, size)
+    SizeLevelBadge(badge, size)
+    if snapPixelSize then levelBadges[badge] = size end
     badge:SetRoundLayoutToNearestPixel(true)
-    badge:SetPoint("CENTER", rim, rightSide and "BOTTOMRIGHT" or "BOTTOMLEFT",
-        rightSide and -size / 2 or size / 2, size / 2)
+    local corner = rightSide and "BOTTOMRIGHT" or "BOTTOMLEFT"
+    badge:SetPoint(corner, rim, corner)
     local circle = badge:CreateTexture(nil, "ARTWORK")
     circle:SetAllPoints(badge)
+    circle:SetRoundLayoutToNearestPixel(true)
+    circle:SetTexelSnappingBias(0)
     circle:SetSnapToPixelGrid(false)
     circle:SetTexture(addon.levelBadgePath)
-    local label = badge:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
-    local font = label:GetFont()
-    if font then label:SetFont(font, size / 2, "") end
+    local font = size < 24 and "SystemFont_Tiny" or "GameFontHighlightSmall"
+    local label = badge:CreateFontString(nil, "OVERLAY", font)
     label:SetTextColor(1, 1, 1)
     label:SetAllPoints(badge)
+    label:SetRoundLayoutToNearestPixel(true)
     label:SetJustifyH("CENTER")
     label:SetJustifyV("MIDDLE")
     label:SetWordWrap(false)
-    label:SetShadowColor(0, 0, 0, 0)
+    label:SetShadowOffset(0, 0)
     function badge:SetLevel(level)
         local known = type(level) == "number" and level > 0
         self:SetShown(known)

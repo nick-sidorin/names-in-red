@@ -1,12 +1,21 @@
 local addon, callback, locale = { db = { rivals = {} } }, nil, "enUS"
-local pixelFactor, dividerScale, displayChanged = 0.8, 0.7
-PixelUtil = { GetPixelToUIUnitFactor = function() return pixelFactor end }
+local pixelFactor, dividerScale = 0.8, 0.7
+local displayHandlers = {}
+PixelUtil = {
+    GetPixelToUIUnitFactor = function() return pixelFactor end,
+    GetNearestPixelSize = function(size, scale, minimum)
+        return math.max(minimum, math.floor(size * scale / pixelFactor + 0.5)) * pixelFactor / scale
+    end,
+}
+local function DisplayChanged()
+    for _, handler in ipairs(displayHandlers) do handler() end
+end
 function GetLocale() return locale end
 function CreateFrame()
     local layoutFrame
     return {
         RegisterEvent = function(_, event) if event == "UI_SCALE_CHANGED" then layoutFrame = true end end,
-        SetScript = function(_, _, handler) if layoutFrame then displayChanged = handler end end,
+        SetScript = function(_, _, handler) if layoutFrame then displayHandlers[#displayHandlers + 1] = handler end end,
     }
 end
 
@@ -224,9 +233,8 @@ local function MockRegion(parent)
         self.text = text
     end
     function region:GetText() return self.text end
-    function region:GetFont() return self.fontFile or "Fonts\\ARIALN.TTF" end
-    function region:SetFont(file, height, flags) self.fontFile, self.fontHeight, self.fontFlags = file, height, flags end
     function region:SetSnapToPixelGrid(enabled) self.snapToGrid = enabled end
+    function region:SetTexelSnappingBias(bias) self.texelBias = bias end
     function region:GetStringWidth() return #(tostring(self.text or "")) * 6 end
     function region:SetBlendMode(mode) self.blend = mode end
     function region:SetHighlightTexture(texture) self.highlight = texture end
@@ -417,10 +425,12 @@ print("Native recipe row style, search data reuse, and rival selection checks pa
 local function CheckLevelLabel(label, size)
     local badge = label.parent
     local circle = assert(FindRegion(badge, "texture", addon.levelBadgePath))
-    assert(badge.width == size and badge.height == size and badge.roundToPixel)
-    assert(label.bounds == badge and circle.bounds == badge and not circle.snapToGrid)
-    assert(label.justifyH == "CENTER" and label.justifyV == "MIDDLE")
-    assert(label.font == "NumberFontNormalSmall" and label.fontHeight == size / 2 and label.fontFlags == "")
+    local expectedPixels = 2 * math.floor(size / 2 * dividerScale / pixelFactor + 0.5)
+    assert(math.abs(badge.width * dividerScale / pixelFactor - expectedPixels) < 1e-6)
+    assert(badge.width == badge.height and badge.roundToPixel and label.roundToPixel and circle.roundToPixel)
+    assert(label.bounds == badge and circle.bounds == badge and circle.snapToGrid == false and circle.texelBias == 0)
+    assert(label.justifyH == "CENTER" and label.justifyV == "MIDDLE" and not label.anchor)
+    assert(label.font == (size < 24 and "SystemFont_Tiny" or "GameFontHighlightSmall"))
     return badge
 end
 local function FindDivider(region)
@@ -578,7 +588,7 @@ for _, line in ipairs({ headerLine, blowsLine, compactLine }) do
     assert(line.height == pixelFactor / dividerScale and line.anchor[2] == -14)
 end
 pixelFactor, dividerScale = 0.5, 0.9
-displayChanged()
+DisplayChanged()
 for _, line in ipairs({ headerLine, blowsLine, compactLine }) do
     assert(line.height == pixelFactor / dividerScale)
 end
@@ -594,8 +604,9 @@ assert(FindText(compact, "Hillsbrad Foothills").anchor[1] == "LEFT")
 assert(FindText(compact, "My Character") and FindText(compact, "Test Rival"))
 local myBadge = CheckLevelLabel(assert(FindText(compact, 51)), 20)
 local opponentBadge = CheckLevelLabel(assert(FindText(compact, 42)), 20)
-assert(myBadge.anchor[3] == "BOTTOMLEFT" and opponentBadge.anchor[3] == "BOTTOMRIGHT")
-assert(myBadge.anchor[4] == -opponentBadge.anchor[4] and myBadge.anchor[5] == opponentBadge.anchor[5])
+assert(myBadge.anchor[1] == "BOTTOMLEFT" and myBadge.anchor[3] == "BOTTOMLEFT")
+assert(opponentBadge.anchor[1] == "BOTTOMRIGHT" and opponentBadge.anchor[3] == "BOTTOMRIGHT")
+assert(#myBadge.anchor == 3 and #opponentBadge.anchor == 3 and myBadge.width == opponentBadge.width)
 local myName, opponentName = FindText(compact, "My Character"), FindText(compact, "Test Rival")
 local myRim, opponentRim = myName.parent.avatar.rim, opponentName.parent.avatar.rim
 assert(myRim.width == 50 and opponentRim.width == 50)
@@ -619,6 +630,13 @@ assert(profileBadge.anchor[2] == profileAvatar.rim and profileBadge.anchor[3] ==
 assert(not profileAvatar.death)
 profileAvatar:SetParticipant(first.opponent, nil, 9)
 assert(CheckLevelLabel(assert(FindText(profile, 9)), 24) == profileBadge)
+local previousWidth = profileBadge.width
+pixelFactor, dividerScale = 0.8, 0.7
+DisplayChanged()
+assert(profileBadge.width ~= previousWidth)
+CheckLevelLabel(assert(FindText(profile, 9)), 24)
+CheckLevelLabel(assert(FindText(compact, 51)), 20)
+CheckLevelLabel(assert(FindText(compact, 42)), 20)
 local function PortraitMarker(anchor, texture)
     for _, tile in ipairs({ myName.parent, opponentName.parent }) do
         local death = tile.avatar.death
