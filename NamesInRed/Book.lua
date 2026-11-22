@@ -321,7 +321,9 @@ local function Pane(parent, x, y, width, height)
     return frame
 end
 
-local function ListBackground(parent, x, y, width, height)
+local detailBackgroundTint = 0.76
+
+local function ListBackground(parent, tint, x, y, width, height)
     local texture = parent:CreateTexture(nil, "BACKGROUND")
     if x then
         texture:SetPoint("TOPLEFT", x, y)
@@ -330,17 +332,17 @@ local function ListBackground(parent, x, y, width, height)
         texture:SetAllPoints()
     end
     addon.ApplyAtlas(texture, "Professions-background-summarylist")
-    return texture
+    if tint then texture:SetVertexColor(tint, tint, tint) end
 end
 
 local function BattlefieldBackground(parent, fullWidth)
-    if fullWidth then ListBackground(parent) end
+    if fullWidth then ListBackground(parent, detailBackgroundTint) end
     local size = math.min(parent:GetWidth() * (fullWidth and 0.52 or 0.58),
         parent:GetHeight() * (fullWidth and 0.78 or 0.56))
     local illustration = parent:CreateTexture(nil, "BACKGROUND", nil, fullWidth and 1 or 0)
     illustration:SetTexture(addon.battlefieldArtPath)
     illustration:SetSize(size, size)
-    illustration:SetAlpha(fullWidth and 0.48 or 0.24)
+    illustration:SetAlpha(0.24)
     if fullWidth then illustration:SetPoint("CENTER")
     else illustration:SetPoint("BOTTOMRIGHT", -9, 13) end
 
@@ -484,8 +486,7 @@ local function ToggleBook()
         local left = Pane(rivalsPage, leftX, -contentTop, addon.rivalListWidth, bodyHeight)
         ListBackground(left)
         -- One continuous surface behind the tabs and transparent detail pane.
-        local rightSurface = ListBackground(rivalsPage, rightX, -contentTop, rightWidth, bodyHeight)
-        rightSurface:SetVertexColor(0.76, 0.76, 0.76)
+        ListBackground(rivalsPage, detailBackgroundTint, rightX, -contentTop, rightWidth, bodyHeight)
 
         local rightTop = contentTop + 30
         local rightHeight = window:GetHeight() - rightTop - 5

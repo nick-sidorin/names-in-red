@@ -365,7 +365,9 @@ at its left edge, including at non-default UI scales.
 
 Encounter history uses `ScrollFrameTemplate` and reuses cards as the viewport
 scrolls. The global and linked full-skirmish views share the card-list layout,
-scrollbar gutter, and battlefield background. Check both tabs on 1.60.1 with
+scrollbar gutter, and battlefield background. Their summary-list backdrop
+uses the same tint (0.76) and the illustration uses the same alpha (0.24) as
+the Information pane. Compare the empty views and check both tabs on 1.60.1 with
 empty, legacy, manual and seeded histories. Scroll through a long history,
 then switch rivals while scrolled.
 
