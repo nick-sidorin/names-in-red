@@ -6,15 +6,6 @@ automatically. Pull request preview artifacts include `DebugSeeds.lua` with
 fictional rivals and full-battle examples. A development copy can load it by
 copying `debug/DebugSeeds.lua` into the addon folder and listing it in the TOC.
 
-Run `/nirdebug seed` and open **Skirmish History** to preview 2×2, 1×1, 5×6,
-and partial-roster cards. The global list mixes these saved battles with the
-existing per-rival records. Run `/nirdebug clear-seed` to remove the fixtures.
-The preview stores full battles separately by ID. Each record holds the time
-range, location, the observed sides and their available player metadata, and
-chronological finishing blows keyed by participant ID. Live capture still
-writes the existing per-rival records while participation is being validated.
-
-
 Install the ZIP by extracting its `NamesInRed/` folder into
 `_forever_/Interface/AddOns/`. Collection starts at addon load and works
 during ordinary play.
@@ -94,13 +85,23 @@ sex, class and faction when the form opens. Manual entries have no battle date,
 zone or coordinates. A typed name without a matching target supplies no target
 details.
 
-## Sample roster
+## Sample roster for screenshots
 
-Run `/nirdebug seed` to load 30 fictional rivals into the current character's
-book. Twenty-four have race and class information and several dated encounters
-with levels, zones and coordinates. Six are sample manual records. Running the
-command again refreshes those sample entries. Run `/nirdebug clear-seed` to
-remove only the sample roster. Your real and manually added records are kept.
+Run `/nirdebug seed` in the pull request preview to load 12 fictional rivals
+and 12 battles across six zones over the past week. Both rosters match the
+current character's faction, and the game supplies localized zone, race and
+class names when available.
+
+Open **Information** for Dargun Ironjaw on Alliance or Alden Dawnshield on
+Horde. The profile shows a recurring opponent with wins, a loss, honorable
+kills and honor. The latest encounter is a 2 × 2 rematch in Winterspring
+that your side wins after you die. Use its information button for the full
+card and finishing blows. **Skirmish History** also shows a 1 × 1 loss,
+a 3 × 3 win and a 5 × 6 loss with honor credited.
+
+Running the command again replaces the previous fixtures. Run
+`/nirdebug clear-seed` to remove them. Real and manual records stay in
+the journal and can appear alongside the demo data.
 
 ## Testing the player tooltip
 

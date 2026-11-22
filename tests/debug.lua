@@ -125,59 +125,83 @@ assert(not earlier.level and not ambiguous.level and not otherZone.level)
 for i = 1, 5 do addon.Ledger.RemoveSkirmish(addon.db, "world:" .. i) end
 print("Death levels restored only for matching combat observations")
 
+local faction = "Alliance"
+function UnitFactionGroup() return faction end
+local originalServerTime = GetServerTime
+GetServerTime = function() return 777600 end
+C_Map = { GetMapInfo = function(mapID) return { name = "Map " .. mapID } end }
+C_CreatureInfo = { GetRaceInfo = function(raceID) return { raceName = "Race " .. raceID } end }
+LOCALIZED_CLASS_NAMES_MALE = { SHAMAN = "Schamane" }
+addon.Ledger.SaveSkirmish(addon.db, "existing-battle", { allies = {}, enemies = {}, events = {} })
 SlashCmdList.NAMESINREDDEBUG("seed")
 SlashCmdList.NAMESINREDDEBUG("seed")
 
-local automatic, manual = 0, 0
+local profiles = 0
 for key, rival in pairs(addon.db.rivals) do
-    if key:match("^seed:manual:") then
-        manual = manual + 1
-        assert(rival.encounters[1].manual and #rival.encounters == 1)
-        local wins, losses = addon.Ledger.PersonalScore(addon.db, key)
-        assert(wins + losses == 1)
-    elseif key:match("^seed:") then
-        automatic = automatic + 1
+    if key:match("^seed:rival:") then
+        profiles = profiles + 1
         assert(rival.race and rival.class and rival.raceLabel and rival.classLabel)
-        local solo = 0
-        for _, encounter in ipairs(addon.RivalEncounters(addon.db, key)) do
-            assert(encounter.rivalLevel and encounter.playerLevel and encounter.time)
+        local history = addon.RivalEncounters(addon.db, key)
+        assert(#history > 0)
+        local latest = math.huge
+        for _, encounter in ipairs(history) do
+            assert(encounter.rivalLevel and encounter.playerLevel and encounter.time < latest)
             assert(encounter.zone and encounter.mapID and encounter.x and encounter.y and not encounter.manual)
-            if encounter.skirmishID:match("^seed:solo:") then
-                solo = solo + 1
-                assert(encounter.outcome == "win" or encounter.outcome == "loss")
-            end
+            latest = encounter.time
         end
-        assert(solo >= 4)
     end
 end
-assert(manual == 6 and automatic == 24)
+assert(profiles == 12)
 local seeded = addon.db.skirmishes
-local battleCount = 0
-for _ in pairs(seeded) do battleCount = battleCount + 1 end
-assert(battleCount == 138)
-assert(#seeded["seed:battle:1"].allies == 2 and #seeded["seed:battle:1"].enemies == 2)
-assert(seeded["seed:battle:1"].events[1].actorID == "ally:1")
-assert(#seeded["seed:battle:2"].allies == 1 and #seeded["seed:battle:2"].enemies == 1)
-local dargunHistory = addon.RivalEncounters(addon.db, "seed:4")
-local mutual = dargunHistory[2]
-assert(mutual.skirmishID == "seed:battle:2" and not mutual.outcome)
-local assisted = dargunHistory[5]
-assert(assisted.skirmishID == "seed:battle:5" and assisted.outcome == "win" and assisted.playerDeathIndex == 1)
-assert(seeded[assisted.skirmishID].events[2].actorID == "ally:1")
-assert(#seeded["seed:battle:3"].enemies == 6 and not seeded["seed:battle:4"].rosterComplete)
-local borin = addon.RivalEncounters(addon.db, "seed:2")[1]
-assert(borin.skirmishID == "seed:battle:3" and borin.outcome == "loss")
-assert(borin.honorableKills == 1 and borin.honor == 8)
-assert(borin.opponentDeathIndex == 2 and borin.playerDeathIndex == 3)
-local cressa = addon.RivalEncounters(addon.db, "seed:3")[1]
-assert(cressa.skirmishID == "seed:battle:3" and cressa.outcome == "loss")
-assert(cressa.playerDeathIndex == 3 and not cressa.opponentDeathIndex)
-addon.Ledger.SaveSkirmish(addon.db, "existing-battle", { allies = {}, enemies = {}, events = {} })
+local seededCount, outcomes = 0, { win = 0, loss = 0, unknown = 0 }
+for id, battle in pairs(seeded) do
+    if id:match("^seed:battle:") then
+        seededCount = seededCount + 1
+        local outcome = addon.Ledger.SkirmishOutcome(battle) or "unknown"
+        outcomes[outcome] = outcomes[outcome] + 1
+        assert(battle.allies[1].name == "Alden Dawnshield" and battle.allies[1].isSelf)
+        assert(battle.zone == "Map " .. battle.mapID and battle.startedAt < battle.time)
+        local participants, dead = {}, {}
+        for _, ally in ipairs(battle.allies) do participants[ally.id] = "ally" end
+        for _, enemy in ipairs(battle.enemies) do participants[enemy.id] = "enemy" end
+        local previous = battle.startedAt
+        for _, event in ipairs(battle.events) do
+            assert(event.time > previous and event.time <= battle.time)
+            assert(participants[event.actorID] and participants[event.targetID] ~= participants[event.actorID])
+            assert(participants[event.targetID] and not dead[event.actorID] and not dead[event.targetID])
+            dead[event.targetID], previous = true, event.time
+        end
+        for id, reward in pairs(battle.rewards) do
+            assert(participants[id] == "enemy" and dead[id] and reward.honorableKills == 1 and reward.honor > 0)
+        end
+    end
+end
+assert(seededCount == 12 and outcomes.win == 6 and outcomes.loss == 5 and outcomes.unknown == 1)
+local dargun = addon.db.rivals["seed:rival:1"]
+assert(dargun.displayName == "Dargun Ironjaw" and dargun.raceLabel == "Race 2" and dargun.classLabel == "Schamane")
+local dargunHistory = addon.RivalEncounters(addon.db, "seed:rival:1")
+local rematch = seeded[dargunHistory[1].skirmishID]
+assert(#rematch.allies == 2 and #rematch.enemies == 2 and rematch.events[3].actorID == "ally2")
+assert(dargunHistory[1].outcome == "win" and dargunHistory[1].playerDeathIndex == 2)
+assert(dargunHistory[2].outcome == "loss" and dargunHistory[3].outcome == "win")
+local wins, losses, honorableKills, honor = addon.Ledger.PersonalScore(addon.db, "seed:rival:1")
+assert(wins == 2 and losses == 1 and honorableKills == 2 and honor == 35)
+local chapel = seeded["seed:battle:chapel-road"]
+assert(#chapel.allies == 5 and #chapel.enemies == 6 and addon.Ledger.SkirmishOutcome(chapel) == "loss")
+assert(chapel.rewards["seed:rival:8"].honor == 13)
+assert(not seeded["seed:battle:plaguelands-crossing"].rosterComplete)
+
+faction = "Horde"
+SlashCmdList.NAMESINREDDEBUG("seed")
+assert(seeded["seed:battle:winter-rematch"].allies[1].name == "Dargun Ironjaw")
+assert(addon.db.rivals["seed:rival:1"].displayName == "Alden Dawnshield")
 SlashCmdList.NAMESINREDDEBUG("clear-seed")
 for key in pairs(addon.db.rivals) do assert(not key:match("^seed:")) end
 assert(next(seeded) == "existing-battle" and next(seeded, "existing-battle") == nil)
 assert(addon.db.rivals["Player-existing"] == existing)
 assert(addon.db.rivals["manual:existing"] == existingManual)
+C_Map, C_CreatureInfo, LOCALIZED_CLASS_NAMES_MALE = nil, nil, nil
+GetServerTime = originalServerTime
 print("Debug seed checks passed")
 
 local inCombat, groupSize = false, 1

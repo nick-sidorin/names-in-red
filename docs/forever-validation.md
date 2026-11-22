@@ -177,13 +177,12 @@ The test suite exercises card reuse across different roster sizes and verifies
 that fixture removal preserves other saved records. Card rendering still
 needs a Forever client check.
 
-The reciprocal-kill fixture against Dargun ends with both sides dead and
-has an unknown result. The Feralas 2 × 1 fixture records a team win after
-the local player dies and an ally lands the final blow. In a complete
-multi-opponent win, each opposing profile receives one win. Test one
-confirmed loss and the incomplete Ashenvale fixture as well. The debug
-command seeds 132 completed solo encounters alongside the shared battles and
-manual results. Tanaris tests honor credited in a team loss.
+The current sample roster uses fictional encounters with consistent portraits
+and levels. Open the Winterspring 2 × 2 rematch to test a recorded win after
+the local player dies. The Eastern Plaguelands 5 × 6 loss awards honor for
+two opponents. The Western Plaguelands crossing exercises an incomplete
+roster and unknown outcome. See [the sample roster](debug-preview.md#sample-roster-for-screenshots)
+for the screenshot sequence.
 
 The live observer uses `PARTY_KILL` and local death recap rows to assemble
 a partial open-world record. Killing-blow identity can come from the player
@@ -372,8 +371,13 @@ to the pixel grid. The full header centers the map control between the inner
 top edge and divider. The roster headers and timeline use the same dividers.
 Check dividers and headings at different resolutions and UI scales.
 Compact portraits use the profile's 64-unit ring and 24-unit level badge. The
-full card uses a 50-unit ring and 20-unit badge, with the same circular mask
-and portrait assets. The 20-unit badge uses `SystemFont_Tiny` from
+full card uses a 50-unit ring and 20-unit badge. The three views share the
+participant portrait, level badge, and casualty marker implementation in
+`Portraits.lua`. The level label centers inside the circle's bounds on a
+pixel-rounded frame. The native `LevelTextTemplate` in Camelot's
+`TargetFrameTemplates.xml` right-aligns text for the target frame's geometry.
+Check one- and two-digit values in each portrait size at different UI scales.
+The 20-unit badge uses `SystemFont_Tiny` from
 `Blizzard_Fonts_Shared/Shared/Fonts.xml`. The ring comes from `Mode-Selection-Ring` in
 `Blizzard_GlueXML/Mainline/SuperDistrict.xml`. Both layouts center crossed
 swords, the torn gray banner or a question mark between the sides, using the
@@ -407,8 +411,8 @@ authored aspect ratio before the heading. Translucent roster panels and card
 backdrops reveal one centered battlefield texture attached to the stationary
 pane. The cards are attached to the scroll child. Scroll a long history and
 verify that the artwork stays centered. Check the colors and emblem order
-for both factions. Include the Borin fixture, where a defeat also awards honor,
-and the incomplete Ashenvale fixture. Verify that a card rebind clears stale
+for both factions. Include the Eastern Plaguelands loss with honor and the
+incomplete Western Plaguelands fixture. Verify that a card rebind clears stale
 tooltips and that the map action remains available on mapped legacy cards.
 
 Roster rows center independently on each side. One or two portraits use one

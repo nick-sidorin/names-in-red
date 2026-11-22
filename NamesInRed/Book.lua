@@ -4,8 +4,8 @@ local swordsStart, swordsEnd = addon.smallSwordsInset, 128 - addon.smallSwordsIn
 local victoryGlyph = ("|T%s:14:14:0:1:128:128:%d:%d:%d:%d|t"):format(
     addon.swordsIconPath, swordsStart, swordsEnd, swordsStart, swordsEnd)
 local defeatGlyph = "|T" .. addon.defeatBannerPath .. ":14:14:0:1|t"
-local window, names, details, heading, portrait, summary, wins, losses, status, selected, empty
-local search, levelBadge, tabBar, latestCard, latestEmpty, historyEmpty
+local window, names, details, heading, profilePortrait, summary, wins, losses, status, selected, empty
+local search, tabBar, latestCard, latestEmpty, historyEmpty
 local honorableKills, honor
 local honorableKillsIcon, honorIcon
 local deletePopup = "NAMES_IN_RED_DELETE_RIVAL"
@@ -194,10 +194,9 @@ local function ShowDetails()
         local faction = UnitFactionGroup and Readable(UnitFactionGroup("player"))
         honorableKillsIcon:SetTexture(addon.RewardIconPath(faction, false))
         honorIcon:SetTexture(addon.RewardIconPath(faction, true))
-        addon.SetRivalPortrait(portrait, rival, selected)
+        profilePortrait:SetParticipant(rival, selected, addon.LastKnownRivalLevel(addon.db, selected))
         latestCard:SetEncounter(history[1], rival, selected)
         latestEmpty:SetShown(history[1] == nil)
-        levelBadge:SetLevel(addon.LastKnownRivalLevel(addon.db, selected))
     end
     empty:SetShown(rival == nil)
 
@@ -564,11 +563,10 @@ local function ToggleBook()
         summary = CreateFrame("Frame", nil, right)
         summary:SetPoint("TOPLEFT", 0, -3)
         summary:SetPoint("BOTTOMRIGHT")
-        local rim
-        portrait, rim = addon.CreateRoundIcon(summary)
+        profilePortrait = addon.CreateParticipantPortrait(summary)
+        local rim = profilePortrait.rim
         -- The race ring artwork has a small transparent border.
         rim:SetPoint("TOPLEFT", profileInset - 2, -17.5)
-        levelBadge = addon.CreateLevelBadge(summary, rim)
         heading = summary:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
         heading:SetPoint("TOPLEFT", rim, "TOPRIGHT", 8.5, -8.5)
         heading:SetPoint("TOPRIGHT", summary, "TOPRIGHT", -50, -26)

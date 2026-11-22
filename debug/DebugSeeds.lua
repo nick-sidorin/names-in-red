@@ -1,103 +1,127 @@
 local _, addon = ...
 
-local names = {
-    "Aelra Moonbough", "Borin Flintforge", "Cressa Ashveil", "Dargun Ironjaw",
-    "Elara Goldleaf", "Fenrik Coldwater", "Ghash Emberfang", "Halea Mistwood",
-    "Ilyra Dusksong", "Jorin Blackpine", "Kaela Thornwake", "Loran Windmere",
-    "Maelis Frostglen", "Nara Brightstone", "Ograth Stormtusk", "Perrin Emberwick",
-    "Quilla Mossbloom", "Ragor Ashspear", "Selya Silvermist", "Tavra Ironleaf",
-    "Uldren Grimwatch", "Vesha Reedthorn", "Werrin Copperbolt", "Xalara Dawnshade",
-    "Yorin Redmarsh", "Zekka Suncleft", "Arden Swiftbrook", "Brakka Bonewind",
-    "Cyra Cloudstep", "Daven Steelbough",
+-- Each side can be played as the local faction. The first Alliance and Horde
+-- characters are the recurring rivals in the first three battles.
+local alliance = {
+    { "Alden Dawnshield", 1, "human", "Human", 2, "WARRIOR", "Warrior", 55 },
+    { "Mira Goldwhisper", 1, "human", "Human", 3, "PRIEST", "Priest", 54 },
+    { "Daren Wildwood", 4, "nightelf", "Night Elf", 2, "HUNTER", "Hunter", 55 },
+    { "Thoren Ironbrook", 3, "dwarf", "Dwarf", 2, "PALADIN", "Paladin", 56 },
+    { "Lysa Starwind", 7, "gnome", "Gnome", 3, "MAGE", "Mage", 52 },
+    { "Halea Mistwood", 4, "nightelf", "Night Elf", 3, "DRUID", "Druid", 57 },
+    { "Kaela Thornwake", 4, "nightelf", "Night Elf", 3, "ROGUE", "Rogue", 53 },
+    { "Perrin Emberwick", 7, "gnome", "Gnome", 2, "WARLOCK", "Warlock", 58 },
+    { "Borin Flintforge", 3, "dwarf", "Dwarf", 2, "WARRIOR", "Warrior", 55 },
+    { "Nara Brightstone", 3, "dwarf", "Dwarf", 3, "HUNTER", "Hunter", 54 },
+    { "Elara Goldleaf", 1, "human", "Human", 3, "MAGE", "Mage", 56 },
+    { "Arden Swiftbrook", 1, "human", "Human", 2, "ROGUE", "Rogue", 54 },
 }
-local profiles = {
-    { 4, "nightelf", "Night Elf", 3, "HUNTER", "Hunter" },
-    { 3, "dwarf", "Dwarf", 2, "WARRIOR", "Warrior" },
-    { 5, "scourge", "Undead", 3, "ROGUE", "Rogue" },
-    { 2, "orc", "Orc", 2, "SHAMAN", "Shaman" },
-    { 1, "human", "Human", 3, "PRIEST", "Priest" },
-    { 8, "troll", "Troll", 2, "MAGE", "Mage" },
-    { 2, "orc", "Orc", 2, "WARLOCK", "Warlock" },
-    { 6, "tauren", "Tauren", 3, "DRUID", "Druid" },
+local horde = {
+    { "Dargun Ironjaw", 2, "orc", "Orc", 2, "SHAMAN", "Shaman", 56 },
+    { "Morga Duskwhisper", 5, "scourge", "Undead", 3, "PRIEST", "Priest", 54 },
+    { "Ragor Ashspear", 8, "troll", "Troll", 2, "HUNTER", "Hunter", 55 },
+    { "Brakka Bonewind", 6, "tauren", "Tauren", 2, "WARRIOR", "Warrior", 57 },
+    { "Fenrik Coldwater", 8, "troll", "Troll", 2, "MAGE", "Mage", 55 },
+    { "Vesha Reedthorn", 6, "tauren", "Tauren", 3, "DRUID", "Druid", 53 },
+    { "Cressa Ashveil", 5, "scourge", "Undead", 3, "ROGUE", "Rogue", 54 },
+    { "Ghash Emberfang", 2, "orc", "Orc", 2, "WARLOCK", "Warlock", 58 },
+    { "Ograth Stormtusk", 2, "orc", "Orc", 2, "WARRIOR", "Warrior", 55 },
+    { "Zekka Suncleft", 8, "troll", "Troll", 3, "HUNTER", "Hunter", 54 },
+    { "Uldren Grimwatch", 5, "scourge", "Undead", 2, "MAGE", "Mage", 56 },
+    { "Tavra Ironleaf", 2, "orc", "Orc", 3, "ROGUE", "Rogue", 54 },
 }
 local zones = {
-    { 1424, "Hillsbrad Foothills" },
-    { 1434, "Stranglethorn Vale" },
-    { 1446, "Tanaris" },
-    { 1440, "Ashenvale" },
-    { 1444, "Feralas" },
-    { 1428, "Burning Steppes" },
+    winter = { 1452, "Winterspring" },
+    crater = { 1449, "Un'Goro Crater" },
+    plaguelands = { 1423, "Eastern Plaguelands" },
+    silithus = { 1451, "Silithus" },
+    felwood = { 1448, "Felwood" },
+    western = { 1422, "Western Plaguelands" },
 }
 
-local function ClassName(class, sex, fallback)
-    local dictionary = sex == 3 and LOCALIZED_CLASS_NAMES_FEMALE or LOCALIZED_CLASS_NAMES_MALE
-    return dictionary and dictionary[class] or fallback
-end
-
-local squad = {
-    { id = "me", name = "Alden Dawnshield", race = "human", sex = 2, class = "WARRIOR", classLabel = "Warrior", level = 51, isSelf = true },
-    { id = "ally:1", name = "Mira Goldwhisper", class = "PRIEST", classLabel = "Priest", level = 50, sex = 3 },
-    { id = "ally:2", name = "Thoren Ironbrook", class = "PALADIN", classLabel = "Paladin", level = 52 },
-    { id = "ally:3", name = "Lysa Starwind", class = "MAGE", classLabel = "Mage", level = 48, sex = 3 },
-    { id = "ally:4", name = "Daren Wildwood", class = "HUNTER", classLabel = "Hunter", level = 53 },
+-- Roster numbers select characters above. Blows use positions in the current
+-- rosters, with "me" for the local player. Honor is the local player's award.
+local fights = {
+    { "winter-rematch", 9, "winter", 0.604, 0.377,
+      allies = { 1, 2 }, enemies = { 1, 2 }, blows = {
+          { 21, "me", "enemy2", 14 }, { 37, "enemy1", "me" }, { 73, "ally2", "enemy1", 18 },
+      } },
+    { "winter-road", 23, "winter", 0.575, 0.360,
+      allies = { 1 }, enemies = { 1 }, blows = { { 44, "enemy1", "me" } } },
+    { "crater-camp", 1127, "crater", 0.437, 0.089,
+      allies = { 1, 2, 3 }, enemies = { 1, 4, 5 }, blows = {
+          { 18, "me", "enemy3", 12 }, { 53, "enemy2", "ally3" },
+          { 79, "ally2", "enemy2", 16 }, { 104, "me", "enemy1", 17 },
+      } },
+    { "chapel-road", 1241, "plaguelands", 0.742, 0.528,
+      allies = { 1, 3, 4, 5, 6 }, enemies = { 3, 4, 6, 8, 9, 10 }, blows = {
+          { 29, "ally2", "enemy4", 13 }, { 52, "enemy2", "ally5" }, { 60, "enemy6", "ally2" },
+          { 86, "me", "enemy6", 11 }, { 104, "enemy5", "ally4" },
+          { 129, "enemy1", "me" }, { 156, "enemy3", "ally3" },
+      } },
+    { "plaguelands-crossing", 1280, "western", 0.462, 0.714,
+      allies = { 1, 3 }, enemies = { 8 }, incomplete = true, blows = { { 19, "enemy1", "me" } } },
+    { "silithus-ridge", 2923, "silithus", 0.524, 0.367,
+      allies = { 1, 2, 4, 5 }, enemies = { 2, 5, 9, 11 }, blows = {
+          { 24, "ally3", "enemy2", 11 }, { 35, "enemy3", "ally4" }, { 62, "me", "enemy1", 14 },
+          { 79, "enemy4", "ally3" }, { 91, "me", "enemy4", 12 }, { 138, "me", "enemy3", 15 },
+      } },
+    { "silithus-camp", 2987, "silithus", 0.497, 0.377,
+      allies = { 1 }, enemies = { 11 }, blows = { { 31, "enemy1", "me" } } },
+    { "felwood-fork", 4371, "felwood", 0.514, 0.830,
+      allies = { 1, 2 }, enemies = { 7, 12 }, blows = {
+          { 16, "enemy1", "ally2" }, { 32, "me", "enemy2", 15 }, { 58, "enemy1", "me" },
+      } },
+    { "felwood-path", 4380, "felwood", 0.513, 0.856,
+      allies = { 1 }, enemies = { 7 }, blows = { { 17, "me", "enemy1", 19 } } },
+    { "crater-trail", 5612, "crater", 0.691, 0.789,
+      allies = { 1 }, enemies = { 3 }, blows = { { 26, "me", "enemy1", 16 } } },
+    { "winter-bridge", 7198, "winter", 0.374, 0.374,
+      allies = { 1, 2 }, enemies = { 6 }, blows = { { 54, "me", "enemy1", 12 } } },
+    { "plaguelands-farm", 8654, "western", 0.408, 0.528,
+      allies = { 1 }, enemies = { 12 }, blows = { { 38, "enemy1", "me" } } },
 }
-local opposing = { 4, 7, 2, 8, 3, 6 }
 
-local function Ally(index)
-    local ally = {}
-    for key, value in pairs(squad[index]) do ally[key] = value end
-    return ally
+local function Appearance(profile, id)
+    local name, raceID, race, englishRace, sex, class, englishClass, level = unpack(profile)
+    local raceInfo = C_CreatureInfo and C_CreatureInfo.GetRaceInfo and C_CreatureInfo.GetRaceInfo(raceID)
+    local classes = sex == 3 and LOCALIZED_CLASS_NAMES_FEMALE or LOCALIZED_CLASS_NAMES_MALE
+    return { id = id, name = name, race = race, raceLabel = raceInfo and raceInfo.raceName or englishRace,
+        sex = sex, class = class, classLabel = classes and classes[class] or englishClass, level = level }
 end
 
-local function Opponent(id, index, rival)
-    return {
-        id = id, rivalID = id, name = rival.displayName, race = rival.race, sex = rival.sex,
-        class = rival.class, classLabel = rival.classLabel, level = 30 + (index * 7) % 31,
-    }
-end
+local function SeedBattle(fight, now, friendly, opposing)
+    local key, minutesAgo, zone, x, y = unpack(fight)
+    local mapID, englishZone = unpack(zones[zone])
+    local map = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
+    local time = now - minutesAgo * 60
+    local startedAt = time - fight.blows[#fight.blows][1]
+    local battle = { time = time, startedAt = startedAt, zone = map and map.name or englishZone, mapID = mapID,
+        x = x, y = y, rosterComplete = not fight.incomplete, allies = {}, enemies = {}, events = {}, rewards = {} }
+    local participants = {}
+    for i, profile in ipairs(fight.allies) do
+        local id = i == 1 and "me" or "ally" .. i
+        local player = Appearance(friendly[profile], id)
+        player.isSelf = i == 1 or nil
+        battle.allies[i], participants[id] = player, player
+    end
+    for i, profile in ipairs(fight.enemies) do
+        local id = "seed:rival:" .. profile
+        local enemy = Appearance(opposing[profile], id)
+        enemy.rivalID = id
+        battle.enemies[i], participants["enemy" .. i] = enemy, enemy
 
-local function SeedBattle(index, now, zoneNames, allyCount, enemyCount, complete, blows, rewards)
-    local zone = (index - 1) % #zones + 1
-    local time = now - index * 290
-    local battle = {
-        time = time, startedAt = time - math.max(95, #blows * 17),
-        zone = zoneNames[zone], mapID = zones[zone][1], x = 0.42 + index * 0.03, y = 0.51,
-        rosterComplete = complete, allies = {}, enemies = {}, events = {}, rewards = rewards,
-    }
-    for i = 1, allyCount do
-        battle.allies[i] = Ally(i)
+        local rival = addon.Ledger.Add(addon.db, id, enemy.name)
+        rival.race, rival.sex, rival.class = enemy.race, enemy.sex, enemy.class
+        rival.raceLabel, rival.classLabel = enemy.raceLabel, enemy.classLabel
     end
-    for i = 1, enemyCount do
-        local rivalIndex = opposing[i]
-        local id = "seed:" .. rivalIndex
-        battle.enemies[i] = Opponent(id, rivalIndex, addon.db.rivals[id])
+    for _, blow in ipairs(fight.blows) do
+        local second, killer, victim, honor = unpack(blow)
+        local actorID, targetID = participants[killer].id, participants[victim].id
+        battle.events[#battle.events + 1] = { kind = "kill", actorID = actorID, targetID = targetID, time = startedAt + second }
+        if honor then battle.rewards[targetID] = { honorableKills = 1, honor = honor } end
     end
-    for i, blow in ipairs(blows) do
-        battle.events[i] = { kind = "kill", actorID = blow[1], targetID = blow[2],
-            time = battle.startedAt + i * 17, contributors = blow[3] }
-    end
-    addon.Ledger.SaveSkirmish(addon.db, "seed:battle:" .. index, battle)
-end
-
-local function SeedSolo(index, attempt, now, zoneNames, opponent)
-    local player = Ally(1)
-    player.level = 48 + (index + attempt) % 13
-    local time = now - index * 173 - attempt * 3617
-    local zone = (index + attempt - 2) % #zones + 1
-    local won = (index + attempt) % 3 ~= 0
-    local winner, loser = player, opponent
-    if not won then winner, loser = opponent, player end
-    local rewards
-    if won and opponent.level >= player.level - 8 then
-        rewards = { [opponent.id] = { honorableKills = 1, honor = 4 + (index + attempt) % 9 } }
-    end
-    addon.Ledger.SaveSkirmish(addon.db, ("seed:solo:%d:%d"):format(index, attempt), {
-        time = time, startedAt = time - 17, zone = zoneNames[zone], mapID = zones[zone][1],
-        x = (20 + (index * 13 + attempt * 7) % 61) / 100,
-        y = (20 + (index * 5 + attempt * 11) % 61) / 100,
-        rosterComplete = true, allies = { player }, enemies = { opponent },
-        events = { { kind = "kill", actorID = winner.id, targetID = loser.id, time = time } }, rewards = rewards,
-    })
+    addon.Ledger.SaveSkirmish(addon.db, "seed:battle:" .. key, battle)
 end
 
 function addon.ClearDebugSeeds()
@@ -115,55 +139,10 @@ function addon.ClearDebugSeeds()
 end
 
 function addon.AddDebugSeeds(now)
-    local zoneNames = {}
-    for index, zone in ipairs(zones) do
-        local info = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(zone[1])
-        zoneNames[index] = info and info.name or zone[2]
-    end
     addon.ClearDebugSeeds()
-    for index, name in ipairs(names) do
-        local manual = index % 5 == 0
-        local id = (manual and "seed:manual:" or "seed:") .. index
-        local rival = addon.Ledger.Add(addon.db, id, name)
-        if manual then
-            rival.encounters = { { manual = true, outcome = (index + 1) % 3 == 0 and "loss" or "win" } }
-        else
-            local profile = profiles[(index - 1) % #profiles + 1]
-            local raceInfo = C_CreatureInfo and C_CreatureInfo.GetRaceInfo and C_CreatureInfo.GetRaceInfo(profile[1])
-            rival.race, rival.sex, rival.class = profile[2], profile[4], profile[5]
-            rival.raceLabel = raceInfo and raceInfo.raceName or profile[3]
-            rival.classLabel = ClassName(profile[5], profile[4], profile[6])
-            for attempt = 1, 3 + index % 5 do
-                SeedSolo(index, attempt, now, zoneNames, Opponent(id, index, rival))
-            end
-        end
-    end
-    SeedBattle(1, now, zoneNames, 2, 2, true, {
-        { "ally:1", "seed:7", { me = true, ["ally:1"] = true } },
-        { "seed:4", "me", { ["seed:4"] = true, ["seed:7"] = false } },
-        { "ally:1", "seed:4" },
-    }, {
-        ["seed:7"] = { honorableKills = 1, honor = 7 },
-        ["seed:4"] = { honorableKills = 1, honor = 6 },
-    })
-    SeedBattle(2, now, zoneNames, 1, 1, true, {
-        { "me", "seed:4", { me = true } },
-        { "seed:4", "me", { ["seed:4"] = false } },
-    })
-    SeedBattle(3, now, zoneNames, 5, 6, true, {
-        { "seed:4", "ally:2" }, { "ally:4", "seed:2" },
-        { "seed:7", "me", { ["seed:4"] = true, ["seed:7"] = true } },
-        { "seed:8", "ally:1" }, { "seed:3", "ally:3" }, { "seed:6", "ally:4" },
-    }, {
-        ["seed:2"] = { honorableKills = 1, honor = 8 },
-    })
-    SeedBattle(4, now, zoneNames, 2, 1, false, { { "seed:4", "me" } })
-    SeedBattle(5, now, zoneNames, 2, 1, true, {
-        { "seed:4", "me" },
-        { "ally:1", "seed:4", { me = false } },
-    })
-    SeedBattle(6, now, zoneNames, 2, 1, true, {
-        { "seed:4", "me" }, { "seed:4", "ally:1" },
-    })
-    return #names
+    local faction = UnitFactionGroup and addon.Readable(UnitFactionGroup("player"))
+    local friendly, opposing = alliance, horde
+    if faction == "Horde" then friendly, opposing = horde, alliance end
+    for _, fight in ipairs(fights) do SeedBattle(fight, now, friendly, opposing) end
+    return #opposing
 end
