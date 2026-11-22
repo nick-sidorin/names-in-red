@@ -97,10 +97,28 @@ assert(loadfile("NamesInRed/Encounter.lua"))("NamesInRed", addon)
 assert(loadfile("NamesInRed/Portraits.lua"))("NamesInRed", addon)
 assert(loadfile("NamesInRed/EncounterCards.lua"))("NamesInRed", addon)
 assert(loadfile("NamesInRed/Core.lua"))("NamesInRed", addon)
-assert(addon.RewardIconPath("Alliance", false) == "Interface\\Icons\\Achievement_PVP_A_12")
-assert(addon.RewardIconPath("Horde", false) == "Interface\\Icons\\Achievement_PVP_H_12")
-assert(addon.RewardIconPath("Alliance", true) == "Interface\\Icons\\PVPCurrency-Honor-Alliance")
-assert(addon.RewardIconPath("Horde", true) == "Interface\\Icons\\PVPCurrency-Honor-Horde")
+assert(addon.HonorableKillIconPath("Alliance") == "Interface\\Icons\\Achievement_PVP_A_12")
+assert(addon.HonorableKillIconPath("Horde") == "Interface\\Icons\\Achievement_PVP_H_12")
+assert(addon.HonorIconTexture("Alliance") == 463450 and addon.HonorIconTexture("Horde") == 463451)
+Constants = { CurrencyConsts = { CLASSIC_HONOR_CURRENCY_ID = 1901 } }
+local listedHonorIcon = 900101
+C_CurrencyInfo = {
+    GetCurrencyListSize = function() return 2 end,
+    GetCurrencyListInfo = function(index)
+        if index == 1 then return { currencyID = 777, iconFileID = 900100 } end
+        return { currencyID = 1901, iconFileID = listedHonorIcon }
+    end,
+    GetCurrencyInfo = function(id)
+        assert(id == 1901)
+        return { iconFileID = 900103 }
+    end,
+}
+assert(addon.HonorIconTexture("Alliance") == 900101)
+listedHonorIcon = 900102
+assert(addon.HonorIconTexture("Horde") == 900102)
+listedHonorIcon = secret
+assert(addon.HonorIconTexture("Horde") == 900103)
+Constants, C_CurrencyInfo = nil, nil
 assert(loadfile("NamesInRed/Book.lua"))("NamesInRed", addon)
 addon.db.rivals["Player-test"] = { displayName = "Test Rival", encounters = { { outcome = "win" }, { outcome = "win" }, { outcome = "loss" } } }
 addon.db.rivals["Player-empty"] = { displayName = "Empty Rival", killsAgainstThem = 0, deathsToThem = 0 }
@@ -203,6 +221,14 @@ local function MockRegion(parent)
         self.text = text
     end
     function region:GetText() return self.text end
+    function region:GetStringWidth() return #(tostring(self.text or "")) * 6 end
+    function region:SetBlendMode(mode) self.blend = mode end
+    function region:SetHighlightTexture(texture) self.highlight = texture end
+    function region:SetHighlightFontObject(font) self.hoverFont = font end
+    function region:SetFontString(label) self.buttonLabel = label end
+    function region:LockHighlight() self.highlightLocked = true end
+    function region:UnlockHighlight() self.highlightLocked = false end
+    function region:SetDesaturated(active) self.desaturated = active end
     function region:SetTextColor(r, g, b) self.color = { r, g, b } end
     function region:SetVertexColor(r, g, b) self.color = { r, g, b } end
     function region:SetAlpha(alpha) self.alpha = alpha end
@@ -229,6 +255,7 @@ local function MockRegion(parent)
     function region:Show() self:SetShown(true) end
     function region:Hide() self:SetShown(false) end
     function region:SetHeight(height) self.height = height end
+    function region:SetWidth(width) self.width = width end
     function region:SetScript(event, handler) self.scripts[event] = handler end
     function region:HookScript(event, handler)
         local previous = self.scripts[event]
@@ -405,6 +432,9 @@ card:SetSkirmish(large, "Player-test")
 local collapsedHeight = card.height
 assert(collapsedHeight == addon.SkirmishCardHeight(large) and not FindText(card, "0:11"))
 local timelineTitle = assert(FindText(card, addon.L.finishingBlows))
+local timelineHeader = timelineTitle.parent
+assert(timelineHeader.buttonLabel == timelineTitle and timelineHeader.hoverFont == "GameFontHighlightSmall")
+assert(not timelineHeader.highlight and timelineHeader.width < card.width / 2)
 timelineTitle.parent.scripts.OnClick(timelineTitle.parent)
 assert(timelineRequested == large)
 card:SetSkirmish(large, "Player-test", true)
@@ -451,7 +481,9 @@ assert(not allyEmblem.shown and enemyEmblem.shown)
 missingAtlas = nil
 faction = "Alliance"
 local name = assert(FindText(card, "Test Rival"))
-assert(name.parent.selection.shown)
+local rimHighlight = name.parent.highlight
+assert(name.parent.highlightLocked and rimHighlight.bounds == name.parent.avatar.rim)
+assert(rimHighlight.atlas == "Mode-Selection-Ring" and rimHighlight.blend == "ADD" and rimHighlight.alpha == 0.2)
 assert(name.parent.avatar.death.shown and FindRegion(name.parent.avatar.death, "atlas", "UI-HUD-UnitFrame-SmallCircle"))
 CheckLevelLabel(assert(FindText(name.parent, 42)), 20, "SystemFont_Tiny")
 name.parent.scripts.OnClick(name.parent)
@@ -465,18 +497,16 @@ local fullOutcome = fullVictory.parent
 assert(fullOutcome.anchor[4] == 0 and FindText(fullOutcome, addon.L.winTooltip))
 assert(fullVictory.width == 56 and fullVictory.height == 56)
 assert(FindRegion(fullVictory, "atlas", "UI-HUD-UnitFrame-SmallCircle"))
-fullVictory.scripts.OnEnter(fullVictory)
-assert(GameTooltip.shown and GameTooltip.title == addon.L.winTooltip)
+assert(not fullVictory.scripts.OnEnter)
 card:SetSkirmish({ allies = finished.allies, enemies = finished.enemies, outcome = "loss", events = {} })
 assert(not GameTooltip.shown and not fullVictory.shown)
 local fullDefeat = assert(FindRegion(card, "texture", addon.defeatBannerPath)).parent
 assert(FindText(fullOutcome, addon.L.lossTooltip))
 assert(fullDefeat.width == fullVictory.width and fullDefeat.height == fullVictory.height)
-fullDefeat.scripts.OnEnter(fullDefeat)
-assert(GameTooltip.shown and GameTooltip.title == addon.L.lossTooltip)
+assert(not fullDefeat.scripts.OnEnter)
 card:SetSkirmish({ allies = { allies[1] }, enemies = { enemies[1] }, events = {} })
 assert(not GameTooltip.shown and not fullDefeat.shown and FindText(card, "?"))
-assert(not name.parent.selection.shown)
+assert(not name.parent.highlightLocked)
 local partialCount = assert(FindText(card, "1 × 1"))
 assert(card.height < largeHeight and not FindText(card, addon.L.partialRoster))
 assert(not journalMap.shown)
@@ -532,19 +562,21 @@ local first = { skirmishID = "battle-one", outcome = "win", opponentDeathIndex =
     zone = "Hillsbrad Foothills", time = 100, player = allies[1], opponent = enemies[1],
     playerLevel = 51, rivalLevel = 42 }
 first.player.race, first.player.sex = "orc", 2
-first.opponent.race, first.opponent.sex = "human", 3
+first.opponent.race, first.opponent.sex, first.opponent.classLabel = "human", 3, "Mage"
 function GetRaceAtlas(race, gender) return race .. "-" .. gender end
 compact:SetEncounter(first)
 assert(FindText(compact, "Hillsbrad Foothills") and FindText(compact, date("%x", first.time)))
 assert(FindText(compact, "Hillsbrad Foothills").anchor[1] == "LEFT")
 assert(FindText(compact, "My Character") and FindText(compact, "Test Rival"))
-local myBadge = CheckLevelLabel(assert(FindText(compact, 51)), 24, "GameFontHighlightSmall")
-local opponentBadge = CheckLevelLabel(assert(FindText(compact, 42)), 24, "GameFontHighlightSmall")
+local myBadge = CheckLevelLabel(assert(FindText(compact, 51)), 20, "SystemFont_Tiny")
+local opponentBadge = CheckLevelLabel(assert(FindText(compact, 42)), 20, "SystemFont_Tiny")
 assert(myBadge.anchor[3] == "BOTTOMLEFT" and opponentBadge.anchor[3] == "BOTTOMRIGHT")
 assert(myBadge.anchor[4] == -opponentBadge.anchor[4] and myBadge.anchor[5] == opponentBadge.anchor[5])
 local myName, opponentName = FindText(compact, "My Character"), FindText(compact, "Test Rival")
-local myRim, opponentRim = myName.anchor[2], opponentName.anchor[2]
-assert(myRim.width == 64 and opponentRim.width == 64)
+local myRim, opponentRim = myName.parent.avatar.rim, opponentName.parent.avatar.rim
+assert(myRim.width == 50 and opponentRim.width == 50)
+assert(FindText(opponentName.parent, "Mage"))
+assert(myName.parent.highlight.bounds == myRim and opponentName.parent.highlight.bounds == opponentRim)
 local playerPortrait = assert(FindRegion(compact, "atlas", "orc-male"))
 local rivalPortrait = assert(FindRegion(compact, "atlas", "human-female"))
 local function AssertFullPortrait(portrait, mirrored)
@@ -564,13 +596,18 @@ assert(not profileAvatar.death)
 profileAvatar:SetParticipant(first.opponent, nil, 9)
 assert(CheckLevelLabel(assert(FindText(profile, 9)), 24, "GameFontHighlightSmall") == profileBadge)
 local function PortraitMarker(anchor, texture)
-    for _, child in ipairs(compact.children) do
-        if child.shown and child.scripts.OnEnter and child.anchor[2] == anchor and FindRegion(child, "texture", texture) then
-            return child
+    for _, tile in ipairs({ myName.parent, opponentName.parent }) do
+        local death = tile.avatar.death
+        if death.shown and death.anchor[2] == anchor and FindRegion(death, "texture", texture) then
+            return death
         end
     end
 end
-local function CenterMarker(texture) return PortraitMarker(compact, texture) end
+local function CenterMarker(texture)
+    local icon = FindRegion(compact, "texture", texture)
+    local marker = icon and icon.parent
+    if marker and marker.parent.parent == compact and marker.anchor[1] == "TOP" then return marker end
+end
 local function CheckPortraitMarker(rim, texture, corner)
     local marker = assert(PortraitMarker(rim, texture))
     local x = corner == "TOPRIGHT" and -10 or 10
@@ -579,15 +616,16 @@ local function CheckPortraitMarker(rim, texture, corner)
 end
 local swords, skull, banner = addon.swordsIconPath, addon.smallSkullIconPath, addon.defeatBannerPath
 local victory = assert(CenterMarker(swords))
-assert(victory.anchor[4] == 0 and not CenterMarker(banner))
+assert(victory.width == 44 and victory.parent.anchor[4] == 0 and not CenterMarker(banner))
+assert(FindRegion(victory, "atlas", "UI-HUD-UnitFrame-SmallCircle"))
+assert(FindText(victory.parent, addon.L.winTooltip) and not victory.scripts.OnEnter)
+assert(rivalPortrait.desaturated and not playerPortrait.desaturated)
 local portraitDeath = CheckPortraitMarker(opponentRim, skull, "TOPLEFT")
 assert(FindRegion(portraitDeath, "atlas", "UI-HUD-UnitFrame-SmallCircle"))
 assert(portraitDeath.width == 20 and FindRegion(portraitDeath, "texture", skull).width == 14)
 assert(not PortraitMarker(myRim, skull) and not PortraitMarker(opponentRim, swords))
-CheckFactionColors(myName, opponentName)
 faction = "Horde"
 compact:SetEncounter(first)
-CheckFactionColors(opponentName, myName)
 AssertFullPortrait(rivalPortrait, true)
 compact:SetEncounter(first)
 AssertFullPortrait(rivalPortrait, true)
@@ -616,16 +654,13 @@ addon.ShowEncounterWaypoint = function(encounter) mapped = encounter; return tru
 map.scripts.OnClick()
 assert(openedMap and mapped == first)
 
-victory.scripts.OnEnter(victory)
-assert(GameTooltip.shown and GameTooltip.title == addon.L.winTooltip)
 compact:SetEncounter({ skirmishID = "battle-loss", outcome = "loss", playerDeathIndex = 1 })
 assert(not GameTooltip.shown and not CenterMarker(swords))
 local defeat = assert(CenterMarker(banner))
 assert(not CenterMarker(skull))
-defeat.scripts.OnEnter(defeat)
-assert(GameTooltip.shown and GameTooltip.title == addon.L.lossTooltip)
+assert(FindText(defeat.parent, addon.L.lossTooltip) and not defeat.scripts.OnEnter)
 CheckPortraitMarker(myRim, skull, "TOPRIGHT")
-assert(not PortraitMarker(opponentRim, swords) and defeat.anchor[4] == 0)
+assert(not PortraitMarker(opponentRim, swords) and defeat.parent.anchor[4] == 0)
 compact:SetEncounter({ skirmishID = "win-while-dead", outcome = "win", playerDeathIndex = 1, opponentDeathIndex = 2 })
 assert(not GameTooltip.shown and CenterMarker(swords) and not CenterMarker(banner))
 CheckPortraitMarker(myRim, skull, "TOPRIGHT")
@@ -636,7 +671,7 @@ compact:SetEncounter({ skirmishID = "player-casualty", playerDeathIndex = 1 })
 assert(not GameTooltip.shown and not CenterMarker(swords) and not CenterMarker(banner))
 assert(PortraitMarker(myRim, skull) and not PortraitMarker(opponentRim, skull))
 local unknownMark = assert(FindText(compact, "?"))
-assert(unknownMark.parent.shown)
+assert(unknownMark.parent.shown and FindText(unknownMark.parent.parent, addon.L.shortUnknownOutcome))
 unknownMark.parent.scripts.OnEnter(unknownMark.parent)
 assert(GameTooltip.shown and GameTooltip.title == addon.L.unknownOutcome)
 compact:SetEncounter({ skirmishID = "battle-two" })

@@ -100,15 +100,11 @@ function handlers.CHAT_MSG_COMBAT_HONOR_GAIN(message, _, _, _, _, _, _, _, _, _,
 end
 
 function handlers.CURRENCY_DISPLAY_UPDATE(currencyID, _, change)
-    local currencies = Constants and Constants.CurrencyConsts
     currencyID, change = Readable(currencyID), Readable(change)
-    if not currencies or not currencyID or type(change) ~= "number" or change <= 0 then return end
-    if currencyID == currencies.HONOR_CURRENCY_ID or currencyID == currencies.CLASSIC_HONOR_CURRENCY_ID
-        or currencyID == currencies.ACCOUNT_WIDE_HONOR_CURRENCY_ID then
-        local batch = CurrentBatch()
-        batch.currencyUpdates = batch.currencyUpdates + 1
-        batch.currencyHonor = change
-    end
+    if not addon.IsHonorCurrency(currencyID) or type(change) ~= "number" or change <= 0 then return end
+    local batch = CurrentBatch()
+    batch.currencyUpdates = batch.currencyUpdates + 1
+    batch.currencyHonor = change
 end
 
 local frame = CreateFrame("Frame")

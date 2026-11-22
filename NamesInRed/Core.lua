@@ -8,11 +8,43 @@ addon.battlefieldArtPath = artPath .. "Battlefield.tga"
 addon.levelBadgePath = artPath .. "LevelBadge.tga"
 addon.smallSwordsInset = 22
 
-function addon.RewardIconPath(faction, isHonor)
-    if isHonor then
-        local emblem = faction == "Horde" and "Horde" or "Alliance"
-        return "Interface\\Icons\\PVPCurrency-Honor-" .. emblem
+function addon.IsHonorCurrency(id)
+    local currencies = Constants and Constants.CurrencyConsts
+    return currencies and type(id) == "number" and (id == currencies.CLASSIC_HONOR_CURRENCY_ID
+        or id == currencies.HONOR_CURRENCY_ID or id == currencies.ACCOUNT_WIDE_HONOR_CURRENCY_ID)
+end
+
+local function CurrencyIcon(info, fromList)
+    info = addon.Readable(info)
+    if type(info) ~= "table" or (canaccesstable and not canaccesstable(info)) then return end
+    if fromList and not addon.IsHonorCurrency(addon.Readable(info.currencyID)) then return end
+    local icon = addon.Readable(info.iconFileID)
+    if type(icon) == "number" and icon > 0 then return icon end
+end
+
+function addon.HonorIconTexture(faction)
+    local currency = C_CurrencyInfo
+    if currency then
+        -- The Currency tab uses the iconFileID supplied by the currency list.
+        local size = currency.GetCurrencyListSize and addon.Readable(currency.GetCurrencyListSize())
+        if type(size) == "number" and currency.GetCurrencyListInfo then
+            for index = 1, size do
+                local icon = CurrencyIcon(currency.GetCurrencyListInfo(index), true)
+                if icon then return icon end
+            end
+        end
+        -- The category can be collapsed or the currency hidden from the list.
+        local currencies = Constants and Constants.CurrencyConsts
+        local honorID = currencies and currencies.CLASSIC_HONOR_CURRENCY_ID
+        local icon = honorID and currency.GetCurrencyInfo and CurrencyIcon(currency.GetCurrencyInfo(honorID))
+        if icon then return icon end
     end
+    local currencies = Constants and Constants.CurrencyConsts
+    if faction == "Horde" then return currencies and currencies.PVP_CURRENCY_HONOR_HORDE_INV_ICON or 463451 end
+    return currencies and currencies.PVP_CURRENCY_HONOR_ALLIANCE_INV_ICON or 463450
+end
+
+function addon.HonorableKillIconPath(faction)
     local rank = faction == "Horde" and "H" or "A"
     return "Interface\\Icons\\Achievement_PVP_" .. rank .. "_12"
 end

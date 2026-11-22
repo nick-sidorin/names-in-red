@@ -20,6 +20,13 @@ function addon.SetBookPortrait(frame)
     backing:AddMaskTexture(container.CircleMask)
 end
 
+local function SetPortraitRingArt(ring)
+    if not addon.ApplyAtlas(ring, "Mode-Selection-Ring") then
+        ring:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+        ring:SetTexCoord(0, 0.68, 0, 0.68)
+    end
+end
+
 function addon.CreateRoundIcon(parent, size)
     size = size or 64
     local icon = parent:CreateTexture(nil, "ARTWORK")
@@ -33,10 +40,7 @@ function addon.CreateRoundIcon(parent, size)
     local ring = parent:CreateTexture(nil, "OVERLAY")
     ring:SetSize(size, size)
     icon:SetPoint("CENTER", ring)
-    if not addon.ApplyAtlas(ring, "Mode-Selection-Ring") then
-        ring:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-        ring:SetTexCoord(0, 0.68, 0, 0.68)
-    end
+    SetPortraitRingArt(ring)
     return icon, ring
 end
 
@@ -98,22 +102,20 @@ function addon.HideOwnedTooltip(button)
     if tooltip:IsOwned(button) then tooltip:Hide() end
 end
 
-function addon.CreateOutcomeMarker(parent, size, texture, tooltipText, framed)
+function addon.CreateFramedMarker(parent, size, texture, tooltipText)
     local marker = CreateFrame("Frame", nil, parent)
     marker:SetSize(size, size)
-    if framed then
-        local rim = marker:CreateTexture(nil, "BACKGROUND")
-        rim:SetAllPoints()
-        if not addon.ApplyAtlas(rim, "UI-HUD-UnitFrame-SmallCircle") then rim:SetTexture(addon.levelBadgePath) end
-        if texture == addon.smallSkullIconPath then rim:SetVertexColor(1, 0.68, 0.64) end
-    end
+    local rim = marker:CreateTexture(nil, "BACKGROUND")
+    rim:SetAllPoints()
+    if not addon.ApplyAtlas(rim, "UI-HUD-UnitFrame-SmallCircle") then rim:SetTexture(addon.levelBadgePath) end
+    if texture == addon.smallSkullIconPath then rim:SetVertexColor(1, 0.68, 0.64) end
     if not texture then
         local mark = marker:CreateFontString(nil, "OVERLAY", size >= 24 and "GameFontNormalLarge" or "GameFontNormal")
         mark:SetPoint("CENTER")
         mark:SetText("?")
     else
         local icon = marker:CreateTexture(nil, "OVERLAY", nil, 1)
-        local iconSize = framed and size * 0.7 or size
+        local iconSize = size * 0.7
         icon:SetSize(iconSize, iconSize)
         icon:SetPoint("CENTER")
         icon:SetTexture(texture)
@@ -122,15 +124,17 @@ function addon.CreateOutcomeMarker(parent, size, texture, tooltipText, framed)
             icon:SetTexCoord(inset, 1 - inset, inset, 1 - inset)
         end
     end
-    marker:SetMouseMotionEnabled(true)
-    marker:SetScript("OnEnter", function(self)
-        local tooltip = GetAppropriateTooltip and GetAppropriateTooltip() or GameTooltip
-        tooltip:SetOwner(self, "ANCHOR_TOP")
-        tooltip:SetText(tooltipText)
-        tooltip:Show()
-    end)
-    marker:SetScript("OnLeave", addon.HideOwnedTooltip)
-    marker:SetScript("OnHide", addon.HideOwnedTooltip)
+    if tooltipText then
+        marker:SetMouseMotionEnabled(true)
+        marker:SetScript("OnEnter", function(self)
+            local tooltip = GetAppropriateTooltip and GetAppropriateTooltip() or GameTooltip
+            tooltip:SetOwner(self, "ANCHOR_TOP")
+            tooltip:SetText(tooltipText)
+            tooltip:Show()
+        end)
+        marker:SetScript("OnLeave", addon.HideOwnedTooltip)
+        marker:SetScript("OnHide", addon.HideOwnedTooltip)
+    end
     return marker
 end
 
@@ -139,11 +143,19 @@ function addon.CreateParticipantPortrait(parent, options)
     local size = options.size or 64
     local opposing = options.opposing
     local portrait, rim = addon.CreateRoundIcon(parent, size)
+    if options.highlightRim then
+        local highlight = parent:CreateTexture(nil, "HIGHLIGHT")
+        highlight:SetAllPoints(rim)
+        SetPortraitRingArt(highlight)
+        highlight:SetBlendMode("ADD")
+        highlight:SetAlpha(0.2)
+        parent:SetHighlightTexture(highlight)
+    end
     local level = CreateLevelBadge(parent, rim, opposing, options.levelSize or 24)
     local death
     if options.casualtySize then
         local inset = options.casualtyInset
-        death = addon.CreateOutcomeMarker(parent, options.casualtySize, addon.smallSkullIconPath, L.portraitDeath, true)
+        death = addon.CreateFramedMarker(parent, options.casualtySize, addon.smallSkullIconPath, L.portraitDeath)
         death:SetPoint("CENTER", rim, opposing and "TOPLEFT" or "TOPRIGHT", opposing and inset or -inset, -inset)
         death:Hide()
     end

@@ -189,8 +189,8 @@ local function ShowDetails()
         honorableKills:SetText(L.statValue:format(L.honorableKills, honorableKillCount))
         honor:SetText(L.statValue:format(L.honor, honorTotal))
         local faction = UnitFactionGroup and Readable(UnitFactionGroup("player"))
-        honorableKillsIcon:SetTexture(addon.RewardIconPath(faction, false))
-        honorIcon:SetTexture(addon.RewardIconPath(faction, true))
+        honorableKillsIcon:SetTexture(addon.HonorableKillIconPath(faction))
+        honorIcon:SetTexture(addon.HonorIconTexture(faction))
         local level
         for _, encounter in ipairs(history) do
             if type(encounter.rivalLevel) == "number" and encounter.rivalLevel > 0 then
@@ -557,8 +557,8 @@ local function ToggleBook()
         local rewardColumn = profileInset + cardWidth / 2 + 6
         local faction = UnitFactionGroup and Readable(UnitFactionGroup("player"))
         honorableKills, honorableKillsIcon = Stat(summary, rewardColumn, -112,
-            addon.RewardIconPath(faction, false), L.honorableKills)
-        honor, honorIcon = Stat(summary, rewardColumn, -162, addon.RewardIconPath(faction, true), L.honor)
+            addon.HonorableKillIconPath(faction), L.honorableKills)
+        honor, honorIcon = Stat(summary, rewardColumn, -162, addon.HonorIconTexture(faction), L.honor)
         local latestHeading = summary:CreateFontString(nil, "OVERLAY", sectionFont)
         latestHeading:SetPoint("TOPLEFT", profileInset, -215)
         latestHeading:SetText(L.latestEncounter)

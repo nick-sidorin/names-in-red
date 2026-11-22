@@ -387,23 +387,27 @@ texture's effective scale to target one physical pixel. Their positions snap
 to the pixel grid. The full header centers the map control between the inner
 top edge and divider. The roster headers and timeline use the same dividers.
 Check dividers and headings at different resolutions and UI scales.
-Compact portraits use the profile's 64-unit ring and 24-unit level badge. The
-full card uses a 50-unit ring and 20-unit badge. The three views share the
-participant portrait, level badge, and casualty marker implementation in
-`Portraits.lua`. The level label centers inside the circle's bounds on a
+The profile uses a 64-unit ring and 24-unit level badge. Both card layouts
+share the participant tile with the 50-unit ring, 20-unit level badge, name,
+and class label. The level label centers inside the circle's bounds on a
 pixel-rounded frame. The native `LevelTextTemplate` in Camelot's
 `TargetFrameTemplates.xml` right-aligns text for the target frame's geometry.
-Check one- and two-digit values in each portrait size at different UI scales.
 The 20-unit badge uses `SystemFont_Tiny` from
-`Blizzard_Fonts_Shared/Shared/Fonts.xml`. The ring comes from `Mode-Selection-Ring` in
-`Blizzard_GlueXML/Mainline/SuperDistrict.xml`. Both layouts center crossed
-swords, the torn gray banner or a question mark between the sides, using the
-same outcome calculation as the profile score. The full card uses a 56-unit
-outcome frame with a label. The result art can extend beyond the decorative
-rim. Both cards frame their casualty markers with `UI-HUD-UnitFrame-SmallCircle`
-from Camelot's `TargetFrameTemplates.xml`, which also frames the full outcome.
-The compact casualty marker uses a 20-unit circle for legibility at lower resolutions.
-Hover the markers and rebind the card to check tooltip cleanup.
+`Blizzard_Fonts_Shared/Shared/Fonts.xml`. The rim uses `Mode-Selection-Ring`
+from `Blizzard_GlueXML/Mainline/SuperDistrict.xml`. The highlight draws the
+same rim at 0.2 alpha in additive mode, following the profession output
+button's inherited `CircularGiantItemButtonTemplate` in
+`Blizzard_ItemButton/Mainline/ItemButtonTemplate.xml`. In a linked fight, the
+selected rival keeps its rim glow via `LockHighlight`. Check that neither hover
+nor selection changes the image inside and that scrolling releases the glow
+when the tile is rebound.
+Both layouts share the result badge and localized caption. The circle is 44
+units on compact cards and 56 on full cards. Victory and defeat use captions
+alone. The unknown result and skulls retain their tooltips. The circle art
+comes from `UI-HUD-UnitFrame-SmallCircle` in Camelot's
+`TargetFrameTemplates.xml`. The compact casualty marker uses a 20-unit circle
+for legibility at lower resolutions. Verify badge text, mirrored sides, and
+tooltips at several UI scales.
 A local portrait with no saved race portrait uses `SetPortraitTexture`, as in Camelot's
 `CharacterFrameMixin:UpdateCharacterModeTabPortrait`. Race portraits use the
 `resetTexCoords` argument to `SetAtlas`. The compact rival portrait flips its
@@ -413,10 +417,14 @@ is drawn facing either way. Check the full crop in the profile and the compact
 card, and click the same rival repeatedly to verify the direction.
 The two reward rows reuse the same profession reagent controls as the score
 rows. For the reference art, the rank-12 helmet uses the client texture paths
-`Achievement_PVP_A_12` and `Achievement_PVP_H_12`. The original faction currency
-emblems use `PVPCurrency-Honor-Alliance` and `PVPCurrency-Honor-Horde`.
-Check that skirmish and reward labels keep their left edge when their counts
-change from one to multiple digits.
+`Achievement_PVP_A_12` and `Achievement_PVP_H_12`. The Honor stat follows
+`TokenEntryMixin:Initialize` in `Blizzard_TokenUI/Camelot/Blizzard_TokenUI.lua`
+and displays the `iconFileID` from the native currency list. A hidden currency
+can still supply its icon via `C_CurrencyInfo.GetCurrencyInfo` for Classic
+Honor. The generated `PVP_CURRENCY_HONOR_*_INV_ICON` constants provide faction
+fallbacks. Compare the artwork with the Currency tab on Alliance and Horde,
+including a collapsed PvP category. Check that the stat labels keep their
+left edge as the counts change.
 `PVPMatchStyle.GetLocalPlayerFactionTheme` uses the first return from
 `UnitFactionGroup("player")`. The skirmish cards use the same faction tag to
 order the existing blue and red palette. `Blizzard_UnitFrame/Camelot/TargetFrame.lua`
@@ -437,7 +445,9 @@ row. Three or four use two rows. Larger groups use the fewest rows that fit
 three per row, with any extra portraits assigned to the upper rows. Verify
 3, 4, 5, 6 and 7 portraits, including a sparse side opposite a full group.
 The timeline header uses the native `common-icon-forwardarrow` art on a
-button owned by the card list. Unlike the client `ExpandBarMixin`, this
+button owned by the card list. The button sizes to the arrow, caption and
+count. Its `GameFontHighlightSmall` font state brightens the caption on hover.
+`ExpandBarMixin:OnEnter` also uses a local control highlight. The journal's
 button remeasures the scrolling list when the rows change. Test expansion,
 collapse and card reuse while scrolling. History starts collapsed and the
 linked detail view starts expanded.

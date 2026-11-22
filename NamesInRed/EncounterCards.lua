@@ -3,8 +3,6 @@ local L, HideTooltip = addon.L, addon.HideOwnedTooltip
 local azerothMapID = 947
 local mapsByName
 
-addon.compactEncounterCardHeight = 138
-
 local allianceColor = { 0.65, 0.83, 1 }
 local hordeColor = { 1, 0.61, 0.52 }
 local neutralColor = { 0.77, 0.71, 0.61 }
@@ -139,6 +137,10 @@ local fullHeaderCenter = -18
 local fullHeaderDivider = 2 * fullHeaderCenter + 2
 local rosterTop, rosterHeaderHeight, rosterRowHeight = fullHeaderDivider - sectionPadding, 27, 81
 local portraitSize, rosterGutter = 50, 100
+local resultWidth = rosterGutter - 8
+local compactHeaderCenter, compactHeaderDivider = -21, -41
+local compactRosterTop = compactHeaderDivider - sectionPadding
+addon.compactEncounterCardHeight = -compactRosterTop + rosterRowHeight + sectionPadding
 local finishingBlowFirstRow, finishingBlowStep = 26, 19
 
 local function RosterRows(count)
@@ -233,39 +235,108 @@ local function StampRight(actionRight)
     return actionRight and actionRight + compactActionSize - compactActionInset + compactHeaderGap or cardInset
 end
 
-local function CreateOutcomeMarkers(card, y, swordSize, bannerSize, framed)
+local function CreateSkirmishResult(card, size)
+    local center = CreateFrame("Frame", nil, card)
+    center:SetSize(resultWidth, size + 24)
     local markers = {
-        win = addon.CreateOutcomeMarker(card, swordSize, addon.swordsIconPath, L.winTooltip, framed),
-        loss = addon.CreateOutcomeMarker(card, bannerSize, addon.defeatBannerPath, L.lossTooltip, framed),
-        unknown = addon.CreateOutcomeMarker(card, swordSize, nil, L.unknownOutcome, framed),
+        win = addon.CreateFramedMarker(center, size, addon.swordsIconPath),
+        loss = addon.CreateFramedMarker(center, size, addon.defeatBannerPath),
+        unknown = addon.CreateFramedMarker(center, size, nil, L.unknownOutcome),
     }
     for _, marker in pairs(markers) do
-        marker:SetPoint("CENTER", card, "TOP", 0, y)
+        marker:SetPoint("TOP", center)
         marker:Hide()
     end
-    return function(outcome, changed)
-        for result, marker in pairs(markers) do
-            if changed then HideTooltip(marker) end
-            marker:SetShown(outcome == result)
+    local caption = Label(center, "GameFontNormalSmall", "TOP", 0, -size - 4, resultWidth)
+    caption:SetJustifyH("CENTER")
+    caption:SetWordWrap(true)
+    caption:SetMaxLines(2)
+    return function(outcome, changed, top)
+        if changed then HideTooltip(markers.unknown) end
+        for result, marker in pairs(markers) do marker:SetShown(outcome == result) end
+        center:SetShown(outcome ~= nil)
+        if not outcome then return end
+        center:SetPoint("CENTER", card, "TOP", 0, top)
+        caption:SetText(outcome == "win" and L.winTooltip
+            or outcome == "loss" and L.lossTooltip or L.shortUnknownOutcome)
+        if outcome == "loss" then
+            caption:SetTextColor(1, 0.72, 0.62)
+        elseif outcome == "unknown" then
+            caption:SetTextColor(unpack(neutralColor))
+        else
+            caption:SetTextColor(1, 0.82, 0.50)
         end
     end
 end
 
-local function CompactParticipant(card, x, size, nameWidth, isOpponent)
-    local avatar = addon.CreateParticipantPortrait(card, {
-        size = size, opposing = isOpponent, casualtySize = 20, casualtyInset = 10,
-        livePlayerFallback = not isOpponent,
+local function CreateParticipantTile(parent, isOpponent, openRival, compact)
+    local tile = CreateFrame("Button", nil, parent)
+    tile.canOpenRival = openRival ~= nil
+    tile.isOpponent = isOpponent
+    tile.isLocalCharacter = compact and not isOpponent
+    if openRival then
+        tile:SetScript("OnClick", function(self)
+            if self.rivalID then openRival(self.rivalID) end
+        end)
+    end
+    tile:SetScript("OnEnter", function(self)
+        if not self.name:IsTruncated() then return end
+        local tooltip = GetAppropriateTooltip and GetAppropriateTooltip() or GameTooltip
+        tooltip:SetOwner(self, "ANCHOR_TOP")
+        tooltip:SetText(self.name:GetText())
+        tooltip:Show()
+    end)
+    tile:SetScript("OnLeave", HideTooltip)
+    tile:SetScript("OnHide", HideTooltip)
+    tile:SetMouseMotionEnabled(true)
+
+    tile.avatar = addon.CreateParticipantPortrait(tile, {
+        size = portraitSize, levelSize = 20, opposing = isOpponent,
+        casualtySize = compact and 20 or 17, casualtyInset = compact and 10 or 7,
+        desaturateCasualty = true, highlightRim = true, livePlayerFallback = tile.isLocalCharacter,
     })
-    avatar.rim:SetPoint("TOPLEFT", x - size / 2, -47)
-    local name = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    name:SetPoint("TOP", avatar.rim, "BOTTOM", 0, -4)
-    name:SetWidth(nameWidth)
-    name:SetJustifyH("CENTER")
-    name:SetWordWrap(false)
-    return avatar, name
+    tile.avatar.rim:SetPoint("TOP")
+    local function Caption(offset)
+        local label = tile:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        label:SetPoint("TOPLEFT", 2, -portraitSize - offset)
+        label:SetPoint("TOPRIGHT", -2, -portraitSize - offset)
+        label:SetJustifyH("CENTER")
+        label:SetWordWrap(false)
+        return label
+    end
+    tile.name = Caption(2)
+    tile.class = Caption(16)
+    return tile
 end
 
-local compactHeaderCenter, compactOutcomeY = -21, -79
+local function HideParticipantTooltips(tile)
+    HideTooltip(tile)
+    HideTooltip(tile.avatar.death)
+end
+
+local function BindParticipantTile(tile, player, known, level, died, selectedRivalID)
+    HideParticipantTooltips(tile)
+    local isSelf = player.isSelf or tile.isLocalCharacter
+    local class, sex = player.class or known.class, player.sex or known.sex
+    tile.avatar:SetParticipant({ race = player.race or known.race, sex = sex, class = class },
+        player.id or player.rivalID, level, died)
+    local name = addon.ManualName(player.name) or addon.ManualName(known.displayName)
+    if isSelf then name = name or addon.UnitPlayerName("player") or YOU end
+    tile.name:SetText(name or (tile.isOpponent and L.unknownRival or L.unknownPlayer))
+    local classes = sex == 3 and LOCALIZED_CLASS_NAMES_FEMALE or LOCALIZED_CLASS_NAMES_MALE
+    local className = classes and classes[class] or player.classLabel or known.classLabel or ""
+    if isSelf and YOU then className = className ~= "" and (className .. " • " .. YOU) or YOU end
+    tile.class:SetText(className)
+    local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+    if color then tile.class:SetTextColor(color.r, color.g, color.b)
+    else tile.class:SetTextColor(unpack(neutralColor)) end
+    tile.rivalID = tile.canOpenRival and player.rivalID and known.displayName
+        and addon.IsRosterRival(player.rivalID, known) and player.rivalID or nil
+    tile:SetMouseClickEnabled(tile.rivalID ~= nil)
+    if selectedRivalID and player.rivalID == selectedRivalID then tile:LockHighlight()
+    else tile:UnlockHighlight() end
+    tile:Show()
+end
 
 function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmish)
     local card = CreateCard(parent, width, addon.compactEncounterCardHeight)
@@ -275,12 +346,16 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
     local day = Label(card, "GameFontHighlightSmall", "TOPRIGHT", -cardInset, -9, 96)
     local time = Label(card, "GameFontHighlightSmall", "TOPRIGHT", -cardInset, -23, 96)
     time:SetTextColor(unpack(neutralColor))
-    Divider(card, -41)
+    Divider(card, compactHeaderDivider)
 
-    local portraitSize = 64
-    local mine, myName = CompactParticipant(card, width / 4, portraitSize, width / 2 - 18, false)
-    local theirs, theirName = CompactParticipant(card, 3 * width / 4, portraitSize, width / 2 - 18, true)
-    local setOutcome = CreateOutcomeMarkers(card, compactOutcomeY, 24, 31)
+    local sideWidth = (width - 2 * cardInset - resultWidth) / 2
+    local mine = CreateParticipantTile(card, false, nil, true)
+    local theirs = CreateParticipantTile(card, true, nil, true)
+    mine:SetSize(sideWidth, rosterRowHeight)
+    theirs:SetSize(sideWidth, rosterRowHeight)
+    mine:SetPoint("TOPLEFT", cardInset, compactRosterTop)
+    theirs:SetPoint("TOPRIGHT", -cardInset, compactRosterTop)
+    local setResult = CreateSkirmishResult(card, 44)
 
     local map = MapAction(card, function()
         if card.encounter then ActivateWaypoint(card.encounter, onMapShown) end
@@ -310,32 +385,23 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         if changed then
             HideTooltip(map)
             HideTooltip(info)
-            HideTooltip(mine.death)
-            HideTooltip(theirs.death)
+            if not encounter then
+                HideParticipantTooltips(mine)
+                HideParticipantTooltips(theirs)
+            end
         end
         self.encounter = encounter
         self:SetShown(encounter ~= nil)
-        setOutcome(encounter and (addon.Ledger.EncounterOutcome(encounter) or "unknown"), changed)
+        setResult(encounter and (addon.Ledger.EncounterOutcome(encounter) or "unknown"), changed,
+            compactRosterTop - rosterRowHeight / 2)
         if not encounter then return end
 
         local player, opponent = encounter.player, encounter.opponent
-        local playerName = player and addon.ManualName(player.name) or addon.UnitPlayerName("player")
-        local opponentName = opponent and addon.ManualName(opponent.name) or rival and addon.ManualName(rival.displayName)
-        myName:SetText(playerName or YOU or L.unknownPlayer)
-        theirName:SetText(opponentName or L.unknownRival)
-        local allyColor, enemyColor = SideColors()
-        myName:SetTextColor(unpack(allyColor))
-        theirName:SetTextColor(unpack(enemyColor))
-        local playerAppearance = addon.UnitAppearance("player")
-        mine:SetParticipant({
-            race = player and player.race or playerAppearance.race,
-            sex = player and player.sex or playerAppearance.sex,
-            class = player and player.class or playerAppearance.class,
-        }, nil, encounter.playerLevel, encounter.playerDeathIndex ~= nil
+        BindParticipantTile(mine, player or {}, addon.UnitAppearance("player"), encounter.playerLevel,
+            encounter.playerDeathIndex ~= nil
             or (not encounter.manual and encounter.direction == "deathsToThem"))
-        local appearance = opponent or rival or {}
-        if not appearance.race and rival and rival.race then appearance = rival end
-        theirs:SetParticipant(appearance, rivalID, encounter.rivalLevel, encounter.opponentDeathIndex ~= nil
+        BindParticipantTile(theirs, opponent or { rivalID = rivalID, name = rival and rival.displayName },
+            rival or {}, encounter.rivalLevel, encounter.opponentDeathIndex ~= nil
             or (not encounter.manual and encounter.direction == "killsAgainstThem"))
 
         local hasWaypoint = WaypointMap(encounter) ~= nil
@@ -358,65 +424,6 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         info:SetTooltipInfo(encounter.skirmishID and L.openSkirmish or L.attackers)
     end
     return card
-end
-
-local function CreateRosterTile(side, isOpponent, openRival)
-    local tile = CreateFrame("Button", nil, side)
-    local hover = tile:CreateTexture(nil, "HIGHLIGHT")
-    hover:SetAllPoints()
-    hover:SetColorTexture(1, 0.8, 0.5, 0.08)
-    tile:SetHighlightTexture(hover)
-    tile.selection = tile:CreateTexture(nil, "BACKGROUND", nil, 1)
-    tile.selection:SetAllPoints()
-    tile.selection:SetColorTexture(1, 0.71, 0.29, 0.14)
-    tile:SetScript("OnClick", function(self)
-        if self.rivalID then openRival(self.rivalID) end
-    end)
-    tile:SetScript("OnEnter", function(self)
-        if not self.name:IsTruncated() then return end
-        local tooltip = GetAppropriateTooltip and GetAppropriateTooltip() or GameTooltip
-        tooltip:SetOwner(self, "ANCHOR_TOP")
-        tooltip:SetText(self.name:GetText())
-        tooltip:Show()
-    end)
-    tile:SetScript("OnLeave", HideTooltip)
-    tile:SetScript("OnHide", HideTooltip)
-    tile:SetMouseMotionEnabled(true)
-
-    tile.avatar = addon.CreateParticipantPortrait(tile, {
-        size = portraitSize, levelSize = 20, opposing = isOpponent,
-        casualtySize = 17, casualtyInset = 7, desaturateCasualty = true,
-    })
-    tile.avatar.rim:SetPoint("TOP")
-    tile.name = Label(tile, "GameFontHighlightSmall", "TOP", 0, -52, 1)
-    tile.name:SetJustifyH("CENTER")
-    tile.class = Label(tile, "GameFontHighlightSmall", "TOP", 0, -66, 1)
-    tile.class:SetJustifyH("CENTER")
-    return tile
-end
-
-local function BindRosterTile(tile, player, selectedRivalID, died, slotWidth)
-    HideTooltip(tile)
-    HideTooltip(tile.avatar.death)
-    local rival = player.rivalID and addon.db.rivals[player.rivalID]
-    local known = rival or (player.isSelf and addon.UnitAppearance("player")) or {}
-    local class, sex = player.class or known.class, player.sex or known.sex
-    tile.avatar:SetParticipant({ race = player.race or known.race, sex = sex, class = class },
-        player.id, player.level, died)
-    tile.name:SetText(player.name or (player.isSelf and YOU) or L.unknownPlayer)
-    tile.name:SetWidth(slotWidth - 4)
-    local classes = sex == 3 and LOCALIZED_CLASS_NAMES_FEMALE or LOCALIZED_CLASS_NAMES_MALE
-    local className = classes and classes[class] or player.classLabel or known.classLabel or ""
-    if player.isSelf and YOU then className = className ~= "" and (className .. " • " .. YOU) or YOU end
-    tile.class:SetText(className)
-    tile.class:SetWidth(slotWidth - 4)
-    local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
-    tile.class:SetTextColor(classColor and classColor.r or 0.77, classColor and classColor.g or 0.71,
-        classColor and classColor.b or 0.61)
-    tile.rivalID = rival and addon.IsRosterRival(player.rivalID, rival) and player.rivalID or nil
-    tile:SetMouseClickEnabled(tile.rivalID ~= nil)
-    tile.selection:SetShown(selectedRivalID ~= nil and player.rivalID == selectedRivalID)
-    tile:Show()
 end
 
 local function CreateSkirmishSide(card, x, width, caption, isOpponent, openRival)
@@ -466,46 +473,21 @@ local function CreateSkirmishSide(card, x, width, caption, isOpponent, openRival
                 index = index + 1
                 local tile = tiles[index]
                 if not tile then
-                    tile = CreateRosterTile(side, isOpponent, openRival)
+                    tile = CreateParticipantTile(side, isOpponent, openRival)
                     tiles[index] = tile
                 end
                 tile:SetSize(slotWidth, rosterRowHeight)
                 tile:ClearAllPoints()
                 tile:SetPoint("TOP", side, "TOP", (column - (count + 1) / 2) * slotWidth, top)
                 local player = players[index]
-                BindRosterTile(tile, player, selectedRivalID, casualties[player.id] ~= nil, slotWidth)
+                local rival = player.rivalID and addon.db.rivals[player.rivalID]
+                local known = rival or (player.isSelf and addon.UnitAppearance("player")) or {}
+                BindParticipantTile(tile, player, known, player.level, casualties[player.id] ~= nil, selectedRivalID)
             end
         end
         for i = index + 1, #tiles do
-            HideTooltip(tiles[i])
-            HideTooltip(tiles[i].avatar.death)
+            HideParticipantTooltips(tiles[i])
             tiles[i]:Hide()
-        end
-    end
-end
-
-local function CreateSkirmishResult(card)
-    local center = CreateFrame("Frame", nil, card)
-    center:SetSize(rosterGutter - 8, 80)
-    local setMarker = CreateOutcomeMarkers(center, -28, 56, 56, true)
-    local resultText = Label(center, "GameFontNormalSmall", "TOP", 0, -60, rosterGutter - 8)
-    resultText:SetJustifyH("CENTER")
-    resultText:SetWordWrap(true)
-    resultText:SetMaxLines(2)
-    return function(outcome, changed, top)
-        setMarker(outcome, changed)
-        center:SetShown(outcome ~= nil)
-        if not outcome then return end
-        center:ClearAllPoints()
-        center:SetPoint("CENTER", card, "TOP", 0, top)
-        resultText:SetText(outcome == "win" and L.winTooltip
-            or outcome == "loss" and L.lossTooltip or L.shortUnknownOutcome)
-        if outcome == "loss" then
-            resultText:SetTextColor(1, 0.72, 0.62)
-        elseif outcome == "unknown" then
-            resultText:SetTextColor(unpack(neutralColor))
-        else
-            resultText:SetTextColor(1, 0.82, 0.50)
         end
     end
 end
@@ -515,12 +497,8 @@ local function CreateTimeline(card, width, toggleTimeline)
     events:SetSize(width, 1)
     Divider(events, 0)
     local header = CreateFrame("Button", nil, events)
-    header:SetSize(width - 2 * cardInset, finishingBlowFirstRow)
+    header:SetHeight(finishingBlowFirstRow)
     header:SetPoint("TOPLEFT", cardInset, 0)
-    local hover = header:CreateTexture(nil, "HIGHLIGHT")
-    hover:SetAllPoints()
-    hover:SetColorTexture(1, 0.8, 0.5, 0.08)
-    header:SetHighlightTexture(hover)
     local chevron = header:CreateTexture(nil, "ARTWORK")
     chevron:SetPoint("LEFT", 2, 0)
     chevron:SetSize(9, 9)
@@ -532,6 +510,9 @@ local function CreateTimeline(card, width, toggleTimeline)
     end
     local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     title:SetPoint("LEFT", 18, 0)
+    header:SetFontString(title)
+    header:SetNormalFontObject("GameFontNormalSmall")
+    header:SetHighlightFontObject("GameFontHighlightSmall")
     title:SetText(L.finishingBlows)
     local count = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     count:SetPoint("LEFT", title, "RIGHT", 6, 0)
@@ -547,6 +528,7 @@ local function CreateTimeline(card, width, toggleTimeline)
         events:SetPoint("TOPLEFT", 0, top)
         events:SetHeight(TimelineHeight(#blows, expanded))
         count:SetText(#blows)
+        header:SetWidth(32 + title:GetStringWidth() + count:GetStringWidth())
         if hasChevron then chevron:SetRotation(expanded and -math.pi / 2 or 0)
         else chevron:SetText(expanded and "⌄" or "›") end
         local visible = expanded and #blows or 0
@@ -615,7 +597,7 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
 
     local setAllies = CreateSkirmishSide(card, cardInset, sideWidth, L.alliedSide, false, openRival)
     local setEnemies = CreateSkirmishSide(card, width - cardInset - sideWidth, sideWidth, L.enemySide, true, openRival)
-    local setResult = CreateSkirmishResult(card)
+    local setResult = CreateSkirmishResult(card, 56)
     local setTimeline = CreateTimeline(card, width, toggleTimeline)
     local map = MapAction(card, function()
         ActivateWaypoint(card.skirmish, onMapShown)
