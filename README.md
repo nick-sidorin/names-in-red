@@ -61,7 +61,11 @@ Enter these commands in the in-game chat box.
 
 See [diagnostics and sample data](docs/debug-preview.md) for details.
 
-## How the score works
+## How the score works (current implementation)
+
+The following describes the existing runtime, **not** the agreed future
+skirmish behavior. See the [PvP skirmish product specification](docs/skirmish-product-spec.md)
+for the proposed participation, outcome and battleground rules.
 
 - **Wins** and **Losses** count the result of your side.
   A recorded result counts once in the journal and once in each opponent's
