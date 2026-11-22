@@ -500,7 +500,7 @@ local function CheckRewards(card, kills, honor, currencyTexture)
         local target = icon.parent
         assert(target.width == 14 and target.height == 14 and icon.texcoords[1] > 0 and icon.texcoords[2] < 1)
         local count
-        for _, region in ipairs(card.children) do
+        for _, region in ipairs(target.parent.children) do
             if rawget(region, "text") == value and region.anchor[2] == target then count = region end
         end
         assert(count and count.anchor[1] == "RIGHT" and count.anchor[3] == "LEFT" and count.anchor[4] < 0)
@@ -513,21 +513,24 @@ local function CheckRewards(card, kills, honor, currencyTexture)
     end
     local honorIcon, honorCount = CheckCounter(currencyTexture, honor, addon.L.skirmishHonorEarned)
     local killsIcon = CheckCounter(addon.honorableKillIconPath, kills, addon.L.skirmishHonorableKillsEarned)
-    assert(honorIcon.anchor[1] == "BOTTOMRIGHT")
     assert(killsIcon.anchor[2] == honorCount and killsIcon.anchor[4] < honorCount.anchor[4])
+    return honorIcon
 end
 card:SetSkirmish(large, "Player-test")
-CheckRewards(card, "3", "4010", 463450)
+local rewardIcon = CheckRewards(card, "3", "4010", 463450)
 local collapsedHeight = card.height
 assert(collapsedHeight == addon.SkirmishCardHeight(large) and not FindText(card, "0:11"))
 local timelineTitle = assert(FindText(card, addon.L.finishingBlows))
 local timelineHeader = timelineTitle.parent
+assert(rewardIcon.parent == timelineHeader.parent and rewardIcon.anchor[1] == "TOPRIGHT")
+assert(rewardIcon.anchor[3] - rewardIcon.height / 2 == -timelineHeader.height / 2)
+assert(collapsedHeight == -rewardIcon.parent.anchor[3] + timelineHeader.height)
 assert(timelineHeader.buttonLabel == timelineTitle and timelineHeader.hoverFont == "GameFontHighlightSmall")
 assert(not timelineHeader.highlight and timelineHeader.width < card.width / 2)
 timelineTitle.parent.scripts.OnClick(timelineTitle.parent)
 assert(timelineRequested == large)
 card:SetSkirmish(large, "Player-test", true)
-CheckRewards(card, "3", "4010", 463450)
+assert(CheckRewards(card, "3", "4010", 463450) == rewardIcon)
 local largeHeight = card.height
 assert(largeHeight == addon.SkirmishCardHeight(large, true) and collapsedHeight < largeHeight)
 assert(FindText(card, "2 × 2") and FindText(card, "Ally Warrior") and FindText(card, "0:11"))
@@ -608,6 +611,8 @@ assert(fullVictory.width == 56 and fullVictory.height == 56)
 assert(FindRegion(fullVictory, "atlas", "UI-HUD-UnitFrame-SmallCircle"))
 assert(not fullVictory.scripts.OnEnter)
 card:SetSkirmish({ allies = finished.allies, enemies = finished.enemies, outcome = "loss", events = {} })
+assert(CheckRewards(card, "0", "0", 463450) == rewardIcon)
+assert(not FindText(card, addon.L.finishingBlows) and not FindText(card, "0:11"))
 assert(not GameTooltip.shown and not fullVictory.shown)
 local fullDefeat = assert(FindRegion(card, "texture", addon.defeatBannerPath)).parent
 assert(FindText(fullOutcome, addon.L.lossTooltip))
@@ -679,7 +684,7 @@ first.player.race, first.player.sex = "orc", 2
 first.opponent.race, first.opponent.sex, first.opponent.classLabel = "human", 3, "Mage"
 function GetRaceAtlas(race, gender) return race .. "-" .. gender end
 compact:SetEncounter(first)
-CheckRewards(compact, "0", "0", 463450)
+assert(CheckRewards(compact, "0", "0", 463450).anchor[1] == "BOTTOMRIGHT")
 addon.db.skirmishes = { [first.skirmishID] = large }
 compact:SetEncounter(first)
 CheckRewards(compact, "3", "4010", 463450)

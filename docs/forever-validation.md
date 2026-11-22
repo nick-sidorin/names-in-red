@@ -226,9 +226,10 @@ Both card sizes display the sum of the recorded rewards for the whole battle.
 The footer follows the count-then-icon order of `BackpackTokenTemplate` in
 `Blizzard_TokenUI/Camelot/Blizzard_TokenUI.xml`. The card uses 14-unit icons
 with an 8% crop on each side to remove baked-in borders. The icon hover
-identifies the reward earned in the skirmish. Check that the footer stays
-right-aligned with larger counts and below expanded finishing blows. Compare
-a team skirmish in both card sizes and a fight without recorded rewards.
+identifies the reward earned in the skirmish. The full card places rewards
+at the right of the Finishing blows heading and opens the list below it.
+Check alignment with larger counts, and compare a team skirmish in both
+card sizes and a fight without recorded finishing blows.
 
 From preview.6 onward, a rival's linked cards open a full-width battle in
 the same book. This follows the in-window detail transition in

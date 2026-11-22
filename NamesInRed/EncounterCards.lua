@@ -133,7 +133,7 @@ end
 local cardInset = 14
 local sectionPadding = 8
 local rewardIconSize = 14
-local rewardRowHeight = rewardIconSize + sectionPadding
+local compactRewardRowHeight = rewardIconSize + sectionPadding
 local fullHeaderCenter = -18
 -- Keep equal space between the map button and the inside edges of the header.
 local fullHeaderDivider = 2 * fullHeaderCenter + 2
@@ -143,12 +143,12 @@ local rosterRowHeight = portraitSize + 36
 local resultWidth = rosterGutter - 8
 local compactHeaderCenter, compactHeaderDivider = -21, -41
 local compactRosterTop = compactHeaderDivider - sectionPadding
-addon.compactEncounterCardHeight = -compactRosterTop + rosterRowHeight + sectionPadding + rewardRowHeight
-local finishingBlowFirstRow, finishingBlowStep = 26, 19
+addon.compactEncounterCardHeight = -compactRosterTop + rosterRowHeight + sectionPadding + compactRewardRowHeight
+local skirmishSummaryHeight, finishingBlowStep = 26, 19
 
-local function CreateRewardSummary(card)
+local function CreateRewardSummary(parent, anchor, y)
     local function Counter(tooltipTitle)
-        local target = CreateFrame("Frame", nil, card)
+        local target = CreateFrame("Frame", nil, parent)
         target:SetSize(rewardIconSize, rewardIconSize)
         target:SetMouseMotionEnabled(true)
         target:SetScript("OnEnter", function(self)
@@ -159,7 +159,7 @@ local function CreateRewardSummary(card)
         end)
         target:SetScript("OnLeave", HideTooltip)
         target:SetScript("OnHide", HideTooltip)
-        local count = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightRight")
+        local count = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightRight")
         local icon = target:CreateTexture(nil, "ARTWORK")
         icon:SetAllPoints()
         icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
@@ -168,7 +168,7 @@ local function CreateRewardSummary(card)
     end
     local honor, honorIcon, honorTarget = Counter(L.skirmishHonorEarned)
     local kills, killsIcon, killsTarget = Counter(L.skirmishHonorableKillsEarned)
-    honorTarget:SetPoint("BOTTOMRIGHT", -cardInset, sectionPadding)
+    honorTarget:SetPoint(anchor, -cardInset, y)
     killsTarget:SetPoint("RIGHT", honor, "LEFT", -16, 0)
     killsIcon:SetTexture(addon.honorableKillIconPath)
     local formatCount = BreakUpLargeNumbers or tostring
@@ -189,9 +189,8 @@ local function RosterHeight(battle)
     return rosterHeaderHeight + sectionPadding * 2 + rows * rosterRowHeight
 end
 
-local function TimelineHeight(count, expanded)
-    if count == 0 then return 0 end
-    return finishingBlowFirstRow + (expanded and finishingBlowStep * count or 0)
+local function SkirmishDetailsHeight(count, expanded)
+    return skirmishSummaryHeight + (expanded and finishingBlowStep * count or 0)
 end
 
 local function RosterBottom(height)
@@ -199,7 +198,7 @@ local function RosterBottom(height)
 end
 
 local function FullCardHeight(rosterBottom, blowCount, expanded)
-    return -rosterBottom + TimelineHeight(blowCount, expanded) + rewardRowHeight
+    return -rosterBottom + SkirmishDetailsHeight(blowCount, expanded)
 end
 
 function addon.SkirmishCardHeight(battle, expanded)
@@ -400,7 +399,7 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
     mine:SetPoint("TOPLEFT", cardInset, compactRosterTop)
     theirs:SetPoint("TOPRIGHT", -cardInset, compactRosterTop)
     local setResult = CreateSkirmishResult(card)
-    local setRewards = CreateRewardSummary(card)
+    local setRewards = CreateRewardSummary(card, "BOTTOMRIGHT", sectionPadding)
 
     local map = MapAction(card, function()
         if card.encounter then ActivateWaypoint(card.encounter, onMapShown) end
@@ -546,12 +545,13 @@ local function CreateSkirmishSide(card, x, width, caption, isOpponent, openRival
     end
 end
 
-local function CreateTimeline(card, width, toggleTimeline)
+local function CreateSkirmishDetails(card, width, toggleTimeline)
     local events = CreateFrame("Frame", nil, card)
     events:SetSize(width, 1)
     Divider(events, 0)
+    local setRewards = CreateRewardSummary(events, "TOPRIGHT", (rewardIconSize - skirmishSummaryHeight) / 2)
     local header = CreateFrame("Button", nil, events)
-    header:SetHeight(finishingBlowFirstRow)
+    header:SetHeight(skirmishSummaryHeight)
     header:SetPoint("TOPLEFT", cardInset, 0)
     local chevron = header:CreateTexture(nil, "ARTWORK")
     chevron:SetPoint("LEFT", 2, 0)
@@ -576,11 +576,12 @@ local function CreateTimeline(card, width, toggleTimeline)
     end)
     local rows = {}
     return function(battle, blows, expanded, top, players, colors)
-        events:SetShown(#blows > 0)
-        if #blows == 0 then return end
         events:ClearAllPoints()
         events:SetPoint("TOPLEFT", 0, top)
-        events:SetHeight(TimelineHeight(#blows, expanded))
+        events:SetHeight(SkirmishDetailsHeight(#blows, expanded))
+        local honorableKills, honor = addon.Ledger.SkirmishRewards(battle)
+        setRewards(honorableKills, honor, battle.demoFaction)
+        header:SetShown(#blows > 0)
         count:SetText(#blows)
         header:SetWidth(32 + title:GetStringWidth() + count:GetStringWidth())
         if hasChevron then chevron:SetRotation(expanded and -math.pi / 2 or 0)
@@ -591,7 +592,7 @@ local function CreateTimeline(card, width, toggleTimeline)
             local event = i <= visible and blows[i]
             local row = rows[i]
             if not row then
-                local y = -finishingBlowFirstRow - (i - 1) * finishingBlowStep
+                local y = -skirmishSummaryHeight - (i - 1) * finishingBlowStep
                 local target = Label(events, "GameFontHighlightSmall", "TOPLEFT", width / 2 + cardInset, y,
                     columnWidth - cardInset)
                 local arrow = events:CreateTexture(nil, "ARTWORK")
@@ -655,8 +656,7 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
     local setAllies = CreateSkirmishSide(card, cardInset, sideWidth, L.alliedSide, false, openRival)
     local setEnemies = CreateSkirmishSide(card, width - cardInset - sideWidth, sideWidth, L.enemySide, true, openRival)
     local setResult = CreateSkirmishResult(card)
-    local setTimeline = CreateTimeline(card, width, toggleTimeline)
-    local setRewards = CreateRewardSummary(card)
+    local setDetails = CreateSkirmishDetails(card, width, toggleTimeline)
     local map = MapAction(card, function()
         ActivateWaypoint(card.skirmish, onMapShown)
     end)
@@ -699,9 +699,7 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
         local casualties = addon.Ledger.FirstDeaths(battle)
         setAllies(battle.allies, height, alliesHorde, allyColor, nil, casualties)
         setEnemies(battle.enemies, height, not alliesHorde, enemyColor, selectedRivalID, casualties)
-        setTimeline(battle, blows, expanded, bottom, players, colors)
-        local honorableKills, honor = addon.Ledger.SkirmishRewards(battle)
-        setRewards(honorableKills, honor, battle.demoFaction)
+        setDetails(battle, blows, expanded, bottom, players, colors)
         card:SetHeight(FullCardHeight(bottom, #blows, expanded))
     end
     return card
