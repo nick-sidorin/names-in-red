@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.3
+
+- Browse a searchable rival book, revisit each rival's skirmishes, and open the full record of a fight from either history view.
+- See recorded participants, class and level badges, casualties, outcomes, finishing blows, and attributed PvP rewards. Faction emblems and Honor Points artwork follow the character's faction.
+- Capture readable open-world fights, including multiple attackers and observed party participation. Incomplete records indicate when the roster or outcome is uncertain.
+- Use the journal in the game client's language across all supported locales.
+- Keep local PvP diagnostics and use `/nirdebug` to inspect the log or load and remove sample Alliance and Horde fights.
+
 ## 0.1.2
 
 - Configure CurseForge source packaging for version tags, with the addon folder and its runtime assets at the ZIP root.

@@ -2,6 +2,10 @@ local _, addon = ...
 local Readable = addon.Readable
 local sequence = 0
 
+function addon.CancelPendingDeath()
+    sequence = sequence + 1
+end
+
 local function ReadTable(value)
     value = Readable(value)
     if type(value) == "table" and (not canaccesstable or canaccesstable(value)) then
@@ -46,7 +50,8 @@ local function Record(death)
     end
 
     local observed = death.units[guid]
-    local attackers = { { guid = guid, name = observed and observed.fullName or addon.ManualName(name) } }
+    local attackers = { { guid = guid, name = observed and observed.fullName or addon.ManualName(name),
+        appearance = observed } }
     local seen = { [guid] = true }
     for index = 2, #rows do
         local row = ReadTable(rows[index])
@@ -57,6 +62,7 @@ local function Record(death)
             attackers[#attackers + 1] = {
                 guid = attackerGUID,
                 name = unit and unit.fullName or addon.ManualName(Readable(row.sourceName)),
+                appearance = unit,
             }
             seen[attackerGUID] = true
         end
@@ -64,9 +70,10 @@ local function Record(death)
 
     death.context.time = math.floor(stamp)
     death.context.rivalLevel = observed and observed.level
+    death.context.rivalAppearance = observed
     death.context.attackers = attackers
     addon.db.lastDeathTimestamp = stamp
-    addon.RecordEncounter(guid, observed and observed.fullName or name, "deathsToThem", death.context)
+    addon.RecordWorldEncounter(guid, observed and observed.fullName or name, "deathsToThem", death.context)
     return true
 end
 
@@ -86,17 +93,21 @@ frame:SetScript("OnEvent", function()
         return
     end
     local death = { sequence = sequence, context = context, units = {} }
-    for _, unit in ipairs({ "target", "mouseover" }) do
+    local function Snapshot(unit)
         local guid = Readable(UnitGUID(unit))
-        local level = Readable(UnitLevel(unit))
         if type(guid) == "string" and guid:match("^Player%-.+") then
             local observed = death.units[guid] or {}
             local name = addon.UnitPlayerName(unit)
             if addon.HasFullName(name) then observed.fullName = name end
-            if type(level) == "number" and level > 0 then observed.level = level end
+            for key, value in pairs(addon.UnitAppearance(unit)) do
+                if observed[key] == nil then observed[key] = value end
+            end
             death.units[guid] = observed
         end
     end
+    Snapshot("target")
+    Snapshot("mouseover")
+    addon.VisitVisibleNameplateUnits(Snapshot)
     if Record(death) then
         return
     end

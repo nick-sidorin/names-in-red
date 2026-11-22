@@ -7,6 +7,7 @@ local rejectedEvent = "PVP_MATCH_COMPLETE"
 function issecretvalue(value) return value == secret end
 function canaccesstable(value) return value ~= restricted end
 function GetBuildInfo() return "1.60.1", "70959", "", 16001 end
+function GetLocale() return "deDE" end
 function GetServerTime() return 100 end
 function GetTime() return 15 end
 function IsInInstance() return true, "pvp" end
@@ -39,6 +40,8 @@ local function Event(name, ...)
 end
 
 local function Login(addon)
+    addon = addon or {}
+    assert(loadfile("NamesInRed/Locale.lua"))("NamesInRed", addon)
     assert(loadfile("NamesInRed/Debug.lua"))("NamesInRed", addon)
     Event("ADDON_LOADED", "OtherAddon")
     Event("ADDON_LOADED", "NamesInRed")
@@ -78,47 +81,149 @@ for _ = 1, 1000 do Event("PLAYER_PVP_KILLS_CHANGED", "player") end
 assert(#db.rows == 1000 and db.dropped == 10)
 assert(Login() == db and db.session == 2 and db.rows[1000].kind == "SESSION")
 assert(NamesInRedDB == nil)
-Login({ db = {} })
+local standardAddon = { db = {} }
+Login(standardAddon)
+SlashCmdList.NAMESINREDDEBUG("faction horde")
+assert(not next(standardAddon.db))
 SlashCmdList.NAMESINREDDEBUG("seed")
 SlashCmdList.NAMESINREDDEBUG("clear-seed")
+local debugPrint, printed = print
+print = function(title, message) printed = title .. " " .. message end
 SlashCmdList.NAMESINREDDEBUG("sample")
+print = debugPrint
 assert(db.rows[1000].kind == "MANUAL_SAMPLE")
+assert(printed:find("Names in Red Diagnose", 1, true) == 1)
 print("Debug capture checks passed")
 
 local addon = {}
 assert(loadfile("NamesInRed/Ledger.lua"))("NamesInRed", addon)
-assert(loadfile("debug/DebugSeeds.lua"))("NamesInRed", addon)
+assert(loadfile("NamesInRed/Encounter.lua"))("NamesInRed", addon)
+assert(loadfile("NamesInRed/DebugSeeds.lua"))("NamesInRed", addon)
 addon.db = assert(addon.Ledger.Open(nil))
 local existing = addon.Ledger.Add(addon.db, "Player-existing", "Existing")
 local existingManual = addon.Ledger.Add(addon.db, "manual:existing", "Existing")
 Login(addon)
+
+local self, rival = "Player-test", "Player-rival"
+local function OldLoss(id, stamp, zone, level)
+    local enemy = { id = rival, rivalID = rival, level = level }
+    local fight = { zone = zone, allies = { { id = self, isSelf = true } }, enemies = { enemy },
+        events = { { kind = "kill", actorID = rival, targetID = self, time = stamp } } }
+    addon.Ledger.SaveSkirmish(addon.db, id, fight)
+    return enemy
+end
+local match = OldLoss("world:1", 100, "Test Zone")
+local known = OldLoss("world:2", 100, "Test Zone", 30)
+local earlier = OldLoss("world:3", 99, "Test Zone")
+local ambiguous = OldLoss("world:4", 101, "Test Zone")
+local otherZone = OldLoss("world:5", 100, "Another Zone")
+local function CombatEnd(stamp)
+    return { kind = "COMBAT_END", instanceType = "none", time = stamp, zone = "Test Zone", player = { guid = self },
+        contacts = { [self] = { latest = { guid = self, dead = true } },
+            [rival] = { latest = { guid = rival, level = 32 } } } }
+end
+addon.RestoreDeathLevels(addon.db, { version = 1, rows = { CombatEnd(100), CombatEnd(101), CombatEnd(101) } })
+assert(match.level == 32 and known.level == 30)
+assert(not earlier.level and not ambiguous.level and not otherZone.level)
+for i = 1, 5 do addon.Ledger.RemoveSkirmish(addon.db, "world:" .. i) end
+print("Death levels restored only for matching combat observations")
+
+local faction = "Alliance"
+function UnitFactionGroup() return faction end
+local originalServerTime = GetServerTime
+GetServerTime = function() return 777600 end
+C_Map = { GetMapInfo = function(mapID) return { name = "Map " .. mapID } end }
+C_CreatureInfo = { GetRaceInfo = function(raceID) return { raceName = "Race " .. raceID } end }
+LOCALIZED_CLASS_NAMES_MALE = { SHAMAN = "Schamane" }
+addon.Ledger.SaveSkirmish(addon.db, "existing-battle", { allies = {}, enemies = {}, events = {} })
 SlashCmdList.NAMESINREDDEBUG("seed")
 SlashCmdList.NAMESINREDDEBUG("seed")
 
-local automatic, manual = 0, 0
+local profiles = 0
 for key, rival in pairs(addon.db.rivals) do
-    if key:match("^seed:manual:") then
-        manual = manual + 1
-        assert(rival.encounters[1].manual and #rival.encounters == 1)
-        assert(rival.killsAgainstThem + rival.deathsToThem == 1)
-    elseif key:match("^seed:") then
-        automatic = automatic + 1
+    if key:match("^seed:rival:") then
+        profiles = profiles + 1
         assert(rival.race and rival.class and rival.raceLabel and rival.classLabel)
-        assert(#rival.encounters == rival.killsAgainstThem + rival.deathsToThem)
-        for _, encounter in ipairs(rival.encounters) do
-            assert(encounter.rivalLevel and encounter.playerLevel and encounter.time)
+        local history = addon.RivalEncounters(addon.db, key)
+        assert(#history > 0)
+        local latest = math.huge
+        for _, encounter in ipairs(history) do
+            assert(encounter.rivalLevel and encounter.playerLevel and encounter.time < latest)
             assert(encounter.zone and encounter.mapID and encounter.x and encounter.y and not encounter.manual)
+            latest = encounter.time
         end
     end
 end
-assert(manual == 6 and automatic == 24)
+assert(profiles == 12)
+local seeded = addon.db.skirmishes
+local seededCount, outcomes = 0, { win = 0, loss = 0, unknown = 0 }
+for id, battle in pairs(seeded) do
+    if id:match("^seed:battle:") then
+        seededCount = seededCount + 1
+        local outcome = addon.Ledger.SkirmishOutcome(battle) or "unknown"
+        outcomes[outcome] = outcomes[outcome] + 1
+        assert(battle.allies[1].name == "Alden Dawnshield" and battle.allies[1].isSelf)
+        assert(battle.zone == "Map " .. battle.mapID and battle.startedAt < battle.time)
+        local participants, dead = {}, {}
+        for _, ally in ipairs(battle.allies) do participants[ally.id] = "ally" end
+        for _, enemy in ipairs(battle.enemies) do participants[enemy.id] = "enemy" end
+        local previous = battle.startedAt
+        for _, event in ipairs(battle.events) do
+            assert(event.time > previous and event.time <= battle.time)
+            assert(participants[event.actorID] and participants[event.targetID] ~= participants[event.actorID])
+            assert(participants[event.targetID] and not dead[event.actorID] and not dead[event.targetID])
+            dead[event.targetID], previous = true, event.time
+        end
+        for id, reward in pairs(battle.rewards) do
+            assert(participants[id] == "enemy" and dead[id] and reward.honorableKills == 1)
+            assert(reward.honor > 0 and reward.honor <= 10)
+        end
+        local kills, honor = addon.Ledger.SkirmishRewards(battle)
+        assert(kills <= #battle.enemies and honor <= 10 * kills)
+    end
+end
+assert(seededCount == 12 and outcomes.win == 6 and outcomes.loss == 5 and outcomes.unknown == 1)
+local dargun = addon.db.rivals["seed:rival:1"]
+assert(dargun.displayName == "Dargun Ironjaw" and dargun.raceLabel == "Race 2" and dargun.classLabel == "Schamane")
+local dargunHistory = addon.RivalEncounters(addon.db, "seed:rival:1")
+local rematch = seeded[dargunHistory[1].skirmishID]
+assert(#rematch.allies == 2 and #rematch.enemies == 2 and rematch.events[3].actorID == "ally2")
+assert(dargunHistory[1].outcome == "win" and dargunHistory[1].playerDeathIndex == 2)
+assert(dargunHistory[2].outcome == "loss" and dargunHistory[3].outcome == "win")
+local wins, losses, honorableKills, honor = addon.Ledger.PersonalScore(addon.db, "seed:rival:1")
+assert(wins == 2 and losses == 1 and honorableKills == 2 and honor == 19)
+local duelKills, duelHonor = addon.Ledger.SkirmishRewards(seeded["seed:battle:felwood-path"])
+assert(duelKills == 1 and duelHonor == 10)
+local rematchKills, rematchHonor = addon.Ledger.SkirmishRewards(rematch)
+assert(rematchKills == 2 and rematchHonor == 16)
+local chapel = seeded["seed:battle:chapel-road"]
+assert(#chapel.allies == 5 and #chapel.enemies == 6 and addon.Ledger.SkirmishOutcome(chapel) == "loss")
+assert(chapel.rewards["seed:rival:8"].honor == 8)
+assert(not seeded["seed:battle:plaguelands-crossing"].rosterComplete)
+
+SlashCmdList.NAMESINREDDEBUG("faction Horde")
+local hordeRematch = seeded["seed:battle:winter-rematch"]
+assert(hordeRematch.allies[1].name == "Dargun Ironjaw" and hordeRematch.demoFaction == "Horde")
+assert(addon.db.rivals["seed:rival:1"].displayName == "Alden Dawnshield")
+assert(addon.db.rivals["seed:rival:1"].demoFaction == "Horde" and UnitFactionGroup("player") == "Alliance")
+SlashCmdList.NAMESINREDDEBUG("faction auto")
+assert(seeded["seed:battle:winter-rematch"].demoFaction == "Alliance")
+faction = "Horde"
+SlashCmdList.NAMESINREDDEBUG("faction alliance")
+assert(seeded["seed:battle:winter-rematch"].demoFaction == "Alliance" and UnitFactionGroup("player") == "Horde")
+SlashCmdList.NAMESINREDDEBUG("seed")
+assert(seeded["seed:battle:winter-rematch"].demoFaction == "Horde")
 SlashCmdList.NAMESINREDDEBUG("clear-seed")
 for key in pairs(addon.db.rivals) do assert(not key:match("^seed:")) end
+assert(next(seeded) == "existing-battle" and next(seeded, "existing-battle") == nil)
 assert(addon.db.rivals["Player-existing"] == existing)
 assert(addon.db.rivals["manual:existing"] == existingManual)
+C_Map, C_CreatureInfo, LOCALIZED_CLASS_NAMES_MALE = nil, nil, nil
+GetServerTime = originalServerTime
 print("Debug seed checks passed")
 
 local inCombat, groupSize = false, 1
+local visibleTarget = "Player-rival"
 function InCombatLockdown() return inCombat end
 function GetNumSubgroupMembers() return groupSize end
 function GetNumGroupMembers() return groupSize > 0 and groupSize + 1 or 0 end
@@ -126,6 +231,8 @@ function IsInRaid() return false end
 function UnitGUID(unit)
     if unit == "player" then return "Player-test" end
     if unit == "party1" then return "Player-ally" end
+    if unit == "nameplate1" then return "Player-rival" end
+    if unit == "nameplate1target" then return visibleTarget end
 end
 
 Enum = {
@@ -157,18 +264,38 @@ C_DamageMeter = {
     end,
 }
 
+Event("NAME_PLATE_UNIT_ADDED", "nameplate1")
 inCombat = true
 Event("PLAYER_REGEN_DISABLED")
 local started = db.rows[#db.rows]
 assert(started.kind == "COMBAT_START" and started.group[1].guid == "Player-ally")
 Event("PARTY_KILL", "Player-ally", "Player-rival")
 assert(db.rows[#db.rows].combatSequence == started.combatSequence)
+local function countKills()
+    local count = 0
+    for _, row in ipairs(db.rows) do
+        if row.kind == "PARTY_KILL" and row.combatSequence == started.combatSequence then count = count + 1 end
+    end
+    return count
+end
+for _ = 1, 12 do Event("PARTY_KILL", secret, secret) end
+assert(countKills() == 9)
+visibleTarget = "Player-ally"
+Event("NAME_PLATE_UNIT_REMOVED", "nameplate1")
+Event("GROUP_ROSTER_UPDATE")
+Event("DAMAGE_METER_COMBAT_SESSION_UPDATED", 1, 2)
+Event("DAMAGE_METER_COMBAT_SESSION_UPDATED", 1, 2)
 sessions[2] = { sessionID = 2 }
 inCombat = false
 Event("PLAYER_REGEN_ENABLED")
 local ended = db.rows[#db.rows]
 timers[#timers][2]()
 assert(ended.kind == "COMBAT_END" and ended.combatSequence == started.combatSequence)
+local observed = ended.contacts["Player-rival"]
+assert(observed.changes[1].targetGUID == "Player-rival" and observed.latest.targetGUID == "Player-ally")
+assert(observed.signals["combat-start"] == 1 and observed.signals["nameplate-removed"] == 1)
+assert(#ended.groupChanges == 1 and ended.groupChanges[1].group[1].guid == "Player-ally")
+assert(ended.meterUpdates["2:1"].count == 2 and ended.restrictedPartyKills == 12)
 assert(ended.meterSelection == "new-archived" and ended.meterSessionID == 2 and archivedReads == 4)
 assert(ended.meter.DamageTaken.status.session == "restricted-table")
 local sources = ended.meter.DamageDone.sources
@@ -191,3 +318,13 @@ Event("PLAYER_REGEN_DISABLED")
 timers[#timers][2]()
 assert(ended.status.meter == "interrupted" and ended.meter == nil)
 print("Post-combat diagnostic capture checks passed")
+
+Event("PLAYER_DEAD")
+local firstPending = #timers - 2
+addon.ClearDiagnostics()
+for index = firstPending, #timers do timers[index][2]() end
+Event("PLAYER_REGEN_ENABLED")
+assert(#db.rows == 0 and db.dropped == 0)
+Event("PLAYER_PVP_KILLS_CHANGED", "player")
+assert(#db.rows == 1 and db.rows[1].kind == "PLAYER_PVP_KILLS_CHANGED" and not db.rows[1].combatSequence)
+print("Diagnostic reset cancels pending recap and continues recording")
