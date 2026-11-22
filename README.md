@@ -83,6 +83,10 @@ remain in the journal with their recorded participants and timeline.
 
 ## Development
 
+The [open-world skirmish product specification](docs/skirmish-product-spec.md)
+describes the intended future participation and outcome behavior; the current
+implementation may differ.
+
 [CurseForge listing Markdown](docs/curseforge-description.md) and
 [short description](docs/curseforge-summary.txt) are ready to copy into the
 [CurseForge description editor](https://authors.curseforge.com/#/projects/1819566/description).
