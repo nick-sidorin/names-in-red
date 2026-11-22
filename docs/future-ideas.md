@@ -41,6 +41,32 @@ decide how the optional **Track Battleground Skirmishes** recording switch
 affects the progression source data. Do not invent unrecorded BG rewards or
 retroactively change score semantics.
 
+## Duel history
+
+Consider a **dedicated history of formal in-game duels** (the game's duel
+challenge mechanic), including friendly duels with characters of the same
+faction. Duels should not be confused with a spontaneous open-world **1 vs 1
+PvP skirmish**.
+
+Possible information to remember:
+
+- Opponent's identity and available character details.
+- Date and place of the duel.
+- Win or loss, or an inconclusive result when a duel ends without reliable
+  outcome evidence.
+- A chronological history and per-opponent duel record, so a familiar sparring
+  partner can be recognized on a later meeting.
+
+How a duel begins/ends, how a forfeited or interrupted duel is classified,
+whether duel results share the main rival profile or have a separate section,
+and which in-game signals can reliably support this on WoW Forever are **open
+design and feasibility questions**.
+
+A duel must not automatically be counted as a normal faction skirmish,
+Honorable Kill, Honor Points award, or ordinary open-world PvP victory. This
+feature is an optional future idea, **not** part of the currently agreed
+skirmish redesign.
+
 ## Target-frame rival indicator
 
 An early concept, not yet part of the implemented UI: show a small, restrained
