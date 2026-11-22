@@ -1,10 +1,9 @@
-# PvP diagnostics preview
+# PvP diagnostics and sample data
 
 Versions 0.0.x were diagnostic previews. Version 0.1.0 shipped only the rival
 journal. Starting with 0.1.1, the standard addon also collects diagnostic data
-automatically. Pull request preview artifacts include `DebugSeeds.lua` with
-fictional rivals and full-battle examples. A development copy can load it by
-copying `debug/DebugSeeds.lua` into the addon folder and listing it in the TOC.
+automatically. Starting with 0.1.3, the standard addon also includes commands
+to load and remove fictional rivals and sample skirmishes.
 
 Install the ZIP by extracting its `NamesInRed/` folder into
 `_forever_/Interface/AddOns/`. Collection starts at addon load and works
@@ -87,7 +86,7 @@ details.
 
 ## Sample roster for screenshots
 
-Run `/nirdebug seed` in the pull request preview to load 12 fictional rivals
+Run `/nirdebug seed` to load 12 fictional rivals
 and 12 battles across six zones over the past week. Both rosters match the
 current character's faction, and the game supplies localized zone, race and
 class names when available.

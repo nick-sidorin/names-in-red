@@ -32,7 +32,7 @@ The interface follows the language selected in World of Warcraft. It supports
 English, German, Spanish, French, Italian, Korean, Brazilian Portuguese,
 Russian, Simplified Chinese, and Traditional Chinese.
 
-Download the latest ZIP from [Releases](https://github.com/nick-sidorin/names-in-red/releases)
+Download the latest ZIP from [CurseForge](https://www.curseforge.com/wow/addons/names-in-red/files/all)
 and extract `NamesInRed/` into `_forever_/Interface/AddOns/`.
 
 ## Settings
@@ -48,19 +48,18 @@ to [GitHub Issues](https://github.com/nick-sidorin/names-in-red/issues).
 
 Enter these commands in the in-game chat box.
 
-| Command | What it does | Availability |
-| --- | --- | --- |
-| `/nirreset` | Opens **Reset data**. Confirm to delete the current character's rivals, skirmishes, manual entries, demo data and diagnostic log. Display preferences and the minimap icon position are kept. | Standard and preview |
-| `/nirdebug` | Prints the number of retained and dropped diagnostic records and the session number. | Standard and preview |
-| `/nirdebug sample` | Adds a diagnostic snapshot of the current target, mouseover, honorable kill totals and available PvP scoreboard data. | Standard and preview |
-| `/nirdebug seed` | Adds or refreshes the demo rivals and skirmishes for screenshots. | Debug preview only |
-| `/nirdebug clear-seed` | Removes the demo rivals and skirmishes. Recorded and manually added entries are kept. | Debug preview only |
-| `/nirdebug faction alliance` | Replaces the demo data with an Alliance playthrough. | Debug preview only |
-| `/nirdebug faction horde` | Replaces the demo data with a Horde playthrough. | Debug preview only |
-| `/nirdebug faction auto` | Rebuilds demo data for the current character's faction, just like `/nirdebug seed`. | Debug preview only |
+| Command | What it does |
+| --- | --- |
+| `/nirreset` | Opens **Reset data**. Confirm to delete the current character's rivals, skirmishes, manual entries, demo data and diagnostic log. Display preferences and the minimap icon position are kept. |
+| `/nirdebug` | Prints the number of retained and dropped diagnostic records and the session number. |
+| `/nirdebug sample` | Adds a diagnostic snapshot of the current target, mouseover, honorable kill totals and available PvP scoreboard data. |
+| `/nirdebug seed` | Adds or refreshes the demo rivals and skirmishes for screenshots. |
+| `/nirdebug clear-seed` | Removes the demo rivals and skirmishes. Recorded and manually added entries are kept. |
+| `/nirdebug faction alliance` | Replaces the demo data with an Alliance playthrough. |
+| `/nirdebug faction horde` | Replaces the demo data with a Horde playthrough. |
+| `/nirdebug faction auto` | Rebuilds demo data for the current character's faction, just like `/nirdebug seed`. |
 
-The reset command was introduced in version 0.1.3-preview.33. See
-[diagnostics and sample data](docs/debug-preview.md) for details.
+See [diagnostics and sample data](docs/debug-preview.md) for details.
 
 ## How the score works
 
@@ -83,6 +82,10 @@ Deleting a rival clears their profile and its statistics. Shared battles
 remain in the journal with their recorded participants and timeline.
 
 ## Development
+
+[CurseForge listing Markdown](docs/curseforge-description.md) and
+[short description](docs/curseforge-summary.txt) are ready to copy into the
+[CurseForge description editor](https://authors.curseforge.com/#/projects/1819566/description).
 
 Run `bash scripts/check.sh` with Python 3, Bash, `lua5.1` and `luac5.1` installed.
 GitHub Actions runs the same suite. For a developer smoke test, copy the
