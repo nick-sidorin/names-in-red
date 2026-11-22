@@ -30,10 +30,13 @@ C_NamePlate = { GetNamePlateForUnit = function(token)
     if token == plate.unitToken then return plate end
 end }
 
-local onEvent, badge
+local events, onEvent, badge = {}
 function CreateFrame(_, _, owner)
     if not owner then
-        return { RegisterEvent = function() end, SetScript = function(_, _, cb) onEvent = cb end }
+        return {
+            RegisterEvent = function(_, event) events[event] = true end,
+            SetScript = function(_, _, cb) onEvent = cb end,
+        }
     end
     assert(owner == parent and badge == nil)
     badge = {
@@ -80,6 +83,7 @@ addon.RefreshNameplates()
 assert(badge.shown and badge.text:find("TooltipSkull.tga:14:14:0:0|t 1", 1, true))
 assert(not badge.text:find("DefeatBanner.tga", 1, true))
 pixelFactor, badgeScale = 0.5, 0.9
+assert(events.DISPLAY_SIZE_CHANGED and events.UI_SCALE_CHANGED)
 onEvent(nil, "DISPLAY_SIZE_CHANGED")
 assert(badge.anchor == name and badge.textOffsetY == pixelFactor / badgeScale)
 name.shown = false
@@ -103,7 +107,7 @@ addon.RefreshNameplates()
 assert(not badge.shown)
 addon.db.rivals["manual:cute rock"] = rival
 addon.RefreshNameplates()
-assert(badge.shown)
+assert(badge.shown and badge.text:find("TooltipSkull.tga:14:14:0:0|t 1", 1, true))
 rival.encounters = {}
 addon.RefreshNameplates()
 assert(not badge.shown)
