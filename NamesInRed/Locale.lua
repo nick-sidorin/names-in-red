@@ -17,6 +17,8 @@ local dictionaries = {
         lossesDescription = "Skirmishes lost",
         honorableKills = "Honorable Kills",
         honor = "Honor Points",
+        skirmishHonorableKillsEarned = "Honorable Kills earned in this skirmish",
+        skirmishHonorEarned = "Honor Points earned in this skirmish",
         statValue = "%s: %d",
 
         add = "Add",
@@ -76,6 +78,8 @@ local dictionaries = {
         lossesDescription = "Gefechte verloren",
         honorableKills = "Ehrenhafte Siege",
         honor = "Ehrenpunkte",
+        skirmishHonorableKillsEarned = "In diesem Gefecht erzielte ehrenhafte Siege",
+        skirmishHonorEarned = "In diesem Gefecht verdiente Ehrenpunkte",
         statValue = "%s: %d",
 
         add = "Hinzufügen",
@@ -135,6 +139,8 @@ local dictionaries = {
         lossesDescription = "Escaramuzas perdidas",
         honorableKills = "Muertes con honor",
         honor = "Puntos de honor",
+        skirmishHonorableKillsEarned = "Muertes con honor conseguidas en esta escaramuza",
+        skirmishHonorEarned = "Puntos de honor ganados en esta escaramuza",
         statValue = "%s: %d",
 
         add = "Añadir",
@@ -194,6 +200,8 @@ local dictionaries = {
         lossesDescription = "Escarmouches perdues",
         honorableKills = "Victoires honorables",
         honor = "Points d’honneur",
+        skirmishHonorableKillsEarned = "Victoires honorables remportées dans cette escarmouche",
+        skirmishHonorEarned = "Points d’honneur gagnés dans cette escarmouche",
         statValue = "%s : %d",
 
         add = "Ajouter",
@@ -253,6 +261,8 @@ local dictionaries = {
         lossesDescription = "Schermaglie perse",
         honorableKills = "Uccisioni onorevoli",
         honor = "Punti Onore",
+        skirmishHonorableKillsEarned = "Uccisioni onorevoli ottenute in questa schermaglia",
+        skirmishHonorEarned = "Punti Onore guadagnati in questa schermaglia",
         statValue = "%s: %d",
 
         add = "Aggiungi",
@@ -312,6 +322,8 @@ local dictionaries = {
         lossesDescription = "교전 패배",
         honorableKills = "명예 승수",
         honor = "명예 점수",
+        skirmishHonorableKillsEarned = "이 교전에서 기록한 명예 승수",
+        skirmishHonorEarned = "이 교전에서 획득한 명예 점수",
         statValue = "%s: %d",
 
         add = "추가",
@@ -371,6 +383,8 @@ local dictionaries = {
         lossesDescription = "Escaramuças perdidas",
         honorableKills = "Abates honrosos",
         honor = "Pontos de Honra",
+        skirmishHonorableKillsEarned = "Abates honrosos obtidos nesta escaramuça",
+        skirmishHonorEarned = "Pontos de Honra ganhos nesta escaramuça",
         statValue = "%s: %d",
 
         add = "Adicionar",
@@ -430,6 +444,8 @@ local dictionaries = {
         lossesDescription = "Проиграно стычек",
         honorableKills = "Почётные победы",
         honor = "Очки чести",
+        skirmishHonorableKillsEarned = "Почётные победы, заработанные за стычку",
+        skirmishHonorEarned = "Очки чести, заработанные за стычку",
         statValue = "%s: %d",
 
         add = "Добавить",
@@ -489,6 +505,8 @@ local dictionaries = {
         lossesDescription = "交锋负场",
         honorableKills = "荣誉击杀",
         honor = "荣誉点数",
+        skirmishHonorableKillsEarned = "本次遭遇战获得的荣誉击杀数",
+        skirmishHonorEarned = "本次遭遇战获得的荣誉点数",
         statValue = "%s：%d",
 
         add = "添加",
@@ -548,6 +566,8 @@ local dictionaries = {
         lossesDescription = "交鋒敗場",
         honorableKills = "榮譽擊殺",
         honor = "榮譽點數",
+        skirmishHonorableKillsEarned = "本次遭遇戰獲得的榮譽擊殺數",
+        skirmishHonorEarned = "本次遭遇戰獲得的榮譽點數",
         statValue = "%s：%d",
 
         add = "新增",

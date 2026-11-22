@@ -223,10 +223,12 @@ lack a shared victim identifier. Verify an isolated kill, simultaneous kills,
 reward-only messages and secret data in the live client.
 
 Both card sizes display the sum of the recorded rewards for the whole battle.
-The footer uses the 20-unit icon size and 5-unit icon-to-count gap of the token
-entry in `Blizzard_TokenUI/Camelot/Blizzard_TokenUI.xml`. Check that the footer
-stays right-aligned with larger counts and below expanded finishing blows.
-Compare a team skirmish in both card sizes and a match without recorded rewards.
+The footer follows the count-then-icon order of `BackpackTokenTemplate` in
+`Blizzard_TokenUI/Camelot/Blizzard_TokenUI.xml`. The card uses 14-unit icons
+with an 8% crop on each side to remove baked-in borders. The icon hover
+identifies the reward earned in the skirmish. Check that the footer stays
+right-aligned with larger counts and below expanded finishing blows. Compare
+a team skirmish in both card sizes and a fight without recorded rewards.
 
 From preview.6 onward, a rival's linked cards open a full-width battle in
 the same book. This follows the in-window detail transition in
@@ -393,10 +395,11 @@ and map-to-information gaps. Both map buttons share the same center anchor and
 pixel rounding. The compact information icon uses a half-unit upward
 adjustment. Verify the diamond at different UI scales, before and after clicking.
 All dividers use the factor from Blizzard's `PixelUtil.lua` divided by the
-texture's effective scale to target one physical pixel. Their positions snap
-to the pixel grid. The full header centers the map control between the inner
-top edge and divider. The roster headers and timeline use the same dividers.
-Check dividers and headings at different resolutions and UI scales.
+texture's effective scale. The two-pixel height and lighter opacity keep the
+line subtle and give it coverage as scrolling lands between physical pixels.
+The layout rounds to the pixel grid and the texture skips separate texel
+snapping. The full header, roster headings and timeline use the same dividers.
+Check their visibility while slowly scrolling at different UI scales.
 The profile and both card layouts use the same 64-unit portrait and 24-unit
 level badge. Card names wrap to two lines. Level and class badges share the
 same frame and anchor to opposite lower corners. Class icons use the game's `CLASS_ICON_TCOORDS`

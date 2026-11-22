@@ -175,8 +175,11 @@ for id, battle in pairs(seeded) do
             dead[event.targetID], previous = true, event.time
         end
         for id, reward in pairs(battle.rewards) do
-            assert(participants[id] == "enemy" and dead[id] and reward.honorableKills == 1 and reward.honor > 0)
+            assert(participants[id] == "enemy" and dead[id] and reward.honorableKills == 1)
+            assert(reward.honor > 0 and reward.honor <= 10)
         end
+        local kills, honor = addon.Ledger.SkirmishRewards(battle)
+        assert(kills <= #battle.enemies and honor <= 10 * kills)
     end
 end
 assert(seededCount == 12 and outcomes.win == 6 and outcomes.loss == 5 and outcomes.unknown == 1)
@@ -188,10 +191,14 @@ assert(#rematch.allies == 2 and #rematch.enemies == 2 and rematch.events[3].acto
 assert(dargunHistory[1].outcome == "win" and dargunHistory[1].playerDeathIndex == 2)
 assert(dargunHistory[2].outcome == "loss" and dargunHistory[3].outcome == "win")
 local wins, losses, honorableKills, honor = addon.Ledger.PersonalScore(addon.db, "seed:rival:1")
-assert(wins == 2 and losses == 1 and honorableKills == 2 and honor == 35)
+assert(wins == 2 and losses == 1 and honorableKills == 2 and honor == 19)
+local duelKills, duelHonor = addon.Ledger.SkirmishRewards(seeded["seed:battle:felwood-path"])
+assert(duelKills == 1 and duelHonor == 10)
+local rematchKills, rematchHonor = addon.Ledger.SkirmishRewards(rematch)
+assert(rematchKills == 2 and rematchHonor == 16)
 local chapel = seeded["seed:battle:chapel-road"]
 assert(#chapel.allies == 5 and #chapel.enemies == 6 and addon.Ledger.SkirmishOutcome(chapel) == "loss")
-assert(chapel.rewards["seed:rival:8"].honor == 13)
+assert(chapel.rewards["seed:rival:8"].honor == 8)
 assert(not seeded["seed:battle:plaguelands-crossing"].rosterComplete)
 
 SlashCmdList.NAMESINREDDEBUG("faction Horde")

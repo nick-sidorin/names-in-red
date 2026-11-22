@@ -483,7 +483,7 @@ local function CheckClassBadge(tile, class, label, corner)
 end
 local function FindDivider(region)
     for _, child in ipairs(region.children) do
-        if rawget(child, "fillOpacity") == 0.45 then return child end
+        if rawget(child, "fillOpacity") == 0.30 then return child end
     end
 end
 local faction = "Alliance"
@@ -495,14 +495,26 @@ local function CheckFactionColors(left, right)
     assert(left.color[3] > left.color[1] and right.color[1] > right.color[3])
 end
 local function CheckRewards(card, kills, honor, currencyTexture)
-    local killsIcon = assert(FindRegion(card, "texture", addon.honorableKillIconPath))
-    local honorIcon = assert(FindRegion(card, "texture", currencyTexture))
-    local killsCount, honorCount = killsIcon.anchor[2], honorIcon.anchor[2]
-    assert(killsCount.text == kills and honorCount.text == honor)
-    assert(killsIcon.width == 20 and honorIcon.width == 20)
-    assert(honorCount.anchor[2] == card and honorCount.anchor[3] == "BOTTOMRIGHT")
-    assert(killsCount.anchor[2] == honorIcon and killsCount.anchor[4] < killsIcon.anchor[4])
-    assert(rawget(killsCount, "width") == nil and rawget(honorCount, "width") == nil)
+    local function CheckCounter(texture, value, tooltip)
+        local icon = assert(FindRegion(card, "texture", texture))
+        local target = icon.parent
+        assert(target.width == 14 and target.height == 14 and icon.texcoords[1] > 0 and icon.texcoords[2] < 1)
+        local count
+        for _, region in ipairs(card.children) do
+            if rawget(region, "text") == value and region.anchor[2] == target then count = region end
+        end
+        assert(count and count.anchor[1] == "RIGHT" and count.anchor[3] == "LEFT" and count.anchor[4] < 0)
+        assert(rawget(count, "width") == nil)
+        target.scripts.OnEnter(target)
+        assert(GameTooltip.shown and GameTooltip.title == tooltip)
+        target.scripts.OnLeave(target)
+        assert(not GameTooltip.shown)
+        return target, count
+    end
+    local honorIcon, honorCount = CheckCounter(currencyTexture, honor, addon.L.skirmishHonorEarned)
+    local killsIcon = CheckCounter(addon.honorableKillIconPath, kills, addon.L.skirmishHonorableKillsEarned)
+    assert(honorIcon.anchor[1] == "BOTTOMRIGHT")
+    assert(killsIcon.anchor[2] == honorCount and killsIcon.anchor[4] < honorCount.anchor[4])
 end
 card:SetSkirmish(large, "Player-test")
 CheckRewards(card, "3", "4010", 463450)
@@ -652,12 +664,13 @@ local compact = addon.CreateCompactEncounterCard(MockRegion(), 442, function() o
     function(id) openedSkirmish = id end)
 local compactLine = assert(FindDivider(compact))
 for _, line in ipairs({ headerLine, blowsLine, compactLine }) do
-    assert(line.height == pixelFactor / dividerScale and line.anchor[2] == -14)
+    assert(line.height == 2 * pixelFactor / dividerScale and line.anchor[2] == -14)
+    assert(line.roundToPixel and line.snapToGrid == false and line.texelBias == 0)
 end
 pixelFactor, dividerScale = 0.5, 0.9
 DisplayChanged()
 for _, line in ipairs({ headerLine, blowsLine, compactLine }) do
-    assert(line.height == pixelFactor / dividerScale)
+    assert(line.height == 2 * pixelFactor / dividerScale)
 end
 local first = { skirmishID = "battle-one", outcome = "win", opponentDeathIndex = 1, mapID = 1424, x = 0.45, y = 0.51,
     zone = "Hillsbrad Foothills", time = 100, player = allies[1], opponent = enemies[1],

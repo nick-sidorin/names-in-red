@@ -132,7 +132,7 @@ end
 
 local cardInset = 14
 local sectionPadding = 8
-local rewardIconSize = 20
+local rewardIconSize = 14
 local rewardRowHeight = rewardIconSize + sectionPadding
 local fullHeaderCenter = -18
 -- Keep equal space between the map button and the inside edges of the header.
@@ -147,17 +147,29 @@ addon.compactEncounterCardHeight = -compactRosterTop + rosterRowHeight + section
 local finishingBlowFirstRow, finishingBlowStep = 26, 19
 
 local function CreateRewardSummary(card)
-    local function Counter()
+    local function Counter(tooltipTitle)
+        local target = CreateFrame("Frame", nil, card)
+        target:SetSize(rewardIconSize, rewardIconSize)
+        target:SetMouseMotionEnabled(true)
+        target:SetScript("OnEnter", function(self)
+            local tooltip = GetAppropriateTooltip and GetAppropriateTooltip() or GameTooltip
+            tooltip:SetOwner(self, "ANCHOR_TOP")
+            tooltip:SetText(tooltipTitle)
+            tooltip:Show()
+        end)
+        target:SetScript("OnLeave", HideTooltip)
+        target:SetScript("OnHide", HideTooltip)
         local count = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightRight")
-        local icon = card:CreateTexture(nil, "ARTWORK")
-        icon:SetSize(rewardIconSize, rewardIconSize)
-        icon:SetPoint("RIGHT", count, "LEFT", -5, 0)
-        return count, icon
+        local icon = target:CreateTexture(nil, "ARTWORK")
+        icon:SetAllPoints()
+        icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        count:SetPoint("RIGHT", target, "LEFT", -4, 0)
+        return count, icon, target
     end
-    local honor, honorIcon = Counter()
-    local kills, killsIcon = Counter()
-    honor:SetPoint("RIGHT", card, "BOTTOMRIGHT", -cardInset, sectionPadding + rewardIconSize / 2)
-    kills:SetPoint("RIGHT", honorIcon, "LEFT", -16, 0)
+    local honor, honorIcon, honorTarget = Counter(L.skirmishHonorEarned)
+    local kills, killsIcon, killsTarget = Counter(L.skirmishHonorableKillsEarned)
+    honorTarget:SetPoint("BOTTOMRIGHT", -cardInset, sectionPadding)
+    killsTarget:SetPoint("RIGHT", honor, "LEFT", -16, 0)
     killsIcon:SetTexture(addon.honorableKillIconPath)
     local formatCount = BreakUpLargeNumbers or tostring
     return function(honorableKills, honorPoints, faction)
@@ -202,7 +214,8 @@ local dividers = setmetatable({}, { __mode = "k" })
 
 local function SizeDivider(line)
     local factor = PixelUtil and PixelUtil.GetPixelToUIUnitFactor and PixelUtil.GetPixelToUIUnitFactor()
-    line:SetHeight(factor and factor / line:GetEffectiveScale() or 1)
+    -- A one-pixel line can disappear between pixels as the scroll child moves.
+    line:SetHeight(factor and 2 * factor / line:GetEffectiveScale() or 2)
 end
 
 if PixelUtil and PixelUtil.GetPixelToUIUnitFactor then
@@ -220,9 +233,11 @@ local function Divider(card, top, inset)
     line:SetPoint("TOPLEFT", inset, top)
     line:SetPoint("TOPRIGHT", -inset, top)
     line:SetRoundLayoutToNearestPixel(true)
+    line:SetSnapToPixelGrid(false)
+    line:SetTexelSnappingBias(0)
     SizeDivider(line)
     dividers[line] = true
-    line:SetColorTexture(0.56, 0.42, 0.27, 0.45)
+    line:SetColorTexture(0.56, 0.42, 0.27, 0.30)
     return line
 end
 
