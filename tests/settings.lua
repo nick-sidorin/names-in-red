@@ -46,6 +46,7 @@ GameTooltip = {
 }
 
 NamesInRedDB = { version = 1, rivals = {}, minimapAngle = 139 }
+SlashCmdList = {}
 for _, file in ipairs({ "Locale", "Ledger", "Encounter", "Core", "Portraits", "Book", "Settings" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
@@ -133,16 +134,18 @@ function StaticPopup_Show(key)
 end
 
 assert(rows[3].label == addon.L.resetData and rows[4].label == "Сообщить о проблеме")
+local resetCommand = SlashCmdList.NAMESINREDRESET
+assert(SLASH_NAMESINREDRESET1 == "/nirreset" and resetCommand == rows[3].click)
 local showPopup = StaticPopup_Show
 StaticPopup_Show = nil
-rows[3].click()
+resetCommand("")
 assert(addon.Ledger.PersonalScore(db, rivalID) == 1 and journalRefreshes == 0)
 StaticPopup_Show = showPopup
 rows[3].click()
 assert(shown.button2 == CANCEL and shown.hideOnEscape and addon.Ledger.PersonalScore(db, rivalID) == 1)
 if shown.OnCancel then shown.OnCancel() end
 assert(addon.Ledger.PersonalScore(db, rivalID) == 1 and journalRefreshes == 0)
-rows[3].click()
+resetCommand("")
 shown.OnAccept()
 assert(next(db.rivals) == nil and db.skirmishes == nil)
 assert(db.lastDeathTimestamp == nil and db.encounterSequence == nil)

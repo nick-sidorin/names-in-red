@@ -43,6 +43,21 @@ character's rivals, skirmishes and diagnostic logs. Display preferences and
 the minimap icon position are kept. **Report an issue** shows a copyable link
 to [GitHub Issues](https://github.com/nick-sidorin/names-in-red/issues).
 
+## Chat commands
+
+Enter these commands in the in-game chat box.
+
+| Command | What it does | Availability |
+| --- | --- | --- |
+| `/nirreset` | Opens **Reset data**. Confirm to delete the current character's rivals, skirmishes, manual entries, demo data and diagnostic log. Display preferences and the minimap icon position are kept. | Standard and preview |
+| `/nirdebug` | Prints the number of retained and dropped diagnostic records and the session number. | Standard and preview |
+| `/nirdebug sample` | Adds a diagnostic snapshot of the current target, mouseover, honorable kill totals and available PvP scoreboard data. | Standard and preview |
+| `/nirdebug seed` | Adds or refreshes the demo rivals and skirmishes for screenshots. | Debug preview only |
+| `/nirdebug clear-seed` | Removes the demo rivals and skirmishes. Recorded and manually added entries are kept. | Debug preview only |
+
+The reset command was introduced in version 0.1.3-preview.33. See
+[diagnostics and sample data](docs/debug-preview.md) for details.
+
 ## How the score works
 
 - **Skirmishes won** and **Skirmishes lost** count the result of your side.

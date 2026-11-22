@@ -6,7 +6,7 @@ local reportPopup = "NAMES_IN_RED_REPORT_ISSUE"
 local issuesURL = "https://github.com/nick-sidorin/names-in-red/issues"
 
 local function RequestReset()
-    if not StaticPopupDialogs or not StaticPopup_Show then return end
+    if not addon.db or not StaticPopupDialogs or not StaticPopup_Show then return end
     StaticPopupDialogs[resetPopup] = {
         text = L.resetDataConfirm,
         button1 = L.resetData,
@@ -18,6 +18,9 @@ local function RequestReset()
     }
     StaticPopup_Show(resetPopup)
 end
+
+SLASH_NAMESINREDRESET1 = "/nirreset"
+SlashCmdList.NAMESINREDRESET = RequestReset
 
 local function ShowIssuesLink()
     if not StaticPopupDialogs or not StaticPopup_Show then
