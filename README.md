@@ -26,6 +26,10 @@ unconfirmed. Older saved battles can still open from a rival's history.
 The map pin places a waypoint when the saved location supports one. Known
 rivals show the same score in the standard unit tooltip.
 
+The interface follows the language selected in World of Warcraft. It supports
+English, German, Spanish, French, Italian, Korean, Brazilian Portuguese,
+Russian, Simplified Chinese, and Traditional Chinese.
+
 Download the latest ZIP from [Releases](https://github.com/nick-sidorin/names-in-red/releases)
 and extract `NamesInRed/` into `_forever_/Interface/AddOns/`.
 

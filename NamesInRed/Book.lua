@@ -109,6 +109,8 @@ local function Stat(parent, x, y, texture, tooltipText)
     label:SetPoint("LEFT", holder, "RIGHT", 10, 0)
     label:SetWidth(cardWidth / 2 - holder:GetWidth() - 14)
     label:SetJustifyH("LEFT")
+    label:SetWordWrap(true)
+    label:SetMaxLines(2)
     return label, icon
 end
 
@@ -185,10 +187,10 @@ local function ShowDetails()
         end
         status:SetText(profile)
         local winCount, lossCount, honorableKillCount, honorTotal = addon.Ledger.PersonalScore(addon.db, selected)
-        wins:SetText(("%s: %d"):format(L.wins, winCount))
-        losses:SetText(("%s: %d"):format(L.losses, lossCount))
-        honorableKills:SetText(("%s: %d"):format(L.honorableKills, honorableKillCount))
-        honor:SetText(("%s: %d"):format(L.honor, honorTotal))
+        wins:SetText(L.statValue:format(L.wins, winCount))
+        losses:SetText(L.statValue:format(L.losses, lossCount))
+        honorableKills:SetText(L.statValue:format(L.honorableKills, honorableKillCount))
+        honor:SetText(L.statValue:format(L.honor, honorTotal))
         local faction = UnitFactionGroup and Readable(UnitFactionGroup("player"))
         honorableKillsIcon:SetTexture(addon.RewardIconPath(faction, false))
         honorIcon:SetTexture(addon.RewardIconPath(faction, true))

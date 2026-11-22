@@ -30,28 +30,65 @@ TooltipDataProcessor = {
     end,
 }
 
+local LoadLocale = assert(loadfile("NamesInRed/Locale.lua"))
+local function FormatArguments(text)
+    local args, cursor = {}, 1
+    while true do
+        local start = text:find("%", cursor, true)
+        if not start then return table.concat(args) end
+        if text:sub(start + 1, start + 1) == "%" then
+            cursor = start + 2
+        else
+            local kind, finish = text:sub(start):match("^%%[-+ #0]*%d*%.?%d*([cdiouxXeEfgGqs])()")
+            assert(kind, "Invalid format specifier in " .. text)
+            args[#args + 1], cursor = kind, start + finish - 1
+        end
+    end
+end
+
+LoadLocale("NamesInRed", addon)
+local english = addon.L
+local tocFile = assert(io.open("NamesInRed/NamesInRed.toc"))
+local toc = tocFile:read("*a")
+tocFile:close()
+assert(toc:match("## Notes: [^\r\n]+"))
+local spanish
 for _, supported in ipairs({
     "enUS", "enGB", "ruRU", "deDE", "frFR", "esES", "esMX", "itIT", "ptBR", "koKR", "zhCN", "zhTW",
 }) do
     locale = supported
-    assert(loadfile("NamesInRed/Locale.lua"))("NamesInRed", addon)
+    LoadLocale("NamesInRed", addon)
     assert(addon.title == "Names in Red")
-    assert(addon.L.deleteConfirm:format("Rival"):find("Rival", 1, true))
-    for _, key in ipairs({
-        "wins", "losses", "empty", "level", "add", "addTitle", "fullName", "win", "loss", "manual",
-        "noMatches", "deleteConfirm", "personalScore", "winTooltip", "lossTooltip", "infoTab", "historyTab",
-        "latestEncounter", "showOnMap", "unknownLocation", "myLevel", "rivalLevel", "waypointError", "noSkirmishes",
-        "rivalsView", "recentView", "unknownRival",
-        "alliedSide", "enemySide", "partialRoster", "finishingBlows", "unknownPlayer", "minimapHint",
-        "openSkirmish", "partialRosterHint", "portraitDeath", "honorableKills", "honor", "unknownOutcome",
-        "showNameplateIcons", "showUnitTooltip", "resetData", "resetDataConfirm", "reportIssue", "reportIssueLink",
-    }) do
-        assert(type(addon.L[key]) == "string" and addon.L[key] ~= "")
+    for key, default in pairs(english) do
+        local translated = rawget(addon.L, key)
+        assert(type(translated) == "string" and translated ~= "", supported .. " missing " .. key)
+        assert(FormatArguments(translated) == FormatArguments(default), supported .. " format mismatch for " .. key)
     end
+    for key in pairs(addon.L) do assert(english[key], "Unknown translation key " .. key) end
+    assert(addon.L.deleteConfirm:format("Rival"):find("Rival", 1, true))
+    assert(addon.L.finishingBlow:format("Rival"):find("Rival", 1, true))
     local _, lineBreaks = addon.L.minimapHint:gsub("\n", "")
     assert(lineBreaks == 2)
+    if supported == "enUS" or supported == "enGB" then
+        assert(addon.L.recentView == english.recentView)
+    else
+        assert(toc:match("## Notes%-" .. supported .. ": [^\r\n]+"), supported .. " missing AddOns description")
+        assert(addon.L.recentView ~= english.recentView)
+    end
+    if supported == "esES" then spanish = addon.L.recentView end
+    if supported == "esMX" then assert(addon.L.recentView == spanish) end
     if supported == "ruRU" then assert(addon.L.winTooltip == "Победа" and addon.L.lossTooltip == "Поражение") end
 end
+
+locale = "deDE"
+LoadLocale("NamesInRed", addon)
+addon.L.finishingBlow = nil
+assert(addon.L.finishingBlow == english.finishingBlow)
+locale = "unknownLocale"
+LoadLocale("NamesInRed", addon)
+assert(addon.L.recentView == english.recentView and addon.L.debugStatus == english.debugStatus)
+locale = "enUS"
+LoadLocale("NamesInRed", addon)
 
 local secret = {}
 function issecretvalue(value) return value == secret end

@@ -1,4 +1,5 @@
 local addonName, addon = ...
+local L = addon.L
 local frame = CreateFrame("Frame")
 local db
 local deathSequence = 0
@@ -630,12 +631,12 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if type(update) ~= "function" then return end
             local count = update(seed and GetServerTime() or nil)
             if addon.RefreshBook then addon.RefreshBook(message == "seed") end
-            print("NamesInRed", message, count)
+            print(addon.title, (seed and L.debugSeedsAdded or L.debugSeedsRemoved):format(count))
             return
         end
         if message == "sample" then
             Sample(Add("MANUAL_SAMPLE"))
         end
-        print("NamesInRedDebugDB", #db.rows, "rows", db.dropped, "dropped", db.session, "session")
+        print(addon.title, L.debugStatus:format(#db.rows, db.dropped, db.session))
     end
 end)

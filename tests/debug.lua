@@ -7,6 +7,7 @@ local rejectedEvent = "PVP_MATCH_COMPLETE"
 function issecretvalue(value) return value == secret end
 function canaccesstable(value) return value ~= restricted end
 function GetBuildInfo() return "1.60.1", "70959", "", 16001 end
+function GetLocale() return "deDE" end
 function GetServerTime() return 100 end
 function GetTime() return 15 end
 function IsInInstance() return true, "pvp" end
@@ -39,6 +40,8 @@ local function Event(name, ...)
 end
 
 local function Login(addon)
+    addon = addon or {}
+    assert(loadfile("NamesInRed/Locale.lua"))("NamesInRed", addon)
     assert(loadfile("NamesInRed/Debug.lua"))("NamesInRed", addon)
     Event("ADDON_LOADED", "OtherAddon")
     Event("ADDON_LOADED", "NamesInRed")
@@ -81,8 +84,12 @@ assert(NamesInRedDB == nil)
 Login({ db = {} })
 SlashCmdList.NAMESINREDDEBUG("seed")
 SlashCmdList.NAMESINREDDEBUG("clear-seed")
+local debugPrint, printed = print
+print = function(title, message) printed = title .. " " .. message end
 SlashCmdList.NAMESINREDDEBUG("sample")
+print = debugPrint
 assert(db.rows[1000].kind == "MANUAL_SAMPLE")
+assert(printed:find("Names in Red Diagnose", 1, true) == 1)
 print("Debug capture checks passed")
 
 local addon = {}
