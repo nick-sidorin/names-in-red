@@ -304,6 +304,10 @@ C_Texture = {
         if atlas == missingAtlas then return end
         if atlas == allianceAtlas then return { width = 24, height = 32 } end
         if atlas == hordeAtlas then return { width = 16, height = 32 } end
+        if atlas == "Profession-Background-Template2" then
+            return { width = 668, height = 588, leftTexCoord = 0.2, rightTexCoord = 0.6,
+                topTexCoord = 0.3, bottomTexCoord = 0.8 }
+        end
         return { leftTexCoord = 0.2, rightTexCoord = 0.4, topTexCoord = 0.3, bottomTexCoord = 0.5 }
     end,
 }
@@ -333,6 +337,20 @@ local function FindRegion(region, key, expected)
 end
 local function FindText(region, expected)
     return FindRegion(region, "text", expected)
+end
+
+do
+    local function HeaderAtWidth(width)
+        local parent = MockRegion()
+        function parent:GetWidth() return width end
+        addon.CreateBookHeader(parent)
+        return assert(FindRegion(parent, "atlas", "Profession-Background-Template2"))
+    end
+    local original, wide = HeaderAtWidth(700), HeaderAtWidth(810)
+    assert(original.width == 694 and wide.width == 804 and original.height == wide.height)
+    for index = 1, 4 do
+        assert(original.texcoords[index] == wide.texcoords[index])
+    end
 end
 
 assert(loadfile("NamesInRed/RivalList.lua"))("NamesInRed", addon)

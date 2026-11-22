@@ -295,8 +295,10 @@ Camelot's profession overrides in `Blizzard_ProfessionsFrame.lua` and
 schematic NineSlice anchors. The book follows that treatment and uses the
 recipe atlas for the right panel's ornamental frame.
 
-The book uses the top band of Camelot's `Profession-Background-Template2`
-atlas, including its lower edge. The details panel uses a plain recipe backdrop,
+The book crops the top band of Camelot's `Profession-Background-Template2`
+atlas from `Blizzard_ProfessionsFrame.xml`. The crop stays fixed at the
+original band depth, including its lower edge, as the displayed width grows.
+The details panel uses a plain recipe backdrop,
 a proportional Engineering illustration with feathered edges in the lower right,
 and the separate `common-insideframe` trim from Camelot's schematic XML. The portrait uses the
 add dialog's circle mask and rim. UV insets remove the inventory bevel from
@@ -435,10 +437,10 @@ layouts use `RAID_CLASS_COLORS`. Compare the Information panel with Enchanting
 and check a 5 × 6 lineup and the scroll area on a 1920 × 1080 client.
 The Honorable Kills slot uses a 128 × 128 gold chevron texture with 21 texels
 of background on each side. `ProfessionsButtonMixin:OnLoad` positions the
-frame separately from the icon. To address the larger left gap in the owner’s
-preview.38 screenshot, the square crop samples 1.5 texels farther right,
-moving the chevron left by roughly half a pixel at that UI scale. Check its
-centering and legibility in Forever at normal and reduced UI scales. The
+frame separately from the icon. The preview.38 and preview.39 screenshots
+showed opposite imbalances. The square crop samples 0.75 texel farther right,
+half the preview.39 adjustment. Check the chevron's centering and legibility
+in Forever at normal and reduced UI scales. The
 Honor Points stat follows
 `TokenEntryMixin:Initialize` in `Blizzard_TokenUI/Camelot/Blizzard_TokenUI.lua`
 and displays the `iconFileID` from the native currency list. A hidden currency

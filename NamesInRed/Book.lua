@@ -32,7 +32,7 @@ local function SetStatIconCrop(icon, texture)
         inset = statSwordInset
     elseif texture == addon.honorableKillIconPath then
         -- Center the chevron within the visible reagent frame.
-        inset = 1.5 / 128
+        inset = 0.75 / 128
         shift = inset
     end
     icon:SetTexCoord(inset + shift, 1 - inset + shift, inset, 1 - inset)
@@ -299,18 +299,16 @@ function addon.RefreshBook(resetSearch)
     ShowDetails()
 end
 
-local function ProfessionBackdrop(parent)
+function addon.CreateBookHeader(parent)
     local atlas = "Profession-Background-Template2"
     local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas)
     if not info or info.width <= 0 or info.height <= 0 then return end
 
-    -- Compress the original top band, including its lower edge, into the book header.
-    local width = parent:GetWidth() - 6
-    local fullHeight = info.height * width / info.width
-    local sourceBand = math.min(1, 98 / fullHeight)
+    -- Keep the crop that included the lower edge at the original 694-unit draw width.
+    local sourceBand = math.min(1, (98 / 694) * info.width / info.height)
     local art = parent:CreateTexture(nil, "BACKGROUND", nil, -3)
     art:SetPoint("TOPLEFT", 3, -21)
-    art:SetSize(width, 44)
+    art:SetSize(parent:GetWidth() - 6, 44)
     art:SetAtlas(atlas)
     art:SetTexCoord(info.leftTexCoord, info.rightTexCoord, info.topTexCoord,
         info.topTexCoord + sourceBand * (info.bottomTexCoord - info.topTexCoord))
@@ -470,7 +468,7 @@ local function ToggleBook()
             if window.TopTileStreaks then window.TopTileStreaks:Hide() end
         end
 
-        ProfessionBackdrop(window)
+        addon.CreateBookHeader(window)
         rivalsPage = CreateFrame("Frame", nil, window)
         rivalsPage:SetAllPoints()
         recentPage = CreateFrame("Frame", nil, window)
