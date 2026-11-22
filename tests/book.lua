@@ -145,7 +145,7 @@ assert(tooltipLines[1] == " ")
 assert(tooltipLines[2] == addon.title)
 local art = "|TInterface\\AddOns\\NamesInRed\\Art\\"
 local victory = art .. "CrossedSwords.tga:14:14:0:1:128:128:22:106:22:106|t"
-local loss = art .. "DefeatBanner.tga:14:14:0:1|t"
+local loss = art .. "TooltipSkull.tga:14:14:0:1|t"
 assert(tooltipLines[3] == victory .. " 2   " .. loss .. " 1")
 addon.db.showUnitTooltip = false
 callback(GameTooltip, { guid = "Player-test" })

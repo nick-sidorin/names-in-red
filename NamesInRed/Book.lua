@@ -1,9 +1,6 @@
 local _, addon = ...
 local L, Readable, HideTooltip = addon.L, addon.Readable, addon.HideOwnedTooltip
 local swordsStart, swordsEnd = addon.smallSwordsInset, 128 - addon.smallSwordsInset
-local victoryGlyph = ("|T%s:14:14:0:1:128:128:%d:%d:%d:%d|t"):format(
-    addon.swordsIconPath, swordsStart, swordsEnd, swordsStart, swordsEnd)
-local defeatGlyph = "|T" .. addon.defeatBannerPath .. ":14:14:0:1|t"
 local window, names, details, heading, profilePortrait, summary, wins, losses, status, selected, empty
 local search, tabBar, latestCard, latestEmpty, historyEmpty
 local honorableKills, honor
@@ -38,12 +35,18 @@ local function SetStatIconCrop(icon, texture)
     icon:SetTexCoord(inset + shift, 1 - inset + shift, inset, 1 - inset)
 end
 
-function addon.RivalCounters(id, hideZero)
+function addon.RivalCounters(id, hideZero, iconOffsetY)
     local winCount, lossCount = addon.Ledger.PersonalScore(addon.db, id)
     if winCount == 0 and lossCount == 0 then return end
+    iconOffsetY = iconOffsetY or 1
     local wins, losses
-    if not hideZero or winCount > 0 then wins = victoryGlyph .. " " .. winCount end
-    if not hideZero or lossCount > 0 then losses = defeatGlyph .. " " .. lossCount end
+    if not hideZero or winCount > 0 then
+        wins = ("|T%s:14:14:0:%d:128:128:%d:%d:%d:%d|t %d"):format(
+            addon.swordsIconPath, iconOffsetY, swordsStart, swordsEnd, swordsStart, swordsEnd, winCount)
+    end
+    if not hideZero or lossCount > 0 then
+        losses = ("|T%s:14:14:0:%d|t %d"):format(addon.smallSkullIconPath, iconOffsetY, lossCount)
+    end
     if wins and losses then return wins .. "   " .. losses end
     return wins or losses
 end

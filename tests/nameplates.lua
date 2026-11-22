@@ -5,7 +5,10 @@ function issecretvalue(value) return value == secret end
 local unit, guid = "nameplate1", "Player-rival"
 function UnitGUID(token) return token == "player" and "Player-self" or guid end
 function UnitIsPlayer() return true end
+function UnitIsFriend() return true end
 function UnitName() return "Cute", "Rock" end
+local pixelFactor, badgeScale = 0.8, 0.75
+PixelUtil = { GetPixelToUIUnitFactor = function() return pixelFactor end }
 
 local function Anchor()
     return {
@@ -27,10 +30,13 @@ C_NamePlate = { GetNamePlateForUnit = function(token)
     if token == plate.unitToken then return plate end
 end }
 
-local onEvent, badge
+local events, onEvent, badge = {}
 function CreateFrame(_, _, owner)
     if not owner then
-        return { RegisterEvent = function() end, SetScript = function(_, _, cb) onEvent = cb end }
+        return {
+            RegisterEvent = function(_, event) events[event] = true end,
+            SetScript = function(_, _, cb) onEvent = cb end,
+        }
     end
     assert(owner == parent and badge == nil)
     badge = {
@@ -38,10 +44,14 @@ function CreateFrame(_, _, owner)
         CreateFontString = function(self)
             return {
                 SetTextColor = function() end,
-                SetPoint = function() end,
+                SetPoint = function(_, point, x, y)
+                    assert(point == "CENTER" and x == 0)
+                    self.textOffsetY = y
+                end,
                 SetText = function(_, value) self.text = value end,
             }
         end,
+        GetEffectiveScale = function() return badgeScale end,
         ClearAllPoints = function() end,
         SetPoint = function(self, point, anchor, relativePoint, x, y)
             assert(point == "BOTTOM" and relativePoint == "TOP" and x == 0 and y == 0)
@@ -59,7 +69,8 @@ end
 
 onEvent(nil, "NAME_PLATE_UNIT_ADDED", unit)
 assert(badge.shown and badge.anchor == name)
-assert(badge.text:find("CrossedSwords.tga", 1, true) and not badge.text:find("DefeatBanner.tga", 1, true))
+assert(badge.text:find("CrossedSwords.tga:14:14:0:0", 1, true) and not badge.text:find("TooltipSkull.tga", 1, true))
+assert(badge.textOffsetY == pixelFactor / badgeScale)
 addon.db.showNameplateIcons = false
 addon.RefreshNameplates()
 onEvent(nil, "NAME_PLATE_UNIT_ADDED", unit)
@@ -69,7 +80,12 @@ addon.RefreshNameplates()
 assert(badge.shown and lookups == 2)
 rival.encounters[2] = { outcome = "loss" }
 addon.RefreshNameplates()
-assert(badge.shown and badge.text:find("DefeatBanner.tga", 1, true))
+assert(badge.shown and badge.text:find("TooltipSkull.tga:14:14:0:0|t 1", 1, true))
+assert(not badge.text:find("DefeatBanner.tga", 1, true))
+pixelFactor, badgeScale = 0.5, 0.9
+assert(events.DISPLAY_SIZE_CHANGED and events.UI_SCALE_CHANGED)
+onEvent(nil, "DISPLAY_SIZE_CHANGED")
+assert(badge.anchor == name and badge.textOffsetY == pixelFactor / badgeScale)
 name.shown = false
 addon.RefreshNameplates()
 assert(badge.anchor == bar)
@@ -91,7 +107,7 @@ addon.RefreshNameplates()
 assert(not badge.shown)
 addon.db.rivals["manual:cute rock"] = rival
 addon.RefreshNameplates()
-assert(badge.shown)
+assert(badge.shown and badge.text:find("TooltipSkull.tga:14:14:0:0|t 1", 1, true))
 rival.encounters = {}
 addon.RefreshNameplates()
 assert(not badge.shown)
