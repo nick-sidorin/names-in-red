@@ -162,6 +162,17 @@ function Ledger.FirstDeaths(battle)
     return firstDeath
 end
 
+function Ledger.SkirmishRewards(battle)
+    local honorableKills, honor = 0, 0
+    if battle.rewards then
+        for _, reward in pairs(battle.rewards) do
+            honorableKills = honorableKills + (reward.honorableKills or 0)
+            honor = honor + (reward.honor or 0)
+        end
+    end
+    return honorableKills, honor
+end
+
 local function IndexSkirmish(index, id, battle)
     local outcome, player = Ledger.SkirmishOutcome(battle)
     local firstDeath = Ledger.FirstDeaths(battle)

@@ -322,7 +322,9 @@ local enemies = {
     { id = "other", name = "Other Rival" },
 }
 local large = { time = 100, startedAt = 80, zone = "Hillsbrad Foothills", mapID = 1424, x = 0.45, y = 0.51,
-    allies = allies, enemies = enemies, rosterComplete = true, events = {
+    allies = allies, enemies = enemies, rosterComplete = true,
+    rewards = { enemy = { honorableKills = 1, honor = 10 }, other = { honorableKills = 2, honor = 4000 } },
+    events = {
     { kind = "kill", actorID = "ally", targetID = "enemy", time = 91 },
     { kind = "revive", targetID = "enemy", time = 95 },
     { kind = "kill", actorID = "other", targetID = "me", time = 97 },
@@ -492,7 +494,18 @@ end
 local function CheckFactionColors(left, right)
     assert(left.color[3] > left.color[1] and right.color[1] > right.color[3])
 end
+local function CheckRewards(card, kills, honor, currencyTexture)
+    local killsIcon = assert(FindRegion(card, "texture", addon.honorableKillIconPath))
+    local honorIcon = assert(FindRegion(card, "texture", currencyTexture))
+    local killsCount, honorCount = killsIcon.anchor[2], honorIcon.anchor[2]
+    assert(killsCount.text == kills and honorCount.text == honor)
+    assert(killsIcon.width == 20 and honorIcon.width == 20)
+    assert(honorCount.anchor[2] == card and honorCount.anchor[3] == "BOTTOMRIGHT")
+    assert(killsCount.anchor[2] == honorIcon and killsCount.anchor[4] < killsIcon.anchor[4])
+    assert(rawget(killsCount, "width") == nil and rawget(honorCount, "width") == nil)
+end
 card:SetSkirmish(large, "Player-test")
+CheckRewards(card, "3", "4010", 463450)
 local collapsedHeight = card.height
 assert(collapsedHeight == addon.SkirmishCardHeight(large) and not FindText(card, "0:11"))
 local timelineTitle = assert(FindText(card, addon.L.finishingBlows))
@@ -502,6 +515,7 @@ assert(not timelineHeader.highlight and timelineHeader.width < card.width / 2)
 timelineTitle.parent.scripts.OnClick(timelineTitle.parent)
 assert(timelineRequested == large)
 card:SetSkirmish(large, "Player-test", true)
+CheckRewards(card, "3", "4010", 463450)
 local largeHeight = card.height
 assert(largeHeight == addon.SkirmishCardHeight(large, true) and collapsedHeight < largeHeight)
 assert(FindText(card, "2 × 2") and FindText(card, "Ally Warrior") and FindText(card, "0:11"))
@@ -548,6 +562,7 @@ CheckFactionColors(allyHeading, enemyHeading)
 large.demoFaction = "Horde"
 card:SetSkirmish(large, "Player-test")
 CheckFactionColors(enemyHeading, allyHeading)
+CheckRewards(card, "3", "4010", 463451)
 assert(faction == "Alliance" and allyEmblem.atlas == hordeAtlas and enemyEmblem.atlas == allianceAtlas)
 large.demoFaction = nil
 faction = "Horde"
@@ -572,6 +587,7 @@ assert(selectedRival == "Player-test")
 local finished = { allies = { allies[1] }, enemies = { enemies[1] }, rosterComplete = true,
     events = { { kind = "kill", actorID = "me", targetID = "enemy" } } }
 card:SetSkirmish(finished)
+CheckRewards(card, "0", "0", 463450)
 assert(allyEmblem.shown and allyEmblem.atlas == allianceAtlas and enemyEmblem.atlas == hordeAtlas)
 local fullVictory = assert(FindRegion(card, "texture", addon.swordsIconPath)).parent
 local fullOutcome = fullVictory.parent
@@ -650,6 +666,11 @@ first.player.race, first.player.sex = "orc", 2
 first.opponent.race, first.opponent.sex, first.opponent.classLabel = "human", 3, "Mage"
 function GetRaceAtlas(race, gender) return race .. "-" .. gender end
 compact:SetEncounter(first)
+CheckRewards(compact, "0", "0", 463450)
+addon.db.skirmishes = { [first.skirmishID] = large }
+compact:SetEncounter(first)
+CheckRewards(compact, "3", "4010", 463450)
+addon.db.skirmishes = nil
 assert(FindText(compact, "Hillsbrad Foothills") and FindText(compact, date("%x", first.time)))
 assert(FindText(compact, "Hillsbrad Foothills").anchor[1] == "LEFT")
 assert(FindText(compact, "My Character") and FindText(compact, "Test Rival"))
@@ -785,7 +806,8 @@ function SetPortraitTexture(_, unit, disableMasking)
 end
 local unitRace = UnitRace
 UnitRace = nil
-compact:SetEncounter({ direction = "killsAgainstThem" }, { displayName = "Legacy Rival" })
+compact:SetEncounter({ direction = "killsAgainstThem", honorableKills = 1 }, { displayName = "Legacy Rival" })
+CheckRewards(compact, "1", "0", 463450)
 assert(FindText(compact, "Legacy Rival") and loadedSelfPortrait and not open.shown)
 UnitRace = unitRace
 assert(rivalPortrait.texture == "Interface\\Icons\\INV_Misc_QuestionMark")

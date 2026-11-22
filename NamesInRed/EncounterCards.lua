@@ -132,6 +132,8 @@ end
 
 local cardInset = 14
 local sectionPadding = 8
+local rewardIconSize = 20
+local rewardRowHeight = rewardIconSize + sectionPadding
 local fullHeaderCenter = -18
 -- Keep equal space between the map button and the inside edges of the header.
 local fullHeaderDivider = 2 * fullHeaderCenter + 2
@@ -141,8 +143,29 @@ local rosterRowHeight = portraitSize + 36
 local resultWidth = rosterGutter - 8
 local compactHeaderCenter, compactHeaderDivider = -21, -41
 local compactRosterTop = compactHeaderDivider - sectionPadding
-addon.compactEncounterCardHeight = -compactRosterTop + rosterRowHeight + sectionPadding
+addon.compactEncounterCardHeight = -compactRosterTop + rosterRowHeight + sectionPadding + rewardRowHeight
 local finishingBlowFirstRow, finishingBlowStep = 26, 19
+
+local function CreateRewardSummary(card)
+    local function Counter()
+        local count = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightRight")
+        local icon = card:CreateTexture(nil, "ARTWORK")
+        icon:SetSize(rewardIconSize, rewardIconSize)
+        icon:SetPoint("RIGHT", count, "LEFT", -5, 0)
+        return count, icon
+    end
+    local honor, honorIcon = Counter()
+    local kills, killsIcon = Counter()
+    honor:SetPoint("RIGHT", card, "BOTTOMRIGHT", -cardInset, sectionPadding + rewardIconSize / 2)
+    kills:SetPoint("RIGHT", honorIcon, "LEFT", -16, 0)
+    killsIcon:SetTexture(addon.honorableKillIconPath)
+    local formatCount = BreakUpLargeNumbers or tostring
+    return function(honorableKills, honorPoints, faction)
+        kills:SetText(formatCount(honorableKills or 0))
+        honor:SetText(formatCount(honorPoints or 0))
+        honorIcon:SetTexture(addon.HonorIconTexture(faction or addon.PlayerFaction()))
+    end
+end
 
 local function RosterRows(count)
     if count <= 2 then return 1 end
@@ -163,12 +186,16 @@ local function RosterBottom(height)
     return rosterTop - height - sectionPadding
 end
 
+local function FullCardHeight(rosterBottom, blowCount, expanded)
+    return -rosterBottom + TimelineHeight(blowCount, expanded) + rewardRowHeight
+end
+
 function addon.SkirmishCardHeight(battle, expanded)
     local count = 0
     for _, event in ipairs(battle.events) do
         if event.kind == "kill" then count = count + 1 end
     end
-    return -RosterBottom(RosterHeight(battle)) + TimelineHeight(count, expanded)
+    return FullCardHeight(RosterBottom(RosterHeight(battle)), count, expanded)
 end
 
 local dividers = setmetatable({}, { __mode = "k" })
@@ -358,6 +385,7 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
     mine:SetPoint("TOPLEFT", cardInset, compactRosterTop)
     theirs:SetPoint("TOPRIGHT", -cardInset, compactRosterTop)
     local setResult = CreateSkirmishResult(card)
+    local setRewards = CreateRewardSummary(card)
 
     local map = MapAction(card, function()
         if card.encounter then ActivateWaypoint(card.encounter, onMapShown) end
@@ -397,6 +425,15 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         setResult(encounter and (addon.Ledger.EncounterOutcome(encounter) or "unknown"), changed,
             compactRosterTop - rosterRowHeight / 2)
         if not encounter then return end
+
+        local skirmishes = addon.db and addon.db.skirmishes
+        local battle = skirmishes and skirmishes[encounter.skirmishID]
+        if battle then
+            local honorableKills, honor = addon.Ledger.SkirmishRewards(battle)
+            setRewards(honorableKills, honor, battle.demoFaction)
+        else
+            setRewards(encounter.honorableKills, encounter.honor, rival and rival.demoFaction)
+        end
 
         local player, opponent = encounter.player, encounter.opponent
         BindParticipantTile(mine, player or {}, addon.UnitAppearance("player"), encounter.playerLevel,
@@ -604,6 +641,7 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
     local setEnemies = CreateSkirmishSide(card, width - cardInset - sideWidth, sideWidth, L.enemySide, true, openRival)
     local setResult = CreateSkirmishResult(card)
     local setTimeline = CreateTimeline(card, width, toggleTimeline)
+    local setRewards = CreateRewardSummary(card)
     local map = MapAction(card, function()
         ActivateWaypoint(card.skirmish, onMapShown)
     end)
@@ -647,7 +685,9 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
         setAllies(battle.allies, height, alliesHorde, allyColor, nil, casualties)
         setEnemies(battle.enemies, height, not alliesHorde, enemyColor, selectedRivalID, casualties)
         setTimeline(battle, blows, expanded, bottom, players, colors)
-        card:SetHeight(-bottom + TimelineHeight(#blows, expanded))
+        local honorableKills, honor = addon.Ledger.SkirmishRewards(battle)
+        setRewards(honorableKills, honor, battle.demoFaction)
+        card:SetHeight(FullCardHeight(bottom, #blows, expanded))
     end
     return card
 end

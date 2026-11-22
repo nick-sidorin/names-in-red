@@ -222,6 +222,12 @@ numeric `CURRENCY_DISPLAY_UPDATE` for an honor currency. These events still
 lack a shared victim identifier. Verify an isolated kill, simultaneous kills,
 reward-only messages and secret data in the live client.
 
+Both card sizes display the sum of the recorded rewards for the whole battle.
+The footer uses the 20-unit icon size and 5-unit icon-to-count gap of the token
+entry in `Blizzard_TokenUI/Camelot/Blizzard_TokenUI.xml`. Check that the footer
+stays right-aligned with larger counts and below expanded finishing blows.
+Compare a team skirmish in both card sizes and a match without recorded rewards.
+
 From preview.6 onward, a rival's linked cards open a full-width battle in
 the same book. This follows the in-window detail transition in
 `ProfessionsCraftingPageMixin:SelectRecipe` in `Blizzard_ProfessionsCrafting.lua`.

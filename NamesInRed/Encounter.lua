@@ -259,12 +259,16 @@ local function LegacySkirmish(db, entry, playerAppearance)
     elseif not encounter.outcome and encounter.direction == "deathsToThem" then
         events[1] = { kind = "kill", actorID = rival.id, targetID = player.id, time = encounter.time }
     end
+    local rewards
+    if encounter.honorableKills or encounter.honor then
+        rewards = { [rival.id] = { honorableKills = encounter.honorableKills, honor = encounter.honor } }
+    end
     -- A legacy entry records one death and the observed participants, without a complete roster.
     return {
         time = encounter.time, manual = encounter.manual, zone = encounter.zone,
         outcome = addon.Ledger.EncounterOutcome(encounter),
         mapID = encounter.mapID, x = encounter.x, y = encounter.y,
-        rosterComplete = false, allies = { player }, enemies = opponents, events = events,
+        rosterComplete = false, allies = { player }, enemies = opponents, events = events, rewards = rewards,
     }
 end
 

@@ -123,7 +123,7 @@ addon.RecordEncounter("Player-one", "First Rival", "killsAgainstThem", { time = 
 local manualID = assert(addon.AddManualEncounter("Second Rival", "deathsToThem"))
 addon.RecordEncounter("Player-unknown", nil, "killsAgainstThem", { time = now })
 local legacy = addon.Ledger.Add(addon.db, "manual:old rival", "Old Rival")
-legacy.encounters = { { manual = true } }
+legacy.encounters = { { manual = true, honorableKills = 1, honor = 17 } }
 local recent = addon.RecentEncounters(addon.db, 100)
 assert(#recent == 4)
 assert(recent[1].id == "Player-unknown" and not addon.IsRosterRival(recent[1].id, recent[1].rival))
@@ -135,6 +135,8 @@ assert(#uniform == 4 and not uniform[1].enemies[1].name)
 assert(uniform[2].manual and uniform[2].time == nil and not uniform[2].rosterComplete)
 assert(#uniform[2].events == 0 and uniform[2].outcome == "loss")
 assert(#uniform[4].events == 0 and uniform[4].manual)
+local legacyKills, legacyHonor = addon.Ledger.SkirmishRewards(uniform[4])
+assert(legacyKills == 1 and legacyHonor == 17)
 addon.Ledger.Remove(addon.db, "Player-unknown")
 for timestamp = 1101, 1210 do
     addon.RecordEncounter("Player-one", "First Rival", "killsAgainstThem", { time = timestamp })

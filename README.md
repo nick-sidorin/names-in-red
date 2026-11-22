@@ -75,8 +75,9 @@ The reset command was introduced in version 0.1.3-preview.33. See
   once the outcome is known. Older records of individual killing blows and
   deaths stay visible. Manually entered results still count.
 - **Honorable Kills** and **Honor Points** show how much the game awarded you for
-  identifiable opponents. An award may count even when the team outcome is
-  unknown. Shared or closely spaced signals can leave a reward unattributed.
+  identifiable opponents. Both skirmish card sizes show the totals for the
+  whole fight. An award may count even when the team outcome is unknown.
+  Shared or closely spaced signals can leave a reward unattributed.
 
 Deleting a rival clears their profile and its statistics. Shared battles
 remain in the journal with their recorded participants and timeline.
