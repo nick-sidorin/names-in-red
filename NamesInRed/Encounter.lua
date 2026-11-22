@@ -15,6 +15,10 @@ local function SafeRead(fn, ...)
     end
 end
 
+function addon.PlayerFaction()
+    return SafeRead(UnitFactionGroup, "player")
+end
+
 local function Level(unit)
     local level = SafeRead(UnitLevel, unit)
     if type(level) == "number" and level > 0 then

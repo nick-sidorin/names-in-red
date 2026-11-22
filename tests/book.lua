@@ -116,6 +116,9 @@ C_CurrencyInfo = {
 assert(addon.HonorIconTexture("Alliance") == 900101)
 listedHonorIcon = 900102
 assert(addon.HonorIconTexture("Horde") == 900102)
+UnitFactionGroup = function() return "Alliance" end
+assert(addon.HonorIconTexture("Alliance") == 900102 and addon.HonorIconTexture("Horde") == 463451)
+UnitFactionGroup = nil
 listedHonorIcon = secret
 assert(addon.HonorIconTexture("Horde") == 900103)
 Constants, C_CurrencyInfo = nil, nil
@@ -221,6 +224,9 @@ local function MockRegion(parent)
         self.text = text
     end
     function region:GetText() return self.text end
+    function region:GetFont() return self.fontFile or "Fonts\\ARIALN.TTF" end
+    function region:SetFont(file, height, flags) self.fontFile, self.fontHeight, self.fontFlags = file, height, flags end
+    function region:SetSnapToPixelGrid(enabled) self.snapToGrid = enabled end
     function region:GetStringWidth() return #(tostring(self.text or "")) * 6 end
     function region:SetBlendMode(mode) self.blend = mode end
     function region:SetHighlightTexture(texture) self.highlight = texture end
@@ -408,11 +414,13 @@ do
 end
 print("Native recipe row style, search data reuse, and rival selection checks passed")
 
-local function CheckLevelLabel(label, size, font)
+local function CheckLevelLabel(label, size)
     local badge = label.parent
+    local circle = assert(FindRegion(badge, "texture", addon.levelBadgePath))
     assert(badge.width == size and badge.height == size and badge.roundToPixel)
-    assert(label.bounds == FindRegion(badge, "texture", addon.levelBadgePath))
-    assert(label.justifyH == "CENTER" and label.justifyV == "MIDDLE" and label.font == font)
+    assert(label.bounds == badge and circle.bounds == badge and not circle.snapToGrid)
+    assert(label.justifyH == "CENTER" and label.justifyV == "MIDDLE")
+    assert(label.font == "NumberFontNormalSmall" and label.fontHeight == size / 2 and label.fontFlags == "")
     return badge
 end
 local function FindDivider(region)
@@ -451,6 +459,17 @@ assert(zone.anchor[5] == stamp.anchor[5] and stamp.anchor[5] == journalMap.ancho
 assert(FindText(card, "2 × 2").anchor[5] == stamp.anchor[5] - 2)
 local eventTitle, firstTime = timelineTitle, FindText(card, "0:11")
 local secondTime = FindText(card, "0:17")
+local timeline = firstTime.parent
+local arrows = 0
+for _, region in ipairs(timeline.children) do
+    if region.atlas == "common-icon-forwardarrow" and region.anchor[1] == "CENTER" then
+        local target = region.anchor[2]
+        assert(target.parent == timeline and target.font == "GameFontHighlightSmall")
+        assert(region.anchor[3] == "LEFT" and region.anchor[5] == 0)
+        arrows = arrows + 1
+    end
+end
+assert(arrows == 2)
 assert(firstTime.anchor[3] > secondTime.anchor[3])
 local headerLine, blowsLine = assert(FindDivider(card)), assert(FindDivider(eventTitle.parent.parent))
 assert(headerLine.anchor[3] - 2 == 2 * journalMap.anchor[5])
@@ -470,6 +489,11 @@ for _, panel in ipairs({ allyPanel, enemyPanel }) do
 end
 assert(not FindRegion(card, "texture", addon.battlefieldArtPath) and card.backdropColor[4] < 0.72)
 CheckFactionColors(allyHeading, enemyHeading)
+large.demoFaction = "Horde"
+card:SetSkirmish(large, "Player-test")
+CheckFactionColors(enemyHeading, allyHeading)
+assert(faction == "Alliance" and allyEmblem.atlas == hordeAtlas and enemyEmblem.atlas == allianceAtlas)
+large.demoFaction = nil
 faction = "Horde"
 card:SetSkirmish(large, "Player-test")
 CheckFactionColors(enemyHeading, allyHeading)
@@ -485,7 +509,7 @@ local rimHighlight = name.parent.highlight
 assert(name.parent.highlightLocked and rimHighlight.bounds == name.parent.avatar.rim)
 assert(rimHighlight.atlas == "Mode-Selection-Ring" and rimHighlight.blend == "ADD" and rimHighlight.alpha == 0.2)
 assert(name.parent.avatar.death.shown and FindRegion(name.parent.avatar.death, "atlas", "UI-HUD-UnitFrame-SmallCircle"))
-CheckLevelLabel(assert(FindText(name.parent, 42)), 20, "SystemFont_Tiny")
+CheckLevelLabel(assert(FindText(name.parent, 42)), 20)
 name.parent.scripts.OnClick(name.parent)
 assert(selectedRival == "Player-test")
 local finished = { allies = { allies[1] }, enemies = { enemies[1] }, rosterComplete = true,
@@ -568,8 +592,8 @@ compact:SetEncounter(first)
 assert(FindText(compact, "Hillsbrad Foothills") and FindText(compact, date("%x", first.time)))
 assert(FindText(compact, "Hillsbrad Foothills").anchor[1] == "LEFT")
 assert(FindText(compact, "My Character") and FindText(compact, "Test Rival"))
-local myBadge = CheckLevelLabel(assert(FindText(compact, 51)), 20, "SystemFont_Tiny")
-local opponentBadge = CheckLevelLabel(assert(FindText(compact, 42)), 20, "SystemFont_Tiny")
+local myBadge = CheckLevelLabel(assert(FindText(compact, 51)), 20)
+local opponentBadge = CheckLevelLabel(assert(FindText(compact, 42)), 20)
 assert(myBadge.anchor[3] == "BOTTOMLEFT" and opponentBadge.anchor[3] == "BOTTOMRIGHT")
 assert(myBadge.anchor[4] == -opponentBadge.anchor[4] and myBadge.anchor[5] == opponentBadge.anchor[5])
 local myName, opponentName = FindText(compact, "My Character"), FindText(compact, "Test Rival")
@@ -590,11 +614,11 @@ local profile = MockRegion()
 local profileAvatar = addon.CreateParticipantPortrait(profile)
 profileAvatar:SetParticipant(first.opponent, nil, 58)
 AssertFullPortrait(assert(FindRegion(profile, "atlas", "human-female")), false)
-local profileBadge = CheckLevelLabel(assert(FindText(profile, 58)), 24, "GameFontHighlightSmall")
+local profileBadge = CheckLevelLabel(assert(FindText(profile, 58)), 24)
 assert(profileBadge.anchor[2] == profileAvatar.rim and profileBadge.anchor[3] == "BOTTOMLEFT")
 assert(not profileAvatar.death)
 profileAvatar:SetParticipant(first.opponent, nil, 9)
-assert(CheckLevelLabel(assert(FindText(profile, 9)), 24, "GameFontHighlightSmall") == profileBadge)
+assert(CheckLevelLabel(assert(FindText(profile, 9)), 24) == profileBadge)
 local function PortraitMarker(anchor, texture)
     for _, tile in ipairs({ myName.parent, opponentName.parent }) do
         local death = tile.avatar.death

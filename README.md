@@ -54,6 +54,9 @@ Enter these commands in the in-game chat box.
 | `/nirdebug sample` | Adds a diagnostic snapshot of the current target, mouseover, honorable kill totals and available PvP scoreboard data. | Standard and preview |
 | `/nirdebug seed` | Adds or refreshes the demo rivals and skirmishes for screenshots. | Debug preview only |
 | `/nirdebug clear-seed` | Removes the demo rivals and skirmishes. Recorded and manually added entries are kept. | Debug preview only |
+| `/nirdebug faction alliance` | Replaces the demo data with an Alliance playthrough. | Debug preview only |
+| `/nirdebug faction horde` | Replaces the demo data with a Horde playthrough. | Debug preview only |
+| `/nirdebug faction auto` | Rebuilds demo data for the current character's faction, just like `/nirdebug seed`. | Debug preview only |
 
 The reset command was introduced in version 0.1.3-preview.33. See
 [diagnostics and sample data](docs/debug-preview.md) for details.

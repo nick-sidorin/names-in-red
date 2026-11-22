@@ -9,8 +9,8 @@ local neutralColor = { 0.77, 0.71, 0.61 }
 local allianceEmblem = "UI-HUD-UnitFrame-SmallCircle-Alliance"
 local hordeEmblem = "UI-HUD-UnitFrame-SmallCircle-Horde"
 
-local function SideColors()
-    local faction = UnitFactionGroup and addon.Readable(UnitFactionGroup("player"))
+local function SideColors(faction)
+    faction = faction or addon.PlayerFaction()
     if faction == "Horde" then return hordeColor, allianceColor, true end
     return allianceColor, hordeColor, false
 end
@@ -538,21 +538,24 @@ local function CreateTimeline(card, width, toggleTimeline)
             local row = rows[i]
             if not row then
                 local y = -finishingBlowFirstRow - (i - 1) * finishingBlowStep
+                local target = Label(events, "GameFontHighlightSmall", "TOPLEFT", width / 2 + cardInset, y,
+                    columnWidth - cardInset)
                 local arrow = events:CreateTexture(nil, "ARTWORK")
                 if addon.ApplyAtlas(arrow, "common-icon-forwardarrow") then
-                    arrow:SetPoint("TOP", 0, y - 2)
                     arrow:SetSize(10, 10)
                     arrow:SetAlpha(0.75)
                 else
-                    arrow = Label(events, "GameFontNormalSmall", "TOP", 0, y, 18)
+                    arrow = events:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                    arrow:SetWidth(18)
                     arrow:SetJustifyH("CENTER")
                     arrow:SetText(">")
                 end
+                arrow:SetPoint("CENTER", target, "LEFT", -cardInset, 0)
                 row = {
                     Label(events, "GameFontHighlightSmall", "TOPLEFT", cardInset + 3, y, 45),
                     Label(events, "GameFontHighlightSmall", "TOPLEFT", 64, y, columnWidth - 62),
                     arrow,
-                    Label(events, "GameFontHighlightSmall", "TOPLEFT", width / 2 + cardInset, y, columnWidth - cardInset),
+                    target,
                 }
                 rows[i] = row
             end
@@ -630,7 +633,7 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
         map:SetShown(hasWaypoint)
 
         local players, colors, blows = {}, {}, {}
-        local allyColor, enemyColor, alliesHorde = SideColors()
+        local allyColor, enemyColor, alliesHorde = SideColors(battle.demoFaction)
         for _, player in ipairs(battle.allies) do players[player.id], colors[player.id] = player, allyColor end
         for _, player in ipairs(battle.enemies) do players[player.id], colors[player.id] = player, enemyColor end
         for _, event in ipairs(battle.events) do

@@ -389,11 +389,12 @@ top edge and divider. The roster headers and timeline use the same dividers.
 Check dividers and headings at different resolutions and UI scales.
 The profile uses a 64-unit ring and 24-unit level badge. Both card layouts
 share the participant tile with the 50-unit ring, 20-unit level badge, name,
-and class label. The level label centers inside the circle's bounds on a
-pixel-rounded frame. The native `LevelTextTemplate` in Camelot's
-`TargetFrameTemplates.xml` right-aligns text for the target frame's geometry.
-The 20-unit badge uses `SystemFont_Tiny` from
-`Blizzard_Fonts_Shared/Shared/Fonts.xml`. The rim uses `Mode-Selection-Ring`
+and class label. The circle and the level label fill the same pixel-rounded
+badge frame. The label uses horizontal center and vertical middle alignment
+with the locale's `NumberFontNormalSmall` number face from
+`Blizzard_Fonts_Shared/Shared/GameFontStyles.xml` at half the badge diameter.
+Check levels 54, 55 and 57 on both sides at different UI scales. The rim uses
+`Mode-Selection-Ring`
 from `Blizzard_GlueXML/Mainline/SuperDistrict.xml`. The highlight draws the
 same rim at 0.2 alpha in additive mode, following the profession output
 button's inherited `CircularGiantItemButtonTemplate` in
@@ -448,7 +449,8 @@ The timeline header uses the native `common-icon-forwardarrow` art on a
 button owned by the card list. The button sizes to the arrow, caption and
 count. Its `GameFontHighlightSmall` font state brightens the caption on hover.
 `ExpandBarMixin:OnEnter` also uses a local control highlight. The journal's
-button remeasures the scrolling list when the rows change. Test expansion,
+button remeasures the scrolling list when the rows change. Each finishing
+blow arrow anchors to the target label's vertical center. Test expansion,
 collapse and card reuse while scrolling. History starts collapsed and the
 linked detail view starts expanded.
 

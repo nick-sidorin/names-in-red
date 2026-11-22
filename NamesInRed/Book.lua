@@ -188,7 +188,7 @@ local function ShowDetails()
         losses:SetText(L.statValue:format(L.losses, lossCount))
         honorableKills:SetText(L.statValue:format(L.honorableKills, honorableKillCount))
         honor:SetText(L.statValue:format(L.honor, honorTotal))
-        local faction = UnitFactionGroup and Readable(UnitFactionGroup("player"))
+        local faction = rival.demoFaction or addon.PlayerFaction()
         honorableKillsIcon:SetTexture(addon.HonorableKillIconPath(faction))
         honorIcon:SetTexture(addon.HonorIconTexture(faction))
         local level
@@ -555,7 +555,7 @@ local function ToggleBook()
         wins = Stat(summary, profileInset, -112, addon.swordsIconPath, L.winTooltip)
         losses = Stat(summary, profileInset, -162, addon.defeatStatIconPath, L.lossTooltip)
         local rewardColumn = profileInset + cardWidth / 2 + 6
-        local faction = UnitFactionGroup and Readable(UnitFactionGroup("player"))
+        local faction = addon.PlayerFaction()
         honorableKills, honorableKillsIcon = Stat(summary, rewardColumn, -112,
             addon.HonorableKillIconPath(faction), L.honorableKills)
         honor, honorIcon = Stat(summary, rewardColumn, -162, addon.HonorIconTexture(faction), L.honor)

@@ -92,6 +92,12 @@ and 12 battles across six zones over the past week. Both rosters match the
 current character's faction, and the game supplies localized zone, race and
 class names when available.
 
+Use `/nirdebug faction alliance` or `/nirdebug faction horde` to rebuild the
+demo roster, faction emblems and reward icons for either faction. Use
+`/nirdebug faction auto` to rebuild the roster for your current character.
+The selected faction is saved with the demo records and applies to those
+records in the journal. Live capture continues to use the player's faction.
+
 Open **Information** for Dargun Ironjaw on Alliance or Alden Dawnshield on
 Horde. The profile shows a recurring opponent with wins, a loss, honorable
 kills and honor. The latest encounter is a 2 × 2 rematch in Winterspring

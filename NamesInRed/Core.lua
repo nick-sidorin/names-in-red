@@ -23,7 +23,8 @@ local function CurrencyIcon(info, fromList)
 end
 
 function addon.HonorIconTexture(faction)
-    local currency = C_CurrencyInfo
+    local actualFaction = addon.PlayerFaction()
+    local currency = (not actualFaction or faction == actualFaction) and C_CurrencyInfo
     if currency then
         -- The Currency tab uses the iconFileID supplied by the currency list.
         local size = currency.GetCurrencyListSize and addon.Readable(currency.GetCurrencyListSize())

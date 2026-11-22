@@ -90,14 +90,14 @@ local function Appearance(profile, id)
         sex = sex, class = class, classLabel = classes and classes[class] or englishClass, level = level }
 end
 
-local function SeedBattle(fight, now, friendly, opposing)
+local function SeedBattle(fight, now, friendly, opposing, faction)
     local key, minutesAgo, zone, x, y = unpack(fight)
     local mapID, englishZone = unpack(zones[zone])
     local map = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
     local time = now - minutesAgo * 60
     local startedAt = time - fight.blows[#fight.blows][1]
     local battle = { time = time, startedAt = startedAt, zone = map and map.name or englishZone, mapID = mapID,
-        x = x, y = y, rosterComplete = not fight.incomplete, allies = {}, enemies = {}, events = {}, rewards = {} }
+        x = x, y = y, demoFaction = faction, rosterComplete = not fight.incomplete, allies = {}, enemies = {}, events = {}, rewards = {} }
     local participants = {}
     for i, profile in ipairs(fight.allies) do
         local id = i == 1 and "me" or "ally" .. i
@@ -112,6 +112,7 @@ local function SeedBattle(fight, now, friendly, opposing)
         battle.enemies[i], participants["enemy" .. i] = enemy, enemy
 
         local rival = addon.Ledger.Add(addon.db, id, enemy.name)
+        rival.demoFaction = faction
         rival.race, rival.sex, rival.class = enemy.race, enemy.sex, enemy.class
         rival.raceLabel, rival.classLabel = enemy.raceLabel, enemy.classLabel
     end
@@ -138,11 +139,12 @@ function addon.ClearDebugSeeds()
     return removed
 end
 
-function addon.AddDebugSeeds(now)
+function addon.AddDebugSeeds(now, faction)
     addon.ClearDebugSeeds()
-    local faction = UnitFactionGroup and addon.Readable(UnitFactionGroup("player"))
+    faction = faction or addon.PlayerFaction()
+    faction = faction == "Horde" and "Horde" or "Alliance"
     local friendly, opposing = alliance, horde
     if faction == "Horde" then friendly, opposing = horde, alliance end
-    for _, fight in ipairs(fights) do SeedBattle(fight, now, friendly, opposing) end
+    for _, fight in ipairs(fights) do SeedBattle(fight, now, friendly, opposing, faction) end
     return #opposing
 end

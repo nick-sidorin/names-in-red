@@ -81,7 +81,10 @@ for _ = 1, 1000 do Event("PLAYER_PVP_KILLS_CHANGED", "player") end
 assert(#db.rows == 1000 and db.dropped == 10)
 assert(Login() == db and db.session == 2 and db.rows[1000].kind == "SESSION")
 assert(NamesInRedDB == nil)
-Login({ db = {} })
+local standardAddon = { db = {} }
+Login(standardAddon)
+SlashCmdList.NAMESINREDDEBUG("faction horde")
+assert(not next(standardAddon.db))
 SlashCmdList.NAMESINREDDEBUG("seed")
 SlashCmdList.NAMESINREDDEBUG("clear-seed")
 local debugPrint, printed = print
@@ -191,10 +194,18 @@ assert(#chapel.allies == 5 and #chapel.enemies == 6 and addon.Ledger.SkirmishOut
 assert(chapel.rewards["seed:rival:8"].honor == 13)
 assert(not seeded["seed:battle:plaguelands-crossing"].rosterComplete)
 
-faction = "Horde"
-SlashCmdList.NAMESINREDDEBUG("seed")
-assert(seeded["seed:battle:winter-rematch"].allies[1].name == "Dargun Ironjaw")
+SlashCmdList.NAMESINREDDEBUG("faction Horde")
+local hordeRematch = seeded["seed:battle:winter-rematch"]
+assert(hordeRematch.allies[1].name == "Dargun Ironjaw" and hordeRematch.demoFaction == "Horde")
 assert(addon.db.rivals["seed:rival:1"].displayName == "Alden Dawnshield")
+assert(addon.db.rivals["seed:rival:1"].demoFaction == "Horde" and UnitFactionGroup("player") == "Alliance")
+SlashCmdList.NAMESINREDDEBUG("faction auto")
+assert(seeded["seed:battle:winter-rematch"].demoFaction == "Alliance")
+faction = "Horde"
+SlashCmdList.NAMESINREDDEBUG("faction alliance")
+assert(seeded["seed:battle:winter-rematch"].demoFaction == "Alliance" and UnitFactionGroup("player") == "Horde")
+SlashCmdList.NAMESINREDDEBUG("seed")
+assert(seeded["seed:battle:winter-rematch"].demoFaction == "Horde")
 SlashCmdList.NAMESINREDDEBUG("clear-seed")
 for key in pairs(addon.db.rivals) do assert(not key:match("^seed:")) end
 assert(next(seeded) == "existing-battle" and next(seeded, "existing-battle") == nil)

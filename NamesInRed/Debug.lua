@@ -7,6 +7,7 @@ local combatSequence = 0
 local combat
 local limit = 1000
 local plateTokens = {}
+local demoFactions = { alliance = "Alliance", horde = "Horde" }
 
 local function ClearDiagnostics()
     if not db then
@@ -624,13 +625,15 @@ frame:SetScript("OnEvent", function(self, event, ...)
 
     SLASH_NAMESINREDDEBUG1 = "/nirdebug"
     SlashCmdList.NAMESINREDDEBUG = function(message)
-        if message == "seed" or message == "clear-seed" then
-            if not addon or not addon.db then return end
-            local seed = message == "seed"
+        local faction = message:lower():match("^faction%s+(%a+)%s*$")
+        local demoFaction = faction and demoFactions[faction]
+        local seed = message == "seed" or demoFaction ~= nil or faction == "auto"
+        if seed or message == "clear-seed" then
+            if not addon.db then return end
             local update = addon[seed and "AddDebugSeeds" or "ClearDebugSeeds"]
             if type(update) ~= "function" then return end
-            local count = update(seed and GetServerTime() or nil)
-            if addon.RefreshBook then addon.RefreshBook(message == "seed") end
+            local count = update(seed and GetServerTime() or nil, demoFaction)
+            if addon.RefreshBook then addon.RefreshBook(seed) end
             print(addon.title, (seed and L.debugSeedsAdded or L.debugSeedsRemoved):format(count))
             return
         end

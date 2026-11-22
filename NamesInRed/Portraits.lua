@@ -79,15 +79,18 @@ local function CreateLevelBadge(parent, rim, rightSide, size)
     badge:SetPoint("CENTER", rim, rightSide and "BOTTOMRIGHT" or "BOTTOMLEFT",
         rightSide and -size / 2 or size / 2, size / 2)
     local circle = badge:CreateTexture(nil, "ARTWORK")
-    circle:SetAllPoints()
+    circle:SetAllPoints(badge)
+    circle:SetSnapToPixelGrid(false)
     circle:SetTexture(addon.levelBadgePath)
-    local font = size < 24 and "SystemFont_Tiny" or "GameFontHighlightSmall"
-    local label = badge:CreateFontString(nil, "OVERLAY", font)
+    local label = badge:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
+    local font = label:GetFont()
+    if font then label:SetFont(font, size / 2, "") end
     label:SetTextColor(1, 1, 1)
-    label:SetAllPoints(circle)
+    label:SetAllPoints(badge)
     label:SetJustifyH("CENTER")
     label:SetJustifyV("MIDDLE")
-    label:SetShadowOffset(0, 0)
+    label:SetWordWrap(false)
+    label:SetShadowColor(0, 0, 0, 0)
     function badge:SetLevel(level)
         local known = type(level) == "number" and level > 0
         self:SetShown(known)
