@@ -2,43 +2,85 @@
 
 **Remember who got you. Plan your revenge.**
 
-A personal journal for open-world PvP in **World of Warcraft: Forever**.
-
 ## ✨ Features at a Glance
 
-- 📖 **Rival book** — Find familiar opponents and see your wins, losses, Honorable Kills, and Honor Points against each one.
-- ⚔️ **Skirmish history** — Revisit a rivalry or browse your latest 100 recorded fights.
-- 🛡️ **Fight breakdowns** — See recorded allies, opponents, casualties, finishing blows, and earned rewards. Faction emblems and Honor Points icons follow your side.
-- 📍 **Map waypoints** — Mark the spot where a fight happened.
-- 💬 **Rival markers** — Recognize familiar opponents on nameplates and see your record with them in their tooltips.
+Your personal open-world PvP journal for **World of Warcraft: Forever**:
 
-Click the **crossed-swords button by the minimap** to open the journal.
+- 📖 **Remember your rivals** — Build a searchable record of identifiable enemies you've fought, saved separately for each character.
+- ⚔️ **Track the score** — See wins, losses, Honorable Kills, and attributed Honor Points against each rival.
+- 📜 **Revisit every skirmish** — Explore one rival's history or browse your latest 100 recorded fights, newest first.
+- 🛡️ **See the full fight** — Open detailed cards showing observed allies and enemies, outcomes, casualties, finishing blows, and rewards.
+- 💬 **Recognize familiar enemies** — See your win/loss record on their nameplates and in their standard unit tooltips.
+- 📍 **Remember where it happened** — Place a map waypoint when a saved skirmish has a usable location.
+- ✍️ **Fill in the gaps** — Manually add a skirmish when automatic tracking cannot capture what happened.
 
-## ⚔️ Rivals and Skirmishes
+The journal is saved per character. Nameplate indicators and tooltip details can be switched off independently.
 
-Use the tabs on the right edge of the journal to switch views:
+## 📖 Your Personal Rival Book
 
-- **Rivals** opens a searchable list. Pick a player to see their profile, your score against them, and your last fight. Open **Skirmishes** on their profile to see every recorded encounter with that player.
-- **Skirmish History** brings together recent fights from all opponents. Open a rival's profile directly from their fight card when their full name is known.
+Click the **crossed-swords button by the minimap** to open Names in Red.
 
-Fight cards show the date, time, zone, and available character levels and classes. Select **Show on map** to place a waypoint where the fight happened.
+The **Rivals** view contains a searchable list of familiar opponents. Select a name to see their portrait, your score against them, Honorable Kills, Honor Points, and the latest recorded encounter. Switch from **Information** to **Skirmishes** to browse your entire recorded history with that player.
+
+The separate **Skirmish History** view collects the latest 100 recorded fights across all opponents. Open a fight to inspect it, or follow a known opponent back to their rival profile.
+
+## ⚔️ More Than a Kill Counter
+
+A skirmish can involve more than two players. The detailed view shows the participants the addon was able to observe on each side, with available class and level information, casualties, a win/loss result when known, and a **Finishing blows** list in recorded order.
+
+Fight cards also show the date, time, zone, and any Honorable Kills or Honor Points that could be linked reliably to the encounter. Alliance and Horde get their own faction artwork and Honor Points icons.
+
+Use **Show on map** to place a waypoint for a saved location when the game can resolve it. Older records can still show their available location details.
+
+## 👀 Recognize an Old Enemy
+
+You don't need to open the journal every time a familiar name appears.
+
+- **Nameplates** show compact crossed-swords and skull counters above a recognized rival's visible nameplate.
+- **Unit tooltips** add your recorded win/loss score beneath the game's normal player information.
+
+Both are enabled by default and have separate switches under the addon settings.
 
 ## 📝 What Gets Recorded
 
-The journal is saved separately for each character. Names in Red records readable open-world PvP events and builds a roster from observed participants. If the game exposes only part of a fight, the journal can show an incomplete roster or an unknown outcome.
+Names in Red observes **open-world PvP** using information the Forever client makes available to addons. It records readable kills and deaths, groups related observations into skirmishes, and adds other participants when there is sufficient evidence.
 
-If the client withholds an opponent’s full name, the fight can appear as **Unknown rival** until the addon sees their name. To fill in a missing fight yourself, open the add-skirmish dialog, enter the opponent’s full name, and choose the outcome.
+Not every encounter exposes a complete team or a certain result. Those records remain in the journal with an incomplete roster or unknown outcome instead of guessing. Honor and Honorable Kill rewards are attached only when the available signals identify the relevant encounter reliably. An unidentified player may appear as **Unknown rival** until their full name is available.
 
-## ℹ️ Compatibility and Support
+You can also add a skirmish manually by entering an opponent's full name and choosing the outcome. The addon is a personal history, not a complete combat log or a battleground scoreboard.
 
-Built for **World of Warcraft: Forever 1.60.1**. The journal follows the game client's language.
+## ⚙️ Getting Started and Settings
+
+1. Install Names in Red for **WoW: Forever** through CurseForge, or place the `NamesInRed/` folder in `_forever_/Interface/AddOns/`.
+2. Click the crossed-swords minimap button to browse your recorded rivals.
+3. Select a rival for their **Information** and **Skirmishes** tabs, or open **Skirmish History** for all recent fights.
+
+Right-click the minimap icon, or open **Options → AddOns → Names in Red**, to configure nameplate icons and tooltip information. **Reset data** asks for confirmation before deleting this character's rivals, skirmishes, manual entries, demo data, and diagnostic log. Your display preferences and minimap button position are kept.
+
+| Command | Action |
+| --- | --- |
+| `/nirreset` | Open the confirmed **Reset data** action. |
+| `/nirdebug` | Show the retained diagnostic record count and session information. |
+| `/nirdebug seed` | Add or refresh fictional rivals and skirmishes for a preview. |
+| `/nirdebug clear-seed` | Remove demo entries without deleting your real or manually added records. |
+
+More diagnostic and demo commands are documented in the [project guide](https://github.com/nick-sidorin/names-in-red/blob/main/docs/debug-preview.md).
+
+## ℹ️ Good to Know
+
+- **Client:** Built specifically for **World of Warcraft: Forever 1.60.1**.
+- **Languages:** Follows the WoW client language: English, Russian, German, French, Spanish, Italian, Brazilian Portuguese, Korean, Simplified Chinese, and Traditional Chinese.
+- **History:** Stored separately for each character; unavailable identity, team size, rewards, or outcomes are not fabricated.
+- **Diagnostics:** The latest 1,000 diagnostic records are saved locally per character. These may contain character names, identifiers, and honor messages. Review them before voluntarily sharing a SavedVariables file in a bug report.
+
+**Update 1.0.0:** A complete rival journal with detailed group skirmishes, attributed PvP rewards, and refreshed win/loss indicators on nameplates and tooltips.
 
 **[Report a Bug or Suggest a Feature](https://github.com/nick-sidorin/names-in-red/issues)**
 
-Click **New issue** to report a problem or share an idea. For bug reports, include your Forever build, addon version, and what happened.
-
-The addon automatically saves the latest 1,000 diagnostic entries on your computer, separately for each character. These can include character names, identifiers, and honor messages. You can share your saved data with the maintainer when reporting a problem.
-
-Use `/nirdebug` to see the log status, `/nirdebug seed` to try sample skirmishes, and `/nirdebug clear-seed` to remove the samples.
+Click **New issue** to report a problem or suggest an improvement. For a bug, include your Forever build, addon version, and steps to reproduce.
 
 **[Source Code](https://github.com/nick-sidorin/names-in-red)**
+
+---
+
+*Remember who got you. Plan your revenge.*
