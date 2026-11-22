@@ -31,5 +31,10 @@ established by the source and document the part that needs custom code.
 Record the source file and symbol in the PR or `docs/forever-validation.md`,
 along with any visual assumptions and the extent of real-client verification.
 
+Keep reusable UI elements in one implementation. Configure shared components
+with the data and options their callers need, such as portrait size, facing,
+level, and casualty marker. Prefer simple composition and add abstractions
+when current callers share behavior or an appearance that must stay in sync.
+
 The installable addon is NamesInRed/. The standards are a development dependency.
 Refresh them from a reviewed upstream commit using scripts/standards.py.

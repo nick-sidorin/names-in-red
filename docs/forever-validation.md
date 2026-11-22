@@ -350,10 +350,27 @@ background using the texture gradient API. Check that the upper rim is
 continuous in both tab states and that the illustration has no visible seam
 at its left edge, including at non-default UI scales.
 
-History uses the same `ScrollFrameTemplate` as the roster, with cards reused
-as the viewport scrolls. Check both tabs on 1.60.1 with empty, legacy, manual
-and seeded histories. Scroll through a long history, then switch rivals while
-scrolled.
+Encounter history uses `ScrollFrameTemplate` and reuses cards as the viewport
+scrolls. The global and linked full-skirmish views share the card-list layout,
+scrollbar gutter, and battlefield background. Check both tabs on 1.60.1 with
+empty, legacy, manual and seeded histories. Scroll through a long history,
+then switch rivals while scrolled.
+
+The rival sidebar uses the native `WowScrollBoxList`, `MinimalScrollBar`, and
+`ProfessionsRecipeListRecipeTemplate` in
+`Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeList.xml`. The recipe
+button's overlays keep the atlas dimensions, including the 0.5-alpha hover.
+`ProfessionsRecipeListRecipeMixin:GetLabelColor` and `OnEnter` supply the
+recipe and highlight colors. The journal binds its own names and click and
+hover handlers because the native handlers read crafting recipe IDs. If the
+load-on-demand recipe template is unavailable, the row uses its font and
+atlas geometry on a plain button. The linear view uses the recipe tree's
+20-unit entries, 1-unit spacing, and one level of recipe indentation.
+The 304-unit sidebar width comes from `ProfessionsCraftingPageMixin:OverrideArt`
+in Camelot's `Blizzard_ProfessionsCrafting.lua`. The search box uses the
+recipe list's anchors and height, with the add button centered over the scrollbar.
+Check the first open before opening any profession, hover and selection during
+scrolling, search while scrolled, and the adjacent add and scrollbar alignment.
 
 Both skirmish card layouts use `CommonSquareIconButtonTemplate` from
 `Blizzard_SharedXML/Shared/Button/IconButtonTemplate.xml`, including native

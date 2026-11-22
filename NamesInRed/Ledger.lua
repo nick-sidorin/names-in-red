@@ -152,14 +152,19 @@ end
 
 -- Use deaths across the whole battle for the portrait markers, including
 -- players who were later resurrected. The outcome uses the final known state.
-local function IndexSkirmish(index, id, battle)
-    local outcome, player = Ledger.SkirmishOutcome(battle)
+function Ledger.FirstDeaths(battle)
     local firstDeath = {}
     for index, event in ipairs(battle.events) do
         if event.kind == "kill" and event.targetID then
             firstDeath[event.targetID] = firstDeath[event.targetID] or index
         end
     end
+    return firstDeath
+end
+
+local function IndexSkirmish(index, id, battle)
+    local outcome, player = Ledger.SkirmishOutcome(battle)
+    local firstDeath = Ledger.FirstDeaths(battle)
     local counted = {}
     for _, opponent in ipairs(battle.enemies) do
         local rivalID = opponent.rivalID

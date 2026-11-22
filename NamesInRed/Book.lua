@@ -1,5 +1,5 @@
 local _, addon = ...
-local L, Readable = addon.L, addon.Readable
+local L, Readable, HideTooltip = addon.L, addon.Readable, addon.HideOwnedTooltip
 local swordsStart, swordsEnd = addon.smallSwordsInset, 128 - addon.smallSwordsInset
 local victoryGlyph = ("|T%s:14:14:0:1:128:128:%d:%d:%d:%d|t"):format(
     addon.swordsIconPath, swordsStart, swordsEnd, swordsStart, swordsEnd)
@@ -10,7 +10,7 @@ local honorableKills, honor
 local honorableKillsIcon, honorIcon
 local deletePopup = "NAMES_IN_RED_DELETE_RIVAL"
 local lower = strlower or string.lower
-local buttons, sideTabs = {}, {}
+local sideTabs = {}
 local rivalsPage, recentPage, recentList, recentEmpty
 local battlePage, battleList, selectedSkirmishID
 local rivalsView, recentView, battleView = 1, 2, 3
@@ -42,7 +42,7 @@ function addon.RivalCounters(id, hideZero)
     return wins or losses
 end
 
-local function Scroll(parent, x, y, width, height, hideIfUnscrollable)
+local function Scroll(parent, x, y, width, height)
     local frame = CreateFrame("ScrollFrame", nil, parent, "ScrollFrameTemplate")
     frame:SetPoint("TOPLEFT", x, y)
     frame:SetSize(width, height)
@@ -54,8 +54,8 @@ local function Scroll(parent, x, y, width, height, hideIfUnscrollable)
     bar:ClearAllPoints()
     bar:SetPoint("TOPLEFT", frame, "TOPRIGHT", 4, 0)
     bar:SetPoint("BOTTOMLEFT", frame, "BOTTOMRIGHT", 4, 0)
-    bar:SetHideIfUnscrollable(hideIfUnscrollable)
-    bar:SetHideTrackIfThumbExceedsTrack(hideIfUnscrollable)
+    bar:SetHideIfUnscrollable(true)
+    bar:SetHideTrackIfThumbExceedsTrack(true)
     return child, frame
 end
 
@@ -99,9 +99,6 @@ local function Stat(parent, x, y, texture, tooltipText)
         GameTooltip:SetText(tooltipText)
         GameTooltip:Show()
     end)
-    local function HideTooltip(self)
-        if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
-    end
     slot:SetScript("OnLeave", HideTooltip)
     slot:SetScript("OnHide", HideTooltip)
 
@@ -119,7 +116,7 @@ local function CloseForMap()
 end
 
 local function CardList(parent, x, y, width, height, createCard, bindCard, measure, initiallyExpanded)
-    local content, scroll = Scroll(parent, x, y, width, height, true)
+    local content, scroll = Scroll(parent, x, y, width, height)
     local entries, cards, offsets = {}, {}, {}
     local expansion = setmetatable({}, { __mode = "k" })
     local function IsExpanded(entry)
@@ -194,7 +191,14 @@ local function ShowDetails()
         local faction = UnitFactionGroup and Readable(UnitFactionGroup("player"))
         honorableKillsIcon:SetTexture(addon.RewardIconPath(faction, false))
         honorIcon:SetTexture(addon.RewardIconPath(faction, true))
-        profilePortrait:SetParticipant(rival, selected, addon.LastKnownRivalLevel(addon.db, selected))
+        local level
+        for _, encounter in ipairs(history) do
+            if type(encounter.rivalLevel) == "number" and encounter.rivalLevel > 0 then
+                level = encounter.rivalLevel
+                break
+            end
+        end
+        profilePortrait:SetParticipant(rival, selected, level)
         latestCard:SetEncounter(history[1], rival, selected)
         latestEmpty:SetShown(history[1] == nil)
     end
@@ -259,61 +263,23 @@ function addon.RefreshBook(resetSearch)
         return
     end
     local query = lower(search:GetText():match("^%s*(.-)%s*$"))
-    local ids, selectionVisible = {}, false
+    local entries, selectionVisible = {}, false
     for guid, rival in pairs(addon.db.rivals) do
-        if addon.IsRosterRival(guid, rival)
-            and NameMatches(rival.displayName, query) then
-            ids[#ids + 1] = guid
+        if addon.IsRosterRival(guid, rival) and NameMatches(rival.displayName, query) then
+            entries[#entries + 1] = { id = guid, name = rival.displayName }
             if guid == selected then selectionVisible = true end
         end
     end
-    table.sort(ids, function(a, b)
-        local first, second = addon.db.rivals[a].displayName, addon.db.rivals[b].displayName
-        if first == second then return a < b end
-        return first < second
+    table.sort(entries, function(a, b)
+        if a.name == b.name then return a.id < b.id end
+        return a.name < b.name
     end)
     if not selectionVisible then
-        selected = ids[1]
+        selected = entries[1] and entries[1].id
         details:SetVerticalScroll(0)
     end
     empty:SetText(query ~= "" and L.noMatches or L.empty)
-    for index, guid in ipairs(ids) do
-        local button = buttons[index]
-        if not button then
-            button = CreateFrame("Button", nil, names)
-            button:SetSize(273, 24)
-            button:SetPoint("TOPLEFT", 0, -(index - 1) * 24)
-            local highlight = button:CreateTexture(nil, "HIGHLIGHT")
-            highlight:SetAllPoints()
-            if not addon.ApplyAtlas(highlight, "Professions_Recipe_Hover") then
-                highlight:SetColorTexture(1, 0.82, 0.4, 0.12)
-            end
-            local selection = button:CreateTexture(nil, "ARTWORK")
-            selection:SetAllPoints()
-            if not addon.ApplyAtlas(selection, "Professions_Recipe_Active") then
-                selection:SetColorTexture(1, 0.78, 0.28, 0.24)
-            end
-            button.selection = selection
-            local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-            label:SetPoint("LEFT", 18, 0)
-            label:SetPoint("RIGHT", -7, 0)
-            label:SetJustifyH("LEFT")
-            label:SetWordWrap(false)
-            button.label = label
-            button:SetScript("OnClick", function(self)
-                selected = self.rivalID
-                details:SetVerticalScroll(0)
-                addon.RefreshBook()
-            end)
-            buttons[index] = button
-        end
-        button.rivalID = guid
-        button.label:SetText(addon.db.rivals[guid].displayName)
-        button.selection:SetShown(guid == selected)
-        button:Show()
-    end
-    for index = #ids + 1, #buttons do buttons[index]:Hide() end
-    names:SetHeight(math.max(1, #ids * 24))
+    names:SetRivals(entries, selected)
     ShowDetails()
 end
 
@@ -353,27 +319,16 @@ local function ListBackground(parent, x, y, width, height)
     return texture
 end
 
-local function DetailBackground(parent)
-    local size = math.min(parent:GetWidth() * 0.58, parent:GetHeight() * 0.56)
-    local illustration = parent:CreateTexture(nil, "BACKGROUND")
+local function BattlefieldBackground(parent, fullWidth)
+    if fullWidth then ListBackground(parent) end
+    local size = math.min(parent:GetWidth() * (fullWidth and 0.52 or 0.58),
+        parent:GetHeight() * (fullWidth and 0.78 or 0.56))
+    local illustration = parent:CreateTexture(nil, "BACKGROUND", nil, fullWidth and 1 or 0)
     illustration:SetTexture(addon.battlefieldArtPath)
-    illustration:SetPoint("BOTTOMRIGHT", -9, 13)
     illustration:SetSize(size, size)
-    illustration:SetAlpha(0.24)
-
-    local trim = parent:CreateTexture(nil, "BORDER")
-    trim:SetAllPoints()
-    addon.ApplyAtlas(trim, "common-insideframe")
-end
-
-local function FullSkirmishBackground(parent)
-    ListBackground(parent)
-    local size = math.min(parent:GetWidth() * 0.52, parent:GetHeight() * 0.78)
-    local illustration = parent:CreateTexture(nil, "BACKGROUND", nil, 1)
-    illustration:SetTexture(addon.battlefieldArtPath)
-    illustration:SetPoint("CENTER")
-    illustration:SetSize(size, size)
-    illustration:SetAlpha(0.48)
+    illustration:SetAlpha(fullWidth and 0.48 or 0.24)
+    if fullWidth then illustration:SetPoint("CENTER")
+    else illustration:SetPoint("BOTTOMRIGHT", -9, 13) end
 
     local trim = parent:CreateTexture(nil, "BORDER")
     trim:SetAllPoints()
@@ -428,8 +383,19 @@ local function OpenRival(id)
     addon.RefreshBook(true)
 end
 
-local function CreateBattleCard(parent, width, onMapShown, toggleTimeline)
-    return addon.CreateSkirmishCard(parent, width, onMapShown, OpenRival, toggleTimeline)
+local function FullSkirmishList(pane, bind, initiallyExpanded)
+    local leftInset, rightGutter = 20, 42
+    local width = pane:GetWidth() - leftInset - rightGutter
+    local function CreateBattleCard(parent, cardWidth, onMapShown, toggleTimeline)
+        return addon.CreateSkirmishCard(parent, cardWidth, onMapShown, OpenRival, toggleTimeline)
+    end
+    local list = CardList(pane, leftInset, -42, width, pane:GetHeight() - 56,
+        CreateBattleCard, bind, addon.SkirmishCardHeight, initiallyExpanded)
+    local bar = list.ScrollBar
+    bar:ClearAllPoints()
+    bar:SetPoint("TOP", list, "TOPRIGHT", rightGutter / 2, 0)
+    bar:SetPoint("BOTTOM", list, "BOTTOMRIGHT", rightGutter / 2, 0)
+    return list
 end
 
 local function CreateSideTabs()
@@ -497,9 +463,10 @@ local function ToggleBook()
         local paneRightInset = 7
         local fullPaneWidth = window:GetWidth() - 5 - paneRightInset
         local bodyHeight = window:GetHeight() - contentTop - 5
-        local rightX = 312
+        local leftX = 5
+        local rightX = leftX + addon.rivalListWidth + 2
         local rightWidth = window:GetWidth() - rightX - paneRightInset
-        local left = Pane(rivalsPage, 5, -contentTop, rightX - 5, bodyHeight)
+        local left = Pane(rivalsPage, leftX, -contentTop, addon.rivalListWidth, bodyHeight)
         ListBackground(left)
         -- One continuous surface behind the tabs and transparent detail pane.
         local rightSurface = ListBackground(rivalsPage, rightX, -contentTop, rightWidth, bodyHeight)
@@ -508,8 +475,13 @@ local function ToggleBook()
         local rightTop = contentTop + 30
         local rightHeight = window:GetHeight() - rightTop - 5
         local right = Pane(rivalsPage, rightX, -rightTop, rightWidth, rightHeight)
-        DetailBackground(right)
-        names = Scroll(left, 9, -42, 273, 431, false)
+        BattlefieldBackground(right)
+        local nameBar
+        names, nameBar = addon.CreateRivalList(left, function(id)
+            selected = id
+            details:SetVerticalScroll(0)
+            addon.RefreshBook()
+        end)
         tabBar = CreateFrame("Frame", nil, rivalsPage)
         local onePixel = PixelUtil.GetPixelToUIUnitFactor() / tabBar:GetEffectiveScale()
         local tabOverlap = onePixel - 4
@@ -580,9 +552,6 @@ local function ToggleBook()
         local statsTitle = summary:CreateFontString(nil, "OVERLAY", sectionFont)
         statsTitle:SetPoint("TOPLEFT", profileInset, -92)
         statsTitle:SetText(L.personalScore)
-        if not ProfessionsReagentSlotButtonMixin and C_AddOns and C_AddOns.LoadAddOn then
-            pcall(C_AddOns.LoadAddOn, "Blizzard_ProfessionsTemplates")
-        end
         wins = Stat(summary, profileInset, -112, addon.swordsIconPath, L.winTooltip)
         losses = Stat(summary, profileInset, -162, addon.defeatStatIconPath, L.lossTooltip)
         local rewardColumn = profileInset + cardWidth / 2 + 6
@@ -603,19 +572,20 @@ local function ToggleBook()
         empty:SetWidth(305)
         empty:SetText(L.empty)
 
+        local add = CreateFrame("Button", nil, left, "SharedButtonSmallTemplate")
+        add:SetPoint("CENTER", nameBar, "TOP", 0, 17)
+        add:SetSize(23, 23)
         search = CreateFrame("EditBox", nil, left, "SearchBoxTemplate")
-        search:SetSize(245, 22)
-        search:SetPoint("TOPLEFT", 13, -12)
+        search:SetHeight(20)
+        search:SetPoint("TOPLEFT", 13, -8)
+        search:SetPoint("RIGHT", add, "LEFT", -4, 0)
         search:SetMaxLetters(96)
         search:HookScript("OnTextChanged", function()
-            names:GetParent():SetVerticalScroll(0)
             addon.RefreshBook()
+            names:ScrollToBegin(ScrollBoxConstants.NoScrollInterpolation)
         end)
 
         local openDialog
-        local add = CreateFrame("Button", nil, left, "SharedButtonSmallTemplate")
-        add:SetPoint("LEFT", search, "RIGHT", 8, 0)
-        add:SetSize(23, 23)
         local addIcon = add:CreateTexture(nil, "OVERLAY")
         addIcon:SetPoint("CENTER")
         addIcon:SetSize(16, 16)
@@ -627,9 +597,7 @@ local function ToggleBook()
             GameTooltip:SetText(L.addTitle)
             GameTooltip:Show()
         end)
-        add:SetScript("OnLeave", function(self)
-            if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
-        end)
+        add:SetScript("OnLeave", HideTooltip)
         add:SetScript("OnClick", function()
             StaticPopup_Hide(deletePopup)
             if not openDialog then
@@ -674,7 +642,7 @@ local function ToggleBook()
         local function ResetRemove(self)
             removeIcon:SetAlpha(0.5)
             removeIcon:SetPoint("TOPLEFT", 0, 0)
-            if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
+            HideTooltip(self)
         end
         remove:SetScript("OnLeave", ResetRemove)
         remove:SetScript("OnHide", ResetRemove)
@@ -688,25 +656,19 @@ local function ToggleBook()
             end
         end)
         local journal = Pane(recentPage, 5, -contentTop, fullPaneWidth, bodyHeight)
-        FullSkirmishBackground(journal)
+        BattlefieldBackground(journal, true)
         local journalTitle = journal:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
         journalTitle:SetPoint("TOPLEFT", 20, -15)
         journalTitle:SetText(L.recentView)
         recentEmpty = journal:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         recentEmpty:SetPoint("CENTER")
         recentEmpty:SetText(L.noSkirmishes)
-        local journalLeftInset, journalRightGutter = 20, 42
-        local journalCardWidth = journal:GetWidth() - journalLeftInset - journalRightGutter
-        recentList = CardList(journal, journalLeftInset, -42, journalCardWidth, bodyHeight - 56,
-            CreateBattleCard, function(card, battle, expanded) card:SetSkirmish(battle, nil, expanded) end,
-            addon.SkirmishCardHeight)
-        local journalBar = recentList.ScrollBar
-        journalBar:ClearAllPoints()
-        journalBar:SetPoint("TOP", recentList, "TOPRIGHT", journalRightGutter / 2, 0)
-        journalBar:SetPoint("BOTTOM", recentList, "BOTTOMRIGHT", journalRightGutter / 2, 0)
+        recentList = FullSkirmishList(journal, function(card, battle, expanded)
+            card:SetSkirmish(battle, nil, expanded)
+        end)
 
         battlePage = Pane(window, 5, -contentTop, fullPaneWidth, bodyHeight)
-        FullSkirmishBackground(battlePage)
+        BattlefieldBackground(battlePage, true)
         local back = CreateFrame("Button", nil, battlePage, "UIPanelButtonTemplate")
         back:SetPoint("TOPLEFT", 20, -11)
         back:SetSize(92, 23)
@@ -715,10 +677,9 @@ local function ToggleBook()
             SetBookView(rivalsView)
             addon.RefreshBook()
         end)
-        battleList = CardList(battlePage, 20, -42, battlePage:GetWidth() - 62, bodyHeight - 56,
-            CreateBattleCard,
-            function(card, battle, expanded) card:SetSkirmish(battle, selected, expanded) end,
-            addon.SkirmishCardHeight, true)
+        battleList = FullSkirmishList(battlePage, function(card, battle, expanded)
+            card:SetSkirmish(battle, selected, expanded)
+        end, true)
 
         CreateSideTabs()
         SetBookView(activeView)
@@ -777,7 +738,7 @@ local function CreateShortcut()
     local function StopDrag()
         button.dragging = nil
         button:SetScript("OnUpdate", nil)
-        if GameTooltip:IsOwned(button) then GameTooltip:Hide() end
+        HideTooltip(button)
     end
     button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     button:RegisterForDrag("LeftButton")
@@ -786,7 +747,7 @@ local function CreateShortcut()
     end)
     button:SetScript("OnDragStart", function(self)
         self.dragging, self.dragged = true, true
-        if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
+        HideTooltip(self)
         self:SetScript("OnUpdate", function()
             local cx, cy = Minimap:GetCenter()
             if not cx or not cy then return end
@@ -801,7 +762,7 @@ local function CreateShortcut()
     button:SetScript("OnClick", function(self, mouseButton)
         if self.dragging then return end
         if mouseButton == "RightButton" then
-            if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
+            HideTooltip(self)
             addon.OpenSettings()
         elseif not self.dragged then
             ToggleBook()
@@ -814,9 +775,7 @@ local function CreateShortcut()
         GameTooltip:AddLine(L.minimapHint, 1, 1, 1, true)
         GameTooltip:Show()
     end)
-    button:SetScript("OnLeave", function(self)
-        if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
-    end)
+    button:SetScript("OnLeave", HideTooltip)
     Minimap:HookScript("OnSizeChanged", Position)
     Position()
 end

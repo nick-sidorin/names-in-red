@@ -11,7 +11,7 @@
 ## Notes-ruRU: Запоминай противников и просматривай историю PvP-стычек в открытом мире.
 ## Notes-zhCN: 记住你的对手，回顾开放世界中的PvP交锋。
 ## Notes-zhTW: 記住你的對手，回顧開放世界中的 PvP 交鋒。
-## Version: 0.1.3-preview.30
+## Version: 0.1.3-preview.31
 ## IconTexture: Interface\AddOns\NamesInRed\Art\CrossedSwords.tga
 ## SavedVariablesPerCharacter: NamesInRedDB, NamesInRedDebugDB
 
@@ -26,6 +26,7 @@ Deaths.lua
 Portraits.lua
 ManualDialog.lua
 EncounterCards.lua
+RivalList.lua
 Book.lua
 Nameplates.lua
 Debug.lua

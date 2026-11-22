@@ -190,23 +190,6 @@ function addon.RivalEncounters(db, id)
     return entries
 end
 
-function addon.LastKnownRivalLevel(db, id)
-    local rival = db.rivals[id]
-    if not rival then return end
-    local best
-    for _, encounters in ipairs({ rival.encounters or {}, addon.Ledger.RivalSkirmishes(db, id) }) do
-        for _, encounter in ipairs(encounters) do
-            if type(encounter.rivalLevel) == "number" and encounter.rivalLevel > 0 then
-                local entry = { time = encounter.time or encounter.recordedAt or 0,
-                    sequence = encounter.sequence or 0, id = encounter.skirmishID or id, index = 0,
-                    level = encounter.rivalLevel }
-                if not best or MoreRecent(entry, best) then best = entry end
-            end
-        end
-    end
-    return best and best.level
-end
-
 function addon.RecentEncounters(db, limit)
     local entries = {}
     local function Insert(entry)

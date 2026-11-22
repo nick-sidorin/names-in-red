@@ -202,7 +202,12 @@ local function MockRegion(parent)
         assert(text ~= nil)
         self.text = text
     end
+    function region:GetText() return self.text end
     function region:SetTextColor(r, g, b) self.color = { r, g, b } end
+    function region:SetVertexColor(r, g, b) self.color = { r, g, b } end
+    function region:SetAlpha(alpha) self.alpha = alpha end
+    function region:IsTruncated() return rawget(self, "truncated") == true end
+    function region:IsMouseMotionFocus() return rawget(self, "hovered") == true end
     function region:SetColorTexture(_, _, _, opacity) self.fillOpacity = opacity end
     function region:SetBackdropColor(...) self.backdropColor = { ... } end
     function region:SetRoundLayoutToNearestPixel(enabled) self.roundToPixel = enabled end
@@ -234,7 +239,7 @@ local function MockRegion(parent)
     end
     function region:SetOnClickHandler(handler) self.scripts.OnClick = handler end
     function region:SetTooltipInfo(title) self.title = title end
-    return setmetatable(region, { __index = function() return function() end end })
+    return setmetatable(region, { __index = function(_, key) if key:match("^%u") then return function() end end end })
 end
 
 
@@ -286,6 +291,95 @@ end
 local function FindText(region, expected)
     return FindRegion(region, "text", expected)
 end
+
+assert(loadfile("NamesInRed/RivalList.lua"))("NamesInRed", addon)
+do
+    local function Color(r, g, b) return { GetRGB = function() return r, g, b end } end
+    PROFESSION_RECIPE_COLOR = Color(0.85, 0.84, 0.81)
+    HIGHLIGHT_FONT_COLOR = Color(1, 1, 1)
+    ScrollBoxConstants = { RetainScrollPosition = true }
+    CreateDataProvider = function(entries) return entries end
+    local view
+    function CreateScrollBoxListLinearView(top, bottom, left, right, spacing)
+        assert(top == 5 and bottom == 5 and left == 10 and right == 5 and spacing == 1)
+        view = {
+            SetElementExtent = function(self, height) self.height = height end,
+            SetElementInitializer = function(self, template, bind)
+                self.template, self.bind = template, bind
+            end,
+        }
+        return view
+    end
+    ScrollUtil = {
+        InitScrollBoxListWithScrollBar = function(scroll, bar)
+            assert(scroll.template == "WowScrollBoxList" and bar.template == "MinimalScrollBar")
+            function scroll:SetDataProvider(entries, retain)
+                assert(retain)
+                self.providerUpdates = (rawget(self, "providerUpdates") or 0) + 1
+                self.entries = entries
+                self.rows = self.rows or {}
+                for index, entry in ipairs(entries) do
+                    local row = self.rows[index]
+                    if not row then
+                        row = CreateFrame("Button", nil, self, view.template)
+                        if view.template == "ProfessionsRecipeListRecipeTemplate" then
+                            for _, key in ipairs({ "Label", "SkillUps", "LockedIcon", "Count" }) do
+                                row[key] = MockRegion(row)
+                            end
+                            row:SetScript("OnEnter", function() error("Recipe handlers require recipe data") end)
+                            row.SelectedOverlay, row.HighlightOverlay = MockRegion(row), MockRegion(row)
+                            function row:SetSelected(selected)
+                                self.SelectedOverlay:SetShown(selected)
+                                self.HighlightOverlay:SetShown(not selected)
+                            end
+                        end
+                        self.rows[index] = row
+                    end
+                    function row:GetElementData() return self.entry end
+                    row.entry = entry
+                    view.bind(row, entry)
+                end
+            end
+            function scroll:ForEachFrame(callback)
+                for index, entry in ipairs(self.entries) do callback(self.rows[index], entry) end
+            end
+            scroll.rows = {}
+        end,
+    }
+    local firstRival = { id = "first", name = "First Rival" }
+    local secondRival = { id = "second", name = "Second Rival" }
+    local clicked
+    ProfessionsRecipeListRecipeMixin = {}
+    local list, bar = addon.CreateRivalList(MockRegion(), function(id) clicked = id end)
+    assert(addon.rivalListWidth == 304 and bar.anchor[2] == list and view.height == 20)
+    assert(view.template == "ProfessionsRecipeListRecipeTemplate")
+    list:SetRivals({ firstRival, secondRival }, "second")
+    local first, second = unpack(list.rows)
+    assert(first.Label:GetText() == "First Rival" and first.Label.color[1] == 0.85)
+    assert(not first.SelectedOverlay.shown and first.HighlightOverlay.shown)
+    assert(second.SelectedOverlay.shown and not second.HighlightOverlay.shown and not second.Count.shown)
+    first.Label.truncated = true
+    first.scripts.OnEnter(first)
+    assert(first.Label.color[1] == 1 and GameTooltip.owner == first)
+    first.scripts.OnClick(first)
+    assert(clicked == "first")
+    first.scripts.OnLeave(first)
+    assert(first.Label.color[1] == 0.85 and not GameTooltip.owner)
+    list:SetRivals({ firstRival, secondRival }, "first")
+    assert(first.SelectedOverlay.shown and not second.SelectedOverlay.shown and list.providerUpdates == 1)
+    list:SetRivals({ secondRival }, "second")
+    first.scripts.OnClick(first)
+    assert(clicked == "second" and first.Label:GetText() == "Second Rival" and list.providerUpdates == 2)
+
+    ProfessionsRecipeListRecipeMixin = nil
+    local fallback = addon.CreateRivalList(MockRegion(), function() end)
+    fallback:SetRivals({ firstRival }, "first")
+    local row = fallback.rows[1]
+    assert(view.template == "Button" and row.Label.font == "GameFontHighlight_NoShadow")
+    assert(row.HighlightOverlay.atlas == "Professions_Recipe_Hover" and row.HighlightOverlay.alpha == 0.5)
+    assert(row.SelectedOverlay.shown and not row.HighlightOverlay.shown)
+end
+print("Native recipe row style, search data reuse, and rival selection checks passed")
 
 local function CheckLevelLabel(label, size, font)
     local badge = label.parent

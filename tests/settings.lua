@@ -46,7 +46,7 @@ GameTooltip = {
 }
 
 NamesInRedDB = { version = 1, rivals = {}, minimapAngle = 139 }
-for _, file in ipairs({ "Locale", "Ledger", "Encounter", "Core", "Book", "Settings" }) do
+for _, file in ipairs({ "Locale", "Ledger", "Encounter", "Core", "Portraits", "Book", "Settings" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
 Event("ADDON_LOADED", "NamesInRed")

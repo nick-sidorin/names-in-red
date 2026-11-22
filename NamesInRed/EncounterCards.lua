@@ -473,7 +473,7 @@ local function CreateSkirmishSide(card, x, width, caption, isOpponent, openRival
                 tile:ClearAllPoints()
                 tile:SetPoint("TOP", side, "TOP", (column - (count + 1) / 2) * slotWidth, top)
                 local player = players[index]
-                BindRosterTile(tile, player, selectedRivalID, casualties[player.id] == true, slotWidth)
+                BindRosterTile(tile, player, selectedRivalID, casualties[player.id] ~= nil, slotWidth)
             end
         end
         for i = index + 1, #tiles do
@@ -647,16 +647,16 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
         stamp:SetText(time ~= "" and day .. "  " .. time or day)
         map:SetShown(hasWaypoint)
 
-        local players, colors, casualties, blows = {}, {}, {}, {}
+        local players, colors, blows = {}, {}, {}
         local allyColor, enemyColor, alliesHorde = SideColors()
         for _, player in ipairs(battle.allies) do players[player.id], colors[player.id] = player, allyColor end
         for _, player in ipairs(battle.enemies) do players[player.id], colors[player.id] = player, enemyColor end
         for _, event in ipairs(battle.events) do
             if event.kind == "kill" then
                 blows[#blows + 1] = event
-                if event.targetID then casualties[event.targetID] = true end
             end
         end
+        local casualties = addon.Ledger.FirstDeaths(battle)
         setAllies(battle.allies, height, alliesHorde, allyColor, nil, casualties)
         setEnemies(battle.enemies, height, not alliesHorde, enemyColor, selectedRivalID, casualties)
         setTimeline(battle, blows, expanded, bottom, players, colors)
