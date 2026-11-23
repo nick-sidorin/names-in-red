@@ -536,6 +536,11 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
             item.segment, item.evidence = index, "derived"
             Actor("action", item, action)
         end)
+        each("combatAggregate", segment.combatAggregates, 32, function(aggregate)
+            local item = Fields(aggregate, "category petEndpoint", "spellID amount")
+            item.segment, item.evidence, item.api = index, "aggregate", "C_DamageMeter"
+            Actor("combatAggregate", item, aggregate)
+        end)
         local meter = Table(segment.meter)
         if next(meter) then
             local item = Fields(meter, "scope selection", "sessionID")

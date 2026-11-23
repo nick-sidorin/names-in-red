@@ -234,9 +234,19 @@ if not arg[1] or arg[1] == "meter" then
     assert(diagnostics.streams.unitCombat.rows[1].targetID == one)
     assert(diagnostics.streams.spellCast.rows[1].spellID == 102)
     assert(diagnostics.meter.categories.DamageTaken.rows[1].amount == 45)
+    local history = recovered.observation.segments[1].combatAggregates
+    assert(#history == 1 and history[1].category == "DamageTaken" and history[1].amount == 45)
+    assert(history[1].actorID == one and history[1].targetID == ally)
     assert(recoveredReport:find('"section": "meterSpellSample"', 1, true))
     assert(recoveredReport:find('"section": "primaryEvidence"', 1, true))
     assert(not recoveredReport:find("Cast-diagnostic-private", 1, true))
+    local outcome = addon.Ledger.SkirmishOutcome(recovered)
+    addon.ClearDiagnostics()
+    assert(#NamesInRedDebugDB.rows == 0 and #recovered.events == 1)
+    assert(addon.Ledger.Open(addon.db) == addon.db and addon.Ledger.SkirmishOutcome(recovered) == outcome)
+    assert(addon.db.skirmishes["world:1"] == recovered and recovered.observation.segments[1].combatAggregates == history)
+    local reportAfterClear = addon.BuildIssueReport(addon.db, NamesInRedDebugDB, "world:1")
+    assert(reportAfterClear:find('"section": "combatAggregate"', 1, true))
 end
 Reset()
 

@@ -418,7 +418,7 @@ function addon.WorldMeterContext(window, row)
     return window, anchors, faction, enemies
 end
 
-function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, contacts)
+function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, contacts, probe)
     if not Valid(window) or window.area ~= area then return end
     local enemies = {}
     for _, entry in ipairs(additions) do
@@ -440,6 +440,7 @@ function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, c
                 sex = player.sex, class = player.class, classLabel = player.className,
             })
     end
+    Ledger.RecordMeterAggregates(battle, segment, probe)
     addon.ResolveStagedWorldKills(window, contacts)
     local state = Assessment(record)
     if not state.first and not state.last then WatchEnding(window) end

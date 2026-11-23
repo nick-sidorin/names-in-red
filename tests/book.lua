@@ -241,6 +241,8 @@ local function MockRegion(parent)
         self.text = text
     end
     function region:GetText() return self.text end
+    function region:GetFont() return "ClientFont", 10, "OUTLINE" end
+    function region:SetFont(path, size, flags) self.textStyle = { path, size, flags } end
     function region:SetSnapToPixelGrid(enabled) self.snapToGrid = enabled end
     function region:SetTexelSnappingBias(bias) self.texelBias = bias end
     function region:GetStringWidth() return #(tostring(self.text or "")) * 6 end
@@ -302,6 +304,8 @@ function CreateFrame(_, _, parent, template)
         region.Icon = MockRegion(region)
         function region:SetAtlas(atlas) self.Icon:SetAtlas(atlas) end
         region:SetScript("OnMouseUp", function(self) self.Icon:SetPoint("CENTER", self, "CENTER", -1, 0) end)
+    elseif template == "SharedButtonSmallTemplate" then
+        function region:SetTextToFit(value) self:SetText(value) end
     end
     return region
 end
@@ -352,10 +356,20 @@ local function FindText(region, expected)
 end
 
 do
+    local reportOpened
+    function addon.OpenIssueReport() reportOpened = true end
+    addon.issueBugIcon = "Interface\\HelpFrame\\HelpIcon-Bug.blp"
     local function HeaderAtWidth(width)
         local parent = MockRegion()
         function parent:GetWidth() return width end
         addon.CreateBookHeader(parent)
+        local report = assert(FindRegion(parent, "template", "SharedButtonSmallTemplate"))
+        assert(report.text:find(addon.L.reportIssue, 1, true) and report.text:find(addon.issueBugIcon, 1, true))
+        local hint = assert(FindText(parent, addon.L.issuePrompt))
+        assert(hint.textStyle[1] == "ClientFont" and hint.textStyle[2] == 11 and hint.textStyle[3] == "OUTLINE")
+        reportOpened = nil
+        report.scripts.OnClick()
+        assert(reportOpened)
         return assert(FindRegion(parent, "atlas", "Profession-Background-Template2"))
     end
     local original, wide = HeaderAtWidth(700), HeaderAtWidth(810)

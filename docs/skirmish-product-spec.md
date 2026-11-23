@@ -144,6 +144,21 @@ For rivalry statistics, one recorded skirmish can count once as a side Victory o
 
 Do not quietly omit a demonstrated healer simply because the local character landed all finishing blows.
 
+### History retention
+
+**Permanent Battle History** retains every rival and skirmish indefinitely.
+It includes time, place, sides, outcome, confirmed kills, deaths and
+revivals, rewards, the core timeline, and the accepted Damage Meter
+aggregates saved with the skirmish. There is no automatic age, count or
+byte quota for this history. The cross-rival view displays the latest 100
+entries. An individual rival's history includes every linked encounter.
+
+**Debug Evidence** covers API samples, repeated readings, rejection reasons
+and meter session diagnostics. It can be compacted or cleared. The core
+timeline and saved damage, healing and absorb amounts remain available for
+future timeline views. A user's explicit reset or profile deletion follows
+the existing confirmation flow.
+
 ## 8. Real encounter: Duskwood, 22 November 2026
 
 The motivating case is an open-world PvP clash entered while fighting was already underway. The saved card currently presents **1 vs 2, Unknown** because it captured only the local hunter and two enemies she finished.
