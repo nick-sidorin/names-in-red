@@ -1,6 +1,11 @@
 local _, addon = ...
 
 local Readable = addon.Readable
+local pending = {}
+
+function addon.CancelPendingWorldKills()
+    pending = {}
+end
 
 local function RivalName(unit, victim, faction)
     if Readable(UnitGUID(unit)) ~= victim or Readable(UnitIsPlayer(unit)) ~= true
@@ -11,6 +16,28 @@ local function RivalName(unit, victim, faction)
     local rivalFaction = Readable(UnitFactionGroup(unit))
     if (rivalFaction == "Alliance" or rivalFaction == "Horde") and rivalFaction ~= faction then
         return addon.UnitPlayerName(unit), unit
+    end
+end
+
+local function Record(victim, name, context, retry)
+    local prior = pending[victim]
+    if not retry and prior then
+        if prior.actorID ~= context.actorID then prior.ambiguous = true end
+        return
+    end
+    local id, battle, status, window = addon.RecordWorldEncounter(victim, name, "killsAgainstThem", context)
+    if status == "awaiting-death" and not retry and C_Timer and C_Timer.After then
+        context.worldWindow = window
+        context.retrying = true
+        pending[victim] = context
+        C_Timer.After(0.25, function()
+            if pending[victim] ~= context then return end
+            pending[victim] = nil
+            if not context.ambiguous then Record(victim, name, context, true) end
+        end)
+    elseif status == nil and (id or not addon.WorldDeathWindow) then
+        pending[victim] = nil
+        addon.ObserveHonorKill(id, battle, victim)
     end
 end
 
@@ -60,8 +87,9 @@ frame:SetScript("OnEvent", function(_, _, attacker, victim)
         context.actorName = addon.UnitPlayerName(actorUnit)
         context.actorAppearance = addon.UnitAppearance(actorUnit)
         context.actorLevel = context.actorAppearance.level
-        local id, battle = addon.RecordWorldEncounter(victim, name, "killsAgainstThem", context)
-        addon.ObserveHonorKill(id, battle, victim)
+        context.victimUnit = unit
+        context.killUptime = GetTime and GetTime()
+        Record(victim, name, context, false)
     else
         addon.ObserveHonorKill()
     end

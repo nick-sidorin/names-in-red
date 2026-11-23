@@ -143,6 +143,12 @@ lateLoss.lastAction.offset, lateLoss.first.at, lateLoss.first.offset = 41, 142, 
 lateLoss.last.at, lateLoss.last.offset = 144, 44
 assert(Expect(reversed, "loss", "observed", "pressured-withdrawal").enemies.dead == 2)
 
+local lostWithKill = ledger.Open(nil)
+ledger.SaveSkirmish(lostWithKill, "world:1", reversed)
+local direct, suffered = ledger.PersonalCombatScore(lostWithKill, "a")
+local teamWins, teamLosses = ledger.PersonalScore(lostWithKill, "a")
+assert(direct == 1 and suffered == 0 and teamWins == 0 and teamLosses == 1)
+
 local mutual = Battle({ me }, { firstEnemy }, {},
     { me = west, a = retreat }, { me = west, a = farther })
 Expect(mutual, nil, "observed", "both-sides-left-site")
@@ -174,6 +180,16 @@ local revived = Battle({ me }, { firstEnemy }, { Kill(me, firstEnemy) }, { me = 
     { me = alive, a = alive })
 Expect(revived, nil, "unknown")
 
+-- A prior alive sample in the same server second cannot override a
+-- later confirmed death with a higher monotonic battle offset.
+local stale = Battle({ me }, { firstEnemy }, { Kill(me, firstEnemy, 114) },
+    { me = alive, a = alive }, { me = alive })
+stale.events[1].offset = 13
+stale.observation.assessment.first.at = 114
+Expect(stale, "win", "observed")
+stale.observation.assessment.first.offset = 13.5
+Expect(stale, nil, "unknown")
+
 local saved = ledger.Open(nil)
 local rewards = { a = { honorableKills = 2, honor = 5 } }
 groupWin.rewards = rewards
@@ -201,4 +217,12 @@ assert(ledger.Open(saved) == saved)
 assert(ledger.SkirmishOutcome(legacy) == "win")
 wins, losses = ledger.PersonalScore(saved, "a")
 assert(wins == 2 and losses == 1)
+local personalKills, personalDeaths = ledger.PersonalCombatScore(saved, "a")
+assert(personalKills == 2 and personalDeaths == 0)
+local legacyRival = ledger.Add(saved, "manual:legacy", "Legacy Rival")
+legacyRival.encounters = { { direction = "killsAgainstThem" }, { manual = true, direction = "deathsToThem" } }
+personalKills, personalDeaths = ledger.PersonalCombatScore(saved, "manual:legacy")
+assert(personalKills == 1 and personalDeaths == 0)
+personalKills, personalDeaths = ledger.PersonalCombatScore(saved, "c")
+assert(personalKills == 0 and personalDeaths == 0)
 print("Terminal evidence, unresolved endings, withdrawal rules, idempotent statistics and legacy scores passed")

@@ -358,7 +358,7 @@ local function HideParticipantTooltips(tile)
     HideTooltip(tile.avatar.classBadge)
 end
 
-local function BindParticipantTile(tile, player, known, level, died, selectedRivalID)
+local function BindParticipantTile(tile, player, known, level, died, selectedRivalID, revived)
     HideParticipantTooltips(tile)
     local isSelf = player.isSelf or tile.isLocalCharacter
     local class = tile.avatar:SetParticipant({
@@ -366,7 +366,7 @@ local function BindParticipantTile(tile, player, known, level, died, selectedRiv
         sex = player.sex or known.sex,
         class = player.class or known.class,
         classLabel = player.classLabel or known.classLabel,
-    }, player.id or player.rivalID, level, died)
+    }, player.id or player.rivalID, level, died, revived)
     local name = addon.ManualName(player.name) or addon.ManualName(known.displayName)
     if isSelf then name = name or addon.UnitPlayerName("player") or YOU end
     tile.name:SetText(name or (tile.isOpponent and L.unknownRival or L.unknownPlayer))
@@ -452,10 +452,10 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         local player, opponent = encounter.player, encounter.opponent
         BindParticipantTile(mine, player or {}, addon.UnitAppearance("player"), encounter.playerLevel,
             encounter.playerDeathIndex ~= nil
-            or (not encounter.manual and encounter.direction == "deathsToThem"))
+            or (not encounter.manual and encounter.direction == "deathsToThem"), nil, encounter.playerRevived)
         BindParticipantTile(theirs, opponent or { rivalID = rivalID, name = rival and rival.displayName },
             rival or {}, encounter.rivalLevel, encounter.opponentDeathIndex ~= nil
-            or (not encounter.manual and encounter.direction == "killsAgainstThem"))
+            or (not encounter.manual and encounter.direction == "killsAgainstThem"), nil, encounter.opponentRevived)
 
         local hasWaypoint = WaypointMap(encounter) ~= nil
         local hasInfo = encounter.skirmishID ~= nil or type(encounter.attackers) == "table" and #encounter.attackers > 0
@@ -496,7 +496,7 @@ local function CreateSkirmishSide(card, x, width, caption, isOpponent, openRival
     local emblem = side:CreateTexture(nil, "ARTWORK")
     emblem:SetPoint("RIGHT", title, "LEFT", -4, 0)
     local tiles = {}
-    return function(players, height, horde, color, selectedRivalID, casualties)
+    return function(players, height, horde, color, selectedRivalID, casualties, life)
         side:SetHeight(height)
         title:ClearAllPoints()
         title:SetTextColor(unpack(color))
@@ -535,7 +535,8 @@ local function CreateSkirmishSide(card, x, width, caption, isOpponent, openRival
                 local player = players[index]
                 local rival = player.rivalID and addon.db.rivals[player.rivalID]
                 local known = rival or (player.isSelf and addon.UnitAppearance("player")) or {}
-                BindParticipantTile(tile, player, known, player.level, casualties[player.id] ~= nil, selectedRivalID)
+                local revived = life[player.id] and life[player.id].kind == "revive"
+                BindParticipantTile(tile, player, known, player.level, casualties[player.id] ~= nil, selectedRivalID, revived)
             end
         end
         for i = index + 1, #tiles do
@@ -697,8 +698,9 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
             end
         end
         local casualties = addon.Ledger.FirstDeaths(battle)
-        setAllies(battle.allies, height, alliesHorde, allyColor, nil, casualties)
-        setEnemies(battle.enemies, height, not alliesHorde, enemyColor, selectedRivalID, casualties)
+        local life = addon.Ledger.ParticipantLife(battle)
+        setAllies(battle.allies, height, alliesHorde, allyColor, nil, casualties, life)
+        setEnemies(battle.enemies, height, not alliesHorde, enemyColor, selectedRivalID, casualties, life)
         setDetails(battle, blows, expanded, bottom, players, colors)
         card:SetHeight(FullCardHeight(bottom, #blows, expanded))
     end

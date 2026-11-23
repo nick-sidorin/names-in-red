@@ -113,14 +113,44 @@ function Ledger.EncounterOutcome(encounter)
     end
 end
 
+-- Live observations use a monotonic offset. Older rows retain their
+-- server timestamp and existing timeline order when two stamps tie.
+function Ledger.LaterBattleEvent(a, b)
+    if type(a.offset) == "number" and type(b.offset) == "number" then return a.offset > b.offset end
+    return type(a.time) == "number" and type(b.time) == "number" and a.time > b.time
+end
+
+function Ledger.IndicatesDeath(event)
+    return event and (event.kind == "kill" or event.kind == "death")
+end
+
+local function IsLifeEvent(event)
+    return event.targetID and (Ledger.IndicatesDeath(event) or event.kind == "revive")
+end
+
+function Ledger.LatestParticipantLife(battle, id, cutoff)
+    for index = #battle.events, 1, -1 do
+        local event = battle.events[index]
+        if event.targetID == id and IsLifeEvent(event) and (not cutoff or not Ledger.LaterBattleEvent(event, cutoff)) then
+            return event
+        end
+    end
+end
+
+function Ledger.ParticipantLife(battle, cutoff)
+    local life = {}
+    for _, event in ipairs(battle.events) do
+        if IsLifeEvent(event) and (not cutoff or not Ledger.LaterBattleEvent(event, cutoff)) then
+            life[event.targetID] = event
+        end
+    end
+    return life
+end
+
 local function Deaths(battle)
     local dead = {}
-    for index, event in ipairs(battle.events) do
-        if event.kind == "kill" and event.targetID then
-            dead[event.targetID] = dead[event.targetID] or index
-        elseif event.kind == "revive" and event.targetID then
-            dead[event.targetID] = nil
-        end
+    for id, event in pairs(Ledger.ParticipantLife(battle)) do
+        if Ledger.IndicatesDeath(event) then dead[id] = true end
     end
     return dead
 end
@@ -160,7 +190,7 @@ end
 function Ledger.FirstDeaths(battle)
     local firstDeath = {}
     for index, event in ipairs(battle.events) do
-        if event.kind == "kill" and event.targetID then
+        if Ledger.IndicatesDeath(event) and event.targetID then
             firstDeath[event.targetID] = firstDeath[event.targetID] or index
         end
     end
@@ -181,6 +211,19 @@ end
 local function IndexSkirmish(index, id, battle)
     local outcome, player = Ledger.SkirmishOutcome(battle)
     local firstDeath = Ledger.FirstDeaths(battle)
+    local life = Ledger.ParticipantLife(battle)
+    local kills, deaths = {}, {}
+    if player then
+        for _, event in ipairs(battle.events) do
+            if event.kind == "kill" and event.actorID and event.targetID then
+                if event.actorID == player.id then
+                    kills[event.targetID] = (kills[event.targetID] or 0) + 1
+                elseif event.targetID == player.id then
+                    deaths[event.actorID] = (deaths[event.actorID] or 0) + 1
+                end
+            end
+        end
+    end
     local counted = {}
     for _, opponent in ipairs(battle.enemies) do
         local rivalID = opponent.rivalID
@@ -188,7 +231,8 @@ local function IndexSkirmish(index, id, battle)
             counted[rivalID] = true
             local rival = index[rivalID]
             if not rival then
-                rival = { wins = 0, losses = 0, honorableKills = 0, honor = 0, encounters = {} }
+                rival = { wins = 0, losses = 0, personalKills = 0, personalDeaths = 0,
+                    honorableKills = 0, honor = 0, encounters = {} }
                 index[rivalID] = rival
             end
             local reward = battle.rewards and battle.rewards[opponent.id]
@@ -199,10 +243,14 @@ local function IndexSkirmish(index, id, battle)
                 playerLevel = player and player.level, rivalLevel = opponent.level,
                 player = player, opponent = opponent, outcome = outcome,
                 playerDeathIndex = player and firstDeath[player.id], opponentDeathIndex = firstDeath[opponent.id],
+                playerRevived = player and life[player.id] and life[player.id].kind == "revive",
+                opponentRevived = life[opponent.id] and life[opponent.id].kind == "revive",
                 honorableKills = honorableKills, honor = honor,
             }
             if outcome == "win" then rival.wins = rival.wins + 1 end
             if outcome == "loss" then rival.losses = rival.losses + 1 end
+            rival.personalKills = rival.personalKills + (kills[opponent.id] or 0)
+            rival.personalDeaths = rival.personalDeaths + (deaths[opponent.id] or 0)
             rival.honorableKills = rival.honorableKills + honorableKills
             rival.honor = rival.honor + honor
             rival.encounters[#rival.encounters + 1] = summary
@@ -237,4 +285,19 @@ end
 function Ledger.RivalSkirmishes(db, id)
     local battles = RivalSkirmishIndex(db, id)
     return battles and battles.encounters or {}
+end
+
+-- Direct finishing blows are independent of the side's outcome and rewards.
+-- Old directional combat rows remain usable; manual outcomes have no actor.
+function Ledger.PersonalCombatScore(db, id)
+    local scored = RivalSkirmishIndex(db, id)
+    local kills, deaths = scored and scored.personalKills or 0, scored and scored.personalDeaths or 0
+    local rival = db.rivals[id]
+    for _, encounter in ipairs(rival and rival.encounters or {}) do
+        if not encounter.manual and not encounter.outcome then
+            if encounter.direction == "killsAgainstThem" then kills = kills + 1
+            elseif encounter.direction == "deathsToThem" then deaths = deaths + 1 end
+        end
+    end
+    return kills, deaths
 end
