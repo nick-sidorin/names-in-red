@@ -46,6 +46,7 @@ function Ledger.Open(saved)
                 if IsSkirmish(battle) then UpdateWorldRoster(id, battle) end
             end
         end
+        if addon.RestoreCombatDiagnostics then addon.RestoreCombatDiagnostics(saved) end
         skirmishIndexes[saved] = nil
         return saved
     end
@@ -57,6 +58,7 @@ function Ledger.Clear(db)
     db.encounterSequence = nil
     db.lastDeathTimestamp = nil
     db.unassignedRewards = nil
+    if addon.RestoreCombatDiagnostics then addon.RestoreCombatDiagnostics(db) end
     skirmishIndexes[db] = nil
 end
 
@@ -104,6 +106,7 @@ end
 
 function Ledger.RemoveSkirmish(db, id)
     if db.skirmishes then
+        if addon.ForgetCombatDiagnostics then addon.ForgetCombatDiagnostics(db, db.skirmishes[id]) end
         db.skirmishes[id] = nil
         skirmishIndexes[db] = nil
     end

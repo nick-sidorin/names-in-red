@@ -1234,53 +1234,89 @@ readability and field completeness during a live PvP session still vary.
 | [`UNIT_SPELLCAST_*`](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitDocumentation.lua#L4611-L4657) and [start/succeeded events](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitDocumentation.lua#L4803-L4860) | Caster token, cast GUID and spell ID with `SecretWhenUnitSpellCastRestricted`; selected phases expose an interrupter. `SENT` has a conditionally secret target name. | Start, succeeded, interrupted and channel start/stop. Caster and interrupter are captured independently when readable. Success does not prove a hit, target or amount. `SENT` and its target string are excluded. |
 | [`COMBAT_LOG_MESSAGE`](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/CombatLogSecureDocumentation.lua#L126-L141) | Preformatted `|K`-wrapped text, color and order for the native display. [`COMBAT_LOG_EVENT_UNFILTERED`](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/CombatLogDocumentation.lua#L123-L138) is marked restricted. | The addon does not subscribe to either. Protected display text cannot supply a structured source, target, spell or amount. |
 | [`C_DamageMeter`](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/DamageMeterDocumentation.lua#L170-L243) | Category totals, source totals, spell totals and optional usable second-unit details. Session and source getters are `SecretWhenInCombat`. Names and GUIDs can be restricted independently. | Sample from the same accepted read used by the existing meter scanner, with category, spell ID, readable amounts, resolution of the second unit, selection and session ID when archived. The meter unit is the affected unit in Damage Taken categories. Total fields are separate and may overlap. The receipt offset timestamps the read rather than individual damage or healing. |
-| `PARTY_KILL`, `C_DeathRecap` and unit API snapshots | Kill notification, recap fields already used by the death validator, and sampled dead/combat/Feign Death flags. | Observed kill notifications and flag changes within the matched local window. A validated player finishing blow can carry its lethal recap row, including readable timestamps, spell and amounts, even if there was no local combat window. |
+| `PARTY_KILL`, [`C_DeathRecap.GetRecapEvents`](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/DeathRecapDocumentation.lua#L12-L23) and unit status | Kill notification, native recap data, and sampled dead/combat/Feign Death flags. | Kill notifications, sampled status changes and the validated lethal recap entry. Earlier hostile-player entries from the same recap are sampled only when their readable timestamps fall inside the matched battle. Prior rows use their native timestamps and recap indices. |
 
-#### Saved data and report scope
+#### Automatic capture and retention
 
-- The new journal is attached only to a confirmed skirmish. Unconfirmed
-  local windows are provisional in memory. A skirmish retains its last
-  four matched windows and up to eight verified lethal recap rows.
-  Each window retains the newest 16 unit-feedback, cast and aura samples,
-  12 unit-state samples and eight kill notifications. Each stream also
-  has a per-second rate limit. At most eight additions are inspected per
-  aura notification. A local window can contain unrelated or PvE activity.
-  These samples do not establish that every observed action or unit belongs
-  to the confirmed skirmish. A stream suppresses repeats with the same readable
-  cast GUID and phase or the same aura instance on the same unit while
-  the identity remains in the sample. IDs used for this deduplication
-  are transient. Signals without a dependable event ID retain duplicates.
-- Damage Meter retains at most six spell-detail samples per category and
-  32 per accepted read. The diagnostic capture uses no extra meter
-  requests. An interrupted, ambiguous, reset or superseded read can
-  leave a decision/status in the report with no spell samples. A new
-  local window or archive owns its own sample. Meter totals and dropped
-  counts are diagnostic and do not change the participant graph.
-- Report an Issue adds `combatCapture`, `combatWindow`,
-  `combatAvailability`, `combatStream` and `primaryEvidence` for
-  native observations and API samples. `meterSampleBatch`,
-  `meterSampleCoverage` and `meterSpellSample` describe aggregates.
-  `meterLink`, `action` and `resolution` remain conclusions or
-  summaries produced by Names in Red. Relative timestamps are offsets
-  from local combat start. The death recap timestamp is taken from the
-  recap itself.
-- The new data survives reload and debug-buffer eviction. Older records
-  without these samples report `not-recorded`. The export uses the
-  same player aliases as the rest of the report and leaves unavailable
-  fields empty with a status where known. No real GUIDs, cast IDs,
-  names, localized spell names, protected messages or chat are exported
-  by these sections. The JSONL output remains bounded to 24 KiB, with
-  runtime drop counts and output truncation reported independently.
+- Collection runs during normal play. A provisional local combat window keeps
+  bounded streams before the card is confirmed. Only a confirmed card keeps
+  its matched window. A separate pre-combat buffer would have no reliable
+  window identity for nearby independent fights. Before local combat starts,
+  the existing confirmed aura path already retains qualified pair summaries.
+- A detailed journal keeps up to four windows and eight recap rows. Each
+  window retains the newest 16 unit feedback, cast and aura samples, 12
+  states and eight kill notifications. Per-second limits bound work in
+  bursts. At most eight aura additions are inspected per notification.
+  Cast and aura IDs deduplicate known repeat deliveries in memory. Direct
+  feedback has no event ID and identical hits can be genuine.
+- Each accepted meter read retains up to 32 spell details (six per category).
+  Up to eight follow-up reads record the comparable meter status, receipt
+  offset, readable corpse or spirit state and a representative linked pair
+  change. A readable pair increase is a difference between aggregate totals.
+  Sample rows do not give individual damage or healing timestamps. The
+  existing session, context and area gates qualify these reads. The journal
+  makes no additional meter requests. Source registration, missing and
+  secret field statuses, and observed Feign Death availability are retained
+  when known.
+- At most 24 fights per character retain detailed samples. Each is limited
+  to a conservative 64 KiB estimate for the serialized Lua journal. Whole
+  old windows are dropped first when a journal reaches that limit. The
+  per-character detail budget is therefore at most 1.5 MiB by this estimate,
+  plus bounded active observations and a small fixed-size compact context
+  per older card. Older cards retain the latest window's representative
+  roster samples, selected meter categories, last eligible follow-up,
+  one recap and the existing timeline, roster and reward data. Reopening
+  or reloading retains this context and labels it `retention: compact`.
+  Pruning scans saved cards at load and logout. A bounded queue handles
+  new detailed journals during play.
+- Measurements use actual captured Lua tables from the deterministic
+  regression fixtures and a Lua table serialization model with the
+  SavedVariables layout. A mixed fight was 8,127 bytes, a dense fight
+  47,237 bytes and its compact form 3,685 bytes. The 24 newer dense
+  journals occupied 1,118,784 serialized bytes. The 26 additional
+  stress cards used about 1,656 KiB of retained Lua heap in Lua 5.1.
+  That test took about 0.17 seconds locally, including capture,
+  export and reload. The figures exclude the existing general debug
+  buffer and game UI and do not measure client frame time.
 
-#### Optional native file capture
+#### Public JSONL and optional SavedVariables
 
-The 71037 [native `/combatlog` handler](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_ChatFrameBase/Shared/SlashCommands.lua#L856-L865)
-toggles `LoggingCombat()`. [`C_ChatInfo.IsLoggingCombat()`](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/ChatInfoDocumentation.lua#L371-L380)
-documents the enabled and advanced flags. For a deliberate reproduction,
-the operator can toggle the native command on before the fight and off
-after it. The game writes the log separately under its `Logs` directory.
-It can contain identifying player data. Keep it local and redact any
-excerpt before sharing it. An addon option would duplicate the native
-toggle, so this change does not start file logging, read files or send
-data. API availability is verified from the source. The contents of a
-live 71037 open-world PvP file have not been verified here.
+The JSONL schema remains version 1. `primaryEvidence` contains
+`evidence: observation`, `meterSampleBatch`, `meterSpellSample` and
+`meterFollowup` contain `evidence: aggregate`, and `resolution`,
+`event`, `action` and `meterLink` are labeled `evidence: derived`.
+Honor and HK rows are credited totals. They do not supply an individual
+damage, healing or kill event. Direct timestamps may be local window
+offsets or native recap times. An aggregate read offset timestamps
+receipt of the snapshot.
+
+The sampler uses a matched local window, which can include PvE or
+neighboring activity. Public sample rows require at least one roster
+identity and omit rows with a resolved player outside that roster.
+Rows with one known endpoint carry `participant-only` attribution.
+They can describe damage received or a cast observed without linking it
+to a particular opponent. The coverage rows count omitted observations.
+A record created before capture remains `not-recorded`. The summary and
+each optional detail part stay within 24 KiB. When the summary omits
+sample rows, **Next part** exposes separately fenced JSONL parts with the
+same aliases and record ID. Runtime drops, compaction and export truncation
+are distinct fields.
+
+For optional additional detail, attach the existing `NamesInRed.lua`
+containing `NamesInRedDB` and `NamesInRedDebugDB`. A typical Windows
+installation keeps it under
+`_forever_\WTF\Account\<account>\<realm>\<character>\SavedVariables\NamesInRed.lua`.
+The file can be attached as is and can contain names and GUIDs. GitHub
+attachments are public on a public issue. The addon's window uses the
+existing report frame and native input templates. Its localized footer
+and pagination controls still need a smoke test in the Forever client.
+
+#### Gnomeregan report replay on current main
+
+The two anonymized JSONL reports from `1.1.0-preview.10` and the earlier
+SavedVariables agree with the current evaluator.
+
+| Record | Replayed result | Evidence and limitation |
+| --- | --- | --- |
+| `world:4`, 20:08 MSK | Unknown, `site-anchor-missing` | The second enemy's nameplate-removal contact at +28.043 s says dead, with no Feign Death value in the linked historical observation. A contact snapshot alone does not establish a durable confirmed death. Both allied terminal samples have readable positions and both allies are alive and out of combat. Without a combat anchor those observations do not qualify as holding the site. The existing site-free group elimination path can award Victory when both enemy deaths are corroborated and terminal survivors remain together. The current roster snapshot path already captures a matched corpse observation with a readable non-feign flag as an observed death without a killer. The historical second death is not reconstructed here. |
+| `world:7`, 20:11 MSK | Unknown, `area-changed` / `no-terminal-samples` | The local character died at +6.262 s. An enemy harmful aura was observed at +13.524 s and the ally died at +17.528 s. The comparable meter read advanced at +18.651 s while the local player was a ghost. Observation therefore continued after death and spirit release. The read offset does not establish the exact time of a hit, a final elimination, or whether either ally returned before the end. The area change interrupted coverage without terminal samples. Defeat is plausible and remains unconfirmed. |

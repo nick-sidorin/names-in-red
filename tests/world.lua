@@ -1103,10 +1103,16 @@ do
     assert(#ghostFight.events == 1 and not addon.Ledger.SkirmishOutcome(ghostFight))
     local probe = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
     assert(probe.kind == "POST_COMBAT_METER_UPDATE" and probe.playerGhost and probe.status.meter == "linked-increase")
+    local followups = ghostFight.combatDiagnostics.windows[1].meterFollowups
+    local sample = followups[#followups]
+    assert(sample.readOffset >= observed and sample.sessionID == 0 and sample.localGhost)
+    assert(sample.status == "linked-increase" and sample.amountIncrease == 13 and sample.pairTotal == 35)
+    assert(sample.actorID == enemy and sample.targetID == ally and not sample.offset)
     restricted = true
     Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 7, 0)
     Advance(1.1)
     assert(state.lastMeterActivity == observed and state.meterStatus == "secret")
+    assert(followups[#followups].status == "secret" and not followups[#followups].amountIncrease)
     Advance(3)
     assert(not addon.Ledger.SkirmishOutcome(ghostFight) and ghostFight.resolution.coverage == "partial")
 

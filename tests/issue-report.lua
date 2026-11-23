@@ -118,6 +118,7 @@ local function Widget(parent)
     function widget:SetScript(key, callback) self.scripts[key] = callback end
     function widget:HookScript(key, callback) self.hooks[key] = callback end
     function widget:SetText(value) self.text = value end
+    function widget:SetShown(value) self.visible = value end
     function widget:SetFocus() self.focus = true end
     function widget:ClearFocus() self.focus = false end
     function widget:HighlightText() self.selected = true end
@@ -134,8 +135,8 @@ end
 function ButtonFrameTemplate_HidePortrait() end
 UISpecialFrames, tinsert = {}, table.insert
 addon.OpenIssueReport("bg:20")
-local window, link, input, select = unpack(widgets)
-local linkHint, reportHint = unpack(window.labels)
+local window, link, select, nextPart, input = unpack(widgets)
+local linkHint, reportHint, savedVariablesHint = unpack(window.labels)
 assert(window.template == "PortraitFrameTemplate")
 assert(linkHint.text == "Перейди на форму по ссылке и напиши о проблеме")
 assert(reportHint.text == "Отправь мне этот код с информацией о стычке")
@@ -144,6 +145,12 @@ assert(link.points.TOPLEFT[1] == linkHint and reportHint.points.TOPLEFT[1] == li
 assert(input.points.TOPLEFT[1] == reportHint)
 assert(link.template == "InputBoxTemplate" and input.template == "InputScrollFrameTemplate")
 assert(input.EditBox.text == bounded and select.text == addon.L.issueSelectReport)
+assert(not nextPart.visible)
+Includes(savedVariablesHint.text, "NamesInRed.lua")
+Includes(savedVariablesHint.text, "SavedVariables")
+Includes(savedVariablesHint.text, "как есть")
+Includes(savedVariablesHint.text, "GUID")
+Excludes(savedVariablesHint.text, "/combatlog")
 select.scripts.OnClick()
 assert(input.EditBox.focus and input.EditBox.selected)
 link.hooks.OnEditFocusGained(link)
@@ -151,6 +158,19 @@ assert(link.selected and link.text:find("/issues/new?template=bug_report.md", 1,
 input.EditBox.hooks.OnTextChanged(input.EditBox, true)
 assert(input.EditBox.text == bounded)
 addon.OpenIssueReport()
-assert(#widgets == 4 and input.EditBox.text == addon.BuildIssueReport(db))
+assert(#widgets == 5 and input.EditBox.text == addon.BuildIssueReport(db))
+-- The original block stays available when an oversized battle needs a details page.
+large.combatDiagnostics = { version = 1, recaps = {}, windows = {
+    { index = 1, streams = { aura = { rows = { { targetID = large.enemies[1].id, spellID = 327 } } } } },
+} }
+addon.OpenIssueReport("bg:20")
+assert(nextPart.visible and nextPart.text == addon.L.issueReportPart:format(1, 2))
+nextPart.scripts.OnClick()
+Includes(input.EditBox.text, '"scope": "combat-details"')
+Includes(input.EditBox.text, '"spellID": 327')
+nextPart.scripts.OnClick()
+Includes(input.EditBox.text, '"scope": "skirmish"')
+addon.OpenIssueReport()
+assert(not nextPart.visible and #widgets == 5)
 assert(UISpecialFrames[1] == window.name)
 print("Issue report selection, stable record identity, reload, diagnostics, privacy and size checks passed")

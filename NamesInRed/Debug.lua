@@ -771,9 +771,15 @@ local function ReadPassiveMeter(watch, dirty)
     Call(row, "playerGhost", UnitIsGhost, "player")
     row.meterSessionID = watch.session
     row.categories = {}
+    local function Observe(status, signal, category, increase)
+        if watch.window.combatDiagnostic then
+            addon.RecordCombatMeterFollowup(watch.window.combatDiagnostic, row, signal, category, increase)
+        end
+        addon.WorldMeterObservation(watch.window, status, signal and signal.actorID, signal and signal.targetID)
+    end
     if CombatRestricted(row) then
         row.status.meter = "restricted"
-        addon.WorldMeterObservation(watch.window, "restricted")
+        Observe("restricted")
         return
     end
 
@@ -788,13 +794,13 @@ local function ReadPassiveMeter(watch, dirty)
         local ids = SessionIDs(row, api)
         if not ids or not ids[selector] then
             row.status.meter = "archive-unavailable"
-            addon.WorldMeterObservation(watch.window, "archive-unavailable")
+            Observe("archive-unavailable")
             passive = nil
             return
         end
     end
 
-    local signal
+    local signal, signalCategory, signalIncrease
     local verdict = "unchanged"
     for kind in pairs(dirty) do
         local baseline = watch.categories[kind]
@@ -816,7 +822,7 @@ local function ReadPassiveMeter(watch, dirty)
                     return ReadResult(source, "detail", sourceGetter, selector, kind, guid, creature)
                 end, evidence, baseline.name, 0)
                 local totals = evidence.damage[baseline.name] or {}
-                local trustworthy, changed = true, nil
+                local trustworthy, changed, increase = true, nil, nil
                 for key, previous in pairs(baseline.totals) do
                     local current = totals[key]
                     if not current or current.amount < previous.amount then
@@ -824,12 +830,13 @@ local function ReadPassiveMeter(watch, dirty)
                         break
                     elseif current.amount > previous.amount then
                         changed = current
+                        increase = current.amount - previous.amount
                     end
                 end
                 if trustworthy then
                     baseline.duration = duration
                     for key in pairs(baseline.totals) do baseline.totals[key] = totals[key] end
-                    if changed then signal = changed end
+                    if changed then signal, signalCategory, signalIncrease = changed, baseline.name, increase end
                     result.status.delta = changed and "linked-increase" or "unchanged"
                 else
                     result.status.delta = "baseline-not-comparable"
@@ -840,7 +847,7 @@ local function ReadPassiveMeter(watch, dirty)
         if result.status.delta ~= "unchanged" then verdict = result.status.delta end
     end
     row.status.meter = signal and "linked-increase" or verdict
-    addon.WorldMeterObservation(watch.window, row.status.meter, signal and signal.actorID, signal and signal.targetID)
+    Observe(row.status.meter, signal, signalCategory, signalIncrease)
 end
 
 local function QueuePassiveMeter(kind, id)
@@ -895,6 +902,11 @@ function handlers.PLAYER_REGEN_ENABLED()
     local rows = db.rows
     local function AttachReport()
         row.pvpReasons = finished.reasons
+        if finished.primary then
+            finished.primary.window.meterStatus = row.status.meter
+            finished.primary.window.meterWindow = row.status.meterWindow
+            finished.primary.window.meterInterruption = row.status.meterInterruption
+        end
         if finished.worldWindow and addon.ReportMeterSnapshot then
             finished.worldWindow.segment.reportMeter = addon.ReportMeterSnapshot(row)
         end
@@ -908,6 +920,8 @@ function handlers.PLAYER_REGEN_ENABLED()
         if not sameWindow or finished.areaChanged or finished.meterReset then
             if sameWindow then settling = nil end
             row.status.meter = "interrupted"
+            row.status.meterInterruption = finished.areaChanged and "area-changed"
+                or finished.meterReset and "meter-reset" or "superseded"
             AttachReport()
             return
         end

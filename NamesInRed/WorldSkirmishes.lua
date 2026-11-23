@@ -316,7 +316,8 @@ function addon.SnapshotWorldContacts(window, contacts)
                 end
                 snapshots[player.id] = {
                     first = contact.firstSeen - window.began, last = contact.lastSeen - window.began,
-                    signal = latest.reason, inCombat = latest.inCombat, dead = latest.dead,
+                    signal = latest.reason, inCombat = latest.inCombat, dead = latest.dead, feign = latest.feign,
+                    deadStatus = latest.status and latest.status.dead, feignStatus = latest.status and latest.status.feign,
                 }
             end
         end
@@ -654,6 +655,9 @@ local function ObserveHarmfulAura(targetUnit, aura)
         local coveredThrough = previous.bridge and previous.bridge.seen or latest.ended
         if now - coveredThrough > bridgeAge then return end
         previous.bridge = { opponent = hostile, seen = now }
+        if not open and latest.combatDiagnostic then
+            addon.ObserveCombatAuras(latest.combatDiagnostic, targetUnit, { addedAuras = { aura } })
+        end
         TimelinePair(latest, actor, target, "harmful-aura", spell)
         latest.segment.lastConfirmedAt = place.time
         NewActivity(latest, actor, target, "harmful-aura")
@@ -914,7 +918,10 @@ function addon.OnBattlegroundTrackingChanged()
     if addon.ResetHonorTracking then addon.ResetHonorTracking() end
     if addon.CancelDiagnosticCombat then addon.CancelDiagnosticCombat() end
 end
-function handlers.PLAYER_LOGOUT() Leave("logout") end
+function handlers.PLAYER_LOGOUT()
+    Leave("logout")
+    if addon.db and addon.RestoreCombatDiagnostics then addon.RestoreCombatDiagnostics(addon.db) end
+end
 
 function handlers.DUEL_FINISHED()
     local window = open or LateWindow(addon.EncounterContext())

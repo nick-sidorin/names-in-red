@@ -2,6 +2,8 @@ local _, addon = ...
 
 -- This journal observes combat without feeding participant or outcome decisions.
 local maxWindows, maxRecaps = 4, 8
+local maxJournals, maxJournalBytes = 24, 64 * 1024
+local retained = setmetatable({}, { __mode = "k" })
 local streams = {
     unitCombat = { 16, 12 },
     spellCast = { 16, 12 },
@@ -40,6 +42,7 @@ end
 local function Player(value)
     local guid, status = Value(value, "string")
     if guid and not guid:match("^Player%-.+") then return nil, guid == "" and "absent" or "non-player" end
+    if guid and (#guid > 64 or not guid:match("^[%w%-]+$")) then return nil, "invalid-identity" end
     return guid, status
 end
 
@@ -55,13 +58,155 @@ local function RoundedOffset(capture, now)
     return math.floor(math.max(0, now - capture.start) * 1000 + 0.5) / 1000
 end
 
+-- Budget the named fields, escaped strings, punctuation and indentation of
+-- a Lua SavedVariables table. This is a conservative estimate, not heap size.
+local function SavedBytes(value, depth)
+    local kind = type(value)
+    if kind == "string" then return #string.format("%q", value) end
+    if kind == "number" then return 32 end
+    if kind == "boolean" then return 5 end
+    if kind ~= "table" or depth >= 12 then return math.huge end
+    local bytes = depth + 4
+    for key, item in pairs(value) do
+        bytes = bytes + depth + 9 + SavedBytes(key, depth) + SavedBytes(item, depth + 1)
+        if bytes > maxJournalBytes then break end
+    end
+    return bytes
+end
+
+local function Recent(rows, limit, eligible)
+    local selected = {}
+    for index = #rows, 1, -1 do
+        if eligible(rows[index]) then
+            table.insert(selected, 1, rows[index])
+            if #selected == limit then break end
+        end
+    end
+    return selected
+end
+
+local function Compact(battle)
+    local journal = battle.combatDiagnostics
+    local roster = {}
+    for _, player in ipairs(battle.allies or {}) do if player.id then roster[player.id] = true end end
+    for _, player in ipairs(battle.enemies or {}) do if player.id then roster[player.id] = true end end
+    local function Linked(row)
+        if row.actorStatus == "non-player" or row.targetStatus == "non-player"
+            or (row.isMob and not row.otherID) then return false end
+        local linked
+        for _, id in pairs({ row.actorID, row.targetID, row.interrupterID, row.meterUnitID, row.otherID }) do
+            if not roster[id] then return false end
+            linked = true
+        end
+        return linked
+    end
+    local window = journal.windows[#journal.windows]
+    if window then
+        local streams = {}
+        for name, stream in pairs(window.streams) do
+            local rows = Recent(stream.rows, name == "unitCombat" and 2 or 1, Linked)
+            streams[name] = { rows = rows, dropped = (stream.dropped or 0) + #stream.rows - #rows,
+                duplicates = stream.duplicates, rateLimited = stream.rateLimited }
+        end
+        local meter = window.meter
+        local miniMeter
+        if meter then
+            miniMeter = { selection = meter.selection, sessionID = meter.sessionID, readOffset = meter.readOffset,
+                retained = 0, dropped = meter.dropped or 0, categories = {} }
+            for _, name in ipairs({ "DamageDone", "DamageTaken", "EnemyDamageTaken", "HealingDone", "Absorbs", "Deaths" }) do
+                local group = meter.categories[name]
+                if group then
+                    local rows = Recent(group.rows, 1, Linked)
+                    local removed = #group.rows - #rows
+                    miniMeter.categories[name] = { rows = rows, dropped = (group.dropped or 0) + removed }
+                    miniMeter.retained, miniMeter.dropped = miniMeter.retained + #rows, miniMeter.dropped + removed
+                end
+            end
+        end
+        local followups = window.meterFollowups or {}
+        journal.windowsDropped = (journal.windowsDropped or 0) + #journal.windows - 1
+        journal.windows = { { time = window.time, index = window.index, build = window.build, ending = window.ending,
+            endOffset = window.endOffset, availability = window.availability, streams = streams, meter = miniMeter,
+            meterStatus = window.meterStatus, meterWindow = window.meterWindow, meterInterruption = window.meterInterruption,
+            meterFollowups = Recent(followups, 1, function(row) return not row.actorID or Linked(row) end) } }
+        journal.windows[1].meterFollowupsDropped = (window.meterFollowupsDropped or 0)
+            + #followups - #journal.windows[1].meterFollowups
+    end
+    local recaps = Recent(journal.recaps, 1, Linked)
+    journal.recapsDropped = (journal.recapsDropped or 0) + #journal.recaps - #recaps
+    journal.recaps, journal.retention = recaps, "compact"
+end
+
+local function Trim(journal)
+    while SavedBytes(journal, 4) > maxJournalBytes do
+        if #journal.windows > 0 then
+            table.remove(journal.windows, 1)
+            journal.windowsDropped = (journal.windowsDropped or 0) + 1
+        else
+            table.remove(journal.recaps, 1)
+            journal.recapsDropped = (journal.recapsDropped or 0) + 1
+            if #journal.recaps == 0 then return end
+        end
+    end
+end
+
+local function HasJournal(input)
+    return type(input) == "table" and input.version == 1 and type(input.windows) == "table"
+        and type(input.recaps) == "table" and input.retention ~= "compact"
+end
+
+function addon.RestoreCombatDiagnostics(db)
+    local fights = {}
+    for id, battle in pairs(type(db.skirmishes) == "table" and db.skirmishes or {}) do
+        if type(battle) == "table" and type(battle.allies) == "table" and type(battle.enemies) == "table"
+            and HasJournal(battle.combatDiagnostics) then
+            fights[#fights + 1] = { id = tostring(id), battle = battle }
+        end
+    end
+    table.sort(fights, function(a, b)
+        local first, second = a.battle, b.battle
+        local aSequence, bSequence = tonumber(first.sequence) or 0, tonumber(second.sequence) or 0
+        if aSequence ~= bSequence then return aSequence < bSequence end
+        local aTime, bTime = tonumber(first.time) or 0, tonumber(second.time) or 0
+        if aTime ~= bTime then return aTime < bTime end
+        return a.id < b.id
+    end)
+    local journals = {}
+    for index, fight in ipairs(fights) do
+        local journal = fight.battle.combatDiagnostics
+        if index <= #fights - maxJournals then
+            Compact(fight.battle)
+        else
+            Trim(journal)
+            journals[#journals + 1] = fight.battle
+        end
+    end
+    retained[db] = journals
+end
+
+function addon.ForgetCombatDiagnostics(db, battle)
+    if not battle or not battle.combatDiagnostics then return end
+    for index, retainedBattle in ipairs(retained[db] or {}) do
+        if retainedBattle == battle then
+            table.remove(retained[db], index)
+            return
+        end
+    end
+end
+
 local function Journal(battle)
     if not battle.combatDiagnostics then
-        battle.combatDiagnostics = { version = 1, windows = {}, recaps = {} }
+        local journal = { version = 1, windows = {}, recaps = {} }
+        battle.combatDiagnostics = journal
+        if addon.db then
+            local journals = retained[addon.db] or {}
+            retained[addon.db] = journals
+            if #journals >= maxJournals then Compact(table.remove(journals, 1)) end
+            journals[#journals + 1] = battle
+        end
     end
     local journal = battle.combatDiagnostics
-    if type(journal) == "table" and journal.version == 1 and type(journal.windows) == "table"
-        and type(journal.recaps) == "table" then return journal end
+    if HasJournal(journal) then return journal end
 end
 
 function addon.NewCombatDiagnostics(start, time, build, registration)
@@ -87,12 +232,15 @@ function addon.AttachCombatDiagnostics(battle, capture)
     end
     capture.window.index = (journal.windowsDropped or 0) + #windows + 1
     windows[#windows + 1] = capture.window
+    capture.journal = journal
     capture.attached = true
+    Trim(journal)
 end
 
 function addon.EndCombatDiagnostics(capture, ending)
     capture.window.ending = ending
     capture.window.endOffset = RoundedOffset(capture, GetTime())
+    if HasJournal(capture.journal) then Trim(capture.journal) end
 end
 
 local function Stream(capture, name)
@@ -237,17 +385,23 @@ function addon.ObserveCombatPartyKill(capture, attacker, victim)
     Push(capture, "partyKill", row)
 end
 
-function addon.RecordCombatDeathRecap(battle, actor, target, hit)
+function addon.RecordCombatDeathRecap(battle, actor, target, hit, recapIndex, recapTime)
     local journal = Journal(battle)
     if not journal then return end
     local recaps = journal.recaps
+    local time = Value(hit.timestamp, "number")
+    local row = {}
+    row.actorID, row.actorStatus = Player(actor)
+    row.targetID, row.targetStatus = Player(target)
+    row.recapIndex, row.recapTime = recapIndex or 1, recapTime or time
+    for _, previous in ipairs(recaps) do
+        if row.recapTime and (previous.recapTime or previous.eventTime) == row.recapTime
+            and (previous.recapIndex or 1) == row.recapIndex and previous.targetID == row.targetID then return end
+    end
     if #recaps >= maxRecaps then
         table.remove(recaps, 1)
         journal.recapsDropped = (journal.recapsDropped or 0) + 1
     end
-    local row = {}
-    row.actorID, row.actorStatus = Player(actor)
-    row.targetID, row.targetStatus = Player(target)
     local event, status = Value(hit.event, "string")
     row.effect = event and recapEvents[event] and event or nil
     row.effectStatus = event and (row.effect and "readable" or "unknown-token") or status
@@ -257,6 +411,7 @@ function addon.RecordCombatDeathRecap(battle, actor, target, hit)
     SetField(row, "overkill", hit.overkill, "number")
     SetField(row, "absorbed", hit.absorbed, "number")
     recaps[#recaps + 1] = row
+    Trim(journal)
 end
 
 function addon.NewCombatMeterProbe()
@@ -275,7 +430,7 @@ function addon.SampleCombatMeter(probe, category, actor, source, spell, detail, 
     end
 
     local row = {
-        meterUnitID = actor.guid, otherID = other and other.guid,
+        meterUnitID = Player(actor.guid), otherID = other and Player(other.guid),
         resolution = reason, petOwner = source.sourceGUID ~= actor.guid,
         detailStatus = detail and detail.status.row,
     }
@@ -299,6 +454,26 @@ function addon.CommitCombatMeterProbe(capture, probe, sessionID, selection)
     probe.sessionID, probe.selection = sessionID, selection
     probe.readOffset = RoundedOffset(capture, GetTime())
     capture.window.meter = probe
+    if HasJournal(capture.journal) then Trim(capture.journal) end
+end
+
+function addon.RecordCombatMeterFollowup(capture, read, signal, category, increase)
+    local window = capture.window
+    local rows = window.meterFollowups or {}
+    window.meterFollowups = rows
+    if #rows >= 8 then
+        table.remove(rows, 1)
+        window.meterFollowupsDropped = (window.meterFollowupsDropped or 0) + 1
+    end
+    local row = { status = read.status.meter, category = category, readOffset = RoundedOffset(capture, read.uptime) }
+    row.sessionID = Value(read.meterSessionID, "number")
+    row.localDead, row.localDeadStatus = read.playerDead, read.status.playerDead
+    row.localGhost, row.localGhostStatus = read.playerGhost, read.status.playerGhost
+    if signal then
+        row.actorID, row.targetID = Player(signal.actorID), Player(signal.targetID)
+        row.pairTotal, row.amountIncrease = Value(signal.amount, "number"), Value(increase, "number")
+    end
+    rows[#rows + 1] = row
 end
 
 function addon.CombatCastDiagnosticsEvents()
