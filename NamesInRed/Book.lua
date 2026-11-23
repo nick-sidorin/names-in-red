@@ -247,6 +247,8 @@ local function NameMatches(name, query)
     return false
 end
 
+local recentReportRefs
+
 local function SetBookView(view)
     activeView = view
     rivalsPage:SetShown(view == rivalsView)
@@ -275,7 +277,8 @@ function addon.RefreshBook(resetSearch)
         SetBookView(recentView)
     end
     if activeView == recentView then
-        local entries = addon.RecentSkirmishes(addon.db, recentLimit)
+        local entries
+        entries, recentReportRefs = addon.RecentSkirmishes(addon.db, recentLimit)
         recentEmpty:SetShown(#entries == 0)
         recentList:SetShown(#entries > 0)
         recentList:SetEntries(entries)
@@ -305,6 +308,24 @@ end
 function addon.CreateBookHeader(parent)
     local atlas = "Profession-Background-Template2"
     local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas)
+    if addon.OpenIssueReport then
+        local report = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+        report:SetPoint("TOPRIGHT", -24, -32)
+        report:SetHeight(24)
+        report:SetText(L.reportIssue)
+        report:GetFontString():ClearAllPoints()
+        report:GetFontString():SetPoint("CENTER", 8, 0)
+        report:SetWidth(math.max(118, report:GetFontString():GetStringWidth() + 38))
+        report:SetScript("OnClick", function() addon.OpenIssueReport() end)
+        local icon = report:CreateTexture(nil, "ARTWORK")
+        icon:SetPoint("LEFT", 10, 0)
+        icon:SetSize(14, 14)
+        icon:SetTexture(addon.issueBugIcon)
+        local hint = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        hint:SetPoint("RIGHT", report, "LEFT", -8, 0)
+        hint:SetTextColor(0.72, 0.67, 0.59)
+        hint:SetText(L.issuePrompt)
+    end
     if not info or info.width <= 0 or info.height <= 0 then return end
 
     -- Keep the crop that included the lower edge at the original 694-unit draw width.
@@ -686,7 +707,8 @@ local function ToggleBook()
         recentEmpty:SetPoint("CENTER")
         recentEmpty:SetText(L.noSkirmishes)
         recentList = FullSkirmishList(journal, function(card, battle, expanded)
-            card:SetSkirmish(battle, nil, expanded)
+            local ref = recentReportRefs and recentReportRefs[battle]
+            card:SetSkirmish(battle, nil, expanded, ref)
         end)
 
         battlePage = Pane(window, 5, -contentTop, fullPaneWidth, bodyHeight)
@@ -700,7 +722,7 @@ local function ToggleBook()
             addon.RefreshBook()
         end)
         battleList = FullSkirmishList(battlePage, function(card, battle, expanded)
-            card:SetSkirmish(battle, selected, expanded)
+            card:SetSkirmish(battle, selected, expanded, selectedSkirmishID)
         end, true)
 
         CreateSideTabs()

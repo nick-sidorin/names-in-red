@@ -92,6 +92,13 @@ The [PvP skirmish product specification](docs/skirmish-product-spec.md)
 describes intended future participation, outcome and optional battleground
 behavior; the current implementation may differ.
 
+Use **Report an issue** in the journal header or addon settings, or click the
+bug icon on a skirmish to prepare a report for that fight. Copy the report and
+the GitHub issue link from the dialog, then review the report before posting.
+Participant aliases replace character names and GUIDs. Older or reloaded
+records still export what is saved on the card. Additional diagnostics appear
+only when they can be linked to that combat window.
+
 [CurseForge listing Markdown](docs/curseforge-description.md) and
 [short description](docs/curseforge-summary.txt) are ready to copy into the
 [CurseForge description editor](https://authors.curseforge.com/#/projects/1819566/description).

@@ -123,15 +123,7 @@ db.lastDeathTimestamp, db.encounterSequence = 20, 7
 StaticPopupDialogs = {}
 CANCEL, CLOSE = "Cancel", "Close"
 local shown
-local linkBox = {
-    SetText = function(self, text) self.text = text end,
-    SetFocus = function() end,
-    HighlightText = function(self) self.selected = true end,
-}
-function StaticPopup_Show(key)
-    shown = assert(StaticPopupDialogs[key])
-    if shown.OnShow then shown.OnShow({ GetEditBox = function() return linkBox end }) end
-end
+function StaticPopup_Show(key) shown = assert(StaticPopupDialogs[key]) end
 
 assert(rows[3].label == addon.L.resetData and rows[4].label == "Сообщить о проблеме")
 local resetCommand = SlashCmdList.NAMESINREDRESET
@@ -153,7 +145,8 @@ assert(addon.Ledger.PersonalScore(db, rivalID) == 0)
 assert(db == NamesInRedDB and db.minimapAngle == 139 and not rows[1].get() and not rows[2].get())
 assert(journalRefreshes == 1 and badgeRefreshes == 2 and tooltipRefreshes == 2)
 
+local reportOpens = 0
+function addon.OpenIssueReport() reportOpens = reportOpens + 1 end
 rows[4].click()
-assert(shown.hasEditBox and linkBox.selected)
-assert(linkBox.text == "https://github.com/nick-sidorin/names-in-red/issues")
+assert(reportOpens == 1)
 print("Native settings, minimap shortcut, confirmed reset and Issues link checks passed")
