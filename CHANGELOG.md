@@ -2,16 +2,16 @@
 
 ## 1.1.0
 
-- Record connected PvP skirmishes in the open world and on battlegrounds. Battleground recording is enabled by default and can be disabled without losing past fights or rival recognition.
-- Record fights without a killing blow when the available actions connect the participants. Readable Damage Meter details can link support players to the same fight.
-- Track side outcomes from local observations. A battleground fight can have a different result from the match, and insufficient evidence leaves the result Unknown.
-- Keep confirmed deaths, returns to life and repeat finishing blows in the timeline. See personal finishing blows and deaths separately from skirmish wins, losses, Honorable Kills and Honor Points.
-- Copy a privacy-filtered issue report from the journal, settings or a specific skirmish. Reports work after reload with the evidence saved on the card.
+For **World of Warcraft: Forever 1.60.1**.
 
-- Preserve isolated lethal PvP results when observation stops afterward. Improve recovery of off-target finishing blows, connected allies and observed casualties.
-- Show Blizzard’s skull for a confirmed skull-level opponent. Preserve earned honor and Honorable Kills in the journal when the opponent or fight cannot be attributed.
+- Record connected skirmishes in the open world and on battlegrounds, including fights without a killing blow. Battleground recording is on by default and can be turned off while keeping existing history.
+- Track the outcome of each local fight. Improve recognition of off-target finishing blows, connected allies, observed casualties and isolated lethal encounters. Fights with insufficient evidence remain **Unknown**.
+- Keep rival and skirmish history indefinitely, including confirmed kills, deaths, revivals, rewards and linked Damage Meter samples for damage, healing and absorbs. The shared history view shows the latest 100 fights. Each rival's full history remains available.
+- See personal finishing blows and deaths separately from skirmish wins and losses. Verified skull-level opponents display Blizzard's skull badge. Earned Honorable Kills and Honor Points remain visible even when an award cannot be linked to a rival or fight.
+- Copy a privacy-filtered JSONL report from the journal, settings or a skirmish. The wider report window shows the SavedVariables path and offers extra pages for long reports.
+- Save bounded combat diagnostics for each fight, including readable observations and Damage Meter aggregates. Reports retain available evidence after reload. Older detailed diagnostics can be compacted while the fight remains in the journal.
 
-Battleground tracking, automatic outcomes and participant reconstruction are still being refined. Forever can restrict combat information. Rosters and reward attribution can be incomplete, and some revivals or repeat kills may be missed.
+Participant reconstruction, automatic outcomes and battleground tracking are evolving. Forever can restrict access to combat data. Rosters, rewards and event histories can be incomplete.
 
 ## 1.0.0
 

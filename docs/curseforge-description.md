@@ -8,7 +8,7 @@ Your personal journal for open-world PvP and battleground skirmishes for **World
 
 - 📖 **Remember your rivals** — Build a searchable record of identifiable enemies you've fought, saved separately for each character.
 - ⚔️ **Track the score** — See wins, losses, Honorable Kills, and attributed Honor Points against each rival.
-- 📜 **Revisit every skirmish** — Explore one rival's history or browse your latest 100 recorded fights, newest first.
+- 📜 **Revisit past skirmishes** — Browse a rival's full history or open the latest 100 fights across all rivals.
 - 🛡️ **See who fought** — Open detailed cards with observed allies, enemies, results, casualties, finishing blows and rewards.
 - 🚩 **Record battleground clashes** — Review local fights in the same journal. Turn recording off in settings while keeping your existing history.
 - 💬 **Recognize familiar enemies** — See your win/loss record on their nameplates and in their standard unit tooltips.
@@ -16,7 +16,7 @@ Your personal journal for open-world PvP and battleground skirmishes for **World
 - 🐞 **Report a problem from the journal** — Copy a diagnostic report for a skirmish or a general issue.
 - ✍️ **Fill in the gaps** — Manually add a skirmish when automatic tracking cannot capture what happened.
 
-The journal is saved per character. Nameplate indicators and tooltip details can be switched off independently.
+The journal is saved per character and keeps your recorded rival and skirmish history indefinitely. Nameplate indicators and tooltip details can be switched off independently.
 
 ## 📖 Your Personal Rival Book
 
@@ -45,7 +45,7 @@ Both are enabled by default and have separate switches under the addon settings.
 
 ## 📝 What Gets Recorded
 
-Names in Red observes **open-world PvP and battleground skirmishes** using information the Forever client makes available to addons. It records readable kills and deaths, groups related observations into skirmishes, and adds other participants when there is sufficient evidence. Battleground cards identify the local fight and its outcome. Matches can contain several independent skirmishes.
+Names in Red observes **open-world PvP and battleground skirmishes** using information the Forever client makes available to addons. It groups related activity into skirmishes, including fights without a killing blow. The saved record can include confirmed deaths and revivals, earned rewards, and linked Damage Meter samples for damage, healing and absorbs. Battleground cards identify the local fight and its outcome. Matches can contain several independent skirmishes.
 
 Not every encounter exposes a complete team or a certain result. Those records remain in the journal with an incomplete roster or unknown outcome instead of guessing. Rewards appear on the most specific confirmed record. If the addon cannot associate an award with a fight, the journal shows it in **Rewards without a skirmish**. An unidentified player may appear as **Unknown rival** until their full name is available.
 
@@ -75,13 +75,13 @@ More diagnostic and demo commands are documented in the [project guide](https://
 - **Client:** Built specifically for **World of Warcraft: Forever 1.60.1**.
 - **Languages:** Follows the WoW client language: English, Russian, German, French, Spanish, Italian, Brazilian Portuguese, Korean, Simplified Chinese, and Traditional Chinese.
 - **History:** Stored separately for each character; unavailable identity, team size, rewards, or outcomes are not fabricated.
-- **Diagnostics:** The latest 1,000 diagnostic records are saved locally per character. These may contain character names, identifiers, and honor messages. Review them before voluntarily sharing a SavedVariables file in a bug report.
+- **Diagnostics:** A rolling local log and bounded per-fight samples help investigate bugs. You can copy an issue report after reload. Older detailed diagnostics can be compacted while the fight and its confirmed timeline stay in your history.
 
-**Update 1.1.0:** Local battleground skirmishes, fights without killing blows, resurrection history and in-game issue reports.
+**Update 1.1.0** adds local battleground skirmishes, fights without killing blows, resurrection history and in-game issue reports with optional detail pages.
 
 **[Report a Bug or Suggest a Feature](https://github.com/nick-sidorin/names-in-red/issues)**
 
-For a bug, click the bug icon on the affected skirmish or use **Report an issue** in the journal header. Review the report, then copy it into a new issue and describe what you expected to happen. For an idea, click **New issue** on GitHub.
+Click **New issue** to report a problem or share an idea. For a bug, click the bug icon on the affected skirmish or use **Report an issue** in the journal header. Review and paste the report, then add the game build, addon version and steps to reproduce where available. The report window also shows where to find the optional `NamesInRed.lua` SavedVariables file. That file can contain character names and GUIDs, and attachments to a public issue are public.
 
 **[Source Code](https://github.com/nick-sidorin/names-in-red)**
 
