@@ -657,12 +657,14 @@ local function BuildWindow()
     reportHint:SetWordWrap(true)
     reportHint:SetText(L.issueReportHint)
 
-    local savedVariablesHint = window:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local savedVariablesHint = window:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     savedVariablesHint:SetPoint("BOTTOMLEFT", 20, 17)
     savedVariablesHint:SetPoint("BOTTOMRIGHT", -20, 17)
     savedVariablesHint:SetJustifyH("LEFT")
     savedVariablesHint:SetWordWrap(true)
-    savedVariablesHint:SetText(L.issueSavedVariablesHint)
+    savedVariablesHint:SetNonSpaceWrap(true)
+    local savedVariablesPath = [[_forever_\WTF\Account\<account>\<realm>\<character>\SavedVariables\NamesInRed.lua]]
+    savedVariablesHint:SetText(L.issueSavedVariablesHint:format(savedVariablesPath))
 
     local copy = CreateFrame("Button", nil, window, "UIPanelButtonTemplate")
     copy:SetPoint("BOTTOMLEFT", savedVariablesHint, "TOPLEFT", 0, 10)

@@ -64,7 +64,7 @@ local dictionaries = {
         issueReportHint = "Send me this code with information about the skirmish",
         issueSelectReport = "Select report",
         issueReportPart = "Next part (%d/%d)",
-        issueSavedVariablesHint = "Optional: attach NamesInRed.lua from SavedVariables for more diagnostics. You can share it as is. The public issue attachment may contain character names and GUIDs.",
+        issueSavedVariablesHint = "For more diagnostics, you can attach the file as is. This is its usual location in your World of Warcraft folder.\n%s\nAnyone can view a public attachment. The file may contain character names and GUIDs.",
 
         debugSeedsAdded = "Sample rivals added: %d",
         debugSeedsRemoved = "Sample rivals removed: %d",
@@ -134,7 +134,7 @@ local dictionaries = {
         issueReportHint = "Schick mir diesen Code mit Informationen zum Gefecht",
         issueSelectReport = "Bericht auswählen",
         issueReportPart = "Nächster Teil (%d/%d)",
-        issueSavedVariablesHint = "Optional: Hänge NamesInRed.lua aus SavedVariables für mehr Diagnosedaten an. Du kannst die Datei unverändert teilen. Der öffentliche Anhang kann Charakternamen und GUIDs enthalten.",
+        issueSavedVariablesHint = "Für mehr Diagnosedaten kannst du die Datei unverändert anhängen. Du findest sie für gewöhnlich hier im World-of-Warcraft-Ordner.\n%s\nÖffentliche Anhänge sind für alle sichtbar. Die Datei kann Charakternamen und GUIDs enthalten.",
 
         debugSeedsAdded = "Beispielgegner hinzugefügt: %d",
         debugSeedsRemoved = "Beispielgegner entfernt: %d",
@@ -204,7 +204,7 @@ local dictionaries = {
         issueReportHint = "Envíame este código con los datos de la escaramuza",
         issueSelectReport = "Seleccionar informe",
         issueReportPart = "Siguiente parte (%d/%d)",
-        issueSavedVariablesHint = "Opcional: adjunta NamesInRed.lua de SavedVariables para aportar más datos. Puedes compartir el archivo tal cual. El adjunto público puede contener nombres de personajes y GUID.",
+        issueSavedVariablesHint = "Si quieres aportar más datos, adjunta el archivo tal cual. Esta es su ubicación habitual en la carpeta de World of Warcraft.\n%s\nLos adjuntos públicos son visibles para todos. El archivo puede contener nombres de personajes y GUID.",
 
         debugSeedsAdded = "Adversarios de ejemplo añadidos: %d",
         debugSeedsRemoved = "Adversarios de ejemplo eliminados: %d",
@@ -274,7 +274,7 @@ local dictionaries = {
         issueReportHint = "Envoyez-moi ce code avec les informations sur l’escarmouche",
         issueSelectReport = "Sélectionner le rapport",
         issueReportPart = "Partie suivante (%d/%d)",
-        issueSavedVariablesHint = "Facultatif : joignez NamesInRed.lua depuis SavedVariables pour fournir plus de détails. Vous pouvez partager le fichier tel quel. La pièce jointe publique peut contenir des noms de personnages et des GUID.",
+        issueSavedVariablesHint = "Pour fournir plus de détails, vous pouvez joindre le fichier tel quel. Il se trouve généralement ici dans le dossier de World of Warcraft.\n%s\nTout le monde peut voir une pièce jointe publique. Le fichier peut contenir des noms de personnages et des GUID.",
 
         debugSeedsAdded = "Exemples d’adversaires ajoutés : %d",
         debugSeedsRemoved = "Exemples d’adversaires supprimés : %d",
@@ -344,7 +344,7 @@ local dictionaries = {
         issueReportHint = "Inviami questo codice con i dati della schermaglia",
         issueSelectReport = "Seleziona rapporto",
         issueReportPart = "Parte successiva (%d/%d)",
-        issueSavedVariablesHint = "Facoltativo: allega NamesInRed.lua da SavedVariables per fornire più dati diagnostici. Puoi condividere il file così com’è. L’allegato pubblico può contenere nomi dei personaggi e GUID.",
+        issueSavedVariablesHint = "Per fornire più dati diagnostici, puoi allegare il file così com’è. Di solito si trova qui nella cartella di World of Warcraft.\n%s\nGli allegati pubblici sono visibili a tutti. Il file può contenere nomi dei personaggi e GUID.",
 
         debugSeedsAdded = "Avversari di esempio aggiunti: %d",
         debugSeedsRemoved = "Avversari di esempio rimossi: %d",
@@ -414,7 +414,7 @@ local dictionaries = {
         issueReportHint = "교전 정보가 담긴 이 코드를 보내 주세요",
         issueSelectReport = "보고서 선택",
         issueReportPart = "다음 부분 (%d/%d)",
-        issueSavedVariablesHint = "추가 진단 정보가 필요하면 SavedVariables의 NamesInRed.lua를 첨부하세요. 파일을 그대로 공유할 수 있습니다. 공개 이슈 첨부 파일에는 캐릭터 이름과 GUID가 들어 있을 수 있습니다.",
+        issueSavedVariablesHint = "추가 진단 정보를 보내려면 파일을 그대로 첨부하세요. 보통 World of Warcraft 폴더의 다음 경로에 있습니다.\n%s\n공개 첨부 파일은 누구나 볼 수 있습니다. 파일에는 캐릭터 이름과 GUID가 들어 있을 수 있습니다.",
 
         debugSeedsAdded = "추가한 예시 상대: %d",
         debugSeedsRemoved = "삭제한 예시 상대: %d",
@@ -484,7 +484,7 @@ local dictionaries = {
         issueReportHint = "Envie-me este código com os dados da escaramuça",
         issueSelectReport = "Selecionar relatório",
         issueReportPart = "Próxima parte (%d/%d)",
-        issueSavedVariablesHint = "Opcional: anexe NamesInRed.lua de SavedVariables para fornecer mais dados. Você pode enviar o arquivo como está. O anexo público pode conter nomes de personagens e GUIDs.",
+        issueSavedVariablesHint = "Você pode anexar o arquivo como está para fornecer mais dados. Este é o local habitual dele na pasta do World of Warcraft.\n%s\nQualquer pessoa pode ver um anexo público. O arquivo pode conter nomes de personagens e GUIDs.",
 
         debugSeedsAdded = "Adversários de exemplo adicionados: %d",
         debugSeedsRemoved = "Adversários de exemplo removidos: %d",
@@ -554,7 +554,7 @@ local dictionaries = {
         issueReportHint = "Отправь мне этот код с информацией о стычке",
         issueSelectReport = "Выделить отчёт",
         issueReportPart = "Следующая часть (%d/%d)",
-        issueSavedVariablesHint = "По желанию приложи NamesInRed.lua из SavedVariables. В нём больше диагностических данных. Файл можно приложить как есть. В публичном отчёте другим будут видны игровые имена и GUID, если они есть в файле.",
+        issueSavedVariablesHint = "По желанию приложи файл как есть. Обычно он лежит по этому пути в папке World of Warcraft.\n%s\nПубличное вложение видно всем. В файле могут быть имена персонажей и GUID.",
 
         debugSeedsAdded = "Добавлено тестовых противников: %d",
         debugSeedsRemoved = "Удалено тестовых противников: %d",
@@ -624,7 +624,7 @@ local dictionaries = {
         issueReportHint = "请把这段包含交战信息的代码发给我",
         issueSelectReport = "选中报告",
         issueReportPart = "下一部分（%d/%d）",
-        issueSavedVariablesHint = "可选：附上 SavedVariables 中的 NamesInRed.lua，提供更多诊断信息。可以直接分享原文件。公开问题的附件可能包含角色名和 GUID。",
+        issueSavedVariablesHint = "如需提供更多诊断信息，可以直接附上原文件。它通常位于 World of Warcraft 文件夹下的此路径。\n%s\n任何人都可以查看公开附件。文件可能包含角色名和 GUID。",
 
         debugSeedsAdded = "已添加示例对手：%d",
         debugSeedsRemoved = "已移除示例对手：%d",
@@ -694,7 +694,7 @@ local dictionaries = {
         issueReportHint = "請把這段包含交戰資訊的代碼傳給我",
         issueSelectReport = "選取報告",
         issueReportPart = "下一部分（%d/%d）",
-        issueSavedVariablesHint = "選用：附上 SavedVariables 中的 NamesInRed.lua，提供更多診斷資料。可直接分享原始檔案。公開問題的附件可能包含角色名稱和 GUID。",
+        issueSavedVariablesHint = "若要提供更多診斷資料，可以直接附上原始檔案。檔案通常位於 World of Warcraft 資料夾下的這個路徑。\n%s\n任何人都能查看公開附件。檔案可能包含角色名稱和 GUID。",
 
         debugSeedsAdded = "已新增範例對手：%d",
         debugSeedsRemoved = "已移除範例對手：%d",
