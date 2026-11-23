@@ -86,8 +86,7 @@ frame:SetScript("OnEvent", function()
     if not addon.db then
         return
     end
-    local _, instanceType = IsInInstance()
-    if Readable(instanceType) ~= "none" then
+    if not addon.RecordingPvPOrigin() then
         return
     end
     local context = addon.EncounterContext()

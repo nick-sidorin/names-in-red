@@ -2,19 +2,19 @@ local _, addon = ...
 local Readable = addon.Readable
 local Ledger = addon.Ledger
 local open, tail, lastRecord
+local spiritHealerInRange
 local generation, area = 0, 0
 local lateEvent = 2.5
 local bridgeAge = 5
 local terminalSignalAge = 12
 local lifeSettle = 0.5
 
-local function IsWorld()
-    local _, instance = IsInInstance()
-    return Readable(instance) == "none"
-end
+local Origin = addon.RecordingPvPOrigin
 
 local function SamePlace(a, b)
-    return type(a.zone) == "string" and a.zone == b.zone
+    return (a.origin or "world") == (b.origin or "world")
+        and (not a.instanceMapID or not b.instanceMapID or a.instanceMapID == b.instanceMapID)
+        and type(a.zone) == "string" and a.zone == b.zone
         and (not a.mapID or not b.mapID or a.mapID == b.mapID)
 end
 
@@ -85,7 +85,8 @@ local function Save(record)
     if not record.id then
         addon.db.encounterSequence = (addon.db.encounterSequence or 0) + 1
         record.battle.sequence = addon.db.encounterSequence
-        record.id = "world:" .. record.battle.sequence
+        local prefix = record.battle.origin == "battleground" and "bg:" or "world:"
+        record.id = prefix .. record.battle.sequence
     end
     addon.RecordSkirmish(record.id, record.battle)
     return record.id
@@ -97,13 +98,26 @@ local function InsertEvent(battle, event)
     table.insert(battle.events, index, event)
 end
 
+local function SpiritReturnBoundary(window, record)
+    if not window or window.place.origin ~= "battleground" then return end
+    local states = record and record.battle.observation.life or window.life
+    local last = states and states[#states]
+    if not last or last.state ~= "ghost" then return end
+    if spiritHealerInRange then return "battleground-spirit-respawn" end
+    local bridge = record and record.bridge
+    if not bridge or bridge.seen < record.began + last.offset or GetTime() - bridge.seen > bridgeAge then
+        return "battleground-unlinked-return"
+    end
+end
+
 local function RecordAlive(record, id, stamp, source)
+    local player = record.battle.allies[1]
+    if player.isSelf and player.id == id and SpiritReturnBoundary(record.lastWindow, record) then return end
     local death = Ledger.LatestParticipantLife(record.battle, id)
     if not Ledger.IndicatesDeath(death) or not Ledger.LaterBattleEvent(stamp, death) then return end
     if death.source == "party-kill" and not death.observedDead
         and type(death.offset) == "number" and stamp.offset - death.offset < lifeSettle then return end
     InsertEvent(record.battle, { kind = "revive", targetID = id, time = stamp.time, offset = stamp.offset, source = source })
-    local player = record.battle.allies[1]
     if player.isSelf and player.id == id then record.battle.observation.playerState = "alive" end
     return true
 end
@@ -191,7 +205,7 @@ local function Confirm(window, opponents, basis)
         local place = window.place
         record = { began = window.began, lastWindow = window, battle = {
             startedAt = place.time, time = place.time, zone = place.zone, mapID = place.mapID, x = place.x, y = place.y,
-            origin = "world", rosterComplete = false, allies = {}, enemies = {}, events = {},
+            origin = place.origin or "world", instanceMapID = place.instanceMapID, rosterComplete = false, allies = {}, enemies = {}, events = {},
             observation = { segments = {}, life = {}, coverage = "local", assessment = { checkStatus = "watching" } },
         } }
         Participant(record.battle.allies, window.self, addon.UnitPlayerName("player"), place.playerLevel, nil, true,
@@ -200,6 +214,10 @@ local function Confirm(window, opponents, basis)
     window.previous = nil
     window.segment.confirmedBy = basis
     local observation = record.battle.observation
+    if window.segment.observationStopped then
+        observation.assessment.interrupted = window.segment.observationStopped
+        observation.visibilityGap = true
+    end
     observation.segments[#observation.segments + 1] = window.segment
     for _, event in ipairs(window.life or {}) do
         local offset = event.offset + window.began - record.began
@@ -280,7 +298,7 @@ local function LateWindow(place)
 end
 
 function addon.WorldDeathWindow(place)
-    if not IsWorld() then return end
+    if not Origin() then return end
     if Valid(open) and SamePlace(open.place, place) then return open end
     local window = LateWindow(place)
     if window then return window end
@@ -296,7 +314,7 @@ function addon.WorldDeathWindow(place)
 end
 
 function addon.WorldCanObserveMeter(window)
-    return Valid(window) and window.area == area and not open and window.ended and window.record
+    return Origin() and Valid(window) and window.area == area and not open and window.ended and window.record
         and lastRecord == window.record and lastRecord.lastWindow == window
         and SamePlace(window.place, addon.EncounterContext())
 end
@@ -335,8 +353,11 @@ function addon.ObservedWorldOpponent(guid, context, actor)
 end
 
 function addon.WorldMeterContext(window, row)
-    if not Valid(window) or window.area ~= area or not window.ended or not SamePlace(window.place, row)
-        or row.instanceType ~= "none" or not row.player or row.player.guid ~= window.self then return end
+    local origin = Origin()
+    if not Valid(window) or window.area ~= area or not window.ended or not origin
+        or (window.place.origin or "world") ~= origin or not SamePlace(window.place, row)
+        or row.instanceType ~= (origin == "battleground" and "pvp" or "none")
+        or not row.player or row.player.guid ~= window.self then return end
     local faction = row.player.faction
     if faction ~= "Alliance" and faction ~= "Horde" then return end
     local anchors = { [window.self] = true }
@@ -393,11 +414,23 @@ local function TimelinePair(window, actor, target, kind, spell)
 end
 
 function addon.RecordWorldEncounter(guid, name, direction, context)
-    if not context.worldWindow and not IsWorld() then return end
+    local origin = Origin()
+    if not origin then return end
+    context.origin = context.origin or origin
+    if context.origin ~= origin then return end
     local window = context.worldWindow or open or LinkedWindow(guid, context.actorID, context)
     if not window then
         local candidate = LateWindow(context)
         if candidate and (not candidate.record or Present(candidate.record.battle.enemies, guid)) then window = candidate end
+    end
+    if origin == "battleground" and direction == "killsAgainstThem" and context.actorID
+        and context.actorID ~= PlayerGUID() then
+        -- A battleground raid kill can be delivered while we are fighting
+        -- elsewhere. Only actors and victims already linked to our window
+        -- can extend it through a teammate's finishing blow.
+        local battle = Valid(window) and window.record and window.record.battle
+        if not battle or not Present(battle.allies, context.actorID) or not Present(battle.enemies, guid)
+            or not SamePlace(window.place, context) then return nil, nil, "unlinked" end
     end
     if not Valid(window) or not SamePlace(window.place, context) then
         if context.worldWindow then return end
@@ -477,7 +510,7 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
     end
     window.segment.lastConfirmedAt = math.max(window.segment.lastConfirmedAt or 0, event.time or 0)
     window.dirty = nil
-    NewActivity(window, actorID, targetID, "kill")
+    if not window.segment.observationStopped then NewActivity(window, actorID, targetID, "kill") end
     return Save(record), battle
 end
 
@@ -565,7 +598,7 @@ local handlers = {}
 
 function handlers.UNIT_AURA(unit, update)
     unit, update = Readable(unit), OpenTable(update)
-    if type(unit) ~= "string" or not addon.db or not update or not IsWorld() then return end
+    if type(unit) ~= "string" or not addon.db or not update or not Origin() then return end
     local full = update.isFullUpdate
     if (issecretvalue and issecretvalue(full)) or full == true then return end
     local additions = OpenTable(update.addedAuras)
@@ -577,6 +610,7 @@ function handlers.UNIT_AURA(unit, update)
 end
 
 local function ObserveParticipantLife(unit, source)
+    if not Origin() then return end
     unit = Readable(unit)
     if type(unit) ~= "string" then return end
     local record = open and open.record or lastRecord
@@ -637,7 +671,7 @@ function handlers.UNIT_FLAGS(unit)
 end
 
 function handlers.PLAYER_REGEN_DISABLED()
-    if not IsWorld() then return end
+    if not Origin() then return end
     local place = addon.EncounterContext()
     if Valid(open) and not open.localStart and open.segment.startReason == "harmful-aura" and SamePlace(open.place, place) then
         open.segment.localCombatAt = place.time
@@ -659,7 +693,7 @@ function handlers.PLAYER_REGEN_ENABLED()
 end
 
 local function Life(kind, source)
-    if not IsWorld() then return end
+    if not Origin() then return end
     local place = addon.EncounterContext()
     local window = kind == "dead" and addon.WorldDeathWindow(place) or (open or tail)
     if not Valid(window) then return end
@@ -685,8 +719,23 @@ local function Life(kind, source)
 end
 
 function handlers.PLAYER_DEAD() Life("dead", "player-dead") end
+local Leave
+
 local function LocalAlive(source)
-    if UnitIsDeadOrGhost and Readable(UnitIsDeadOrGhost("player")) == false then Life("alive", source) end
+    if not UnitIsDeadOrGhost or Readable(UnitIsDeadOrGhost("player")) ~= false then return end
+    if Origin() == "battleground" then
+        local window = open or tail
+        local record = Valid(window) and window.record
+        local boundary = SpiritReturnBoundary(window, record)
+        if boundary then
+            -- The next local fight starts with fresh evidence after a respawn.
+            Leave(boundary)
+            spiritHealerInRange = nil
+            return
+        end
+        spiritHealerInRange = nil
+    end
+    Life("alive", source)
 end
 function handlers.PLAYER_ALIVE()
     if UnitIsGhost and Readable(UnitIsGhost("player")) == true then Life("ghost", "released-spirit")
@@ -696,18 +745,18 @@ function handlers.PLAYER_UNGHOST()
     LocalAlive("player-unghost")
 end
 
-local function Leave(reason)
+Leave = function(reason, discardUnsaved)
     local window = open or tail
     if Valid(window) then
         Close(window, addon.EncounterContext(), reason)
-        if window.record then
+        window.segment.observationStopped = reason
+        if window.record and (window.record.id or not discardUnsaved) then
             local record = window.record
             local state = Assessment(record)
             if not (record.battle.resolution and record.battle.resolution.ending == "observed") then
                 state.interrupted = reason
                 record.battle.observation.visibilityGap = true
             end
-            window.segment.observationStopped = reason
             Save(record)
         end
     end
@@ -720,7 +769,38 @@ function handlers.ZONE_CHANGED_NEW_AREA()
     local window = open or tail
     if Valid(window) and not SamePlace(window.place, addon.EncounterContext()) then Leave("area-changed") end
 end
-function handlers.PLAYER_LEAVING_WORLD() Leave("left-world") end
+function handlers.PLAYER_LEAVING_WORLD()
+    Leave("left-world")
+    addon.SetBattlegroundEnded(false)
+    spiritHealerInRange = nil
+end
+
+function handlers.PVP_MATCH_ACTIVE()
+    addon.SetBattlegroundEnded(false)
+    spiritHealerInRange = nil
+end
+
+function handlers.PVP_MATCH_COMPLETE()
+    local window = open or tail
+    if not (window and window.place.origin == "battleground") and Origin() ~= "battleground" then return end
+    Leave("battleground-match-ended")
+    addon.SetBattlegroundEnded(true)
+    spiritHealerInRange = nil
+    if addon.ResetHonorTracking then addon.ResetHonorTracking() end
+end
+
+function handlers.AREA_SPIRIT_HEALER_IN_RANGE()
+    if Origin() == "battleground" then spiritHealerInRange = true end
+end
+function handlers.AREA_SPIRIT_HEALER_OUT_OF_RANGE() spiritHealerInRange = nil end
+
+function addon.OnBattlegroundTrackingChanged()
+    Leave("battleground-setting-changed", true)
+    addon.ResetWorldTracking()
+    if addon.CancelPendingDeath then addon.CancelPendingDeath() end
+    if addon.ResetHonorTracking then addon.ResetHonorTracking() end
+    if addon.CancelDiagnosticCombat then addon.CancelDiagnosticCombat() end
+end
 function handlers.PLAYER_LOGOUT() Leave("logout") end
 
 function handlers.DUEL_FINISHED()

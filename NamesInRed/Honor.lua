@@ -16,7 +16,9 @@ local function Save(batch)
     if pending ~= batch then return end
     pending = nil
     local battle = batch.battle
-    if batch.kills ~= 1 or batch.hk ~= 1 or not battle or not addon.db.skirmishes
+    if batch.origin ~= addon.RecordingPvPOrigin() or not batch.origin
+        or (batch.origin == "battleground" and batch.instanceMapID ~= addon.BattlegroundMapID())
+        or batch.kills ~= 1 or batch.hk ~= 1 or not battle or not addon.db.skirmishes
         or addon.db.skirmishes[batch.id] ~= battle then return end
     local honor
     if batch.messages == 1 then
@@ -45,12 +47,16 @@ end
 
 local function CurrentBatch()
     local now = GetTime()
+    local origin = addon.RecordingPvPOrigin()
+    local instanceMapID = origin == "battleground" and addon.BattlegroundMapID() or nil
+    if pending and (pending.origin ~= origin or pending.instanceMapID ~= instanceMapID) then pending = nil end
     if pending and now >= pending.deadline then Save(pending) end
     if pending then
         pending.deadline = now + windowSeconds
         return pending
     end
     local batch = { kills = 0, hk = 0, messages = 0, currencyUpdates = 0, lines = {}, deadline = now + windowSeconds }
+    batch.origin, batch.instanceMapID = origin, instanceMapID
     pending = batch
     C_Timer.After(windowSeconds, function() FinishWhenQuiet(batch) end)
     return batch
@@ -112,8 +118,7 @@ for event in pairs(handlers) do pcall(frame.RegisterEvent, frame, event) end
 frame:SetScript("OnEvent", function(_, event, ...)
     if not addon.db then return end
     if event ~= "PLAYER_ENTERING_WORLD" and event ~= "PLAYER_LEAVING_WORLD" then
-        local _, instanceType = IsInInstance()
-        if Readable(instanceType) ~= "none" then return end
+        if not addon.RecordingPvPOrigin() then return end
     end
     handlers[event](...)
 end)

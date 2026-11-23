@@ -20,8 +20,8 @@ local function ObservedDuel(battle)
 end
 
 local function UpdateWorldRoster(id, battle)
-    if type(id) == "string" and id:match("^world:%d+$") then
-        battle.rosterComplete = ObservedDuel(battle)
+    if type(id) == "string" and (id:match("^world:%d+$") or id:match("^bg:%d+$")) then
+        battle.rosterComplete = battle.origin ~= "battleground" and ObservedDuel(battle)
         if battle.observation and battle.observation.assessment and addon.EvaluateWorldSkirmish then
             battle.resolution = addon.EvaluateWorldSkirmish(battle)
         end

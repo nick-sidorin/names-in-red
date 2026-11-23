@@ -409,6 +409,14 @@ local function BindParticipantTile(tile, player, known, level, died, selectedRiv
     tile:Show()
 end
 
+local function LocationLabel(encounter)
+    local zone = encounter.zone and encounter.zone ~= "" and encounter.zone or L.unknownLocation
+    if encounter.origin == "battleground" then
+        return zone .. "  |cffc9b8a2· " .. L.battleground .. "|r"
+    end
+    return zone
+end
+
 function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmish)
     local card = CreateCard(parent, width, addon.compactEncounterCardHeight)
     local zone = Label(card, "GameFontHighlight", "LEFT", cardInset, compactHeaderCenter, width - 167, "TOPLEFT")
@@ -499,7 +507,7 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         day:SetText(encounterDay)
         time:SetText(encounterTime)
         zone:SetWidth(width - 20 - stampRight - stampWidth)
-        zone:SetText(encounter.zone and encounter.zone ~= "" and encounter.zone or L.unknownLocation)
+        zone:SetText(LocationLabel(battle or encounter))
         info:SetTooltipInfo(encounter.skirmishID and L.openSkirmish or L.attackers)
     end
     return card
@@ -660,6 +668,8 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
     card:SetBackdropColor(0.085, 0.06, 0.04, 0.50)
     local sideWidth = math.floor((width - 2 * cardInset - rosterGutter) / 2)
     local zone = Label(card, "GameFontHighlight", "LEFT", cardInset, fullHeaderCenter, sideWidth, "TOPLEFT")
+    zone:SetWordWrap(true)
+    zone:SetMaxLines(2)
     local score = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     score:SetPoint("CENTER", card, "TOP", 0, fullHeaderCenter - 2)
     local coverage = CreateFrame("Button", nil, card, "UIPanelInfoButton")
@@ -706,7 +716,7 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
         local bottom = RosterBottom(height)
         local middle = rosterTop - height / 2
         setResult(addon.Ledger.SkirmishOutcome(battle) or "unknown", changed, middle)
-        zone:SetText(battle.zone and battle.zone ~= "" and battle.zone or L.unknownLocation)
+        zone:SetText(LocationLabel(battle))
         score:SetText(("%d × %d"):format(#battle.allies, #battle.enemies))
         coverage:SetShown(battle.rosterComplete ~= true)
         local day, time = EncounterDate(battle)

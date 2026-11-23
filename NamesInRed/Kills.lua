@@ -35,6 +35,8 @@ local function Record(victim, name, context, retry)
             pending[victim] = nil
             if not context.ambiguous then Record(victim, name, context, true) end
         end)
+    elseif status == "unlinked" then
+        addon.ObserveHonorKill()
     elseif status == nil and (id or not addon.WorldDeathWindow) then
         pending[victim] = nil
         addon.ObserveHonorKill(id, battle, victim)
@@ -47,8 +49,7 @@ frame:SetScript("OnEvent", function(_, _, attacker, victim)
         return
     end
 
-    local _, instanceType = IsInInstance()
-    if Readable(instanceType) ~= "none" then
+    if not addon.RecordingPvPOrigin() then
         return
     end
 

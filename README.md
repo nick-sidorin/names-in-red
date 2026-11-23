@@ -41,8 +41,9 @@ Right-click the minimap icon or open **Options → AddOns → Names in Red**.
 Nameplate icons and unit tooltip information are enabled by default and can
 be toggled independently. **Reset data** confirms before deleting the current
 character's rivals, skirmishes and diagnostic logs. Display preferences and
-the minimap icon position are kept. **Report an issue** shows a copyable link
-to [GitHub Issues](https://github.com/nick-sidorin/names-in-red/issues).
+the minimap icon position are kept. **Track Battleground Skirmishes** is on
+by default. Turn it off to stop recording new battleground activity while
+keeping previous records and recognizing familiar rivals.
 
 ## Chat commands
 
@@ -61,11 +62,13 @@ Enter these commands in the in-game chat box.
 
 See [diagnostics and sample data](docs/debug-preview.md) for details.
 
-## How the score works (current implementation)
+## How the score works
 
-The following describes the existing runtime, **not** the agreed future
-skirmish behavior. See the [PvP skirmish product specification](docs/skirmish-product-spec.md)
-for the proposed participation, outcome and battleground rules.
+The journal records local fights in the open world and on battlegrounds.
+Battleground cards label their origin and use the same rival profiles.
+A battleground fight can have a different result from the overall match.
+The [PvP skirmish product specification](docs/skirmish-product-spec.md)
+describes the full participation and outcome model.
 
 - **Wins** and **Losses** count the result of your side.
   A recorded result counts once in the journal and once in each opponent's
@@ -74,7 +77,7 @@ for the proposed participation, outcome and battleground rules.
 - In open-world history, a direct fight between you and the only recorded
   opponent counts as a duel. If another participant is recorded in the same
   fight, the result is recalculated using the larger roster.
-- A world skirmish receives a result when terminal observations support a
+- A skirmish receives a result when terminal observations support a
   side. A confirmed departure under pressure can count with zero kills.
   Unknown stays in history without contributing a win or loss. Older
   recorded and manually entered results stay available.
@@ -89,8 +92,7 @@ remain in the journal with their recorded participants and timeline.
 ## Development
 
 The [PvP skirmish product specification](docs/skirmish-product-spec.md)
-describes intended future participation, outcome and optional battleground
-behavior; the current implementation may differ.
+describes the participation, outcome and battleground behavior.
 
 Use **Report an issue** in the journal header or addon settings, or click the
 bug icon on a skirmish to prepare a report for that fight. Copy the report and
