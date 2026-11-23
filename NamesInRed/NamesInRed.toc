@@ -1,17 +1,17 @@
 ## Interface: 16001
 ## Title: Names in Red
-## Notes: Remember your rivals and review open-world PvP skirmishes.
-## Notes-deDE: Merke dir deine Rivalen und sieh dir deine PvP-Gefechte in der offenen Welt an.
-## Notes-esES: Recuerda a tus rivales y consulta tus escaramuzas JcJ en el mundo abierto.
-## Notes-esMX: Recuerda a tus rivales y consulta tus escaramuzas JcJ en el mundo abierto.
-## Notes-frFR: Retrouvez vos rivaux et consultez vos escarmouches JcJ en monde ouvert.
-## Notes-itIT: Ricorda i tuoi rivali e consulta le tue schermaglie PvP nel mondo aperto.
-## Notes-koKR: 상대를 기억하고 야외 PvP 교전 기록을 확인하세요.
-## Notes-ptBR: Lembre-se dos seus rivais e consulte suas escaramuças JxJ no mundo aberto.
-## Notes-ruRU: Запоминай противников и просматривай историю PvP-стычек в открытом мире.
-## Notes-zhCN: 记住你的对手，回顾开放世界中的PvP交锋。
-## Notes-zhTW: 記住你的對手，回顧開放世界中的 PvP 交鋒。
-## Version: 1.1.0-preview.9
+## Notes: Remember your rivals and review skirmishes in the open world and on battlegrounds.
+## Notes-deDE: Merke dir deine Rivalen und sieh dir Gefechte in der offenen Welt und auf Schlachtfeldern an.
+## Notes-esES: Recuerda a tus rivales y consulta tus escaramuzas en el mundo abierto y en campos de batalla.
+## Notes-esMX: Recuerda a tus rivales y consulta tus escaramuzas en el mundo abierto y en campos de batalla.
+## Notes-frFR: Retrouvez vos rivaux et consultez vos escarmouches en monde ouvert et en champ de bataille.
+## Notes-itIT: Ricorda i tuoi rivali e consulta le tue schermaglie nel mondo aperto e nei campi di battaglia.
+## Notes-koKR: 상대를 기억하고 야외와 전장의 PvP 교전 기록을 확인하세요.
+## Notes-ptBR: Lembre-se dos seus rivais e consulte escaramuças no mundo aberto e em campos de batalha.
+## Notes-ruRU: Запоминай противников и просматривай стычки в открытом мире и на полях боя.
+## Notes-zhCN: 记住你的对手，回顾开放世界和战场中的交战。
+## Notes-zhTW: 記住你的對手，回顧開放世界和戰場中的交戰。
+## Version: 1.1.0
 ## IconTexture: Interface\AddOns\NamesInRed\Art\CrossedSwords.tga
 ## SavedVariablesPerCharacter: NamesInRedDB, NamesInRedDebugDB
 

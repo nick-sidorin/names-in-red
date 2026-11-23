@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0
+
+- Record connected PvP skirmishes in the open world and on battlegrounds. Battleground recording is enabled by default and can be disabled without losing past fights or rival recognition.
+- Record fights without a killing blow when the available actions connect the participants. Readable Damage Meter details can link support players to the same fight.
+- Track side outcomes from local observations. A battleground fight can have a different result from the match, and insufficient evidence leaves the result Unknown.
+- Keep confirmed deaths, returns to life and repeat finishing blows in the timeline. See personal finishing blows and deaths separately from skirmish wins, losses, Honorable Kills and Honor Points.
+- Copy a privacy-filtered issue report from the journal, settings or a specific skirmish. Reports work after reload with the evidence saved on the card.
+
+Battleground tracking, automatic outcomes and participant reconstruction are still being refined. Forever can restrict combat information. Rosters and reward attribution can be incomplete, and some revivals or repeat kills may be missed.
+
 ## 1.0.0
 
 The first complete Names in Red release for WoW: Forever, with the rival book, skirmish history, recorded fight details, and earned PvP rewards.
