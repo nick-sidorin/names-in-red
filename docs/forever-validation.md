@@ -420,9 +420,10 @@ and available first/last contact sightings and final state samples.
 The meter contributes undated opposing links with its selector metadata.
 These remain distinct from confirmed killing blows in `events`. The owning
 record also stores death, release and resurrection observations, including a
-visibility gap. Death alone does not close the fight. Release can stop the
-local observation. A documented gap stays visible in the data even if a
-fresh corroborating action supports rejoining. A long unobserved absence is
+visibility gap. Death and release record the local character's state. The current
+outcome observer can continue taking readable evidence in either state.
+A gap recorded on a genuine scope change persists even if later
+corroborating observations establish continuity. A long unobserved absence is
 not filled in. Area and world changes stop attribution from pending meter
 reads; a validated delayed death recap may still update the original
 captured window in the same addon session. A logout saves confirmed live
@@ -454,6 +455,108 @@ kill-free recorder, aura-only path, continuity bridges, ghost gap handling
 and cancellation behavior have Lua 5.1 event-replay coverage. Native
 delivery of the new live signals and actual meter rollover in these
 scenarios still require a fresh Forever 70959 capture.
+
+### World outcomes and observations after death
+
+**Three independent axes.** The journal stores the character's life phase
+(`observation.playerState` and timed `life`), whether the fight's ending
+was observed (`resolution.ending`), and the coverage of different sources
+(`resolution.coverage`, unit/position/state counts, and meter status).
+A local combat exit opens the first opportunity to seek terminal evidence.
+Death, release, resurrection and a lost plate alone do not mark the battle
+finished or invalidate available observations. A genuine world/area change
+stops sampling the old locus. An unfinished battle then stays Unknown.
+
+**What the client documents.** Forever 70959
+[`UnitDocumentation.lua`](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitDocumentation.lua)
+defines `UnitPosition`, `UnitIsVisible`, `UnitAffectingCombat`,
+`UnitIsDeadOrGhost` and `UnitIsFeignDeath`.
+Blizzard's tutorial uses `UnitPosition("target")`
+([source](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_NewPlayerExperience/Blizzard_TutorialTutorials.lua#L971-L995)).
+This establishes the API shape, not availability of hostile position
+data to an addon in outdoor PvP, especially while ghosted.
+`C_Map.GetPlayerMapPosition` has a player/party-only contract and cannot
+fill in the hostile position. The observer requires readable values,
+current unit identity and matched world map coordinates. A failed
+position read never becomes a departure. Feign death is excluded from
+terminal life evidence.
+
+**Terminal rules.** Take two short, guarded snapshots 0.75 and 2.75 seconds
+after the observation window closes or relevant new fighting is reported.
+Readable changes to known participants' flags can trigger another pair
+while tied to a recent hostile observation. A confirmed new hostile action
+invalidates older terminal samples. The snapshots record visible roster
+members, life, combat state and readable positions.
+
+- Establish the site only from a witnessed hostile pair with nearby readable
+  positions. A side can win when it has a visible, living member out of
+  combat holding the site in both samples and every observed opponent is
+  recently confirmed dead, visibly dead in both samples, or demonstrably
+  withdrawing under pressure. A stronger later observation of life
+  supersedes an old kill. Known active combat blocks the decision.
+- For a living departure, the participant must start near the site in an
+  observed hostile action and then be visibly outside it in both terminal
+  samples. The latest witnessed action against that participant must come
+  from a member of the side still holding the site, with no later known
+  attack by the withdrawing player. The 30/55 yard radii and 12-second
+  evidence freshness limit are conservative guards for this preview.
+  They do not assign a winner on their own. There is no weighted kill score.
+- Where coordinates are unavailable in an observed 1 × 1, a recent
+  confirmed death plus two direct observations of the surviving opponent
+  alive and out of combat can resolve it. A personal death during a group
+  fight is only one event in that fight.
+- Both sides seen leaving can yield an observed ending with Unknown
+  winner. Missing positions or players, conflicting signals, stealth,
+  intervening contest and unresolved pauses remain Unknown. A later
+  verified continuation can replace an earlier provisional assessment.
+  Legacy cards without the new assessment keep the original interpretation.
+  Manual outcomes and personal rewards are independent of the resolver.
+
+**Meter while dead or ghosted.** The patch can reuse an eligible damage
+sample as a baseline. On a matching subsequent category event it compares
+only readable increases for previously identified hostile pairs under the
+same selection. It checks the archive is still present, rejects changed
+Current/reset, refuses decreases or incomparable pairs, and rate-limits
+the event-driven reads. Scope changes, a new local combat or an invalidated
+record stop use of that baseline. The receipt time describes when new
+aggregate evidence was seen; the event is not an action timestamp, death,
+retreat or ending. `POST_COMBAT_METER_UPDATE` records life/ghost flags and
+why a delta could or could not be used. No events or unreadable data leave
+observation unknown and supply no verdict. No polling is needed in a quiet
+session. The patch does not assume these events or fields remain available
+in the live client after death or release.
+
+**Duskwood review.** The original owner log shows two kills roughly 13
+and 22 seconds after local entry, the third enemy leaving nameplate
+visibility around second 18 while alive and still in combat, and the local
+hunter and priest out of combat at second 40. It contains no subsequent
+position or combat state for the third enemy and no terminal position
+observations establishing who held the site. The roster regression remains
+2 × 3 with two kills and five honor. The available log yields Unknown.
+A distinct positive replay of the same type of victory includes a visible
+withdrawal under pressure and allied hold without inventing those fields in
+the historical capture.
+
+**Risks and live checks.** A voluntary departure can coincide with a last
+hostile action and look like forced withdrawal. Two actions within one
+untimed native aggregate can share a participant while belonging to
+different fights. The positive positional checks and stable selection
+reduce these risks, but cannot disambiguate every case. Few or capped unit
+visibility/position reads increase Unknown. These rules are verified in
+Lua event mocks and saved-data replays. Fresh live checks remain necessary:
+
+1. Record one group fight and remain in the corpse while allies continue.
+   Note whether `UNIT_AURA`, `UNIT_FLAGS`, visible roster states and meter
+   details are still available. Compare against a fight where only the
+   player leaves observation and the allies subsequently lose.
+2. Repeat after releasing spirit. If the same scoped meter stays live,
+   compare a sample before release, the post-combat delta status and the
+   final visible states. Returning and attacking again does not itself
+   establish the result of the earlier phase.
+3. Run a retreat under pressure and a no-kill disengagement. Add a brief
+   stealth and re-entry as a negative control. Compare the saved snapshots
+   and `resolution` reasons, then repeat Duskwood or its equivalent.
+   Verify after a normal logout or `/reload`; share SavedVariables privately.
 
 ### Seeded full-battle cards
 

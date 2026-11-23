@@ -4,7 +4,7 @@ local frame = CreateFrame("Frame")
 local db
 local deathSequence = 0
 local combatSequence = 0
-local combat, settling
+local combat, settling, passive
 local limit = 1000
 local plateTokens = {}
 local demoFactions = { alliance = "Alliance", horde = "Horde" }
@@ -16,7 +16,7 @@ local function ClearDiagnostics()
     end
     db.rows, db.dropped = {}, 0
     deathSequence = deathSequence + 1
-    combatSequence, combat, settling = 0, nil, nil
+    combatSequence, combat, settling, passive = 0, nil, nil, nil
 end
 
 local function ReadDeathLevel(row, victim, attacker)
@@ -347,15 +347,16 @@ local function SpellTargets(entry, sample, actor, category, evidence, counts, sc
     return retry
 end
 
-local function MeterSources(result, sources, readSource, evidence, category)
+local function MeterSources(result, sources, readSource, evidence, category, sampleLimit)
     local counts, linkedActors = {}, {}
     result.sourceCount = #sources
     result.sources = {}
     if evidence then result.resolution = counts end
     local sourceScratch, targetScratch = { status = {} }, { status = {} }
     local retry = false
-    for index = 1, evidence and #sources or math.min(#sources, 12) do
-        local retain = index <= 12
+    sampleLimit = sampleLimit or 12
+    for index = 1, evidence and #sources or math.min(#sources, sampleLimit) do
+        local retain = index <= sampleLimit
         local source = CopyRow(sources[index], retain and sourceFields or sourceKeyFields, not retain and sourceScratch or nil)
         local rowStatus = source.status.row
         if retain then result.sources[index] = source end
@@ -623,6 +624,7 @@ local function ObserveCurrent(row, reason)
 end
 
 function handlers.PLAYER_REGEN_DISABLED()
+    passive = nil
     local previousPending = settling ~= nil
     settling = nil
     combatSequence = combatSequence + 1
@@ -649,6 +651,128 @@ local function CombatRestricted(row)
     if type(api) ~= "function" or combatType == nil or inactive == nil then return false end
     Call(row, "meterCombatRestriction", api, combatType)
     return row.meterCombatRestriction ~= inactive
+end
+
+local function BeginPassiveMeter(window, row, finished, evidence, reached)
+    if not addon.WorldCanObserveMeter(window) then return end
+    local ids = {}
+    for entry in pairs(reached) do ids[entry.guid] = true end
+    local categories = {}
+    local types = Enum.DamageMeterType
+    for name, totals in pairs(evidence.damage) do
+        local pairsInBattle = {}
+        for key, pair in pairs(totals) do
+            if ids[pair.actorID] and ids[pair.targetID] then pairsInBattle[key] = pair end
+        end
+        if next(pairsInBattle) then
+            categories[types[name]] = { name = name, totals = pairsInBattle, duration = row.meter[name].duration }
+        end
+    end
+    if next(categories) then
+        passive = { window = window, session = row.meterSessionID or 0, contacts = finished.contacts,
+            owners = finished.petOwners, faction = row.player.faction, categories = categories }
+        addon.WorldMeterObservation(window, "baseline-ready")
+    else
+        addon.WorldMeterObservation(window, "no-comparable-baseline")
+    end
+end
+
+local function ReadPassiveMeter(watch, dirty)
+    if passive ~= watch or combat or settling or not addon.WorldCanObserveMeter(watch.window) then return end
+    local row = Add("POST_COMBAT_METER_UPDATE")
+    Call(row, "playerDead", UnitIsDeadOrGhost, "player")
+    Call(row, "playerGhost", UnitIsGhost, "player")
+    row.meterSessionID = watch.session
+    row.categories = {}
+    if CombatRestricted(row) then
+        row.status.meter = "restricted"
+        addon.WorldMeterObservation(watch.window, "restricted")
+        return
+    end
+
+    local api = C_DamageMeter
+    if not api then return end
+    local getter, sourceGetter, selector = api.GetCombatSessionFromID, api.GetCombatSessionSourceFromID, watch.session
+    if selector == 0 then
+        getter, sourceGetter = api.GetCombatSessionFromType, api.GetCombatSessionSourceFromType
+        selector = Enum.DamageMeterSessionType and Enum.DamageMeterSessionType.Current
+        if selector == nil then return end
+    else
+        local ids = SessionIDs(row, api)
+        if not ids or not ids[selector] then
+            row.status.meter = "archive-unavailable"
+            addon.WorldMeterObservation(watch.window, "archive-unavailable")
+            passive = nil
+            return
+        end
+    end
+
+    local signal
+    local verdict = "unchanged"
+    for kind in pairs(dirty) do
+        local baseline = watch.categories[kind]
+        local result = { status = {} }
+        local session = ReadResult(result, "session", getter, selector, kind)
+        if not session then
+            result.status.delta = result.status.session
+        else
+            local duration = Value(session.durationSeconds)
+            local sources = session.combatSources
+            local readable, reason = AccessibleTable(sources)
+            if type(duration) ~= "number" or duration < baseline.duration then
+                result.status.delta = "duration-unverified"
+            elseif not readable then
+                result.status.delta = reason
+            else
+                local evidence = addon.NewMeterParticipantEvidence(watch.contacts, watch.owners, watch.faction)
+                MeterSources(result, sources, function(source, guid, creature)
+                    return ReadResult(source, "detail", sourceGetter, selector, kind, guid, creature)
+                end, evidence, baseline.name, 0)
+                local totals = evidence.damage[baseline.name] or {}
+                local trustworthy, changed = true, nil
+                for key, previous in pairs(baseline.totals) do
+                    local current = totals[key]
+                    if not current or current.amount < previous.amount then
+                        trustworthy = false
+                        break
+                    elseif current.amount > previous.amount then
+                        changed = current
+                    end
+                end
+                if trustworthy then
+                    baseline.duration = duration
+                    for key in pairs(baseline.totals) do baseline.totals[key] = totals[key] end
+                    if changed then signal = changed end
+                    result.status.delta = changed and "linked-increase" or "unchanged"
+                else
+                    result.status.delta = "baseline-not-comparable"
+                end
+            end
+        end
+        row.categories[baseline.name] = result.status.delta
+        if result.status.delta ~= "unchanged" then verdict = result.status.delta end
+    end
+    row.status.meter = signal and "linked-increase" or verdict
+    addon.WorldMeterObservation(watch.window, row.status.meter, signal and signal.actorID, signal and signal.targetID)
+end
+
+local function QueuePassiveMeter(kind, id)
+    local watch = passive
+    if not watch or id ~= watch.session or not watch.categories[kind] or not C_Timer or not C_Timer.After
+        or not addon.WorldCanObserveMeter(watch.window) then return end
+    if watch.dirty then
+        watch.dirty[kind] = true
+        return
+    end
+    watch.dirty = { [kind] = true }
+    local now = GetTime()
+    local delay = math.max(0.4, (watch.nextRead or now) - now)
+    C_Timer.After(delay, function()
+        local dirty = watch.dirty
+        watch.dirty = nil
+        watch.nextRead = GetTime() + 1
+        ReadPassiveMeter(watch, dirty)
+    end)
 end
 
 function handlers.PLAYER_REGEN_ENABLED()
@@ -735,6 +859,7 @@ function handlers.PLAYER_REGEN_ENABLED()
             end
             addon.ApplyWorldMeterEvidence(context, additions, faction, row, evidence:HostileLinks(reached))
             addon.SnapshotWorldContacts(context, finished.contacts)
+            BeginPassiveMeter(context, row, finished, evidence, reached)
         end
     end
     if C_Timer and C_Timer.After then C_Timer.After(0.5, function() ReadMeter(false) end) else ReadMeter(true) end
@@ -824,10 +949,13 @@ end
 
 function handlers.DAMAGE_METER_COMBAT_SESSION_UPDATED(meterType, sessionID)
     local window = combat or settling
-    if not window then return end
-    window.meterUpdateCount = window.meterUpdateCount + 1
+    if window then window.meterUpdateCount = window.meterUpdateCount + 1 end
     local id, kind = Value(sessionID), Value(meterType)
     if type(id) ~= "number" or type(kind) ~= "number" then return end
+    if not window then
+        QueuePassiveMeter(kind, id)
+        return
+    end
     local key = id .. ":" .. kind
     local signal = window.meterUpdates[key]
     if not signal then
@@ -840,6 +968,10 @@ function handlers.DAMAGE_METER_COMBAT_SESSION_UPDATED(meterType, sessionID)
 end
 
 function handlers.DAMAGE_METER_CURRENT_SESSION_UPDATED()
+    if passive and passive.session == 0 then
+        addon.WorldMeterObservation(passive.window, "current-changed")
+        passive = nil
+    end
     local window = combat or settling
     if not window then return end
     local signal = window.currentUpdates
@@ -849,17 +981,29 @@ function handlers.DAMAGE_METER_CURRENT_SESSION_UPDATED()
 end
 
 function handlers.DAMAGE_METER_RESET()
+    if passive then
+        addon.WorldMeterObservation(passive.window, "reset")
+        passive = nil
+    end
     local window = combat or settling
     if window then window.meterReset = true end
 end
 
 local function AreaChanged(event)
+    passive = nil
     local window = combat or settling
     if window then window.areaChanged = true end
     if combat then Sample(Add(event)) end
 end
 
-function handlers.ZONE_CHANGED_NEW_AREA() AreaChanged("ZONE_CHANGED_NEW_AREA") end
+function handlers.ZONE_CHANGED_NEW_AREA()
+    local window = combat or settling
+    local zone = Value(GetRealZoneText and GetRealZoneText())
+    if (window and window.startZone ~= zone)
+        or (passive and not addon.WorldCanObserveMeter(passive.window)) then
+        AreaChanged("ZONE_CHANGED_NEW_AREA")
+    end
+end
 function handlers.PLAYER_LEAVING_WORLD() AreaChanged("PLAYER_LEAVING_WORLD") end
 
 local function LifeState(event)
@@ -867,6 +1011,8 @@ local function LifeState(event)
     Sample(row)
     Call(row.player, "dead", UnitIsDeadOrGhost, "player")
     Call(row.player, "ghost", UnitIsGhost, "player")
+    row.meterObservation = passive and "baseline-ready" or "no-comparable-baseline"
+    if passive then row.meterSessionID = passive.session end
     if combat then Observe("player", event) end
     return row
 end
