@@ -72,6 +72,7 @@ end
 
 -- Replay the observed order of the live Forever signals for a grouped kill.
 Fire("PARTY_KILL", brother, fenrik)
+Fire("PARTY_KILL", brother, fenrik) -- duplicate must not spoil legitimate reward attribution
 Advance(0.317)
 GainHK()
 Advance(0.685)
@@ -89,6 +90,14 @@ addon.RecordWorldEncounter(fenrik, units.target[2], "deathsToThem", context)
 local encounter = addon.Ledger.RivalSkirmishes(addon.db, ghash)[1]
 assert(encounter.playerDeathIndex == 2 and not encounter.outcome)
 
+local initialLife = {}
+function UnitIsVisible(unit) return initialLife[UnitGUID(unit)] ~= nil end
+function UnitIsDeadOrGhost(unit) return initialLife[UnitGUID(unit)] end
+function UnitIsFeignDeath() return false end
+initialLife[fenrik] = false
+Fire("UNIT_FLAGS", "target")
+assert(battle.events[3].kind == "revive")
+
 -- Two eligible targets in one burst leave the grant unassigned.
 inCombat = false
 Fire("PLAYER_REGEN_ENABLED")
@@ -96,9 +105,11 @@ local observedRival = units.mouseover
 units.mouseover = nil
 Fire("PARTY_KILL", brother, ghash)
 units.mouseover = observedRival
-assert(battle.events[3].targetID == ghash)
+assert(battle.events[4].targetID == ghash)
 GainHK()
+initialLife[fenrik] = true
 Fire("PARTY_KILL", brother, fenrik)
+initialLife[fenrik] = nil
 HonorChat(message, 72)
 Advance(2.1)
 CheckReward(fenrik, 1, 6)
@@ -269,6 +280,9 @@ do
     assert(not result.rosterComplete and not addon.Ledger.SkirmishOutcome(result))
     local kills, honor = addon.Ledger.SkirmishRewards(result)
     assert(kills == 2 and honor == 5 and addon.db.rivals[third] and not addon.db.rivals[outsider])
+    local directFirst, deathsFirst = addon.Ledger.PersonalCombatScore(addon.db, fenrik)
+    local directSecond, deathsSecond = addon.Ledger.PersonalCombatScore(addon.db, ghash)
+    assert(directFirst == 1 and directSecond == 1 and deathsFirst == 0 and deathsSecond == 0)
     Advance(3)
     assert(result.resolution.ending == "unknown" and not addon.Ledger.SkirmishOutcome(result))
 
@@ -863,7 +877,7 @@ do
     End(elapsed)
     Advance(1.5)
     local returned = Battle(7)
-    assert(#returned.events == 1 and #returned.observation.segments == 2)
+    assert(#returned.events == 2 and returned.events[2].kind == "revive" and #returned.observation.segments == 2)
     assert(not returned.observation.visibilityGap)
     local life = returned.observation.life
     assert(life[1].state == "dead" and life[2].state == "ghost" and life[3].state == "alive")
@@ -1227,5 +1241,187 @@ do
     assert(longWin.resolution.outcome == "win" and longWin.resolution.enemies.dead == 2)
     assert(longWin.resolution.reason == "pressured-range-withdrawal")
     assert(not addon.Ledger.FirstDeaths(longWin)[third])
+
+    -- A witnessed resurrection changes life state without deleting either
+    -- actor's finishing blow or deciding the group result.
+    Advance(10)
+    ResetStates()
+    C_DamageMeter, C_Spell, UnitDistanceSquared = nil, nil, nil
+    local druid = "Player-druid-life"
+    units.target = { enemy, "First Enemy", "Horde", "HUNTER" }
+    units.mouseover = { druid, "Hostile Druid", "Horde", "DRUID" }
+    position[druid] = 115
+    BeginFight()
+    Aura("mouseover", "player")
+    Advance(1)
+    dead[enemy] = true
+    Fire("PARTY_KILL", localID, enemy)
+    Fire("PARTY_KILL", localID, enemy)
+    local reciprocal = Battle(11)
+    assert(#reciprocal.events == 1)
+    Fire("INCOMING_RESURRECT_CHANGED", "target")
+    Fire("UNIT_FLAGS", "target")
+    assert(#reciprocal.events == 1) -- an offer and a corpse are insufficient
+    Advance(1)
+    dead[enemy], hidden[enemy] = false, true
+    Fire("UNIT_FLAGS", "target")
+    assert(#reciprocal.events == 1)
+    hidden[enemy] = false
+    Fire("UNIT_FLAGS", "target")
+    Fire("NAME_PLATE_UNIT_ADDED", "target")
+    assert(#reciprocal.events == 2 and reciprocal.events[2].kind == "revive")
+    assert(not reciprocal.events[2].actorID and not reciprocal.events[2].spellID)
+    Advance(1)
+    dead[druid] = true
+    Fire("PARTY_KILL", ally, druid)
+    Advance(1)
+    Death()
+    Fire("PLAYER_DEAD") -- same lethal recap
+    Aura("party1", "target")
+    Advance(5)
+    position[enemy] = 177
+    EndFight()
+    Advance(3)
+    assert(#reciprocal.events == 4 and addon.Ledger.SkirmishOutcome(reciprocal) == "win")
+    assert(addon.Ledger.ParticipantLife(reciprocal)[enemy].kind == "revive")
+    assert(addon.Ledger.ParticipantLife(reciprocal)[localID].kind == "kill")
+    assert(addon.Ledger.FirstDeaths(reciprocal)[enemy] == 1)
+    local personalKills, personalDeaths = addon.Ledger.PersonalCombatScore(addon.db, enemy)
+    -- Isolate a save of the same real battle to verify that indexing is idempotent.
+    local savedAgain = addon.Ledger.Open(nil)
+    addon.Ledger.SaveSkirmish(savedAgain, "world:1", reciprocal)
+    addon.Ledger.SaveSkirmish(savedAgain, "world:1", reciprocal)
+    local direct, received = addon.Ledger.PersonalCombatScore(savedAgain, enemy)
+    assert(direct == 1 and received == 1)
+    local victories, defeats, earned, points = addon.Ledger.PersonalScore(savedAgain, enemy)
+    assert(victories == 1 and defeats == 0 and earned == 0 and points == 0)
+    local summary = addon.Ledger.RivalSkirmishes(savedAgain, enemy)[1]
+    assert(summary.opponentRevived and summary.opponentDeathIndex and not summary.playerRevived)
+
+    -- An old notification can arrive even after revival. The corpse check
+    -- prevents it while the target lives and tolerates delayed native flags
+    -- on a genuine second killing blow.
+    Advance(10)
+    ResetStates()
+    BeginFight()
+    Advance(1)
+    dead[enemy] = true
+    Fire("PARTY_KILL", localID, enemy)
+    Advance(1)
+    dead[enemy] = false
+    Fire("PLAYER_TARGET_CHANGED")
+    Fire("PARTY_KILL", localID, enemy) -- still alive through the retry
+    Advance(0.4)
+    local repeated = Battle(12)
+    assert(#repeated.events == 2 and repeated.events[2].kind == "revive")
+    Fire("PARTY_KILL", localID, enemy)
+    Advance(0.1)
+    dead[enemy] = true
+    Fire("UNIT_FLAGS", "target")
+    Fire("PARTY_KILL", localID, enemy)
+    Advance(0.3)
+    assert(#repeated.events == 3 and repeated.events[3].kind == "kill")
+    EndFight()
+    Advance(4)
+    Fire("PARTY_KILL", localID, enemy) -- delayed delivery after the window
+    assert(not addon.db.skirmishes["world:13"] and #repeated.events == 3)
+    direct, received = addon.Ledger.PersonalCombatScore(addon.db, enemy)
+    assert(direct == personalKills + 2 and received == personalDeaths)
+    local earnedHK, earnedHonor = addon.Ledger.SkirmishRewards(repeated)
+    assert(earnedHK == 0 and earnedHonor == 0)
+
+    -- Same battle after the local character rejoins. Only linked hostility
+    -- carries the candidate into the previous record.
+    Advance(10)
+    ResetStates()
+    BeginFight()
+    Advance(1)
+    Death()
+    EndFight()
+    Advance(0.3)
+    spirit = true
+    Fire("PLAYER_ALIVE")
+    Aura("party1", "target")
+    Advance(0.5)
+    spirit, dead[localID] = false, false
+    Fire("PLAYER_UNGHOST")
+    BeginFight()
+    Advance(1)
+    dead[enemy] = true
+    Fire("PARTY_KILL", localID, enemy)
+    EndFight()
+    Advance(3)
+    local joined = Battle(13)
+    assert(#joined.observation.segments == 2 and #joined.events == 3 and not addon.db.skirmishes["world:14"])
+    assert(joined.events[2].kind == "revive" and joined.events[2].targetID == localID)
+    assert(addon.Ledger.SkirmishOutcome(joined) == "win")
+
+
+    -- Player state can be confirmed before a delayed recap arrives. Both
+    -- facts must keep their original high-resolution order.
+    Advance(10)
+    ResetStates()
+    BeginFight()
+    Advance(1)
+    dead[localID], recap = true, nil
+    local killedAt = GetServerTime()
+    Fire("PLAYER_DEAD")
+    Advance(0.1)
+    dead[localID] = false
+    Fire("PLAYER_ALIVE") -- direct combat resurrection, without release
+    recap = { { sourceGUID = enemy, sourceName = "First Enemy", sourceFlags = 0x440,
+        timestamp = killedAt, overkill = 4 } }
+    Advance(0.25)
+    local delayed = Battle(14)
+    assert(#delayed.events == 2 and delayed.events[1].kind == "kill" and delayed.events[2].kind == "revive")
+    assert(delayed.events[1].time == delayed.events[2].time and delayed.events[1].offset < delayed.events[2].offset)
+
+    -- No corpse snapshot was available. An early alive flag can be stale,
+    -- but a new visible alive sighting in the same fight may confirm recovery.
+    hidden[enemy] = true
+    Fire("PARTY_KILL", localID, enemy)
+    hidden[enemy] = false
+    Advance(0.1)
+    Fire("UNIT_FLAGS", "target")
+    assert(#delayed.events == 3)
+    Advance(0.6)
+    Fire("NAME_PLATE_UNIT_ADDED", "target")
+    assert(#delayed.events == 4 and delayed.events[4].kind == "revive")
+    assert(delayed.events[4].source == "nameplate-sighting" and not delayed.events[4].actorID)
+
+
+    -- A druid can revive an ally whose corpse was seen but whose killer
+    -- was unavailable. The life transition never becomes a personal kill.
+    dead[ally] = true
+    Fire("UNIT_FLAGS", "party1")
+    Fire("INCOMING_RESURRECT_CHANGED", "party1")
+    assert(#delayed.events == 5 and delayed.events[5].kind == "death")
+    assert(not delayed.events[5].actorID)
+    Advance(0.6)
+    dead[ally] = false
+    Fire("UNIT_FLAGS", "party1")
+    assert(#delayed.events == 6 and delayed.events[6].kind == "revive")
+    assert(delayed.events[6].targetID == ally and not delayed.events[6].actorID)
+
+    -- The native kill can confirm a corpse we already observed without
+    -- creating a second historical death event for the same life.
+    dead[enemy] = true
+    Fire("UNIT_FLAGS", "target")
+    assert(#delayed.events == 7 and delayed.events[7].kind == "death")
+    Advance(0.1)
+    Fire("PARTY_KILL", localID, enemy)
+    assert(#delayed.events == 7 and delayed.events[7].kind == "kill")
+
+    -- A distinct validated lethal recap identifies a new local death even
+    -- when the intervening return to life was missed.
+    Advance(1)
+    Death()
+    Advance(2)
+    dead[localID] = false
+    Death()
+    Fire("PLAYER_DEAD")
+    assert(#delayed.events == 9 and delayed.events[8].kind == "kill" and delayed.events[9].kind == "kill")
+    assert(delayed.events[8].recapTimestamp < delayed.events[9].recapTimestamp)
+
 end
-print("Corpse and released-spirit observations, readable meter deltas and genuine scope boundaries passed")
+print("Corpse and spirit observations, range exits, revivals, repeat kills and independent scores passed")

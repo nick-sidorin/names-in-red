@@ -106,8 +106,12 @@ optional, uncommitted features such as PvP ranks and achievements.
 Each skirmish owns its roster, timeline and rewards. Explicit and older
 results keep their existing interpretation. New world records derive
 `resolution` from their observed ending. Life state and observation
-coverage are stored separately. A `kind = "revive"` event restores the
-participant for outcome calculation.
+coverage are stored separately. A `kind = "revive"` event marks a later
+readable living state for the same character and preserves the killing
+blow. The skull marks a death during the fight. The portrait returns to
+color after an observed revival. Rival tooltips show a separate personal
+kill/death score. Skirmish wins/losses and Blizzard rewards have their own
+counters.
 Mark the local player `isSelf` and identify profile links with `rivalID`.
 Store `honorableKills` and `honor` under `rewards[opponent.id]`. Re-saving
 the same skirmish ID replaces the indexed result and rewards.

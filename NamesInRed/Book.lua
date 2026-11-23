@@ -846,11 +846,14 @@ if TooltipDataProcessor and unitTooltipType then
     TooltipDataProcessor.AddTooltipPostCall(unitTooltipType, function(tooltip, data)
         if tooltip ~= GameTooltip or not addon.db or not addon.IsUnitTooltipEnabled() then return end
         local rival, id = TooltipRival(tooltip, data)
-        local counters = rival and addon.RivalCounters(id)
-        if counters then
+        if not rival then return end
+        local counters = addon.RivalCounters(id)
+        local kills, deaths = addon.Ledger.PersonalCombatScore(addon.db, id)
+        if counters or kills > 0 or deaths > 0 then
             tooltip:AddLine(" ")
             tooltip:AddLine(addon.title, 1, 0.82, 0)
-            tooltip:AddLine(counters, 1, 1, 1)
+            if counters then tooltip:AddLine(counters, 1, 1, 1) end
+            if kills > 0 or deaths > 0 then tooltip:AddLine(L.personalFinishingBlows:format(kills, deaths), 1, 1, 1) end
         end
     end)
 end

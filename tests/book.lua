@@ -216,6 +216,16 @@ callback(GameTooltip, { guid = secret })
 assert(#tooltipLines == 12)
 print("Full-name manual tooltip checks passed")
 
+local duelGUID = "Player-reciprocal"
+addon.db.rivals[duelGUID] = { displayName = "Reciprocal Rival" }
+addon.Ledger.SaveSkirmish(addon.db, "tooltip-skirmish", {
+    allies = { { id = "Player-self", isSelf = true } }, enemies = { { id = duelGUID, rivalID = duelGUID } },
+    events = { { kind = "kill", actorID = "Player-self", targetID = duelGUID },
+        { kind = "revive", targetID = duelGUID }, { kind = "kill", actorID = duelGUID, targetID = "Player-self" } },
+})
+callback(GameTooltip, { guid = duelGUID })
+assert(#tooltipLines == 15 and tooltipLines[15] == addon.L.personalFinishingBlows:format(1, 1))
+
 local function MockRegion(parent)
     local region = { parent = parent, children = {}, shown = true, scripts = {} }
     if parent then parent.children[#parent.children + 1] = region end
@@ -760,6 +770,12 @@ assert(rivalPortrait.desaturated and not playerPortrait.desaturated)
 local portraitDeath = CheckPortraitMarker(opponentRim, skull, "TOPLEFT")
 assert(FindRegion(portraitDeath, "atlas", "UI-HUD-UnitFrame-SmallCircle"))
 assert(portraitDeath.width == 20 and FindRegion(portraitDeath, "texture", skull).width == 14)
+first.opponentRevived = true
+compact:SetEncounter(first)
+assert(portraitDeath.shown and not rivalPortrait.desaturated)
+first.opponentRevived = nil
+compact:SetEncounter(first)
+assert(portraitDeath.shown and rivalPortrait.desaturated)
 assert(not PortraitMarker(myRim, skull) and not PortraitMarker(opponentRim, swords))
 faction = "Horde"
 compact:SetEncounter(first)

@@ -222,7 +222,7 @@ function addon.CreateParticipantPortrait(parent, options)
     end
 
     local component = { rim = rim, death = death, classBadge = classBadge }
-    function component:SetParticipant(appearance, id, playerLevel, died)
+    function component:SetParticipant(appearance, id, playerLevel, died, revived)
         if options.livePlayerFallback and (not appearance.race or not appearance.sex) and SetPortraitTexture then
             portrait:SetSize(size * 13 / 16, size * 13 / 16)
             SetPortraitTexture(portrait, "player", true)
@@ -242,8 +242,9 @@ function addon.CreateParticipantPortrait(parent, options)
         end
         if death then
             death:SetShown(died == true)
-            portrait:SetDesaturated(died)
-            local shade = died and 0.78 or 1
+            local down = died == true and not revived
+            portrait:SetDesaturated(down)
+            local shade = down and 0.78 or 1
             portrait:SetVertexColor(shade, shade, shade)
         end
         return class

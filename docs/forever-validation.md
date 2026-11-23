@@ -595,6 +595,79 @@ Lua event mocks and saved-data replays. Fresh live checks remain necessary:
    and `resolution` reasons, then repeat Duskwood or its equivalent.
    Verify after a normal logout or `/reload`; share SavedVariables privately.
 
+### Participant life history and personal scores
+
+**Forever 70959 signals.** The generated
+[`UnitDocumentation.lua`](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitDocumentation.lua#L3724-L3733)
+defines `PARTY_KILL` with attacker and target GUIDs. It has no unique
+event ID or timestamp. `UNIT_FLAGS` supplies a unit token; the addon reads
+that token's current GUID, visibility and `UnitIsDeadOrGhost` with the
+existing feign-death guard. A later readable alive state of the same
+participant is accepted within the tracked battle on flags, sightings or
+a terminal sample. For the local character,
+[`PLAYER_ALIVE` and `PLAYER_UNGHOST`](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_APIDocumentationGenerated/DeathInfoDocumentation.lua#L123-L150)
+are additionally paired with a readable living state.
+
+The client also exposes a resurrection offer or incoming status.
+[`CompactUnitFrame`](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_UnitFrame/Shared/CompactUnitFrame.lua#L1470-L1478)
+uses `UnitHasIncomingResurrection` to render that status. An offer does
+not establish a completed resurrection. The supported path records a
+state transition without naming the spell or caster. A known participant's
+readable death without an attacker is recorded as `death`, with no kill
+credit. If a validated finishing blow subsequently identifies that death,
+its attributed event takes the place of the uncredited observation.
+A druid's combat resurrection is indistinguishable here from any other
+verified return to life. The patch uses the unit and player signals above.
+
+**History and deduplication.** The timeline records a confirmed finishing
+blow once for the observed life. A strictly later living observation adds
+one `revive` for its matching GUID. A monotonic offset preserves the
+order of live events within a server second. Older events retain their
+server time or stored order. The death-recap adapter captures the event
+uptime before retrying. A later state read cannot clear a newer death,
+and the 12-second pressure threshold continues to apply only to the
+outcome's pressure evidence. Missing or secret readings do not modify
+life state. The optional first alive reading of an unobserved corpse
+waits for a short flag-settling interval.
+
+A repeated `PARTY_KILL` for a recorded death is ignored. Another
+outgoing finishing blow in the skirmish requires an observed revival
+and evidence of a new readable corpse. A validated local lethal recap
+with its own strictly newer timestamp establishes another local death
+even if the intervening revival was outside observation. The addon can retry that check
+once after 0.25 seconds; competing actor notifications cancel an
+ambiguous retry. Accepted notifications feed reward attribution once.
+A late standalone notification for the last known corpse in the same
+location cannot create another card. Without a readable revival or
+corpse, the client payload cannot reliably separate an actual repeat
+from a duplicate, so a real repeat can go uncounted. Legacy histories
+remain as recorded; a previously duplicated old row cannot be resolved
+retrospectively without evidence.
+
+**Display and accounting.** Personal blows count directed `kill` events
+from/to the local character and the specific rival. Legacy directional
+combat rows also count. Manual wins and losses remain side results.
+A separate line appears in the unit tooltip when there are personal
+kills or deaths. Nameplate and profile win/loss counts retain their
+skirmish meaning, and Honorable Kills and Honor Points still depend on
+Blizzard reward signals. The portrait skull means the participant died
+during the fight. A reliably revived participant keeps the skull and
+returns to a colored portrait; the finishing-blow list keeps every
+confirmed kill.
+
+**Targeted Forever check.** In an ongoing group fight, kill an opponent,
+have the opponent accept a combat resurrection, and kill them again
+with the same side still contesting the fight. Observe whether the
+returned player is reachable through target/nameplate flags before the
+second kill. Also keep one resurrection offer unaccepted and have a
+second fight with reciprocal personal kills and a clear side outcome.
+Compare `events`, the historical skull and the personal tooltip. A
+local revival inside the same fighting window and the separate outcome
+can be verified from the saved monotonic offsets. Repeat with the local
+character returning after release. These paths are exercised by Lua
+event mocks; delivery of readable enemy state and actual combat
+resurrection timing need a new live capture.
+
 ### Seeded full-battle cards
 
 The 0.1.3-preview.2 cards use the existing book frames, text and world map

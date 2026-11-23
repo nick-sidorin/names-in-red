@@ -131,18 +131,14 @@ end
 
 local function ConfirmedDeaths(battle, first, last)
     local dead = {}
-    for _, event in ipairs(battle.events) do
-        local id, at = event.targetID, event.time
-        if id and (type(at) ~= "number" or type(last.at) ~= "number" or at <= last.at) then
-            if event.kind == "kill" then dead[id] = event
-            elseif event.kind == "revive" then dead[id] = nil end
-        end
+    local life = addon.Ledger.ParticipantLife(battle, { time = last.at, offset = last.offset })
+    for id, event in pairs(life) do
+        if addon.Ledger.IndicatesDeath(event) then dead[id] = event end
     end
     for _, sample in ipairs({ first, last }) do
+        local stamp = { time = sample.at, offset = sample.offset }
         for id, unit in pairs(sample.units) do
-            local death = dead[id]
-            if unit.dead == false and death and type(sample.at) == "number" and type(death.time) == "number"
-                and sample.at > death.time then dead[id] = nil end
+            if unit.dead == false and dead[id] and addon.Ledger.LaterBattleEvent(stamp, dead[id]) then dead[id] = nil end
         end
     end
     return dead
