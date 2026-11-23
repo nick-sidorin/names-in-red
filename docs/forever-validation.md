@@ -1219,3 +1219,68 @@ reason, staged kill decisions, meter qualification and reward scope.
 The general report includes recent, bounded decision summaries and journal
 reward totals even when no fight card exists. These paths do not export
 chat text, character names or original identifiers.
+
+### Primary combat diagnostics in Forever 71037
+
+Source baseline for this section is the [1.60.1 build 71037 UI dump](https://github.com/Gethe/wow-ui-source/tree/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns).
+The generated API describes payloads and restrictions. The display UI
+confirms how Blizzard consumes them. Actual addon-event delivery, data
+readability and field completeness during a live PvP session still vary.
+
+| Input | What the API describes | What Names in Red retains |
+| --- | --- | --- |
+| [`UNIT_COMBAT`](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitDocumentation.lua#L4168-L4182) | A unit token, effect, flag, school and an amount marked `SecretValue`. Neither attacker nor spell ID is supplied. The native [combat feedback](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_FrameXML/Mainline/CombatFeedback.lua#L26-L88) uses tokens such as WOUND, HEAL and CRITICAL. | Samples for tracked units with the recipient when readable, known effect and flag tokens, and a numeric school or amount only when the actual value can be read. A missing attacker or spell is left unknown. Identical deliveries can represent separate hits. |
+| [`UNIT_AURA`](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitAuraDocumentation.lua#L644-L656) and [update structure](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitConstantsDocumentation.lua#L55-L66) | Unit and aura update, marked `SecretWhenAurasRestricted`. Updates can be full or incremental. | Bounded sample of additions, spell ID, helpful/harmful flags, source and recipient where readable. Full refreshes, missing fields and restricted tables are labeled. No additional aura queries or inferred applications. |
+| [`UNIT_SPELLCAST_*`](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitDocumentation.lua#L4611-L4657) and [start/succeeded events](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitDocumentation.lua#L4803-L4860) | Caster token, cast GUID and spell ID with `SecretWhenUnitSpellCastRestricted`; selected phases expose an interrupter. `SENT` has a conditionally secret target name. | Start, succeeded, interrupted and channel start/stop. Caster and interrupter are captured independently when readable. Success does not prove a hit, target or amount. `SENT` and its target string are excluded. |
+| [`COMBAT_LOG_MESSAGE`](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/CombatLogSecureDocumentation.lua#L126-L141) | Preformatted `|K`-wrapped text, color and order for the native display. [`COMBAT_LOG_EVENT_UNFILTERED`](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/CombatLogDocumentation.lua#L123-L138) is marked restricted. | The addon does not subscribe to either. Protected display text cannot supply a structured source, target, spell or amount. |
+| [`C_DamageMeter`](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/DamageMeterDocumentation.lua#L170-L243) | Category totals, source totals, spell totals and optional usable second-unit details. Session and source getters are `SecretWhenInCombat`. Names and GUIDs can be restricted independently. | Sample from the same accepted read used by the existing meter scanner, with category, spell ID, readable amounts, resolution of the second unit, selection and session ID when archived. The meter unit is the affected unit in Damage Taken categories. Total fields are separate and may overlap. The receipt offset timestamps the read rather than individual damage or healing. |
+| `PARTY_KILL`, `C_DeathRecap` and unit API snapshots | Kill notification, recap fields already used by the death validator, and sampled dead/combat/Feign Death flags. | Observed kill notifications and flag changes within the matched local window. A validated player finishing blow can carry its lethal recap row, including readable timestamps, spell and amounts, even if there was no local combat window. |
+
+#### Saved data and report scope
+
+- The new journal is attached only to a confirmed skirmish. Unconfirmed
+  local windows are provisional in memory. A skirmish retains its last
+  four matched windows and up to eight verified lethal recap rows.
+  Each window retains the newest 16 unit-feedback, cast and aura samples,
+  12 unit-state samples and eight kill notifications. Each stream also
+  has a per-second rate limit. At most eight additions are inspected per
+  aura notification. A local window can contain unrelated or PvE activity.
+  These samples do not establish that every observed action or unit belongs
+  to the confirmed skirmish. A stream suppresses repeats with the same readable
+  cast GUID and phase or the same aura instance on the same unit while
+  the identity remains in the sample. IDs used for this deduplication
+  are transient. Signals without a dependable event ID retain duplicates.
+- Damage Meter retains at most six spell-detail samples per category and
+  32 per accepted read. The diagnostic capture uses no extra meter
+  requests. An interrupted, ambiguous, reset or superseded read can
+  leave a decision/status in the report with no spell samples. A new
+  local window or archive owns its own sample. Meter totals and dropped
+  counts are diagnostic and do not change the participant graph.
+- Report an Issue adds `combatCapture`, `combatWindow`,
+  `combatAvailability`, `combatStream` and `primaryEvidence` for
+  native observations and API samples. `meterSampleBatch`,
+  `meterSampleCoverage` and `meterSpellSample` describe aggregates.
+  `meterLink`, `action` and `resolution` remain conclusions or
+  summaries produced by Names in Red. Relative timestamps are offsets
+  from local combat start. The death recap timestamp is taken from the
+  recap itself.
+- The new data survives reload and debug-buffer eviction. Older records
+  without these samples report `not-recorded`. The export uses the
+  same player aliases as the rest of the report and leaves unavailable
+  fields empty with a status where known. No real GUIDs, cast IDs,
+  names, localized spell names, protected messages or chat are exported
+  by these sections. The JSONL output remains bounded to 24 KiB, with
+  runtime drop counts and output truncation reported independently.
+
+#### Optional native file capture
+
+The 71037 [native `/combatlog` handler](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_ChatFrameBase/Shared/SlashCommands.lua#L856-L865)
+toggles `LoggingCombat()`. [`C_ChatInfo.IsLoggingCombat()`](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/ChatInfoDocumentation.lua#L371-L380)
+documents the enabled and advanced flags. For a deliberate reproduction,
+the operator can toggle the native command on before the fight and off
+after it. The game writes the log separately under its `Logs` directory.
+It can contain identifying player data. Keep it local and redact any
+excerpt before sharing it. An addon option would duplicate the native
+toggle, so this change does not start file logging, read files or send
+data. API availability is verified from the source. The contents of a
+live 71037 open-world PvP file have not been verified here.

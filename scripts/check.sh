@@ -21,3 +21,4 @@ lua5.1 tests/issue-report.lua
 lua5.1 tests/battlegrounds.lua
 lua5.1 tests/gnomeregan-outcomes.lua
 lua5.1 tests/gnomeregan-world.lua
+lua5.1 tests/combat-diagnostics.lua

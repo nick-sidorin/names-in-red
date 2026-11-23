@@ -232,6 +232,7 @@ local function Confirm(window, opponents, basis)
     end
     record.lastWindow = window
     window.record = record
+    if window.combatDiagnostic then addon.AttachCombatDiagnostics(record.battle, window.combatDiagnostic) end
     -- A late meter or recap can confirm an earlier window without replacing a later record.
     if window.area == area and (not lastRecord or lastRecord.began <= record.began) then lastRecord = record end
     return record
@@ -264,6 +265,12 @@ function addon.WorldCombatWindow(started)
     local first, second = Matches(open), Matches(tail)
     if first and not second then return open end
     if second and not first then return tail end
+end
+
+function addon.BindCombatDiagnostics(window, capture)
+    if not capture or not Valid(window) or window.area ~= area then return end
+    window.combatDiagnostic = capture
+    if window.record then addon.AttachCombatDiagnostics(window.record.battle, capture) end
 end
 
 local function ObserveDeath(record, id, stamp, source)

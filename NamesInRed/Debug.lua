@@ -7,6 +7,7 @@ local combatSequence = 0
 local combat, settling, passive, lastCombatEnd
 local limit = 1000
 local plateTokens = {}
+local diagnosticRegistration, diagnosticBuild
 local demoFactions = { alliance = "Alliance", horde = "Horde" }
 
 local function ClearDiagnostics()
@@ -302,7 +303,7 @@ local sourceFields = {
     "factionGroup", "isLocalPlayer", "totalAmount", "deathRecapID", "deathTimeSeconds",
     "sourceDisplayType",
 }
-local sourceKeyFields = { "sourceGUID", "sourceCreatureID" }
+local sourceKeyFields = { "sourceGUID", "sourceCreatureID", "totalAmount" }
 local spellFields = { "spellID", "totalAmount", "overkillAmount", "creatureName" }
 local targetFields = { "unitName", "unitClassFilename", "classification", "isPet", "isMob", "amount" }
 
@@ -318,17 +319,23 @@ local function Retryable(reason)
     return reason == "secret" or reason == "restricted-table" or reason == "absent" or reason == "error"
 end
 
-local function SpellTargets(entry, sample, actor, category, evidence, counts, scratch, accept)
+local function SpellTargets(entry, sample, actor, category, evidence, counts, scratch, accept, probe, source)
     local details = entry.combatSpellDetails
     local readable, reason = AccessibleTable(details)
     if not readable then
         if sample then sample.detailStatus = reason end
-        if actor then Count(counts, "details-" .. reason) end
+        if actor then
+            Count(counts, "details-" .. reason)
+            if probe then addon.SampleCombatMeter(probe, category, actor, source, entry, nil, "details-" .. reason) end
+        end
         return actor and Retryable(reason)
     end
     if next(details) == nil then
         if sample then sample.detailStatus = "empty" end
-        if actor then Count(counts, "details-empty") end
+        if actor then
+            Count(counts, "details-empty")
+            if probe then addon.SampleCombatMeter(probe, category, actor, source, entry, nil, "details-empty") end
+        end
         return
     end
     local listed = #details > 0
@@ -348,7 +355,8 @@ local function SpellTargets(entry, sample, actor, category, evidence, counts, sc
             if listed then sample.targets[index] = target else sample.target = target end
         end
         if actor then
-            local resolution = evidence:Link(category, actor, target, accept)
+            local resolution, other = evidence:Link(category, actor, target, accept)
+            if probe then addon.SampleCombatMeter(probe, category, actor, source, entry, target, resolution, other) end
             Count(counts, resolution)
             retry = retry or resolution:match("%-secret$") ~= nil or resolution == "detail-restricted-table"
         end
@@ -356,7 +364,7 @@ local function SpellTargets(entry, sample, actor, category, evidence, counts, sc
     return retry
 end
 
-local function MeterSources(result, sources, readSource, evidence, category, sampleLimit, accept)
+local function MeterSources(result, sources, readSource, evidence, category, sampleLimit, accept, probe)
     local counts, linkedActors = {}, {}
     result.sourceCount = #sources
     result.sources = {}
@@ -398,10 +406,12 @@ local function MeterSources(result, sources, readSource, evidence, category, sam
                             source.spells[spellIndex] = sample
                         end
                         if readable then
-                            local retryTarget = SpellTargets(entry, sample, actor, category, evidence, counts, targetScratch, accept)
+                            local retryTarget = SpellTargets(entry, sample, actor, category, evidence, counts,
+                                targetScratch, accept, probe, source)
                             retry = retry or retryTarget
                         elseif actor then
                             Count(counts, "spell-" .. reason)
+                            if probe then addon.SampleCombatMeter(probe, category, actor, source, {}, nil, "spell-" .. reason) end
                             retry = retry or Retryable(reason)
                         end
                     end
@@ -409,6 +419,7 @@ local function MeterSources(result, sources, readSource, evidence, category, sam
                 elseif actor then
                     local reason = detail and why or source.status.detail
                     Count(counts, "spells-" .. reason)
+                    if probe then addon.SampleCombatMeter(probe, category, actor, source, {}, nil, "spells-" .. reason) end
                     retry = retry or Retryable(reason)
                 end
             end
@@ -455,7 +466,7 @@ local function CorroboratedMeterPair(window, row, duration, selector, meterType,
     end
 end
 
-local function CaptureMeter(row, window, evidence, finalAttempt, enemies, faction, early)
+local function CaptureMeter(row, window, evidence, finalAttempt, enemies, faction, early, probe)
     local api = C_DamageMeter
     local types = Enum and Enum.DamageMeterType
     local current = Enum and Enum.DamageMeterSessionType and Enum.DamageMeterSessionType.Current
@@ -550,7 +561,7 @@ local function CaptureMeter(row, window, evidence, finalAttempt, enemies, factio
         local name, meterType, result, sources, eligible, accept = unpack(entry)
         local retrySource, actors = MeterSources(result, sources, function(source, guid, creature)
             return ReadResult(source, "detail", sourceGetter, selector, meterType, guid, creature)
-        end, eligible and evidence, name, nil, accept)
+        end, eligible and evidence, name, nil, accept, eligible and probe)
         retry = retry or retrySource
         if eligible then linked[name] = actors end
     end
@@ -660,6 +671,12 @@ local function Observe(unit, reason)
 
     local previous = contact.latest
     contact.latest = unitState
+    if combat.primary and not combat.areaChanged and (not previous or previous.dead ~= unitState.dead
+        or previous.inCombat ~= unitState.inCombat or previous.feign ~= unitState.feign
+        or previous.status.dead ~= unitState.status.dead or previous.status.inCombat ~= unitState.status.inCombat
+        or previous.status.feign ~= unitState.status.feign) then
+        addon.ObserveCombatState(combat.primary, unitState)
+    end
     if contact.changes and previous and (previous.targetGUID ~= unitState.targetGUID or previous.petGUID ~= unitState.petGUID
         or previous.dead ~= unitState.dead or previous.inCombat ~= unitState.inCombat
         or previous.pvp ~= unitState.pvp or previous.name ~= unitState.name
@@ -705,6 +722,11 @@ function handlers.PLAYER_REGEN_DISABLED()
         playerTokens = {}, petTokens = {}, contactCount = 0, meterUpdates = {}, meterUpdateCount = 0,
         groupChanges = {}, groupChangeCount = 0, restrictedKills = 0,
     }
+    if addon.NewCombatDiagnostics and addon.RecordingPvPOrigin() then
+        combat.primary = addon.NewCombatDiagnostics(row.uptime, row.time, diagnosticBuild, diagnosticRegistration)
+        local world = addon.WorldCombatWindow and addon.WorldCombatWindow(row.uptime)
+        if world then addon.BindCombatDiagnostics(world, combat.primary) end
+    end
     ObserveCurrent(row, "combat-start")
 end
 
@@ -852,6 +874,10 @@ function handlers.PLAYER_REGEN_ENABLED()
         finished.worldWindow = addon.WorldCombatWindow(finished.startedUptime)
         addon.SnapshotWorldContacts(finished.worldWindow, finished.contacts)
     end
+    if finished.primary then
+        if not finished.areaChanged then addon.EndCombatDiagnostics(finished.primary, "combat-end") end
+        addon.BindCombatDiagnostics(finished.worldWindow, finished.primary)
+    end
     combat, settling = nil, finished
     row.pvpReasons = finished.reasons
     row.contacts, row.unresolvedContacts = {}, finished.unresolved
@@ -912,7 +938,8 @@ function handlers.PLAYER_REGEN_ENABLED()
         if not context and not row.status.meterWindow then row.status.meterWindow = "no-eligible-world-record" end
         local evidence = context and addon.NewMeterParticipantEvidence(finished.contacts, finished.petOwners, faction)
         local early = context and not context.record
-        local retry, linked = CaptureMeter(row, finished, evidence, finalAttempt, enemies, faction, early)
+        local probe = finished.primary and evidence and addon.NewCombatMeterProbe()
+        local retry, linked = CaptureMeter(row, finished, evidence, finalAttempt, enemies, faction, early, probe)
         local additions, reached, links
         if evidence and linked and next(linked) then
             additions, reached = evidence:Connected(anchors)
@@ -925,6 +952,8 @@ function handlers.PLAYER_REGEN_ENABLED()
             return
         end
         settling = nil
+        -- A superseded or interrupted attempt leaves only the existing status summary.
+        if probe then addon.CommitCombatMeterProbe(finished.primary, probe, row.meterSessionID, row.meterSelection) end
 
         row.meterUpdates = {}
         local types = Enum and Enum.DamageMeterType
@@ -979,9 +1008,31 @@ local function IsTracked(unit)
         or unit == "player" or unit:match("^party%d+$") or unit:match("^raid%d+$"))
 end
 
+local function DiagnosticUnit(unit)
+    if not combat or not combat.primary or combat.areaChanged then return end
+    unit = Value(unit)
+    if IsTracked(unit) then return combat.primary, unit end
+end
+
+if addon.CombatCastDiagnosticsEvents then
+    function handlers.UNIT_COMBAT(unit, effect, flag, amount, school)
+        local capture, token = DiagnosticUnit(unit)
+        if capture then addon.ObserveCombatFeedback(capture, token, effect, flag, amount, school) end
+    end
+    for name in addon.CombatCastDiagnosticsEvents() do
+        local event = name
+        handlers[event] = function(unit, castGUID, spellID, interruptedBy)
+            local capture, token = DiagnosticUnit(unit)
+            if capture then addon.ObserveCombatCast(capture, event, token, castGUID, spellID, interruptedBy) end
+        end
+    end
+end
+
 local auraFields = { "auraInstanceID", "spellId", "sourceUnit", "isHelpful", "isHarmful" }
 
 function handlers.UNIT_AURA(unit, update)
+    local capture, token = DiagnosticUnit(unit)
+    if capture then addon.ObserveCombatAuras(capture, token, update) end
     unit = Value(unit)
     if not combat or combat.startInstanceType ~= "none" or not IsTracked(unit) then return end
     local stats = combat.auraSignals
@@ -1082,6 +1133,7 @@ end
 
 local function AreaChanged(event)
     passive, lastCombatEnd = nil, nil
+    if combat and combat.primary and not combat.areaChanged then addon.EndCombatDiagnostics(combat.primary, "area-changed") end
     local window = combat or settling
     if window then window.areaChanged = true end
     if combat then Sample(Add(event)) end
@@ -1130,6 +1182,7 @@ function handlers.PARTY_KILL(attacker, victim)
         or guid:match("^Pet%-")) then
         return
     end
+    if combat and combat.primary and not combat.areaChanged then addon.ObserveCombatPartyKill(combat.primary, attacker, victim) end
     if combat and not guid and not Value(attacker) then
         combat.restrictedKills = combat.restrictedKills + 1
         if combat.restrictedKills > 8 then return end
@@ -1246,6 +1299,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
     end
 
     SLASH_NAMESINREDDEBUG1 = "/nirdebug"
+    diagnosticRegistration, diagnosticBuild = row.registration, row.build
     SlashCmdList.NAMESINREDDEBUG = function(message)
         local faction = message:lower():match("^faction%s+(%a+)%s*$")
         local demoFaction = faction and demoFactions[faction]
