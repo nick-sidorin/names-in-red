@@ -1140,7 +1140,10 @@ The journal header and each card use Blizzard's bug artwork from
 [`PTR_IssueReporter.Assets.BugReportIcon`](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_PTRFeedback/Blizzard_PTRFeedback.lua#L37-L50).
 The addon owns the report window and uses the shared
 [`InputScrollFrameTemplate`](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.xml#L72)
-and its normal EditBox selection and scrolling. The native feedback
+and its normal EditBox selection and scrolling. The report reuses the manual
+entry window's rock background from Blizzard's
+[`PortraitFrameTemplate`](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml#L624-L662).
+The form link precedes the report so each can be copied in sequence. The native feedback
 submission flow is outside this feature.
 
 The copy field contains a fenced JSON Lines report. Each line is an object
