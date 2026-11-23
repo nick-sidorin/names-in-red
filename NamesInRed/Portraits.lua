@@ -127,10 +127,16 @@ local function CreateLevelBadge(parent, rim, rightSide)
     label:SetJustifyV("MIDDLE")
     label:SetWordWrap(false)
     label:SetShadowOffset(0, 0)
+    local skull = badge:CreateTexture(nil, "OVERLAY", nil, 1)
+    skull:SetPoint("CENTER")
+    skull:SetSize(14, 14)
+    local atlas = addon.ApplyAtlas(skull, "ui-hud-nameplates-levelindicator-skull")
+    if not atlas then skull:SetTexture("Interface\\TargetingFrame\\UI-TargetingFrame-Skull") end
     function badge:SetLevel(level)
-        local known = type(level) == "number" and level > 0
-        self:SetShown(known)
-        label:SetText(known and level or "")
+        local numeric = type(level) == "number" and level > 0
+        self:SetShown(numeric or level == -1)
+        skull:SetShown(level == -1)
+        label:SetText(numeric and level or "")
     end
     return badge
 end

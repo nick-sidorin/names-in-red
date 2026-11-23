@@ -914,3 +914,15 @@ local allyTile = assert(FindText(card, "Local Player")).parent
 local allyIcon = CheckClassBadge(allyTile, "MAGE", "Mage", "BOTTOMRIGHT")
 assert(allyIcon.anchor[3] == "BOTTOMRIGHT")
 print("Sparse histories use known identity and display recorded levels only")
+
+local skullLevelAtlas = "ui-hud-nameplates-levelindicator-skull"
+observed.enemies[1].level = -1
+card:SetSkirmish(observed)
+assert(FindRegion(fullRival, "atlas", skullLevelAtlas) and not FindText(fullRival, -1))
+compact:SetEncounter({ rivalLevel = -1 }, knownRival, rivalID)
+assert(FindRegion(compact, "atlas", skullLevelAtlas) and not FindText(compact, -1))
+compact:SetEncounter({ rivalLevel = 53 }, knownRival, rivalID)
+assert(FindText(compact, 53) and not FindRegion(compact, "atlas", skullLevelAtlas))
+compact:SetEncounter({}, knownRival, rivalID)
+assert(not FindText(compact, 53) and not FindRegion(compact, "atlas", skullLevelAtlas))
+print("Numeric, skull-level, and unknown badges survive card recycling")

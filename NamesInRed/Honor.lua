@@ -1,7 +1,8 @@
 local _, addon = ...
 local Readable = addon.Readable
-local windowSeconds = 2
+local windowSeconds, lineLimit = 2, 256
 local pending, lastHK
+local lines, lineOrder, lineIndex = {}, {}, 0
 
 local function SessionHK()
     local count = GetPVPSessionStats and Readable(GetPVPSessionStats())
@@ -15,24 +16,36 @@ end
 local function Save(batch)
     if pending ~= batch then return end
     pending = nil
-    local battle = batch.battle
-    if batch.origin ~= addon.RecordingPvPOrigin() or not batch.origin
-        or (batch.origin == "battleground" and batch.instanceMapID ~= addon.BattlegroundMapID())
-        or batch.kills ~= 1 or batch.hk ~= 1 or not battle or not addon.db.skirmishes
-        or addon.db.skirmishes[batch.id] ~= battle then return end
-    local honor
-    if batch.messages == 1 then
-        local currencyHonor = batch.currencyUpdates == 1 and batch.currencyHonor or nil
-        if not batch.chatHonor or not currencyHonor or batch.chatHonor == currencyHonor then
-            honor = batch.chatHonor or currencyHonor
-        end
+    if addon.db ~= batch.db then return end
+    local hk = batch.hk
+    local honor = batch.chatHonor
+    if honor == 0 and batch.messages == 1 and batch.currencyUpdates == 1 then honor = batch.currencyHonor end
+    if hk == 0 and honor == 0 then return end
+
+    local db, ledger = batch.db, addon.Ledger
+    local id, battle = batch.id, batch.battle
+    local record = batch.window and batch.window.record
+    if not battle and batch.kills == 0 and record then id, battle = record.id, record.battle end
+    if batch.conflict or batch.unlinkedKill or batch.unscopedReward or not battle or not db.skirmishes or db.skirmishes[id] ~= battle then
+        ledger.AddRewards(db, "unassignedRewards", hk, honor)
+        if addon.RefreshBook then addon.RefreshBook() end
+        if addon.NotePvPDiagnostic then addon.NotePvPDiagnostic("reward-unassigned-skirmish") end
+        return
     end
-    battle.rewards = battle.rewards or {}
-    local reward = battle.rewards[batch.targetID] or { honorableKills = 0, honor = 0 }
-    reward.honorableKills = reward.honorableKills + 1
-    reward.honor = reward.honor + (honor or 0)
-    battle.rewards[batch.targetID] = reward
-    addon.RecordSkirmish(batch.id, battle)
+    if batch.kills == 1 and hk == 1 and batch.targetID and not batch.hkUncertain then
+        local targetHonor = 0
+        if batch.messages == 1 and (batch.currencyUpdates ~= 1 or batch.currencyHonor == honor) then
+            targetHonor = honor
+        end
+        battle.rewards = battle.rewards or {}
+        ledger.AddRewards(battle.rewards, batch.targetID, hk, targetHonor)
+        hk, honor = 0, honor - targetHonor
+    end
+    ledger.AddRewards(battle, "unassignedRewards", hk, honor)
+    if (hk > 0 or honor > 0) and addon.NotePvPDiagnostic then
+        addon.NotePvPDiagnostic("reward-unassigned-opponent")
+    end
+    addon.RecordSkirmish(id, battle)
 end
 
 local function FinishWhenQuiet(batch)
@@ -49,14 +62,19 @@ local function CurrentBatch()
     local now = GetTime()
     local origin = addon.RecordingPvPOrigin()
     local instanceMapID = origin == "battleground" and addon.BattlegroundMapID() or nil
-    if pending and (pending.origin ~= origin or pending.instanceMapID ~= instanceMapID) then pending = nil end
-    if pending and now >= pending.deadline then Save(pending) end
+    local window = addon.HonorWorldWindow and addon.HonorWorldWindow()
+    if pending and (pending.origin ~= origin or pending.instanceMapID ~= instanceMapID or now >= pending.deadline) then
+        Save(pending)
+    end
     if pending then
-        pending.deadline = now + windowSeconds
+        if window and pending.window and window ~= pending.window then pending.conflict = true end
+        pending.window = pending.window or window
+        pending.deadline, pending.currentWindow = now + windowSeconds, window
         return pending
     end
-    local batch = { kills = 0, hk = 0, messages = 0, currencyUpdates = 0, lines = {}, deadline = now + windowSeconds }
-    batch.origin, batch.instanceMapID = origin, instanceMapID
+    local batch = { kills = 0, hk = 0, messages = 0, currencyUpdates = 0, chatHonor = 0,
+        deadline = now + windowSeconds, db = addon.db, origin = origin, instanceMapID = instanceMapID,
+        window = window, currentWindow = window }
     pending = batch
     C_Timer.After(windowSeconds, function() FinishWhenQuiet(batch) end)
     return batch
@@ -65,7 +83,13 @@ end
 function addon.ObserveHonorKill(id, battle, targetID)
     local batch = CurrentBatch()
     batch.kills = batch.kills + 1
-    if batch.kills == 1 then batch.id, batch.battle, batch.targetID = id, battle, targetID end
+    if not battle then
+        batch.unlinkedKill = true
+    elseif batch.battle and battle ~= batch.battle then
+        batch.conflict = true
+    elseif not batch.battle then
+        batch.id, batch.battle, batch.targetID = id, battle, targetID
+    end
 end
 
 local function HonorFromChat(message)
@@ -77,9 +101,13 @@ end
 
 local handlers = { PLAYER_ENTERING_WORLD = addon.ResetHonorTracking }
 
-function handlers.PLAYER_LEAVING_WORLD()
-    pending, lastHK = nil, nil
+function addon.CloseHonorTracking()
+    if pending then Save(pending) end
+    lastHK = nil
 end
+
+handlers.PLAYER_LEAVING_WORLD = addon.CloseHonorTracking
+handlers.PLAYER_LOGOUT = addon.CloseHonorTracking
 
 function handlers.PLAYER_PVP_KILLS_CHANGED(unit)
     unit = Readable(unit)
@@ -88,21 +116,26 @@ function handlers.PLAYER_PVP_KILLS_CHANGED(unit)
     if count and lastHK and count > lastHK then
         local batch = CurrentBatch()
         batch.hk = batch.hk + count - lastHK
+        if not batch.currentWindow and not batch.battle then batch.unscopedReward = true end
     elseif (not count or (lastHK and count < lastHK)) and pending then
-        pending.hk = math.huge
+        pending.hkUncertain = true
     end
     lastHK = count
 end
 
 function handlers.CHAT_MSG_COMBAT_HONOR_GAIN(message, _, _, _, _, _, _, _, _, _, lineID)
-    local batch = CurrentBatch()
     lineID = Readable(lineID)
     if type(lineID) == "number" and lineID > 0 then
-        if batch.lines[lineID] then return end
-        batch.lines[lineID] = true
+        if lines[lineID] then return end
+        lineIndex = lineIndex % lineLimit + 1
+        local previous = lineOrder[lineIndex]
+        if previous then lines[previous] = nil end
+        lineOrder[lineIndex], lines[lineID] = lineID, true
     end
+    local batch = CurrentBatch()
     batch.messages = batch.messages + 1
-    batch.chatHonor = HonorFromChat(Readable(message))
+    if not batch.currentWindow and not batch.battle then batch.unscopedReward = true end
+    batch.chatHonor = batch.chatHonor + (HonorFromChat(Readable(message)) or 0)
 end
 
 function handlers.CURRENCY_DISPLAY_UPDATE(currencyID, _, change)
@@ -117,8 +150,7 @@ local frame = CreateFrame("Frame")
 for event in pairs(handlers) do pcall(frame.RegisterEvent, frame, event) end
 frame:SetScript("OnEvent", function(_, event, ...)
     if not addon.db then return end
-    if event ~= "PLAYER_ENTERING_WORLD" and event ~= "PLAYER_LEAVING_WORLD" then
-        if not addon.RecordingPvPOrigin() then return end
-    end
+    if event ~= "PLAYER_ENTERING_WORLD" and event ~= "PLAYER_LEAVING_WORLD" and event ~= "PLAYER_LOGOUT"
+        and not addon.RecordingPvPOrigin() then return end
     handlers[event](...)
 end)

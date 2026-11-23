@@ -97,6 +97,18 @@ local function MakeWriter()
     return Write, Each, Finish, truncated
 end
 
+local function Reasons(input)
+    local result, count = {}, 0
+    for key, value in pairs(Table(input)) do
+        key, value = Token(key), Number(value)
+        if key and value then
+            count = count + 1
+            if count <= 48 then result[key] = value end
+        end
+    end
+    return result, count > 48 or nil
+end
+
 local meterCategories = { "DamageDone", "DamageTaken", "EnemyDamageTaken", "HealingDone", "Absorbs", "Interrupts", "Dispels", "Deaths" }
 
 -- Store a small allowlisted summary alongside the exact combat-end row identity.
@@ -106,21 +118,13 @@ function addon.ReportMeterSnapshot(row)
     local snapshot = Fields(row, "meterSelection", "session combatSequence time uptime meterSessionID meterAttempts meterRestrictionWaits meterUpdateCount contactCount contactOverflow restrictedPartyKills",
         "meterReset areaChanged")
     snapshot.status, snapshot.window = Token(status.meter), Token(status.meterWindow)
+    snapshot.decisions = Reasons(row.pvpReasons)
     snapshot.categories = {}
     for _, category in ipairs(meterCategories) do
         local meter = Table(Table(row.meter)[category])
         local details = Fields(Table(meter.status), "session sources")
         details.evidence = Token(Table(row.meterEvidence)[category])
-        details.counts = {}
-        local count = 0
-        for key, value in pairs(Table(meter.resolution)) do
-            key, value = Token(key), Number(value)
-            if key and value then
-                count = count + 1
-                if count <= 48 then details.counts[key] = value end
-            end
-        end
-        details.truncated = count > 48 or nil
+        details.counts, details.truncated = Reasons(meter.resolution)
         if next(details.counts) or details.evidence or details.session or details.sources then
             snapshot.categories[category] = details
         end
@@ -190,6 +194,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy)
     local version, build, interface = Read(GetBuildInfo)
     local metadata = C_AddOns and C_AddOns.GetAddOnMetadata
     local journal = Table(db)
+    local rows = Table(Table(debugDB).rows)
     local battle = battleID and Table(journal.skirmishes)[battleID]
     if legacy and not battleID then battle, battleID = LegacyBattle(journal, legacy) end
     local requested = battleID ~= nil or legacy ~= nil
@@ -202,6 +207,25 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy)
     battle = Table(battle)
     if not next(battle) then
         if requested then write("record", { availability = "missing" }) end
+        if not requested then
+            local ok, totals = pcall(addon.Ledger.JournalRewards, journal)
+            if ok then write("journalRewards", Fields(totals, nil, "honorableKills honor unassignedHK unassignedHonor")) end
+            local emitted = 0
+            for i = #rows, math.max(1, #rows - 95), -1 do
+                local row = Table(rows[i])
+                local kind = Token(row.kind)
+                if kind == "PVP_DECISION" or kind == "COMBAT_END" then
+                    emitted = emitted + 1
+                    if emitted > 12 then truncated.recentDecision = true; break end
+                    local fields = Reasons(row.pvpReasons)
+                    local status = Table(row.status)
+                    fields.reason, fields.meter, fields.meterWindow = Token(row.reason), Token(status.meter), Token(status.meterWindow)
+                    fields.time, fields.context = Number(row.time), Token(row.instanceType)
+                    write("recentDecision", fields)
+                end
+            end
+            write("recentDiagnostics", { availability = #rows > 0 and "bounded-session-summary" or "unavailable" })
+        end
         return finish()
     end
 
@@ -263,7 +287,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy)
         counts.side, counts.observed = side, #Table(battle[side])
         write("side", counts)
     end
-    write("resolution", Fields(resolution, "ending reason coverage meter localLife favorsVictory favorsDefeat",
+    write("resolution", Fields(resolution, "ending reason interrupted coverage meter localLife favorsVictory favorsDefeat",
         "unitsRead positionsUnavailable statesUnavailable"))
     local kills, deaths = {}, {}
     each("event", battle.events, 128, function(event)
@@ -288,7 +312,10 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy)
             write("reward", reward)
         end
     end
-    write("rewardTotal", { honorableKills = honorableKills, honor = honor, available = next(Table(battle.rewards)) ~= nil,
+    local unassigned = Fields(Table(battle.unassignedRewards), nil, "honorableKills honor")
+    if next(unassigned) then write("rewardUnassignedOpponent", unassigned) end
+    write("rewardTotal", { honorableKills = honorableKills + (unassigned.honorableKills or 0),
+        honor = honor + (unassigned.honor or 0), available = next(Table(battle.rewards)) ~= nil or next(unassigned) ~= nil,
         partial = truncated.participant == true })
 
     local observation = Table(battle.observation)
@@ -323,24 +350,24 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy)
         end
     end
 
-    local rows = Table(Table(debugDB).rows)
     local function Meter(section, snapshot, index)
         local fields = Fields(snapshot, "status window meterSelection",
             "meterSessionID meterAttempts meterRestrictionWaits meterUpdateCount contactCount contactOverflow restrictedPartyKills",
             "meterReset areaChanged")
         fields.segment = index
         write(section, fields)
+        local decisions = Reasons(snapshot.decisions)
+        if next(decisions) then
+            decisions.segment = index
+            write("combatDecisions", decisions)
+        end
         for _, name in ipairs(meterCategories) do
             local category = Table(Table(snapshot.categories)[name])
             if next(category) then
                 local item = Fields(category, "session sources evidence", nil, "truncated")
                 item.segment, item.category = index, name
                 write("meterCategory", item)
-                local counts = {}
-                for key, value in pairs(Table(category.counts)) do
-                    key, value = Token(key), Number(value)
-                    if key and value then counts[key] = value end
-                end
+                local counts = Reasons(category.counts)
                 counts.segment, counts.category = index, name
                 write("meterReasons", counts)
             end
@@ -350,6 +377,11 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy)
         local fields = Fields(segment, "startReason endReason continuation confirmedBy observationStopped", "startedAt endedAt duration")
         fields.segment = index
         write("segment", fields)
+        local decisions = Reasons(segment.rejectedKills)
+        if next(decisions) then
+            decisions.segment = index
+            write("killDecisions", decisions)
+        end
         ForKnown(segment.contacts, function(contact, player)
             local item = Fields(contact, "signal", "first last", "dead inCombat")
             item.player, item.segment = player, index

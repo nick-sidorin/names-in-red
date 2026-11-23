@@ -81,6 +81,22 @@ frame:SetScript("OnEvent", function(_, _, attacker, victim)
     end
     local context = addon.EncounterContext(unit)
     local opponent = not unit and addon.ObservedWorldOpponent(victim, context, attacker)
+    local cached, started
+    if not unit and not opponent and addon.ReadCombatContact then
+        cached, started = addon.ReadCombatContact(victim)
+    end
+    if not unit and not opponent and started and addon.StageWorldKill then
+        context.actorID = attacker
+        context.actorName = addon.UnitPlayerName(actorUnit)
+        context.actorAppearance = addon.UnitAppearance(actorUnit)
+        context.actorLevel = context.actorAppearance.level
+        context.killUptime = GetTime()
+        context.cachedRival = cached and cached.opponent == true and cached.faction ~= faction and cached or nil
+        local staged = addon.StageWorldKill(victim, context, started)
+        if addon.NotePvPDiagnostic then addon.NotePvPDiagnostic(staged and "kill-staged" or "kill-window-unavailable") end
+        if staged ~= "duplicate" then addon.ObserveHonorKill() end
+        return
+    end
     if unit or opponent then
         if opponent then name, context.rivalLevel = opponent.name, opponent.level end
         context.rivalAppearance = unit and addon.UnitAppearance(unit)
@@ -92,6 +108,7 @@ frame:SetScript("OnEvent", function(_, _, attacker, victim)
         context.killUptime = GetTime and GetTime()
         Record(victim, name, context, false)
     else
+        if addon.NotePvPDiagnostic then addon.NotePvPDiagnostic("kill-opponent-unresolved") end
         addon.ObserveHonorKill()
     end
 end)

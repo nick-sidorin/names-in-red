@@ -8,7 +8,7 @@ local honorIcon
 local deletePopup = "NAMES_IN_RED_DELETE_RIVAL"
 local lower = strlower or string.lower
 local sideTabs = {}
-local rivalsPage, recentPage, recentList, recentEmpty
+local rivalsPage, recentPage, recentList, recentEmpty, unassignedRewards
 local battlePage, battleList, selectedSkirmishID
 local rivalsView, recentView, battleView = 1, 2, 3
 local activeView = rivalsView
@@ -279,6 +279,12 @@ function addon.RefreshBook(resetSearch)
     if activeView == recentView then
         local entries
         entries, recentReportRefs = addon.RecentSkirmishes(addon.db, recentLimit)
+        local rewards = addon.db.unassignedRewards or {}
+        local hk, honorAmount = rewards.honorableKills or 0, rewards.honor or 0
+        if unassignedRewards then
+            unassignedRewards:SetShown(hk > 0 or honorAmount > 0)
+            unassignedRewards:SetText(L.unassignedRewards:format(hk, honorAmount))
+        end
         recentEmpty:SetShown(#entries == 0)
         recentList:SetShown(#entries > 0)
         recentList:SetEntries(entries)
@@ -703,6 +709,11 @@ local function ToggleBook()
         local journalTitle = journal:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
         journalTitle:SetPoint("TOPLEFT", 20, -15)
         journalTitle:SetText(L.recentView)
+        unassignedRewards = journal:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        unassignedRewards:SetPoint("RIGHT", journal, "TOPRIGHT", -42, -22)
+        unassignedRewards:SetPoint("LEFT", journalTitle, "RIGHT", 16, 0)
+        unassignedRewards:SetJustifyH("RIGHT")
+        unassignedRewards:SetTextColor(0.72, 0.67, 0.59)
         recentEmpty = journal:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         recentEmpty:SetPoint("CENTER")
         recentEmpty:SetText(L.noSkirmishes)
