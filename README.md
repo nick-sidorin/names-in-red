@@ -112,8 +112,12 @@ the same skirmish ID replaces the indexed result and rewards.
 
 Live open-world capture groups readable player kills and local death recaps
 within the observed combat window. A current party member's finishing blow
-can add that ally to the roster. At death, visible nameplates can supply
-participant details when the target and mouseover are unavailable. For live
+or a readable post-combat link can add a participant to the roster. The
+preview checks specific damage, healing, absorb, interrupt and dispel links
+when the meter supplies both identities. It can credit a pet with a confirmed
+owner. Nearby sightings, group membership alone and unnamed meter totals do
+not establish participation. At death, visible
+nameplates can supply participant details when the target and mouseover are unavailable. For live
 records, `rosterComplete` also covers observed duels. It is recalculated at
 load and on each save. Honor correlation uses one readable
 opponent death and a single increase in the session honorable kill count.

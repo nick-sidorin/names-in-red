@@ -1,0 +1,124 @@
+local _, addon = ...
+
+local function ContactName(unit)
+    local name = unit.name
+    if not name then return end
+    if unit.surname and unit.surname ~= "" then name = name .. " " .. unit.surname end
+    name = addon.ManualName(name)
+    if addon.HasFullName(name) then return name end
+end
+
+local function Index(index, key, entry)
+    if index[key] == nil then
+        index[key] = entry
+    elseif index[key] ~= entry then
+        index[key] = false
+    end
+end
+
+local support = { HealingDone = true, Absorbs = true }
+local crossFaction = { DamageTaken = true, EnemyDamageTaken = true, DamageDone = true, Interrupts = true }
+local targetFields = { "unitName", "unitClassFilename", "isMob", "isPet", "amount" }
+local Evidence = {}
+
+function addon.NewMeterParticipantEvidence(contacts, petOwners, faction)
+    local evidence = setmetatable({
+        player = {}, names = {}, pet = {}, links = {}, contacts = contacts, faction = faction,
+    }, { __index = Evidence })
+    for guid, contact in pairs(contacts) do
+        local player = contact.latest
+        if player and player.guid == guid and player.isPlayer == true
+            and (player.faction == "Alliance" or player.faction == "Horde") then
+            local name = ContactName(player)
+            if name then
+                local entry = { guid = guid, name = name, player = player }
+                evidence.player[guid] = entry
+                if player.class then Index(evidence.names, name .. "\0" .. player.class, entry) end
+            end
+        end
+    end
+    for pet, owners in pairs(petOwners) do
+        for owner in pairs(owners) do Index(evidence.pet, pet, owner) end
+    end
+    return evidence
+end
+
+function Evidence:Source(category, source)
+    local guid = source.sourceGUID
+    if type(guid) ~= "string" then return nil, "source-guid-" .. (source.status.sourceGUID or "absent") end
+    if guid == "" then return nil, "source-guid-empty" end
+    local actor = self.player[guid]
+    if guid:match("^Pet%-.+") then
+        local owner = self.pet[guid]
+        if owner == false then return nil, "pet-owner-ambiguous" end
+        if not owner then return nil, "pet-owner-unresolved" end
+        actor = self.player[owner]
+        if not actor then return nil, "pet-owner-contact-unusable" end
+    elseif not guid:match("^Player%-.+") then
+        return nil, "non-player-source"
+    elseif not actor then
+        local contact = self.contacts[guid]
+        if not contact then return nil, "source-contact-missing" end
+        local status = contact.latest and contact.latest.status
+        if status and (status.isPlayer == "secret" or status.name == "secret" or status.faction == "secret") then
+            return nil, "source-contact-secret"
+        end
+        return nil, "source-contact-incomplete"
+    end
+    local friendly = actor.player.faction == self.faction
+    if (not friendly and actor.player.opponent ~= true)
+        or (category == "DamageTaken" and not friendly)
+        or (category == "EnemyDamageTaken" and friendly) then return nil, "source-side-unverified" end
+    return actor
+end
+
+-- The source is the affected unit in the taken categories. Links are
+-- undirected, and repeated spells between the same two players cost one edge.
+function Evidence:Link(category, actor, detail)
+    if detail.status.row ~= "readable" then return "detail-" .. detail.status.row end
+    for _, key in ipairs(targetFields) do
+        if detail.status[key] == "secret" then return "target-" .. key .. "-secret" end
+    end
+    if type(detail.unitName) ~= "string" or detail.unitName == "" then return "target-name-missing" end
+    if detail.isMob == true or detail.isPet == true then return "target-not-player" end
+    if detail.isMob ~= false or detail.isPet ~= false then return "target-kind-unknown" end
+    if type(detail.amount) ~= "number" or detail.amount <= 0 then return "target-amount-missing-or-zero" end
+    if type(detail.unitClassFilename) ~= "string" or detail.unitClassFilename == "" then return "target-class-missing" end
+    local other = self.names[detail.unitName .. "\0" .. detail.unitClassFilename]
+    if other == false then return "target-contact-ambiguous" end
+    if not other then return "target-contact-missing" end
+    if other == actor then return "self-action" end
+    if other.player.faction ~= self.faction and other.player.opponent ~= true then return "target-side-unverified" end
+    local sameSide = actor.player.faction == other.player.faction
+    if (support[category] and not sameSide) or (crossFaction[category] and sameSide) then return "unexpected-faction" end
+    self.links[actor] = self.links[actor] or {}
+    self.links[other] = self.links[other] or {}
+    self.links[actor][other], self.links[other][actor] = true, true
+    return "link"
+end
+
+-- Anchors are GUIDs supplied by the caller. The graph does not depend on kills.
+function Evidence:Connected(anchors)
+    local reached, queue, additions = {}, {}, {}
+    for guid in pairs(anchors) do
+        local entry = self.player[guid]
+        if entry then
+            reached[entry] = true
+            queue[#queue + 1] = entry
+        end
+    end
+    local index = 1
+    while index <= #queue do
+        local entry = queue[index]
+        for other in pairs(self.links[entry] or {}) do
+            if not reached[other] then
+                reached[other] = true
+                queue[#queue + 1] = other
+                additions[#additions + 1] = other
+            end
+        end
+        index = index + 1
+    end
+    table.sort(additions, function(a, b) return a.guid < b.guid end)
+    return additions, reached
+end

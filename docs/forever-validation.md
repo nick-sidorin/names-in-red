@@ -1,8 +1,8 @@
 # Forever feasibility and validation
 
 Source baseline: Forever 1.60.1 build 70959, interface 16001. The findings below
-come from code review and published addon packages. Live behavior has yet to be
-verified for Names in Red.
+come from the matched UI source, published addon packages and owner captures.
+Each section identifies which paths have been observed in the client.
 
 ## Attribution
 
@@ -168,6 +168,251 @@ aggregate is evidence to inspect rather than automatic encounter attribution.
 Compare both players' saves after a fight in a party and a fight outside it.
 Have one attack while the other lands the finishing blow. This probe needs
 live-client validation.
+
+### Duskwood participant evidence
+
+The owner's 22 November 2026 log from Forever 70959 contains a 40-second
+combat window with two confirmed player kills and five attributed honor.
+`DamageTaken` resolves the local hunter and a priest as victims by GUID. The
+spell details identify the same opposing paladin as an attacker by
+full name and class, with positive amounts for both victims. The recorded
+contact supplies the paladin's GUID and hostile faction. The priest also
+appears in `HealingDone`, but its available spell details omit the recipients.
+Another friendly player was present without a recorded link to this fight.
+
+The participant preview uses this pattern to extend the roster of an
+already recorded open-world fight. It requires a meter update for the selected
+session and category during local combat, a duration within two seconds of the
+local window, and identities matched in the same zone and recorded fight.
+Disjoint player pairs, mobs, secret amounts and ambiguous names are excluded.
+The anonymized event replay reproduces the observed 2 × 3 roster, two confirmed
+deaths and five honor. The original log remains private. The last known state
+of the paladin was alive when its nameplate left view. That alone supplies
+no evidence of a resolved fight or the paladin's reason for leaving.
+
+### Damage Meter participant research (Forever 70959)
+
+The source revision is
+[Gethe/wow-ui-source at 3d8abb1](https://github.com/Gethe/wow-ui-source/tree/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns).
+See `Blizzard_APIDocumentationGenerated/DamageMeterDocumentation.lua`,
+`DamageMeterConstantsDocumentation.lua` and
+`Blizzard_DamageMeter/{DamageMeterSessionWindow,DamageMeterSourceWindow,DamageMeterEntry}.lua`.
+
+#### Confirmed from the API and Blizzard UI
+
+| Surface | What it supplies |
+| --- | --- |
+| `IsDamageMeterAvailable()` | Availability and a failure reason. The stock UI separately checks the `damageMeterEnabled` CVar. This addon does not change it. |
+| `GetAvailableCombatSessions()` | Listed session IDs, display names and optional durations. The UI offers these alongside an independent Current or Overall selection. |
+| `GetCombatSessionFromID` / `GetCombatSessionFromType` | Category totals, optional duration and source rows. Sources may expose a GUID or creature ID, name, class, faction, display type, amount and local-player flag. Death rows have a recap ID and relative death time. |
+| `GetCombatSessionSourceFromID` / `GetCombatSessionSourceFromType` | Source totals and aggregates per spell, including spell ID, amount, overkill, avoidance and deadly flags, and optional usable details for a second unit. A detail exposes a display name, class, mob/pet flags and amount. It carries no second GUID, owner GUID or timestamp. |
+| `GetSessionDurationSeconds(sessionType)` | Timer for a session type. It has no absolute start/end time. |
+| `ResetAllCombatSessions()` | Clears all meter sessions. The preview only observes resets. |
+| `DAMAGE_METER_COMBAT_SESSION_UPDATED(type, sessionID)` | Category refresh signal. `DamageMeterSessionWindowMixin:OnEvent` refreshes the matching category and ID and has a special path for ID `0` with a type-based selection. ID `0` accompanied Current data in the Duskwood capture. This event has no action, timestamp or boundary payload. |
+| `DAMAGE_METER_CURRENT_SESSION_UPDATED` / `DAMAGE_METER_RESET` | Both have no payload. The UI refreshes Current with scroll discarded on the first and refreshes on reset. The first does not carry a unique numeric ID or say whether a particular encounter ended. |
+
+All four session/detail getters are marked `SecretWhenInCombat` and have
+`SecretArguments = AllowedWhenUntainted`. The session list and duration
+metadata lack the combat-wide marker. The preview still validates their values
+individually, reads category and source data after local combat and keeps the
+read status when data is restricted, inaccessible, absent or fails. Even out
+of combat, some source fields are conditionally secret and the specialization
+icon is marked secret. The four Blizzard getters are called by the
+session/source window mixins as data providers. No protected UI is hooked or
+used to access values.
+
+The public session types are `Overall (0)`, `Current (1)` and `Expired (2)`.
+Here `Current (1)` is an enum argument, while `0` in a category-update event
+is a separate ID field. The timer code treats Expired as a fixed-duration
+display state. A numeric archived ID selects a listed session. No contract
+makes an ID global, persistent across reset/reload, or equal to a skirmish ID.
+The constants also describe native combination modes for Challenge Mode,
+Arena and multi-round Arena and overrides that can redirect sources to owners
+or aura casters. Those enums do not expose the native combination/override
+rules or promise that every pet is grouped under its owner.
+
+The category enum lists Damage Done, DPS, Healing Done, HPS, Absorbs,
+Interrupts, Dispels, Damage Taken, Avoidable Damage Taken, Deaths and Enemy
+Damage Taken. `DAMAGE_METER_CATEGORIES` lists all except Absorbs in the stock
+window menu. There is no dedicated buffs, crowd control or threat category.
+`DamageMeterSpellEntryMixin:GetNameText` formats the creature name for a pet
+spell and a readable second-unit name for entries such as incoming damage.
+The fact that rows can display a second name does not guarantee one for
+every category. Source totals and per-spell totals without a specific
+second unit cannot establish an interaction between two players.
+
+The native engine defines when a session is created, ended, combined and moved
+into the list. The stock Lua chooses a type or an ID, fetches aggregates and
+renders them. It does not segment an open-world PvP fight. No public function
+or event supplies an individual world PvP encounter ID or ordered action log.
+`ENCOUNTER_START` and `ENCOUNTER_END` describe boss encounters and carry
+encounter, difficulty and group-size fields, with boss status at the end.
+They do not furnish a world PvP ID. `world:n` is a Names in Red journal key.
+Relative death time and the addon's own receipt time for refresh events can
+help compare windows, but cannot recover the order of heals or attacks.
+
+#### Observed in the owner's capture
+
+Duskwood used Current with positive, named `DamageTaken` details. The priest
+had 217 healing in aggregate with empty second-unit names and zero detail
+amounts. Outgoing damage also had rows with no usable second unit.
+`EnemyDamageTaken` included a nearby NPC in addition to opposing players.
+Some named second-unit rows had zero detail amounts despite positive spell
+totals. A meter session can therefore contain data unrelated to the skirmish.
+Whether it folds two independent PvP fights into the same local Current or
+archive and how long after the last attack it does so still needs an
+explicit two-fight observation. The session alone is insufficient to
+distinguish those fights.
+
+#### Preview behavior and limits
+
+- Read at 0.5 seconds after local combat ends. Retry once at 1.5 seconds if
+  combat restrictions persist, an update is pending or a qualifying input
+  is temporarily unreadable. Use the documented
+  `C_RestrictedActions.GetAddOnRestrictionState(Combat)` when available, and
+  test field readability independently. Defer source-detail requests while
+  category data is pending. A retry builds a fresh graph from the final
+  selection and writes at most once.
+- Use one newly listed archive or the explicitly labeled Current slot.
+  Each category needs a readable source table, an exact session/category
+  update during the local window or its settling period, and a duration
+  within two seconds of local combat. A newly listed archive can supersede
+  Current during the retry; an earlier pinned archive cannot switch IDs or
+  fall back to Current. An untyped Current update between Current reads
+  invalidates that fallback. Multiple new archives, an incomplete session
+  list, a reset, a new combat or an area/world transition prevent unsafe
+  enrichment. If another fight starts while a read is pending, discard
+  the old read and skip meter enrichment for that next local window because
+  a late event cannot safely be assigned. These checks constrain freshness
+  without implying exact PvP boundaries.
+- Source/target details may be read as one structure or a list of structures.
+  The generated 70959 docs and stock spell-entry code declare the former;
+  the latter shape is defensive compatibility, exercised by mocks.
+  Walk every source and qualifying spell/detail row with reused scratch
+  tables, requesting full detail beyond the sample only for a source that
+  matches an observed player or pet owner. Deduplicate links per player
+  pair and traverse the reachable graph once. Retain one current identity
+  per observed contact and positive owner claims for the local window.
+  Detailed log samples remain bounded at 12 sources, 16 spells per
+  sampled source, 4 detail rows per sampled spell, 32 contact histories,
+  32 pets and 10 group members per event. All readable party/raid
+  tokens participate in observation. The aura sample is diagnostic only.
+- Each eligible category records aggregate resolution counts across the
+  full pass, including absent or secret source GUID, missing or secret
+  contact identity, unreadable detail, missing recipient name or class,
+  zero/secret amount, missing or ambiguous recipient contact, unknown or
+  conflicting pet owner and a valid source link outside the rooted graph.
+  `combatSpellDetails` does not expose a recipient GUID in this build's API
+  schema. Aura samples retain separate source and target GUID read states.
+- Connect identified players through positive second-unit details for damage
+  or interrupts across factions, healing and absorbs within a faction, and
+  dispels within or across factions. An opponent must be observed attackable.
+  Source GUIDs match contacts and detail names match a unique full name and
+  class. The connected component must touch an existing roster member. Party
+  membership, nameplates, targeting, NPC damage, overall totals and disjoint
+  player pairs do not qualify on their own. An action to a known player in a
+  coincident PvE phase can remain ambiguous; the meter does not timestamp it.
+- Credit a separately reported pet source to a single confirmed controller
+  using a matching Pet GUID from local/party/raid pet tokens or a readable
+  `UnitIsOwnerOrControllerOfUnit` result with both units visible. A meter row
+  already using the owner's player GUID follows the player path. A creature
+  ID, pet name, ambiguous ownership or a second-unit pet name cannot identify
+  an owner. Observed claims survive changes of target, token reuse and
+  temporary visibility loss throughout one local window. An independent
+  conflicting claim invalidates attribution. Pet evidence adds a
+  participant rather than a killing blow.
+- The restricted combat log is not a supported alternative. The
+  `UNIT_SPELLCAST_SUCCEEDED` payload identifies the casting unit and spell,
+  but gives no recipient or applied effect. `UNIT_SPELLCAST_SENT` can include
+  a conditional-secret target string on cast submission, without confirmation
+  of successful delivery or all remote casts. `UnitTarget` is only a selected
+  unit and does not cover mouseover casts, AoE or procs.
+- `UNIT_AURA` incremental additions are a possible separate route for
+  applied HoTs, shields, buffs and control. `C_UnitAuras.GetAuraDataByAuraInstanceID`
+  requires aura access and can be secret; Blizzard's target aura mixin uses
+  `AuraData.sourceUnit`, which is not guaranteed usable by addons. The
+  preview logs up to 20 incremental additions on tracked units with
+  aura instance, spell, target GUID, source unit/GUID, helpful/harmful flags
+  and read status.
+  It skips full updates, retains restriction counts, and does not use aura
+  data for participation yet. Instant heals produce no lasting aura.
+
+### Comparison with other Forever meters
+
+These are implementation examples, separate from Blizzard's API contract.
+They were inspected at the revisions linked below. No source was copied.
+ForeverMeter is GPLv3, Damage Meter Forever has a root MIT license,
+NetherMeters has a custom all-rights-reserved license, and no add-on-wide
+license was found in Kodo-DPS at the inspected revision. All four include
+a Forever 16001 TOC; that alone does not establish exact-build behavior.
+
+| Project and reviewed code | Approach and application to Names in Red |
+| --- | --- |
+| **ForeverMeter** [`SpellTargets`](https://github.com/dldvlpr-addons-wow/threatMeter/blob/2a7ea9efd6d1dd92c281a00e311b75776d2b46a1/CombatBreakdown.lua#L25-L43), [`OpenSegment` and event handler](https://github.com/dldvlpr-addons-wow/threatMeter/blob/2a7ea9efd6d1dd92c281a00e311b75776d2b46a1/CombatBreakdown.lua#L187-L373), [`ForeverMeter.lua` session getters](https://github.com/dldvlpr-addons-wow/threatMeter/blob/2a7ea9efd6d1dd92c281a00e311b75776d2b46a1/ForeverMeter.lua#L763-L780) | Records local casts with relative times, optionally includes a cast shortly before combat, keeps a boss encounter open past a local combat transition, and associates positive session IDs to a segment for up to five seconds after it closes. Rejects already bound or numerically older IDs when a new segment is open. The source accepts a single detail object and an array. We adopt both shapes and a bounded settling window; our journal requires exact category/ID updates and cancels on re-entry, without relying on IDs being monotonic or casting implying a hit. |
+| **ForeverMeter** [`SavableSegments` / `RestorableSegments`](https://github.com/dldvlpr-addons-wow/threatMeter/blob/2a7ea9efd6d1dd92c281a00e311b75776d2b46a1/CombatBreakdown.lua#L144-L176), [`CombatSync.lua` payload and sender](https://github.com/dldvlpr-addons-wow/threatMeter/blob/2a7ea9efd6d1dd92c281a00e311b75776d2b46a1/CombatSync.lua#L25-L70) | Reattaches closed timelines after reload by native ID, name and uptime. Shares successful cast spell IDs and timestamps between opted-in addon users, with no per-action recipient. Our journal persists its own records and leaves in-flight attribution transient. Timestamps from local observations may help a future boundary tracker; neither saved native IDs nor peer casts establish PvP recipients. |
+| **Damage Meter Forever** [`containerIsOpen` / `startWaitSecretDropTimer`](https://github.com/gitBellucci/DamageMeterForever/blob/5a3fa4e337ae6c2df93fc3c3854f0bb47f2194aa/DamageMeterForever/core/parser_nocleu1.lua#L638-L756), [segment-update handler](https://github.com/gitBellucci/DamageMeterForever/blob/5a3fa4e337ae6c2df93fc3c3854f0bb47f2194aa/DamageMeterForever/core/parser_nocleu1.lua#L1924-L1977) | Queues named archives and polls each second while combat or fields remain restricted. Its segment parser uses increasing IDs and checks a predecessor ID. We check the Forever 70959 restriction API and retry once; a moving segment reference or local re-entry can otherwise misattribute roster links. This parser's actor totals do not resolve healing recipients, control, or the pet's owner in our data. |
+| **NetherMeters** [`Meter:Session` / `Meter:Source`](https://github.com/g4nk3d/NetherMeters/blob/b6bd90cc7327ee6fa11e7ccb62ba69bc4bc71b0d/Data/Meter.lua#L124-L159), [combat handlers](https://github.com/g4nk3d/NetherMeters/blob/b6bd90cc7327ee6fa11e7ccb62ba69bc4bc71b0d/Data/Meter.lua#L238-L259) | Distinguishes explicit archive and type-based selection, passes GUID and creature ID to source getters, and marks the display dirty immediately and 0.6 seconds after combat. Its local clock is independent of the selected meter session. We keep explicit selectors and a bounded post-combat read. A creature ID remains a lookup argument without proving the player's ownership. |
+| **Kodo-DPS / Moteve** [`GetSession` / `GetSessionSource`](https://github.com/zolesz05/Kodo-DPS/blob/90c8b1827ab3de28741babd889c75c1bdafca038/Moteve%20Damage%20Meter/Moteve.lua#L176-L201), [frame event handler](https://github.com/zolesz05/Kodo-DPS/blob/90c8b1827ab3de28741babd889c75c1bdafca038/Moteve%20Damage%20Meter/Moteve.lua#L1336-L1364) | Keeps the selected ID on the display frame, resets it on re-entry/reset, guards restricted display data, and can fall back to Current when a selected archive expires. We also treat archive selection as transient and invalidate a pending write instead of silently falling back. A display showing approximate continuity is a different tradeoff from attributing a lasting journal record. |
+
+None of the reviewed paths establishes a reliable recipient for an instant
+heal with blank detail, a second-unit pet's owner using only its name, or an
+outdoor PvP boundary after local death while allies keep fighting. The
+sources show local bookkeeping, named PvE encounters and aggregate meter
+views. They do not show reliable splitting of independent outdoor fights
+within one native session. Our disjoint-graph and overlapping-window tests
+cover separations the available evidence can establish. If two fights
+share a player within one aggregate, the same links could describe either
+one continuous clash or two separate ones. A readable snapshot alone
+cannot distinguish those cases. The next PR should first establish a
+local hostile anchor without a killing blow and use timestamped
+observations to constrain membership across gaps, continued fighting
+after death, movement, and resumptions. No inference of the winner is
+required to record the confrontation.
+
+#### Death, visibility and boundaries
+
+The current journal normally needs an observed kill or validated local death
+recap to create a record. The graph takes participant GUIDs as anchors and
+does not need a kill event itself. It can therefore be called with confirmed
+PvP contacts when a future recorder opens a no-kill fight. This preview
+enriches the active same-zone journal record only. A recap that resolves
+after the meter read can leave the first roster unenriched. Death/ghost
+signals are sampled in diagnostics, and the active journal pointer currently
+clears at `PLAYER_UNGHOST` or when leaving the world. The eight-second
+aftermath grace and local combat events can keep an active pointer during
+brief interruptions. They do not establish whether allies kept fighting
+when the player lost visibility. A target change supplies observations,
+without itself ending a meter session or a skirmish. Native meter rollover
+during death, ghost, resurrection and real zone changes is still unverified.
+
+#### Targeted live verification
+
+1. Repeat Duskwood (two confirmed kills and one more opponent who hits both
+   allies). Compare Current/archive signals, roster, deaths and honor.
+2. In separate fights with one confirmed kill, have a priest cast only
+   direct heals, then only a HoT/shield. Repeat with an ungrouped priest.
+   Try an interrupt, a dispel and a control-only player. Compare the local
+   and support player's saves if the local recipient fields are missing.
+3. Have a hunter participate only through their pet, both grouped and
+   ungrouped. Include a pet that hits only an NPC as a control. Note which
+   units were visible. Repeat with a nearby PvE party and two disjoint PvP
+   engagements in one local combat window. Party membership and proximity
+   alone should leave the roster unchanged.
+4. Die while teammates continue, release, then run back and resurrect.
+   Record target changes, a brief stealth/visibility gap, a fast re-entry
+   into combat, an actual zone transition and a separate no-kill fight.
+   Compare refresh/archival IDs and life-state rows with the observed
+   engagement. A no-kill fight is groundwork for the next PR.
+
+Save via a normal logout or `/reload` and share the diagnostic file
+privately. The original Duskwood capture is real-client evidence; the
+additional categories, aura and pet/controller paths, stale/reset/area
+guards and archived selection have Lua 5.1 test coverage. In
+1.1.0-preview.3 the tests also cover a sole link beyond every diagnostic
+limit, two disconnected engagements in the same snapshot, overlapping
+read windows, both target shapes and late restriction/session changes.
+A fresh run of that preview in Forever is still needed to establish which
+data the client actually exposes for those scenarios.
 
 ### Seeded full-battle cards
 
