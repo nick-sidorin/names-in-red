@@ -28,7 +28,7 @@ The separate **Skirmish History** view collects the latest 100 recorded fights a
 
 ## ⚔️ More Than a Kill Counter
 
-A skirmish can involve more than two players. The detailed view shows the participants the addon was able to observe on each side, with available class and level information, casualties, a win/loss result when known, and a **Finishing blows** list in recorded order.
+A skirmish can involve more than two players. The detailed view shows the participants the addon was able to observe on each side, with available class and level information, casualties, recorded levels or skull-level indicators, a win/loss result when known, and a **Finishing blows** list in recorded order.
 
 Fight cards also show the date, time, zone, and any Honorable Kills or Honor Points that could be linked reliably to the encounter. Alliance and Horde get their own faction artwork and Honor Points icons.
 
@@ -47,7 +47,7 @@ Both are enabled by default and have separate switches under the addon settings.
 
 Names in Red observes **open-world PvP and battleground skirmishes** using information the Forever client makes available to addons. It records readable kills and deaths, groups related observations into skirmishes, and adds other participants when there is sufficient evidence. Battleground cards identify the local fight and its outcome. Matches can contain several independent skirmishes.
 
-Not every encounter exposes a complete team or a certain result. Those records remain in the journal with an incomplete roster or unknown outcome instead of guessing. Honor and Honorable Kill rewards are attached only when the available signals identify the relevant encounter reliably. An unidentified player may appear as **Unknown rival** until their full name is available.
+Not every encounter exposes a complete team or a certain result. Those records remain in the journal with an incomplete roster or unknown outcome instead of guessing. Rewards appear on the most specific confirmed record. If the addon cannot associate an award with a fight, the journal shows it in **Rewards without a skirmish**. An unidentified player may appear as **Unknown rival** until their full name is available.
 
 Battleground recording and automatic outcome assessment are still being refined. Forever can restrict access to combat data, so some support players, revivals, repeat kills or rewards may be missing.
 

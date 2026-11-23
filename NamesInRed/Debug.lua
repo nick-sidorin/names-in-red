@@ -4,7 +4,7 @@ local frame = CreateFrame("Frame")
 local db
 local deathSequence = 0
 local combatSequence = 0
-local combat, settling, passive
+local combat, settling, passive, lastCombatEnd
 local limit = 1000
 local plateTokens = {}
 local demoFactions = { alliance = "Alliance", horde = "Horde" }
@@ -16,7 +16,7 @@ local function ClearDiagnostics()
     end
     db.rows, db.dropped = {}, 0
     deathSequence = deathSequence + 1
-    combatSequence, combat, settling, passive = 0, nil, nil, nil
+    combatSequence, combat, settling, passive, lastCombatEnd = 0, nil, nil, nil, nil
 end
 
 local function ReadDeathLevel(row, victim, attacker)
@@ -24,7 +24,7 @@ local function ReadDeathLevel(row, victim, attacker)
     local player = row.contacts[victim] and row.contacts[victim].latest
     local rival = row.contacts[attacker] and row.contacts[attacker].latest
     if player and player.guid == victim and player.dead == true
-        and rival and rival.guid == attacker and type(rival.level) == "number" and rival.level > 0 then
+        and rival and rival.guid == attacker and type(rival.level) == "number" and (rival.level > 0 or rival.level == -1) then
         return rival.level
     end
 end
@@ -119,6 +119,11 @@ local function Unit(unit)
     Call(data, "isPlayer", UnitIsPlayer, unit)
     Call(data, "opponent", UnitCanAttack, "player", unit)
     Call(data, "level", UnitLevel, unit)
+    if addon.ReadUnitLevel then
+        Call(data, "effectiveLevel", UnitEffectiveLevel, unit)
+        local level = addon.ReadUnitLevel(unit)
+        if level then data.level, data.status.level = level, "readable" end
+    end
     Capture(data, "class", Call(data, "className", UnitClass, unit))
     return data
 end
@@ -313,7 +318,7 @@ local function Retryable(reason)
     return reason == "secret" or reason == "restricted-table" or reason == "absent" or reason == "error"
 end
 
-local function SpellTargets(entry, sample, actor, category, evidence, counts, scratch)
+local function SpellTargets(entry, sample, actor, category, evidence, counts, scratch, accept)
     local details = entry.combatSpellDetails
     local readable, reason = AccessibleTable(details)
     if not readable then
@@ -343,7 +348,7 @@ local function SpellTargets(entry, sample, actor, category, evidence, counts, sc
             if listed then sample.targets[index] = target else sample.target = target end
         end
         if actor then
-            local resolution = evidence:Link(category, actor, target)
+            local resolution = evidence:Link(category, actor, target, accept)
             Count(counts, resolution)
             retry = retry or resolution:match("%-secret$") ~= nil or resolution == "detail-restricted-table"
         end
@@ -351,7 +356,7 @@ local function SpellTargets(entry, sample, actor, category, evidence, counts, sc
     return retry
 end
 
-local function MeterSources(result, sources, readSource, evidence, category, sampleLimit)
+local function MeterSources(result, sources, readSource, evidence, category, sampleLimit, accept)
     local counts, linkedActors = {}, {}
     result.sourceCount = #sources
     result.sources = {}
@@ -393,7 +398,7 @@ local function MeterSources(result, sources, readSource, evidence, category, sam
                             source.spells[spellIndex] = sample
                         end
                         if readable then
-                            local retryTarget = SpellTargets(entry, sample, actor, category, evidence, counts, targetScratch)
+                            local retryTarget = SpellTargets(entry, sample, actor, category, evidence, counts, targetScratch, accept)
                             retry = retry or retryTarget
                         elseif actor then
                             Count(counts, "spell-" .. reason)
@@ -415,7 +420,42 @@ local function MeterSources(result, sources, readSource, evidence, category, sam
     return retry, linkedActors
 end
 
-local function CaptureMeter(row, window, evidence, finalAttempt)
+local function ScopedMeterUpdate(window, signals, ended)
+    return signals and signals.firstUptime and signals.uptime and ended
+        and signals.firstUptime >= window.startedUptime and signals.uptime <= ended + 0.5
+end
+
+-- Only recover a duration-mismatched damage pair around an already confirmed
+-- enemy. A nearby previous window or mixed Current slot invalidates it.
+local function CorroboratedMeterPair(window, row, duration, selector, meterType, types, enemies, faction)
+    if not enemies or not next(enemies) or not row.uptime or not window.startedUptime
+        or type(duration) ~= "number" or duration <= 0 then return end
+    if selector == 0 and (window.previousPending
+        or (window.previousEnd and row.uptime - duration <= window.previousEnd + 0.5)) then return end
+    if meterType ~= types.DamageTaken and meterType ~= types.DamageDone and meterType ~= types.EnemyDamageTaken then return end
+    local updates, prefix = window.meterUpdates, selector .. ":"
+    local signal = updates[prefix .. meterType]
+    if not ScopedMeterUpdate(window, signal, row.uptime) then return end
+    local peer
+    for _, other in ipairs({ "DamageTaken", "DamageDone", "EnemyDamageTaken" }) do
+        local kind = types[other]
+        if kind and kind ~= meterType and ScopedMeterUpdate(window, updates[prefix .. kind], row.uptime) then
+            peer = true
+            break
+        end
+    end
+    if not peer then return end
+    return function(actor, target)
+        local enemy, ally = actor, target
+        if actor.player.faction == faction then enemy, ally = target, actor end
+        local hostile = window.contacts[enemy.guid]
+        local friendly = window.contacts[ally.guid]
+        return enemies[enemy.guid] and hostile.firstSeen <= signal.uptime and friendly.firstSeen <= signal.uptime
+            and hostile.lastSeen >= signal.firstUptime and friendly.lastSeen >= signal.firstUptime
+    end
+end
+
+local function CaptureMeter(row, window, evidence, finalAttempt, enemies, faction, early)
     local api = C_DamageMeter
     local types = Enum and Enum.DamageMeterType
     local current = Enum and Enum.DamageMeterSessionType and Enum.DamageMeterSessionType.Current
@@ -437,6 +477,10 @@ local function CaptureMeter(row, window, evidence, finalAttempt)
     row.meterSessionID = id
     row.meter, row.meterEvidence = nil, nil
     row.meterSelection = id and "new-archived" or "current-fallback"
+    if evidence and window.previousPending then
+        row.status.meterWindow = "previous-window-pending"
+        evidence = nil
+    end
     if #candidates > 1 or (window.archive and window.archive ~= id) then
         row.status.meter = "session-changed-or-ambiguous"
         return
@@ -475,34 +519,38 @@ local function CaptureMeter(row, window, evidence, finalAttempt)
                 result.status.sources = readable and "readable" or reason
                 if readable then sources = session.combatSources end
             end
-            local status
+            local status, accept
             if canQualify and name ~= "Deaths" then
                 if not sources then
                     status = "sources-unreadable"
                     retry = retry or Retryable(result.status.sources or result.status.session)
                 elseif not window.meterUpdates[(id or 0) .. ":" .. meterType] then
                     status, retry = "no-matching-update", true
+                elseif not id and window.previousEnd and row.uptime and type(result.duration) == "number"
+                    and row.uptime - result.duration <= window.previousEnd then
+                    status = "current-overlaps-previous-window"
                 elseif not duration or type(result.duration) ~= "number" or result.duration <= 0
                     or math.abs(result.duration - duration) > 2 then
-                    status = "duration-mismatch"
+                    accept = CorroboratedMeterPair(window, row, result.duration, id or 0, meterType, types, enemies, faction)
+                    status = accept and "eligible-corroborated" or "duration-mismatch"
                     retry = retry or type(result.duration) ~= "number"
                 else
                     status = "eligible"
                 end
                 row.meterEvidence[name] = status
             end
-            if sources then scan[#scan + 1] = { name, meterType, result, sources, status == "eligible" } end
+            if sources then scan[#scan + 1] = { name, meterType, result, sources, status == "eligible" or accept ~= nil, accept } end
         end
     end
     -- Wait once for late category updates or restricted tables before fetching
     -- source details. If details themselves are restricted, retry at most once.
-    if evidence and not finalAttempt and (retry or not sessionIDs) then return true end
+    if evidence and not finalAttempt and not early and (retry or not sessionIDs) then return true end
     local linked = {}
     for _, entry in ipairs(scan) do
-        local name, meterType, result, sources, eligible = unpack(entry)
+        local name, meterType, result, sources, eligible, accept = unpack(entry)
         local retrySource, actors = MeterSources(result, sources, function(source, guid, creature)
             return ReadResult(source, "detail", sourceGetter, selector, meterType, guid, creature)
-        end, eligible and evidence, name)
+        end, eligible and evidence, name, nil, accept)
         retry = retry or retrySource
         if eligible then linked[name] = actors end
     end
@@ -578,6 +626,7 @@ local function Observe(unit, reason)
 
     if contact.signals then Count(contact.signals, reason) end
     local now = Value(GetTime())
+    if not now then return end
     contact.firstSeen = contact.firstSeen or now
     contact.lastSeen = now
     -- Flags can fire repeatedly. Keep meaningful changes and the latest sample.
@@ -585,6 +634,8 @@ local function Observe(unit, reason)
         and now - contact.lastSample < 0.2 then return end
     contact.lastSample = now
     local unitState = Unit(unit)
+    if unitState.guid ~= guid then return end
+    if unitState.level then contact.level = unitState.level end
     unitState.uptime, unitState.token, unitState.reason = now, unit, reason
     Call(unitState, "targetGUID", UnitGUID, unit .. "target")
     local pet = PetToken(unit)
@@ -594,6 +645,15 @@ local function Observe(unit, reason)
     end
     Call(unitState, "inCombat", UnitAffectingCombat, unit)
     Call(unitState, "dead", UnitIsDeadOrGhost, unit)
+    Call(unitState, "feign", UnitIsFeignDeath, unit)
+    if Value(UnitGUID(unit)) ~= guid then return end
+    if type(unitState.dead) == "boolean" and (not unitState.dead or unitState.feign == false) then
+        local life = contact.life or {}
+        if not life[#life] or life[#life].dead ~= unitState.dead then
+            life[#life + 1] = { dead = unitState.dead, uptime = now, time = Value(GetServerTime()), source = reason }
+            contact.life = life
+        end
+    end
     Call(unitState, "pvp", UnitIsPVP, unit)
     Capture(unitState, "race", Call(unitState, "raceName", UnitRace, unit))
     Call(unitState, "sex", UnitSex, unit)
@@ -638,7 +698,8 @@ function handlers.PLAYER_REGEN_DISABLED()
     local baseline = C_DamageMeter and SessionIDs(row, C_DamageMeter)
     combat = {
         baseline = baseline, contacts = {}, contactSamples = {}, unresolved = {}, previousPending = previousPending,
-        startedAt = row.time, startedUptime = row.uptime, startZone = row.zone, startInstanceType = row.instanceType,
+        startedAt = row.time, startedUptime = row.uptime, startZone = row.zone, startInstanceType = row.instanceType, previousEnd = lastCombatEnd,
+        startInstanceMapID = row.instanceMapID,
         auraUpdates = {}, auraSignals = {}, currentUpdates = {},
         petOwners = {}, petSamples = {}, petCount = 0, petChecks = 0, petSignals = {},
         playerTokens = {}, petTokens = {}, contactCount = 0, meterUpdates = {}, meterUpdateCount = 0,
@@ -786,12 +847,18 @@ function handlers.PLAYER_REGEN_ENABLED()
     CopyGroup(row)
     ObserveCurrent(row, "combat-end")
     local finished = combat
+    lastCombatEnd = row.uptime
     if addon.WorldCombatWindow then
         finished.worldWindow = addon.WorldCombatWindow(finished.startedUptime)
         addon.SnapshotWorldContacts(finished.worldWindow, finished.contacts)
     end
     combat, settling = nil, finished
-    row.contacts, row.unresolvedContacts = finished.contactSamples, finished.unresolved
+    row.pvpReasons = finished.reasons
+    row.contacts, row.unresolvedContacts = {}, finished.unresolved
+    for guid, contact in pairs(finished.contactSamples) do
+        row.contacts[guid] = { firstSeen = contact.firstSeen, lastSeen = contact.lastSeen, latest = contact.latest,
+            changes = contact.changes, changeOverflow = contact.changeOverflow, signals = contact.signals }
+    end
     row.contactCount, row.contactOverflow = finished.contactCount, math.max(0, finished.contactCount - 32)
     row.groupChanges, row.groupChangeCount = finished.groupChanges, finished.groupChangeCount
     row.meterCurrentUpdates = finished.currentUpdates
@@ -801,6 +868,7 @@ function handlers.PLAYER_REGEN_ENABLED()
     row.restrictedPartyKills = finished.restrictedKills
     local rows = db.rows
     local function AttachReport()
+        row.pvpReasons = finished.reasons
         if finished.worldWindow and addon.ReportMeterSnapshot then
             finished.worldWindow.segment.reportMeter = addon.ReportMeterSnapshot(row)
         end
@@ -830,11 +898,9 @@ function handlers.PLAYER_REGEN_ENABLED()
             return
         end
 
-        local context, anchors, faction
-        if finished.previousPending then
-            row.status.meterWindow = "previous-window-pending"
-        elseif addon.WorldMeterContext and row.instanceType == finished.startInstanceType and row.zone == finished.startZone then
-            context, anchors, faction = addon.WorldMeterContext(finished.worldWindow, row)
+        local context, anchors, faction, enemies
+        if addon.WorldMeterContext and row.instanceType == finished.startInstanceType and row.zone == finished.startZone then
+            context, anchors, faction, enemies = addon.WorldMeterContext(finished.worldWindow, row)
         end
         if finished.context and context ~= finished.context then
             settling = nil
@@ -845,8 +911,16 @@ function handlers.PLAYER_REGEN_ENABLED()
         finished.context = context
         if not context and not row.status.meterWindow then row.status.meterWindow = "no-eligible-world-record" end
         local evidence = context and addon.NewMeterParticipantEvidence(finished.contacts, finished.petOwners, faction)
-        local retry, linked = CaptureMeter(row, finished, evidence, finalAttempt)
-        if retry then
+        local early = context and not context.record
+        local retry, linked = CaptureMeter(row, finished, evidence, finalAttempt, enemies, faction, early)
+        local additions, reached, links
+        if evidence and linked and next(linked) then
+            additions, reached = evidence:Connected(anchors)
+            links = evidence:HostileLinks(reached)
+        end
+        -- Commit usable evidence before the next combat can replace Current.
+        -- A read with incomplete details still gets the existing bounded retry.
+        if retry and (not early or not links or #links == 0) then
             C_Timer.After(1, function() ReadMeter(true) end)
             return
         end
@@ -862,17 +936,20 @@ function handlers.PLAYER_REGEN_ENABLED()
                 row.meterUpdates[current], row.meterUpdates[archived] = finished.meterUpdates[current], finished.meterUpdates[archived]
             end
         end
-        if evidence and linked then
-            local additions, reached = evidence:Connected(anchors)
+        if additions then
             for name, actors in pairs(linked) do
                 local counts = row.meter[name].resolution
                 for actor in pairs(actors) do
                     Count(counts, reached[actor] and "source-connected" or "source-disconnected")
                 end
             end
-            addon.ApplyWorldMeterEvidence(context, additions, faction, row, evidence:HostileLinks(reached))
+            addon.ApplyWorldMeterEvidence(context, additions, faction, row, links, finished.contacts)
             addon.SnapshotWorldContacts(context, finished.contacts)
             BeginPassiveMeter(context, row, finished, evidence, reached)
+        end
+        if context then
+            addon.ResolveStagedWorldKills(context, finished.contacts)
+            if not context.record and not row.status.meterWindow then row.status.meterWindow = "no-linked-pvp" end
         end
         AttachReport()
     end
@@ -1004,7 +1081,7 @@ function handlers.DAMAGE_METER_RESET()
 end
 
 local function AreaChanged(event)
-    passive = nil
+    passive, lastCombatEnd = nil, nil
     local window = combat or settling
     if window then window.areaChanged = true end
     if combat then Sample(Add(event)) end
@@ -1084,8 +1161,49 @@ function handlers.PVP_MATCH_COMPLETE()
     Sample(Add("PVP_MATCH_COMPLETE"))
 end
 
+local function CurrentContactWindow()
+    local window = combat or settling
+    if not window or window.areaChanged or window.startZone ~= Value(GetRealZoneText()) then return end
+    local _, instanceType = IsInInstance()
+    if window.startInstanceType ~= Value(instanceType) then return end
+    if window.startInstanceMapID and window.startInstanceMapID ~= addon.BattlegroundMapID() then return end
+    if combat ~= window and (not lastCombatEnd or GetTime() - lastCombatEnd > 2.5) then return end
+    return window
+end
+
+function addon.ReadCombatContact(guid)
+    local window = CurrentContactWindow()
+    if window then
+        local contact = window.contacts[guid]
+        return contact and contact.latest, window.startedUptime
+    end
+end
+
+function addon.ActiveCombatContacts()
+    local window = CurrentContactWindow()
+    local result = {}
+    for guid, contact in pairs(window and window.contacts or {}) do
+        if contact.latest and contact.latest.guid == guid then
+            result[guid] = contact.level
+        end
+    end
+    return result
+end
+
+function addon.NotePvPDiagnostic(reason)
+    if not db then return end
+    local window = CurrentContactWindow()
+    if window then
+        window.reasons = window.reasons or {}
+        Count(window.reasons, reason)
+    else
+        local row = Add("PVP_DECISION")
+        row.reason = reason
+    end
+end
+
 function addon.CancelDiagnosticCombat()
-    combat, settling, passive = nil, nil, nil
+    combat, settling, passive, lastCombatEnd = nil, nil, nil, nil
     deathSequence = deathSequence + 1
 end
 

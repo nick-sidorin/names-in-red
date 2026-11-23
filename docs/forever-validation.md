@@ -1184,3 +1184,35 @@ victory during a match loss. New live captures are still needed to determine
 which identities, target details and post-combat states remain readable in
 active Forever battlegrounds. Missing data may leave support players,
 rewards, repeat kills or results unconfirmed.
+
+### Gnomeregan regression evidence
+
+The owner captures are private. The following observations are reproduced by
+anonymized Lua fixtures; saved character names, GUIDs and raw messages are
+excluded from version control.
+
+| Case (local time) | Evidence and fix | Remaining limit |
+| --- | --- | --- |
+| 22:22 isolated death | A hostile player lands the lethal recap hit with 140 overkill after NPC damage. A single standalone death window has no connected continuation, so it can retain Defeat after a spirit transition or area change. Already classified terminal samples can likewise survive a later observation interruption. | The detected 1 × 1 is evidence about the recorded episode. It does not certify everyone nearby. A grouped or extended fight still needs team evidence. An NPC finisher cannot establish a PvP Defeat. |
+| 22:22 missing level | The attacker appears in the lethal recap without a readable unit level. Earlier in-window levels and brief subsequent sightings can fill an empty field by the same GUID. An explicit skull-level is a separate value. | This capture supplies no verified level or skull value for the attacker. A secret or absent level remains unknown. |
+| 20:09 off-target teammate kill | Notifications at +15 s and +18 s are both readable; the teammate's victim was seen earlier. A deferred exact-GUID kill is admitted when a proven participant connection links it to the original window. Both blows keep their original timestamps. | A nearby kill with no connection, an inaccessible identity, or conflicting unattributable events is omitted. |
+| 20:20 missing teammate | The roughly 8.56 s local window and 11 s Damage Meter duration disagree. Both scoped damage-category activity and a readable pair linking the teammate to the already confirmed enemy support the recovered edge. | A longer aggregate with no direct anchored pair or a Current slot overlapping a previous window is rejected. No duration tolerance was increased. |
+| 20:08 second corpse and group result | The contact loses its nameplate after a readable dead state. A death event requires the same known participant and a negative Feign Death reading. Two quiet terminal snapshots that keep survivors together and stable can establish an observed group elimination without a site anchor. | With a missing corpse, an active opponent, dispersed survivors or unobserved resolution, the group result can remain Unknown. |
+| 20:21 omitted window | The previous first read obtained meter metadata, but deferred details until the next fight had displaced the Current slot. A readable anchored hostile link on the first pass now commits a kill-free record before that handoff. | The historical first window did not retain pair detail. The next aggregate spans both windows and cannot retroactively attach isolated rewards or establish the old roster. |
+| Honor | The attached diagnostic window contains 39 honor across ten lines, of which old cards account for 25. From the updated build, readable earned totals are retained at rival, skirmish or journal scope. An identified line is counted once in the bounded line-ID deduplication window; known HKs remain independent. | Old unassigned totals are not reconstructed from a rolling debug buffer. Readability, attribution and locale fallback still limit what can be recorded. |
+
+The Camelot
+[`CompactUnitFrame_UpdatePlayerLevelDiff`](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_UnitFrame/Shared/CompactUnitFrame.lua#L1521-L1545)
+reads `UnitEffectiveLevel`. The
+[Camelot level indicator](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_NamePlates/Camelot/Blizzard_NamePlateLevelFrame.xml#L18-L28)
+defines the skull atlas reused by the portrait badge. It takes an explicit
+`-1` from a readable level API to show the skull. A readable positive
+effective level is displayed numerically, regardless of a difficulty
+color or the player's level gap. The badge stays hidden when neither
+level API supplies a usable value.
+
+Per-skirmish reports include the outcome and its independent interruption
+reason, staged kill decisions, meter qualification and reward scope.
+The general report includes recent, bounded decision summaries and journal
+reward totals even when no fight card exists. These paths do not export
+chat text, character names or original identifiers.

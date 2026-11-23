@@ -19,3 +19,5 @@ lua5.1 tests/settings.lua
 lua5.1 tests/world.lua
 lua5.1 tests/issue-report.lua
 lua5.1 tests/battlegrounds.lua
+lua5.1 tests/gnomeregan-outcomes.lua
+lua5.1 tests/gnomeregan-world.lua

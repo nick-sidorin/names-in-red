@@ -1,6 +1,6 @@
 local _, addon = ...
 
-local function ContactName(unit)
+function addon.CombatContactName(unit)
     local name = unit.name
     if not name then return end
     if unit.surname and unit.surname ~= "" then name = name .. " " .. unit.surname end
@@ -30,7 +30,7 @@ function addon.NewMeterParticipantEvidence(contacts, petOwners, faction)
         local player = contact.latest
         if player and player.guid == guid and player.isPlayer == true
             and (player.faction == "Alliance" or player.faction == "Horde") then
-            local name = ContactName(player)
+            local name = addon.CombatContactName(player)
             if name then
                 local entry = { guid = guid, name = name, player = player }
                 evidence.player[guid] = entry
@@ -75,7 +75,7 @@ end
 
 -- The source is the affected unit in the taken categories. Links are
 -- undirected, and repeated spells between the same two players cost one edge.
-function Evidence:Link(category, actor, detail)
+function Evidence:Link(category, actor, detail, accept)
     if detail.status.row ~= "readable" then return "detail-" .. detail.status.row end
     for _, key in ipairs(targetFields) do
         if detail.status[key] == "secret" then return "target-" .. key .. "-secret" end
@@ -92,6 +92,7 @@ function Evidence:Link(category, actor, detail)
     if other.player.faction ~= self.faction and other.player.opponent ~= true then return "target-side-unverified" end
     local sameSide = actor.player.faction == other.player.faction
     if (support[category] and not sameSide) or (crossFaction[category] and sameSide) then return "unexpected-faction" end
+    if accept and not accept(actor, other) then return "duration-link-unconfirmed" end
     self.links[actor] = self.links[actor] or {}
     self.links[other] = self.links[other] or {}
     self.links[actor][other], self.links[other][actor] = true, true

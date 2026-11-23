@@ -46,10 +46,16 @@ local function Record(death)
     local guid = HostilePlayer(first, playerGUID)
     local name = Readable(first.sourceName)
     if not guid then
+        if addon.NotePvPDiagnostic then addon.NotePvPDiagnostic("recap-finisher-unverified") end
         return
     end
 
     local observed = death.units[guid]
+    local cached = death.cached[guid]
+    if cached and (not observed or not observed.level) then
+        observed = observed or {}
+        observed.level = cached
+    end
     local attackers = { { guid = guid, name = observed and observed.fullName or addon.ManualName(name),
         appearance = observed } }
     local seen = { [guid] = true }
@@ -76,6 +82,7 @@ local function Record(death)
     local id, _, status = addon.RecordWorldEncounter(guid, observed and observed.fullName or name, "deathsToThem", death.context)
     if addon.WorldDeathWindow and not id and status ~= "duplicate" then return end
     addon.db.lastDeathTimestamp = stamp
+    if addon.NotePvPDiagnostic and not death.context.rivalLevel then addon.NotePvPDiagnostic("recap-level-unavailable") end
     return true
 end
 
@@ -98,14 +105,17 @@ frame:SetScript("OnEvent", function()
         context.worldWindow = addon.WorldDeathWindow(context)
         if not context.worldWindow then return end
     end
-    local death = { sequence = sequence, context = context, units = {} }
+    local death = { sequence = sequence, context = context, units = {},
+        cached = addon.ActiveCombatContacts and addon.ActiveCombatContacts() or {} }
     local function Snapshot(unit)
         local guid = Readable(UnitGUID(unit))
         if type(guid) == "string" and guid:match("^Player%-.+") then
             local observed = death.units[guid] or {}
             local name = addon.UnitPlayerName(unit)
             if addon.HasFullName(name) then observed.fullName = name end
-            for key, value in pairs(addon.UnitAppearance(unit)) do
+            local appearance = addon.UnitAppearance(unit)
+            if Readable(UnitGUID(unit)) ~= guid then return end
+            for key, value in pairs(appearance) do
                 if observed[key] == nil then observed[key] = value end
             end
             death.units[guid] = observed

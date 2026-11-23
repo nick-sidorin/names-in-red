@@ -55,11 +55,11 @@ function addon.PlayerFaction()
     return SafeRead(UnitFactionGroup, "player")
 end
 
-local function Level(unit)
+function addon.ReadUnitLevel(unit)
+    local effective = SafeRead(UnitEffectiveLevel, unit)
+    if type(effective) == "number" and (effective > 0 or effective == -1) then return effective end
     local level = SafeRead(UnitLevel, unit)
-    if type(level) == "number" and level > 0 then
-        return level
-    end
+    if type(level) == "number" and (level > 0 or level == -1) then return level end
 end
 
 function addon.UnitAppearance(unit)
@@ -67,7 +67,7 @@ function addon.UnitAppearance(unit)
     local classLabel, class = SafeRead(UnitClass, unit)
     local sex = SafeRead(UnitSex, unit)
     return {
-        level = Level(unit),
+        level = addon.ReadUnitLevel(unit),
         race = type(race) == "string" and race ~= "" and race:lower() or nil,
         raceLabel = raceLabel,
         sex = (sex == 2 or sex == 3) and sex or nil,
@@ -91,8 +91,8 @@ end
 function addon.EncounterContext(unit)
     local result = {
         time = SafeRead(GetServerTime),
-        playerLevel = Level("player"),
-        rivalLevel = unit and Level(unit),
+        playerLevel = addon.ReadUnitLevel("player"),
+        rivalLevel = unit and addon.ReadUnitLevel(unit),
         zone = SafeRead(GetRealZoneText),
     }
     result.origin = addon.RecordingPvPOrigin()

@@ -8,6 +8,9 @@
 - Keep confirmed deaths, returns to life and repeat finishing blows in the timeline. See personal finishing blows and deaths separately from skirmish wins, losses, Honorable Kills and Honor Points.
 - Copy a privacy-filtered issue report from the journal, settings or a specific skirmish. Reports work after reload with the evidence saved on the card.
 
+- Preserve isolated lethal PvP results when observation stops afterward. Improve recovery of off-target finishing blows, connected allies and observed casualties.
+- Show Blizzard’s skull for a confirmed skull-level opponent. Preserve earned honor and Honorable Kills in the journal when the opponent or fight cannot be attributed.
+
 Battleground tracking, automatic outcomes and participant reconstruction are still being refined. Forever can restrict combat information. Rosters and reward attribution can be incomplete, and some revivals or repeat kills may be missed.
 
 ## 1.0.0
