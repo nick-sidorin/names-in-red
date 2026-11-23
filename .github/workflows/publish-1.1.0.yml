@@ -67,7 +67,7 @@ jobs:
         run: |
           set -euo pipefail
           tag="v${VERSION}"
-          old="$(gh api "repos/$REPO/git/ref/tags/$tag" --jq '.object.sha' 2>/dev/null || true)"
+          old="$(git ls-remote --tags origin "refs/tags/$tag" | awk '{print $1}')"
           if [[ -n "$old" && "$old" != "$TARGET_SHA" ]]; then
             echo "Refusing to move existing tag $tag from $old to $TARGET_SHA" >&2
             exit 1
@@ -76,7 +76,7 @@ jobs:
             git tag "$tag" "$TARGET_SHA"
             git push origin "refs/tags/$tag"
           fi
-          actual="$(gh api "repos/$REPO/git/ref/tags/$tag" --jq '.object.sha')"
+          actual="$(git ls-remote --tags origin "refs/tags/$tag" | awk '{print $1}')"
           test "$actual" = "$TARGET_SHA"
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "Release already exists for $tag; skipping duplicate publication"
