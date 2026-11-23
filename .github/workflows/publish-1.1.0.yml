@@ -1,0 +1,88 @@
+name: Publish Names in Red 1.1.0
+
+# One-time publication of the already approved 1.1.0 release.
+# Runs only after the normal main-branch CI has passed.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: names-in-red-v1.1.0-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+      REPO: ${{ github.repository }}
+      VERSION: 1.1.0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+      - name: Verify the approved release commit
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$REPO/commits/main" --jq '.sha')" = "$TARGET_SHA"
+          test "$(sed -n 's/^## Version: //p' NamesInRed/NamesInRed.toc)" = "$VERSION"
+          test "$(sed -n 's/^## Interface: //p' NamesInRed/NamesInRed.toc)" = "16001"
+          test -f .pkgmeta
+          test "$(grep -c '^## 1.1.0$' CHANGELOG.md)" -eq 1
+          python3 scripts/check_manifest.py
+      - name: Build and verify installable ZIP
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          zip -q -r "dist/NamesInRed-${VERSION}.zip" NamesInRed
+          unzip -t "dist/NamesInRed-${VERSION}.zip"
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          root = Path("NamesInRed")
+          expected = {p.as_posix() for p in root.rglob("*") if p.is_file()}
+          with ZipFile("dist/NamesInRed-1.1.0.zip") as archive:
+              actual = {item.filename for item in archive.infolist() if not item.is_dir()}
+              assert expected == actual, f"Mismatch: missing={expected-actual}, extra={actual-expected}"
+              for item in archive.infolist():
+                  if not item.is_dir():
+                      assert archive.read(item) == Path(item.filename).read_bytes(), item.filename
+          print(f"Verified {len(expected)} runtime files from the checked-out commit")
+          PY
+          awk '/^## 1\.1\.0$/{printing=1;next} /^## [0-9]/ && printing {exit} printing {print}' CHANGELOG.md > dist/release-notes.md
+          test -s dist/release-notes.md
+      - name: Tag the verified main commit and create GitHub Release
+        run: |
+          set -euo pipefail
+          tag="v${VERSION}"
+          old="$(gh api "repos/$REPO/git/ref/tags/$tag" --jq '.object.sha' 2>/dev/null || true)"
+          if [[ -n "$old" && "$old" != "$TARGET_SHA" ]]; then
+            echo "Refusing to move existing tag $tag from $old to $TARGET_SHA" >&2
+            exit 1
+          fi
+          if [[ -z "$old" ]]; then
+            git tag "$tag" "$TARGET_SHA"
+            git push origin "refs/tags/$tag"
+          fi
+          actual="$(gh api "repos/$REPO/git/ref/tags/$tag" --jq '.object.sha')"
+          test "$actual" = "$TARGET_SHA"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release already exists for $tag; skipping duplicate publication"
+          else
+            gh release create "$tag" "dist/NamesInRed-${VERSION}.zip" \
+              --verify-tag --title "Names in Red ${VERSION}" \
+              --notes-file dist/release-notes.md --latest
+          fi
+          gh release view "$tag" --json url,tagName,isDraft,isPrerelease,assets
