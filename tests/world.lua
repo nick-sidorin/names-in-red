@@ -649,3 +649,301 @@ do
     assert(#raidFight.allies == 2 and raidFight.allies[2].id == raidMember)
 end
 print("Duskwood replay and participant links cover uncapped support, pets, ambiguous sessions and delayed reads")
+
+do
+    -- Exercise the real event entry points on both the meter and live paths.
+    addon.ResetData()
+    inCombat, recap = false, nil
+    Advance(10)
+    local localID = units.player[1]
+    units.target = { fenrik, "First Enemy", "Horde", "HUNTER" }
+    units.mouseover = { ghash, "Second Enemy", "Horde", "SHAMAN" }
+    units.party1 = { brother, "Thoren Ironbrook", "Alliance", "PRIEST" }
+    units.nameplate1 = units.target
+    units.nameplate2 = { "Player-other-ally", "Other Ally", "Alliance", "MAGE" }
+    units.nameplate3 = { "Player-other-enemy", "Other Enemy", "Horde", "ROGUE" }
+    function IsInRaid() return false end
+    function UnitIsPVP(unit) return UnitIsPlayer(unit) and UnitCanAttack("player", unit) end
+    local dead, ghost = false, false
+    function UnitIsDeadOrGhost(unit) return unit == "player" and (dead or ghost) end
+    function UnitIsGhost(unit) return unit == "player" and ghost end
+    Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
+    Fire("NAME_PLATE_UNIT_ADDED", "nameplate2")
+    Fire("NAME_PLATE_UNIT_ADDED", "nameplate3")
+
+    local meterSources, meterSpells
+    local secretMeter = {}
+    function issecretvalue(value) return value == secretMeter end
+    C_RestrictedActions = nil
+    Enum.DamageMeterType = { DamageTaken = 7, HealingDone = 2 }
+    local elapsed, restricted = 8, false
+    C_DamageMeter.GetAvailableCombatSessions = function() return {} end
+    C_DamageMeter.GetCombatSessionFromType = function(id, category)
+        assert(id == 0)
+        if restricted then return secretMeter end
+        return { durationSeconds = elapsed, combatSources = meterSources[category] or {} }
+    end
+    C_DamageMeter.GetCombatSessionSourceFromType = function(_, category, guid)
+        return { combatSpells = meterSpells[category] and meterSpells[category][guid] or {} }
+    end
+    local function ResetSnapshot()
+        meterSources, meterSpells = {}, {}
+    end
+    local function Link(kind, guid, name, class, amount, mob)
+        meterSources[kind] = meterSources[kind] or {}
+        meterSpells[kind] = meterSpells[kind] or {}
+        local spells = meterSpells[kind][guid]
+        if not spells then
+            spells = {}
+            meterSpells[kind][guid] = spells
+            meterSources[kind][#meterSources[kind] + 1] = { sourceGUID = guid }
+        end
+        spells[#spells + 1] = { combatSpellDetails = {
+            unitName = name, unitClassFilename = class, amount = amount, isMob = mob == true, isPet = false,
+        } }
+    end
+    local function Begin()
+        inCombat = true
+        Fire("PLAYER_REGEN_DISABLED")
+    end
+    local function End(duration)
+        Advance(duration)
+        inCombat = false
+        Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 7, 0)
+        Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 2, 0)
+        Fire("PLAYER_REGEN_ENABLED")
+    end
+    local function Aura(actor, target, spell)
+        Fire("UNIT_AURA", target, { addedAuras = { { sourceUnit = actor, isHarmful = true, spellId = spell } } })
+    end
+    local function Battle(id)
+        return assert(addon.db.skirmishes["world:" .. id])
+    end
+    local function NoRewards(battle)
+        local kills, honor = addon.Ledger.SkirmishRewards(battle)
+        assert(#battle.events == 0 and kills == 0 and honor == 0)
+        assert(not addon.Ledger.SkirmishOutcome(battle))
+    end
+
+    -- Targeting friendly players and fighting NPCs near a hostile player
+    -- produce no record, even if the meter has positive unrelated PvP rows.
+    ResetSnapshot()
+    Fire("PLAYER_TARGET_CHANGED")
+    Fire("UNIT_TARGET", "party1")
+    assert(not addon.db.skirmishes)
+    Begin()
+    Aura("party1", "player", 101)
+    Link(7, localID, "Forest Bear", "WARRIOR", 20, true)
+    Link(7, brother, "First Enemy", "HUNTER", 5)
+    End(elapsed)
+    Advance(1.5)
+    assert(not addon.db.skirmishes)
+
+    -- A pure incoming PvP hit opens a reciprocal-history entry despite zero
+    -- deaths, HKs and honor and no feed from the combat-log event.
+    ResetSnapshot()
+    Link(7, localID, "First Enemy", "HUNTER", 48)
+    Begin()
+    End(elapsed)
+    Advance(1.5)
+    local duel = Battle(1)
+    assert(#duel.allies == 1 and #duel.enemies == 1 and duel.enemies[1].id == fenrik)
+    assert(duel.origin == "world" and duel.observation.segments[1].confirmedBy == "meter")
+    assert(duel.observation.segments[1].meter.hostileLinks[1].opponentID == fenrik)
+    local duelSegment = duel.observation.segments[1]
+    assert(duelSegment.endReason == "local-combat-ended")
+    assert(duelSegment.contacts[fenrik].first <= duelSegment.contacts[fenrik].last)
+    assert(duelSegment.contacts[fenrik].signal == "combat-end")
+    NoRewards(duel)
+    local rival = addon.Ledger.Find(addon.db, fenrik)
+    assert(rival.displayName == "First Enemy" and rival.killsAgainstThem == 0 and rival.deathsToThem == 0)
+    CheckReward(fenrik, 0, 0)
+    addon.RecordSkirmish("world:1", duel)
+    assert(#addon.Ledger.RivalSkirmishes(addon.db, fenrik) == 1)
+    assert(addon.Ledger.Open(addon.db).skirmishes["world:1"] == duel)
+
+    -- The same Current slot contains another local window. A heal links the
+    -- player to the new engagement, and a disconnected fight is left out.
+    ResetSnapshot()
+    Link(2, localID, "Thoren Ironbrook", "PRIEST", 30)
+    Link(7, brother, "Second Enemy", "SHAMAN", 24)
+    Link(7, brother, "First Enemy", "HUNTER", 15)
+    Link(7, units.nameplate2[1], "Other Enemy", "ROGUE", 20)
+    Begin()
+    End(elapsed)
+    Advance(1.5)
+    local group = Battle(2)
+    assert(#group.allies == 2 and #group.enemies == 2)
+    assert(#group.observation.segments == 1 and group ~= duel)
+    NoRewards(group)
+
+    -- Start a real interaction, then confirm a killing blow in the same
+    -- window. A loss of nameplate visibility never adds a death or a fight.
+    ResetSnapshot()
+    Begin()
+    Aura("player", "target", 666)
+    Fire("NAME_PLATE_UNIT_REMOVED", "nameplate1")
+    Advance(0.2)
+    Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
+    Aura("player", "target", 666)
+    Fire("PARTY_KILL", localID, fenrik)
+    End(elapsed - 0.2)
+    Advance(1.5)
+    local kill = Battle(3)
+    local phase = kill.observation.segments[1]
+    assert(#kill.events == 1 and not addon.db.skirmishes["world:4"])
+    assert(phase.confirmedBy == "harmful-aura" and phase.actions[1].count == 2)
+    assert(phase.actions[1].first < phase.actions[1].last)
+
+    -- An observed attack between known participants during the pause is
+    -- independent corroboration. A second local window can join the same
+    -- battle; a different hostile player in the next window cannot.
+    ResetSnapshot()
+    Begin()
+    Aura("player", "target", 667)
+    Aura("party1", "target", 668)
+    End(elapsed)
+    Advance(0.1)
+    Aura("party1", "target", 668)
+    Begin()
+    Aura("target", "player", 669)
+    End(elapsed)
+    Advance(1.5)
+    local pause = Battle(4)
+    assert(#pause.observation.segments == 2 and #pause.allies == 2)
+    assert(pause.observation.segments[2].continuation == "observed-hostility")
+    assert(not addon.db.skirmishes["world:5"])
+    NoRewards(pause)
+
+    -- Two disconnected windows with the same player, Current slot and a
+    -- very short gap stay separate. Safe live evidence survives a canceled
+    -- meter read and pending read in the following window.
+    ResetSnapshot()
+    Begin()
+    Aura("player", "target", 670)
+    End(elapsed)
+    Advance(0.1)
+    Begin()
+    Aura("player", "mouseover", 671)
+    End(elapsed)
+    Advance(1.5)
+    assert(Battle(5).enemies[1].id == fenrik and Battle(6).enemies[1].id == ghash)
+    NoRewards(Battle(5))
+    NoRewards(Battle(6))
+
+    -- Death itself keeps the observed roster; release records a gap.
+    -- A readable hostile action by those same allies after return can
+    -- establish continuity, without fabricating actions while ghosted.
+    ResetSnapshot()
+    Begin()
+    Aura("player", "target", 672)
+    Aura("party1", "target", 673)
+    Advance(2)
+    dead = true
+    recap = { { sourceGUID = fenrik, sourceName = "First Enemy", sourceFlags = 0x440,
+        timestamp = GetServerTime(), overkill = 3 } }
+    Fire("PLAYER_DEAD")
+    assert(Battle(7).observation.segments[1].endReason == nil)
+    End(2)
+    Advance(0.2)
+    ghost = true
+    Fire("PLAYER_ALIVE")
+    Aura("party1", "target", 674)
+    Advance(1)
+    dead, ghost = false, false
+    Fire("PLAYER_UNGHOST")
+    Aura("party1", "target", 675)
+    Begin()
+    Aura("target", "player", 676)
+    End(elapsed)
+    Advance(1.5)
+    local returned = Battle(7)
+    assert(#returned.events == 1 and #returned.observation.segments == 2)
+    assert(returned.observation.visibilityGap)
+    local life = returned.observation.life
+    assert(life[1].state == "dead" and life[2].state == "ghost" and life[3].state == "alive")
+    assert(returned.observation.segments[1].actions[2].count == 2)
+    assert(not addon.db.skirmishes["world:8"])
+
+    -- After a longer unobserved interval, a fresh action involving the same
+    -- rival cannot by itself establish continuity with the earlier fight.
+    ResetSnapshot()
+    Begin()
+    Aura("player", "target", 677)
+    Advance(2)
+    dead = true
+    recap = { { sourceGUID = fenrik, sourceName = "First Enemy", sourceFlags = 0x440,
+        timestamp = GetServerTime(), overkill = 1 } }
+    Fire("PLAYER_DEAD")
+    End(2)
+    ghost = true
+    Fire("PLAYER_ALIVE")
+    Advance(12)
+    dead, ghost = false, false
+    Fire("PLAYER_UNGHOST")
+    Aura("party1", "target", 678)
+    Begin()
+    Aura("player", "target", 679)
+    End(elapsed)
+    Advance(1.5)
+    assert(#Battle(8).events == 1 and Battle(8).observation.visibilityGap)
+    assert(Battle(9).enemies[1].id == fenrik and #Battle(9).observation.segments == 1)
+    NoRewards(Battle(9))
+
+    -- A restricted snapshot and secret aura are not evidence. A fresh late
+    -- read within the known window can later confirm a different candidate.
+    ResetSnapshot()
+    restricted = true
+    Begin()
+    Fire("UNIT_AURA", "player", { addedAuras = { { sourceUnit = secretMeter, isHarmful = true } } })
+    Fire("UNIT_AURA", "player", { isFullUpdate = true, addedAuras = {
+        { sourceUnit = "target", isHarmful = true },
+    } })
+    End(elapsed)
+    Advance(1.5)
+    assert(not addon.db.skirmishes["world:10"])
+
+    ResetSnapshot()
+    Link(7, localID, "Second Enemy", "SHAMAN", 17)
+    Begin()
+    End(elapsed)
+    Advance(0.5)
+    assert(not addon.db.skirmishes["world:10"])
+    restricted = false
+    Advance(1)
+    assert(Battle(10).enemies[1].id == ghash)
+    NoRewards(Battle(10))
+
+    -- Native formal-duel completion before settling vetoes a provisional record.
+    ResetSnapshot()
+    Begin()
+    Aura("player", "target", 680)
+    End(elapsed)
+    Fire("DUEL_FINISHED")
+    Advance(1.5)
+    assert(not addon.db.skirmishes["world:11"])
+
+    -- A confirmed death recap is bound to the window captured at PLAYER_DEAD,
+    -- including when a zone transition and a new fight precede the callback.
+    ResetSnapshot()
+    Begin()
+    Aura("player", "target", 681)
+    Advance(2)
+    recap = nil
+    Fire("PLAYER_DEAD")
+    local deathAt = GetServerTime()
+    End(0)
+    Fire("ZONE_CHANGED_NEW_AREA")
+    local oldFight = Battle(11)
+    assert(#oldFight.events == 0 and oldFight.observation.visibilityGap)
+    Begin()
+    Aura("player", "mouseover", 682)
+    recap = { { sourceGUID = fenrik, sourceName = "First Enemy", sourceFlags = 0x440,
+        timestamp = deathAt, overkill = 2 } }
+    End(elapsed)
+    Advance(1.5)
+    assert(#oldFight.events == 1 and oldFight.events[1].actorID == fenrik)
+    assert(Battle(12).enemies[1].id == ghash)
+    NoRewards(Battle(12))
+end
+print("Validated kill-free journal records, connected continuations, ghost gaps and independent combat windows")

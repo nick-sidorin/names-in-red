@@ -122,3 +122,22 @@ function Evidence:Connected(anchors)
     table.sort(additions, function(a, b) return a.guid < b.guid end)
     return additions, reached
 end
+
+-- These are untimed links from the selected meter aggregate, not events.
+function Evidence:HostileLinks(reached)
+    local result = {}
+    for player in pairs(reached) do
+        if player.player.faction == self.faction then
+            for rival in pairs(self.links[player] or {}) do
+                if rival.player.faction ~= self.faction then
+                    result[#result + 1] = { allyID = player.guid, opponentID = rival.guid }
+                end
+            end
+        end
+    end
+    table.sort(result, function(a, b)
+        if a.allyID == b.allyID then return a.opponentID < b.opponentID end
+        return a.allyID < b.allyID
+    end)
+    return result
+end

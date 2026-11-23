@@ -369,50 +369,91 @@ observations to constrain membership across gaps, continued fighting
 after death, movement, and resumptions. No inference of the winner is
 required to record the confrontation.
 
-#### Death, visibility and boundaries
+### Kill-free world skirmishes and observation boundaries
 
-The current journal normally needs an observed kill or validated local death
-recap to create a record. The graph takes participant GUIDs as anchors and
-does not need a kill event itself. It can therefore be called with confirmed
-PvP contacts when a future recorder opens a no-kill fight. This preview
-enriches the active same-zone journal record only. A recap that resolves
-after the meter read can leave the first roster unenriched. Death/ghost
-signals are sampled in diagnostics, and the active journal pointer currently
-clears at `PLAYER_UNGHOST` or when leaving the world. The eight-second
-aftermath grace and local combat events can keep an active pointer during
-brief interruptions. They do not establish whether allies kept fighting
-when the player lost visibility. A target change supplies observations,
-without itself ending a meter session or a skirmish. Native meter rollover
-during death, ghost, resurrection and real zone changes is still unverified.
+The recorder keeps local combat windows separate from the saved confrontation.
+A window becomes a journal record only after positive evidence. Its identifier
+is allocated once and reused for later kills, deaths, rewards and enrichment.
+The version-1 SavedVariables format accepts the extra `origin` and
+`observation` fields without migrating earlier cards.
 
-#### Targeted live verification
+**Start signals.**
 
-1. Repeat Duskwood (two confirmed kills and one more opponent who hits both
-   allies). Compare Current/archive signals, roster, deaths and honor.
-2. In separate fights with one confirmed kill, have a priest cast only
-   direct heals, then only a HoT/shield. Repeat with an ungrouped priest.
-   Try an interrupt, a dispel and a control-only player. Compare the local
-   and support player's saves if the local recipient fields are missing.
-3. Have a hunter participate only through their pet, both grouped and
-   ungrouped. Include a pet that hits only an NPC as a control. Note which
-   units were visible. Repeat with a nearby PvE party and two disjoint PvP
-   engagements in one local combat window. Party membership and proximity
-   alone should leave the roster unchanged.
-4. Die while teammates continue, release, then run back and resurrect.
-   Record target changes, a brief stealth/visibility gap, a fast re-entry
-   into combat, an actual zone transition and a separate no-kill fight.
-   Compare refresh/archival IDs and life-state rows with the observed
-   engagement. A no-kill fight is groundwork for the next PR.
+- A readable incremental `UNIT_AURA` application with `isHarmful` and
+  `sourceUnit` can establish a timestamped hostile player-to-player link.
+  Both units must have identified GUIDs on opposite sides; a new enemy must
+  be attackable. An exactly identified local pet can represent the player.
+  Full aura updates, missing or secret sources, friendly effects and NPCs
+  cannot establish this link. This uses the event shape from
+  `UnitAuraDocumentation.lua` and the source token used by
+  `TargetFrameAuraContainerPrivateMixin:ShouldShowAuraWithLargeSize` in
+  the pinned Forever source. The source contract does not guarantee that
+  third-party addons can read the fields in live PvP.
+- After local combat the existing meter reader can establish a connection
+  from the local player to an observed enemy. A connected ally with a
+  readable heal or shield can be the path to the hostile exchange. An
+  unrelated component, unnamed totals, a selected target or party membership
+  does not establish PvP. Existing confirmed kills and death recaps remain
+  positive evidence. The recorder retains the prior checks, bounded retry
+  and cancellation of ambiguous overlapping meter reads.
+- Same-faction actions do not establish a fight. An explicit `DUEL_FINISHED`
+  signal vetoes the provisional window; explicitly unflagged enemies cannot
+  seed kill-free activity. Those signals do not supply an exhaustive
+  cross-faction formal-duel identity, and this preview adds no duel history.
 
-Save via a normal logout or `/reload` and share the diagnostic file
-privately. The original Duskwood capture is real-client evidence; the
-additional categories, aura and pet/controller paths, stale/reset/area
-guards and archived selection have Lua 5.1 test coverage. In
-1.1.0-preview.3 the tests also cover a sole link beyond every diagnostic
-limit, two disconnected engagements in the same snapshot, overlapping
-read windows, both target shapes and late restriction/session changes.
-A fresh run of that preview in Forever is still needed to establish which
-data the client actually exposes for those scenarios.
+**Continuity and observation.** A local combat exit closes the observed
+segment; it does not determine how the sides resolved it. An intervening
+readable hostile action between already known allies and enemies can bridge
+two nearby windows if the second contains that enemy and stays in the same
+area. The five-second freshness limit applies to the bridging observation;
+time, shared identities and inherited meter IDs alone are insufficient.
+An isolated lost nameplate or stealth does not close an open local window.
+Separate local windows without corroboration are stored separately. A
+single untimed native aggregate that joins both fights through a shared
+participant still cannot reliably split the confrontations. Unreadable
+evidence can leave a legitimate fight unrecorded.
+
+The initial record time is approximate. `observation.segments` stores
+local opening/closing reasons, relative duration, why the episode was
+confirmed, first/last positive aura observations per directed pair,
+and available first/last contact sightings and final state samples.
+The meter contributes undated opposing links with its selector metadata.
+These remain distinct from confirmed killing blows in `events`. The owning
+record also stores death, release and resurrection observations, including a
+visibility gap. Death alone does not close the fight. Release can stop the
+local observation. A documented gap stays visible in the data even if a
+fresh corroborating action supports rejoining. A long unobserved absence is
+not filled in. Area and world changes stop attribution from pending meter
+reads; a validated delayed death recap may still update the original
+captured window in the same addon session. A logout saves confirmed live
+activity; it does not reconstruct an unfinished candidate after reload.
+
+**Targeted live verification.**
+
+1. In open-world PvP, exchange ordinary hits with a flagged opposing player
+   and disengage with both alive. Check that the journal shows a 1 × 1
+   Unknown with zero deaths and zero rewards. Repeat with a named debuff to
+   distinguish the meter and live aura paths. Targeting a player or fighting
+   an NPC nearby should produce no card.
+2. Help an ally against two opposing players, then disengage with no kills.
+   Check the connected roster. Repeat two quick fights with different
+   opponents, and then with one shared opponent. Record whether the native
+   selector rolls over. Test a brief stealth pause and an actual allied
+   action during the local combat lull.
+3. Die while the others continue, release and return. Record whether the
+   connected fight was actually visible during the gap, then compare the
+   saved life states, segments and separate new engagements. A lost
+   observation supplies no claim about what the allies did in its absence.
+4. Repeat Duskwood and confirm two observed allies, three opponents, two
+   finishing blows and five honor. Run a heal-only and a pet-only control
+   with a known player link if checking recipient/controller availability.
+
+Use a normal logout or `/reload` to save and share the diagnostic file
+privately. The original Duskwood capture is real-client evidence. The
+kill-free recorder, aura-only path, continuity bridges, ghost gap handling
+and cancellation behavior have Lua 5.1 event-replay coverage. Native
+delivery of the new live signals and actual meter rollover in these
+scenarios still require a fresh Forever 70959 capture.
 
 ### Seeded full-battle cards
 
