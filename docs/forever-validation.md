@@ -1138,6 +1138,13 @@ one-to-two-pixel uncertainty in locating the edges.
 
 The journal header and each card use Blizzard's bug artwork from
 [`PTR_IssueReporter.Assets.BugReportIcon`](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_PTRFeedback/Blizzard_PTRFeedback.lua#L37-L50).
+The header report button uses the same native `SharedButtonSmallTemplate`
+as the former Delete button, including its three-slice `128-RedButton`
+art and pressed state. `SetTextToFit` sizes the button around the
+localized label and inline icon. The adjacent prompt keeps the active
+client font and adds one point to its inherited size.
+[Template](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_SharedXML/Shared/Button/ThreeSliceButtonTemplate.xml#L60-L91) ·
+[Sizing mixin](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_SharedXML/SecureUIPanelTemplates.lua#L81-L92)
 The addon owns the report window and uses the shared
 [`InputScrollFrameTemplate`](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.xml#L72)
 and its normal EditBox selection and scrolling. The report reuses the manual
@@ -1145,6 +1152,10 @@ entry window's rock background from Blizzard's
 [`PortraitFrameTemplate`](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml#L624-L662).
 The form link precedes the report so each can be copied in sequence. The native feedback
 submission flow is outside this feature.
+
+The dialog uses a 660-unit width for the SavedVariables path and a shorter
+report field. The footer buttons use the same native three-slice template
+as the header button.
 
 The copy field contains a fenced JSON Lines report. Each line is an object
 with a `section`, beginning with format version 1 and ending with a list of
@@ -1279,12 +1290,37 @@ readability and field completeness during a live PvP session still vary.
   export and reload. The figures exclude the existing general debug
   buffer and game UI and do not measure client frame time.
 
+#### Permanent battle history
+
+Age, count and byte limits apply to optional diagnostics only. The recent
+cross-rival view draws up to 100 records and each rival's history queries
+all their recorded encounters. The permanent record owns the roster, result,
+rewards and timeline.
+
+The accepted meter read can also save sampled damage, healing and absorb
+amounts under the matched combat segment. Both endpoints must belong to the
+confirmed roster and have an accepted link. The sample stores the category,
+direction, readable spell ID and per-pair amount. It preserves pet attribution
+when known. Categories can overlap and sample coverage can be partial.
+These amounts have no individual hit timestamps. The saved aggregate does
+not depend on retaining the underlying technical read. On load, existing
+diagnostic samples can populate this history before compaction when their
+local start and meter selection match one saved segment unambiguously.
+Previously discarded samples cannot be recovered.
+
+Automated regression covers opening a record from 2020 with 140 encounters
+for its rival after diagnostic compaction, diagnostic removal and reload.
+The original outcome, roster, location, timeline, rewards and linked amounts
+are still available. The general event-buffer clear is exercised separately.
+
 #### Public JSONL and optional SavedVariables
 
 The JSONL schema remains version 1. `primaryEvidence` contains
 `evidence: observation`, `meterSampleBatch`, `meterSpellSample` and
 `meterFollowup` contain `evidence: aggregate`, and `resolution`,
 `event`, `action` and `meterLink` are labeled `evidence: derived`.
+`combatAggregate` exports the permanent per-segment amounts with
+`evidence: aggregate` and the report's player aliases.
 Honor and HK rows are credited totals. They do not supply an individual
 damage, healing or kill event. Direct timestamps may be local window
 offsets or native recap times. An aggregate read offset timestamps

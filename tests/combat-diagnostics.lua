@@ -253,3 +253,94 @@ assert(reloaded.skirmishes["world:14"] and reloaded.skirmishes["world:40"])
 print(("Saved diagnostics fixture sizes: normal %d B, dense %d B, compact %d B, detailed history %d B; "
     .. "26 extra cards used %.1f KiB of retained Lua heap"):format(smallBytes, longBytes, compactBytes, detailedBytes, stressMemory))
 print("Bounded primary observations, secret fields, report aliases, saved reload and truncation passed")
+
+-- Saved battle data outlives the optional diagnostics, even for the oldest
+-- rival card beyond the limit in the cross-rival view.
+local ledger = addon.Ledger
+local oldTime, oldID = 1577836800, "world:1"
+local historyDB = ledger.Open()
+addon.db = historyDB
+ledger.Add(historyDB, rival, "Private Rival")
+local friend = "Player-4-friendly"
+local oldBattle = {
+    time = oldTime, sequence = 1, zone = "Old Zone", mapID = 47, x = 0.4, y = 0.5, outcome = "win",
+    allies = { { id = me, isSelf = true }, { id = friend } },
+    enemies = { { id = rival, rivalID = rival } },
+    events = {
+        { kind = "kill", actorID = me, targetID = rival, offset = 2 },
+        { kind = "revive", targetID = rival, offset = 5 },
+        { kind = "death", targetID = rival, offset = 9 },
+    },
+    observation = { segments = { {
+        startedAt = oldTime - 1, localCombatAt = oldTime,
+        meter = { selection = "new-archived", sessionID = 51 },
+        actions = { { kind = "harmful-aura", actorID = me, targetID = rival, spellID = 127, first = 0, last = 1, count = 2 } },
+    } } },
+    rewards = { [rival] = { honor = 5, honorableKills = 1 } },
+}
+local oldSegment = oldBattle.observation.segments[1]
+local legacyProbe = {
+    selection = "new-archived", sessionID = 51,
+    categories = {
+        EnemyDamageTaken = { rows = {
+            { resolution = "link", meterUnitID = rival, otherID = me, amount = 25, spellID = 127, spellTotal = 85,
+                petOwner = true },
+            { resolution = "link", meterUnitID = rival, otherID = unknown, amount = 60 },
+        } },
+        HealingDone = { rows = {
+            { resolution = "link", meterUnitID = friend, otherID = me, amount = 16, spellID = 807 },
+            { resolution = "target-contact-ambiguous", meterUnitID = friend, otherID = me, amount = 100 },
+        } },
+    },
+}
+oldBattle.combatDiagnostics = { version = 1, windows = {
+    { time = oldTime, index = 1, meter = legacyProbe, streams = {} },
+}, recaps = {} }
+ledger.SaveSkirmish(historyDB, oldID, oldBattle)
+assert(not oldSegment.combatAggregates)
+
+local ambiguous = CopySaved(historyDB, true)
+local ambiguousBattle = ambiguous.skirmishes[oldID]
+ambiguousBattle.combatDiagnostics.windows[2] = CopySaved(ambiguousBattle.combatDiagnostics.windows[1])
+ledger.Open(ambiguous)
+assert(not ambiguousBattle.observation.segments[1].combatAggregates)
+
+ledger.Open(historyDB)
+local aggregates = assert(oldSegment.combatAggregates)
+assert(#aggregates == 2)
+assert(aggregates[1].actorID == me and aggregates[1].targetID == rival and aggregates[1].amount == 25)
+assert(aggregates[1].spellID == 127 and aggregates[1].petEndpoint == "target" and not aggregates[1].spellTotal)
+assert(aggregates[2].actorID == friend and aggregates[2].targetID == me and aggregates[2].amount == 16)
+assert(ledger.Open(historyDB) == historyDB and #oldSegment.combatAggregates == 2)
+
+for index = 2, 140 do
+    local time = 1800010000 + index
+    local nextBattle = {
+        time = time, sequence = index, allies = oldBattle.allies, enemies = oldBattle.enemies, events = {},
+        outcome = index == 2 and "loss" or nil,
+    }
+    local capture = addon.NewCombatDiagnostics(now, time, "71037", registration)
+    addon.AttachCombatDiagnostics(nextBattle, capture)
+    ledger.SaveSkirmish(historyDB, "world:" .. index, nextBattle)
+end
+assert(oldBattle.combatDiagnostics.retention == "compact" and oldSegment.combatAggregates == aggregates)
+oldBattle.combatDiagnostics = nil
+local reopenedHistory = ledger.Open(CopySaved(historyDB, true))
+local recent = addon.RecentSkirmishes(reopenedHistory, 100)
+assert(#recent == 100 and recent[100].sequence == 41)
+local rivalHistory = addon.RivalEncounters(reopenedHistory, rival)
+assert(#rivalHistory == 140 and rivalHistory[140].skirmishID == oldID)
+assert(rivalHistory[139].outcome == "loss" and rivalHistory[138].outcome == nil)
+assert(rivalHistory[140].outcome == "win" and rivalHistory[140].honor == 5)
+local reopened = reopenedHistory.skirmishes[oldID]
+assert(reopened.time == oldTime and reopened.zone == "Old Zone" and reopened.mapID == 47 and reopened.x == 0.4)
+assert(#reopened.allies == 2 and #reopened.enemies == 1 and ledger.Find(reopenedHistory, rival).displayName == "Private Rival")
+assert(#reopened.events == 3 and reopened.events[2].kind == "revive" and reopened.events[3].kind == "death")
+assert(reopened.observation.segments[1].actions[1].count == 2)
+assert(#reopened.observation.segments[1].combatAggregates == 2)
+local historyReport = addon.BuildIssueReport(reopenedHistory, nil, oldID)
+Includes(historyReport, '"section": "combatAggregate"')
+Includes(historyReport, '"category": "HealingDone"')
+Includes(historyReport, '"availability": "not-recorded"')
+Excludes(historyReport, rival)
+print("Permanent rival and battle history outlives both diagnostic buffers and the recent view limit")

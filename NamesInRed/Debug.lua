@@ -986,7 +986,7 @@ function handlers.PLAYER_REGEN_ENABLED()
                     Count(counts, reached[actor] and "source-connected" or "source-disconnected")
                 end
             end
-            addon.ApplyWorldMeterEvidence(context, additions, faction, row, links, finished.contacts)
+            addon.ApplyWorldMeterEvidence(context, additions, faction, row, links, finished.contacts, probe)
             addon.SnapshotWorldContacts(context, finished.contacts)
             BeginPassiveMeter(context, row, finished, evidence, reached)
         end

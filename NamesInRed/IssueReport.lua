@@ -536,6 +536,11 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
             item.segment, item.evidence = index, "derived"
             Actor("action", item, action)
         end)
+        each("combatAggregate", segment.combatAggregates, 32, function(aggregate)
+            local item = Fields(aggregate, "category petEndpoint", "spellID amount")
+            item.segment, item.evidence, item.api = index, "aggregate", "C_DamageMeter"
+            Actor("combatAggregate", item, aggregate)
+        end)
         local meter = Table(segment.meter)
         if next(meter) then
             local item = Fields(meter, "scope selection", "sessionID")
@@ -612,12 +617,13 @@ local function ShowPart(index)
     report:SetCursorPosition(0)
     report:GetParent():SetVerticalScroll(0)
     nextPart:SetShown(#reportParts > 1)
-    nextPart:SetText(L.issueReportPart:format(index, #reportParts))
+    nextPart:SetTextToFit(L.issueReportPart:format(index, #reportParts))
 end
 
 local function BuildWindow()
+    local width = 660
     window = CreateFrame("Frame", "NamesInRedIssueReport", UIParent, "PortraitFrameTemplate")
-    window:SetSize(550, 480)
+    window:SetSize(width, 410)
     window:SetPoint("CENTER")
     window:SetFrameStrata("DIALOG")
     window:SetToplevel(true)
@@ -652,22 +658,24 @@ local function BuildWindow()
     reportHint:SetWordWrap(true)
     reportHint:SetText(L.issueReportHint)
 
-    local savedVariablesHint = window:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local savedVariablesHint = window:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     savedVariablesHint:SetPoint("BOTTOMLEFT", 20, 17)
     savedVariablesHint:SetPoint("BOTTOMRIGHT", -20, 17)
     savedVariablesHint:SetJustifyH("LEFT")
     savedVariablesHint:SetWordWrap(true)
-    savedVariablesHint:SetText(L.issueSavedVariablesHint)
+    savedVariablesHint:SetNonSpaceWrap(false)
+    local savedVariablesPath = [[_forever_\WTF\Account\<account>\<realm>\<character>\SavedVariables\NamesInRed.lua]]
+    savedVariablesHint:SetText(L.issueSavedVariablesHint:format(savedVariablesPath))
 
-    local copy = CreateFrame("Button", nil, window, "UIPanelButtonTemplate")
+    local copy = CreateFrame("Button", nil, window, "SharedButtonSmallTemplate")
     copy:SetPoint("BOTTOMLEFT", savedVariablesHint, "TOPLEFT", 0, 10)
-    copy:SetSize(230, 23)
-    copy:SetText(L.issueSelectReport)
+    copy:SetWidth(230)
+    copy:SetTextToFit(L.issueSelectReport)
     copy:SetScript("OnClick", function() Select(report) end)
 
-    nextPart = CreateFrame("Button", nil, window, "UIPanelButtonTemplate")
+    nextPart = CreateFrame("Button", nil, window, "SharedButtonSmallTemplate")
     nextPart:SetPoint("BOTTOMRIGHT", savedVariablesHint, "TOPRIGHT", 0, 10)
-    nextPart:SetSize(230, 23)
+    nextPart:SetWidth(230)
     nextPart:SetScript("OnClick", function() ShowPart(currentPart % #reportParts + 1) end)
 
     local scroll = CreateFrame("ScrollFrame", nil, window, "InputScrollFrameTemplate")
@@ -678,7 +686,7 @@ local function BuildWindow()
     report = scroll.EditBox
     report:SetMaxLetters(0)
     report:SetMaxBytes(0)
-    report:SetWidth(484)
+    report:SetWidth(width - 66)
     report:HookScript("OnEditFocusLost", function(self) self:HighlightText(0, 0) end)
 
     window:HookScript("OnHide", function() report:ClearFocus(); link:ClearFocus() end)

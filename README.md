@@ -24,7 +24,9 @@ sides. Expand **Finishing blows** to see the recorded kills in order. The header
 shows the number of recorded participants on each side.
 Cards show a rival's level when an observation from that fight is available.
 An information icon beside those counts explains when the full team sizes are
-unconfirmed. Older saved battles can still open from a rival's history.
+unconfirmed. Rivals and skirmishes stay saved indefinitely, including the
+core timeline and linked Damage Meter aggregates. Older battles remain
+available in each rival's history after diagnostic data is compacted.
 The map pin places a waypoint when the saved location supports one. Known
 rivals show the same score in the standard unit tooltip.
 

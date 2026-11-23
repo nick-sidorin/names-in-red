@@ -36,6 +36,65 @@ local function IsSkirmish(battle)
         and type(battle.enemies) == "table" and type(battle.events) == "table"
 end
 
+local meterHistoryCategories = { "DamageDone", "DamageTaken", "EnemyDamageTaken", "HealingDone", "Absorbs" }
+
+-- Preserve linked amounts as separate aggregates per segment and category.
+-- Other fields in the diagnostic probe describe API reads and restrictions.
+function Ledger.RecordMeterAggregates(battle, segment, probe)
+    if segment.combatAggregates or type(probe) ~= "table" or type(probe.categories) ~= "table" then return end
+    local roster, aggregates = {}, {}
+    for _, side in ipairs({ battle.allies, battle.enemies }) do
+        for _, player in ipairs(side) do if player.id then roster[player.id] = true end end
+    end
+    for _, category in ipairs(meterHistoryCategories) do
+        local group = probe.categories[category]
+        if type(group) == "table" and type(group.rows) == "table" then
+            for _, row in ipairs(group.rows) do
+                if type(row) == "table" and row.resolution == "link" and roster[row.meterUnitID] and roster[row.otherID]
+                    and type(row.amount) == "number" and row.amount > 0 and row.amount < math.huge then
+                    local actor, target = row.meterUnitID, row.otherID
+                    local taken = category == "DamageTaken" or category == "EnemyDamageTaken"
+                    if taken then actor, target = target, actor end
+                    local spell = row.spellID
+                    if type(spell) ~= "number" or not (spell > 0 and spell < math.huge) then spell = nil end
+                    aggregates[#aggregates + 1] = { category = category, actorID = actor, targetID = target,
+                        spellID = spell, amount = row.amount,
+                        petEndpoint = row.petOwner == true and (taken and "target" or "actor") or nil }
+                end
+            end
+        end
+    end
+    if #aggregates > 0 then segment.combatAggregates = aggregates end
+end
+
+local function RestoreMeterAggregates(battle)
+    local journal = battle.combatDiagnostics
+    local segments = battle.observation and battle.observation.segments
+    if type(journal) ~= "table" or journal.version ~= 1 or type(journal.windows) ~= "table"
+        or type(segments) ~= "table" then return end
+    -- Prior builds saved the probe by local window. Only promote a read
+    -- when both the window and the meter read match one saved segment.
+    local byStart = {}
+    for _, segment in ipairs(segments) do
+        local started = segment.localCombatAt or segment.startedAt
+        if type(started) == "number" and type(segment.meter) == "table" then
+            byStart[started] = byStart[started] == nil and segment or false
+        end
+    end
+    local matches = {}
+    for _, window in ipairs(journal.windows) do
+        local segment = byStart[window.time]
+        local meter = window.meter
+        if segment and type(meter) == "table" and meter.selection
+            and meter.selection == segment.meter.selection and meter.sessionID == segment.meter.sessionID then
+            matches[segment] = matches[segment] == nil and meter or false
+        end
+    end
+    for segment, meter in pairs(matches) do
+        if meter then Ledger.RecordMeterAggregates(battle, segment, meter) end
+    end
+end
+
 function Ledger.Open(saved)
     if saved == nil then
         return { version = 1, rivals = {} }
@@ -43,7 +102,10 @@ function Ledger.Open(saved)
     if type(saved) == "table" and saved.version == 1 and type(saved.rivals) == "table" then
         if type(saved.skirmishes) == "table" then
             for id, battle in pairs(saved.skirmishes) do
-                if IsSkirmish(battle) then UpdateWorldRoster(id, battle) end
+                if IsSkirmish(battle) then
+                    UpdateWorldRoster(id, battle)
+                    RestoreMeterAggregates(battle)
+                end
             end
         end
         if addon.RestoreCombatDiagnostics then addon.RestoreCombatDiagnostics(saved) end
