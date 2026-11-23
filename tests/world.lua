@@ -22,6 +22,7 @@ function GetRealZoneText() return "Tanaris" end
 function CreateFrame()
     local frame = { events = {} }
     function frame:RegisterEvent(event) self.events[event] = true end
+    function frame:UnregisterEvent(event) self.events[event] = nil end
     function frame:SetScript(_, handler) self.handler = handler end
     frames[#frames + 1] = frame
     return frame
@@ -49,7 +50,7 @@ local function Advance(seconds)
 end
 
 Constants = { CurrencyConsts = { CLASSIC_HONOR_CURRENCY_ID = 1901 } }
-for _, file in ipairs({ "Ledger", "Encounter", "Core", "WorldSkirmishes", "Honor", "Kills" }) do
+for _, file in ipairs({ "Ledger", "Encounter", "Core", "SkirmishEvidence", "WorldSkirmishes", "Honor", "Kills" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
 addon.db = addon.Ledger.Open(nil)
@@ -192,3 +193,95 @@ assert(not saved.skirmishes["seed:incomplete"].rosterComplete)
 wins, losses = addon.Ledger.PersonalScore(saved, rogue.id)
 assert(wins == 1 and losses == 0)
 print("Observed world duels recalculate on load and when participants change")
+
+-- Anonymized replay of the attached Duskwood log. The meter snapshot uses
+-- Current, with two DamageTaken sources and an attacker absent from the kills.
+do
+    addon.ResetHonorTracking()
+    addon.ResetWorldTracking()
+    addon.Ledger.Clear(addon.db)
+    time, inCombat = 2000, true
+    local third = "Player-paladin"
+    local unrelated = "Player-unrelated"
+    local outsider = "Player-outsider"
+    units.target = { fenrik, "First Enemy", "Horde", "HUNTER" }
+    units.mouseover = { ghash, "Second Enemy", "Horde", "SHAMAN" }
+    units.nameplate1 = { third, "Third Enemy", "Horde", "PALADIN" }
+    units.nameplate2 = { unrelated, "Other Ally", "Alliance", "MAGE" }
+    units.nameplate3 = { outsider, "Other Enemy", "Horde", "ROGUE" }
+    units.player[4], units.party1[4] = "HUNTER", "PRIEST"
+    function UnitClass(unit) return nil, units[unit] and units[unit][4] end
+    function UnitAffectingCombat() return inCombat end
+    function GetRealZoneText() return "Duskwood" end
+    function GetBuildInfo() return "1.60.1", "70959", "", 16001 end
+    local length = 40
+    local function Taken(name, class, amount, isMob)
+        return { combatSpellDetails = { unitName = name, unitClassFilename = class,
+            amount = amount, isPet = false, isMob = isMob == true } }
+    end
+    local sources = {
+        [player.id] = { Taken("Third Enemy", "PALADIN", 122), Taken("Third Enemy", "PALADIN", 71) },
+        [brother] = { Taken("Second Enemy", "SHAMAN", 22), Taken("Third Enemy", "PALADIN", 2) },
+        [unrelated] = { Taken("Other Enemy", "ROGUE", 50) },
+    }
+    local secret = {}
+    function issecretvalue(value) return value == secret end
+    sources[player.id][3] = Taken("Other Enemy", "ROGUE", secret)
+    sources[player.id][4] = Taken("Other Enemy", "ROGUE", 50, true)
+    Enum = { DamageMeterType = { DamageTaken = 1 }, DamageMeterSessionType = { Current = 0 } }
+    C_DamageMeter = {
+        GetAvailableCombatSessions = function() return {} end,
+        GetCombatSessionFromType = function(sessionType, category)
+            assert(sessionType == 0 and category == 1)
+            return { durationSeconds = length, combatSources = {
+                { sourceGUID = unrelated }, { sourceGUID = brother }, { sourceGUID = player.id },
+            } }
+        end,
+        GetCombatSessionSourceFromType = function(_, _, guid) return { combatSpells = sources[guid] } end,
+    }
+    SlashCmdList = {}
+    assert(loadfile("NamesInRed/Debug.lua"))("NamesInRed", addon)
+    Fire("ADDON_LOADED", "NamesInRed")
+    Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
+    Fire("NAME_PLATE_UNIT_ADDED", "nameplate2")
+    Fire("NAME_PLATE_UNIT_ADDED", "nameplate3")
+    Fire("PLAYER_REGEN_DISABLED")
+    Advance(13)
+    Fire("PARTY_KILL", player.id, fenrik)
+    GainHK()
+    HonorChat("You have been awarded 2 honor points.", 100)
+    Advance(8)
+    Fire("PARTY_KILL", player.id, ghash)
+    GainHK()
+    HonorChat("You have been awarded 3 honor points.", 101)
+    Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 1, 0)
+    Fire("NAME_PLATE_UNIT_REMOVED", "nameplate1")
+    units.nameplate1 = nil
+    Advance(19)
+    local result = assert(addon.db.skirmishes["world:1"])
+    assert(#result.allies == 1 and #result.enemies == 2)
+    inCombat = false
+    Fire("PLAYER_REGEN_ENABLED")
+    Advance(0.5)
+    assert(#result.allies == 2 and result.allies[2].id == brother)
+    assert(#result.enemies == 3 and result.enemies[3].id == third and result.enemies[3].class == "PALADIN")
+    assert(#result.events == 2 and not addon.Ledger.FirstDeaths(result)[third])
+    assert(not result.rosterComplete and not addon.Ledger.SkirmishOutcome(result))
+    local kills, honor = addon.Ledger.SkirmishRewards(result)
+    assert(kills == 2 and honor == 5 and addon.db.rivals[third] and not addon.db.rivals[outsider])
+
+    -- An older Current slot must not enrich the next fight.
+    Advance(10)
+    units.nameplate1 = { third, "Third Enemy", "Horde", "PALADIN" }
+    Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
+    inCombat = true
+    Fire("PLAYER_REGEN_DISABLED")
+    Fire("PARTY_KILL", player.id, fenrik)
+    Advance(13)
+    inCombat = false
+    Fire("PLAYER_REGEN_ENABLED")
+    Advance(0.5)
+    local later = assert(addon.db.skirmishes["world:2"])
+    assert(#later.allies == 1 and #later.enemies == 1 and #later.events == 1)
+end
+print("Duskwood replay recovers connected participants and rejects unrelated or stale evidence")

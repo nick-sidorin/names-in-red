@@ -169,6 +169,32 @@ Compare both players' saves after a fight in a party and a fight outside it.
 Have one attack while the other lands the finishing blow. This probe needs
 live-client validation.
 
+### Duskwood participant evidence
+
+The owner's 22 November 2026 log from Forever 70959 contains a 40-second
+combat window with two confirmed player kills and five attributed honor.
+`DamageTaken` resolves the local hunter and a priest as victims by GUID. The
+spell details identify the same opposing paladin as an attacker by
+full name and class, with positive amounts for both victims. The recorded
+contact supplies the paladin's GUID and hostile faction. The priest also
+appears in `HealingDone`, but its available spell details omit the recipients.
+Another friendly player was present without a recorded link to this fight.
+
+The participant preview uses this pattern to extend the roster of an
+already recorded open-world fight. It requires a meter update for the selected
+session and category during local combat, a duration within two seconds of the
+local window, and identities matched in the same zone and recorded fight.
+Disjoint player pairs, mobs, pets, secret amounts and ambiguous names are
+excluded. The anonymized event replay reproduces the observed 2 × 3 roster,
+two confirmed deaths and five honor. The original log remains private.
+
+The log records combat ending after the paladin, last seen alive, left
+nameplate visibility. A positive indication of retreat or control is still
+needed to infer that ending automatically. Verify a new equivalent fight in
+Forever, including the meter's Current and archived session selection and the
+result after the post-combat sample. This preview leaves outcome inference
+and battleground recording at their existing behavior.
+
 ### Seeded full-battle cards
 
 The 0.1.3-preview.2 cards use the existing book frames, text and world map

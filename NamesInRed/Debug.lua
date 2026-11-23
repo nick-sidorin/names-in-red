@@ -441,6 +441,7 @@ function handlers.PLAYER_REGEN_DISABLED()
     local baseline = C_DamageMeter and SessionIDs(row, C_DamageMeter)
     combat = {
         sequence = combatSequence, baseline = baseline, contacts = {}, unresolved = {},
+        startedAt = row.time, startedUptime = row.uptime,
         contactCount = 0, contactOverflow = 0, meterUpdates = {}, meterUpdateCount = 0,
         groupChanges = {}, groupChangeCount = 0, restrictedKills = 0,
     }
@@ -469,6 +470,19 @@ function handlers.PLAYER_REGEN_ENABLED()
             return
         end
         CaptureMeter(row, finished.baseline)
+        -- The Current slot can outlive the local fight. Require a category update
+        -- during this combat and a duration consistent with this window.
+        local damageTaken = row.meter and row.meter.DamageTaken
+        local types = Enum and Enum.DamageMeterType
+        if addon.EnrichWorldSkirmish and row.instanceType == "none" and finished.baseline
+            and row.status.availableSessions == "readable" and #row.newMeterSessionIDs <= 1
+            and damageTaken and type(damageTaken.duration) == "number" and damageTaken.duration > 0
+            and finished.startedAt and finished.startedUptime and row.uptime
+            and types and type(types.DamageTaken) == "number"
+            and finished.meterUpdates[(row.meterSessionID or 0) .. ":" .. types.DamageTaken]
+            and math.abs(damageTaken.duration - (row.uptime - finished.startedUptime)) <= 2 then
+            addon.EnrichWorldSkirmish(row, finished.startedAt, finished.startedUptime, damageTaken)
+        end
     end
     if C_Timer and C_Timer.After then C_Timer.After(0.5, ReadMeter) else ReadMeter() end
 end

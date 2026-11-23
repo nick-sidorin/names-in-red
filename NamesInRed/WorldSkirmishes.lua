@@ -60,6 +60,31 @@ local function Participant(side, guid, name, level, rivalID, isSelf, appearance)
     end
 end
 
+function addon.EnrichWorldSkirmish(row, startTime, startUptime, damageTaken)
+    if not active or not addon.db or not addon.db.skirmishes or addon.db.skirmishes[active.id] ~= active.battle
+        or row.instanceType ~= "none" or type(row.zone) ~= "string" or not active.battle.startedAt
+        or active.battle.startedAt < startTime or active.lastEvent < startUptime or active.lastEvent > row.uptime
+        or active.battle.zone ~= row.zone then return end
+    local battle = active.battle
+    local localPlayer = row.player
+    local faction = localPlayer and localPlayer.faction
+    if not battle.allies[1].isSelf or not localPlayer or battle.allies[1].id ~= localPlayer.guid
+        or (faction ~= "Alliance" and faction ~= "Horde") then return end
+    local additions = addon.ConnectedDamageParticipants(battle, row.contacts, damageTaken, faction)
+    if #additions == 0 then return end
+    for _, entry in ipairs(additions) do
+        local player = entry.player
+        local friendly = player.faction == faction
+        local side = friendly and battle.allies or battle.enemies
+        local rivalID = not friendly and entry.guid or nil
+        Participant(side, entry.guid, entry.name, player.level, rivalID, nil, {
+            race = player.race and player.race:lower(), raceLabel = player.raceName,
+            sex = player.sex, class = player.class, classLabel = player.className,
+        })
+    end
+    addon.RecordSkirmish(active.id, battle)
+end
+
 function addon.RecordWorldEncounter(guid, name, direction, context)
     local playerGUID = Readable(UnitGUID("player"))
     if type(playerGUID) ~= "string" then return end
