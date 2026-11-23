@@ -491,26 +491,61 @@ members, life, combat state and readable positions.
 - Establish the site only from a witnessed hostile pair with nearby readable
   positions. A side can win when it has a visible, living member out of
   combat holding the site in both samples and every observed opponent is
-  recently confirmed dead, visibly dead in both samples, or demonstrably
-  withdrawing under pressure. A stronger later observation of life
-  supersedes an old kill. Known active combat blocks the decision.
-- For a living departure, the participant must start near the site in an
-  observed hostile action and then be visibly outside it in both terminal
-  samples. The latest witnessed action against that participant must come
-  from a member of the side still holding the site, with no later known
-  attack by the withdrawing player. The 30/55 yard radii and 12-second
-  evidence freshness limit are conservative guards for this preview.
-  They do not assign a winner on their own. There is no weighted kill score.
-- Where coordinates are unavailable in an observed 1 × 1, a recent
-  confirmed death plus two direct observations of the surviving opponent
-  alive and out of combat can resolve it. A personal death during a group
-  fight is only one event in that fight.
+  confirmed dead, visibly dead in both samples, or demonstrably withdrawing
+  under pressure. A confirmed death within the fight has no expiry. A
+  confirmed revival or a later readable alive sample supersedes its death
+  state; the kill remains in history. Known active combat blocks the decision.
+- A living departure can be observed through two consistent samples outside
+  the 55-yard positional boundary, or an independently checked range exit
+  before the unit becomes unreadable. Both paths require the latest witnessed
+  action against the departing participant to come from a holder of the
+  site and no later known attack by the departing player. The 12-second
+  guard applies to pressure, and has no effect on confirmed deaths. There
+  is no weighted kill score.
+- Where coordinates are unavailable in an observed 1 × 1, a confirmed
+  death plus two direct observations of the survivor alive and out of
+  combat can resolve it. A personal death during a group fight is one
+  event in that fight.
 - Both sides seen leaving can yield an observed ending with Unknown
   winner. Missing positions or players, conflicting signals, stealth,
   intervening contest and unresolved pauses remain Unknown. A later
   verified continuation can replace an earlier provisional assessment.
   Legacy cards without the new assessment keep the original interpretation.
   Manual outcomes and personal rewards are independent of the resolver.
+
+**Range exit without hostile coordinates.** Forever 70959 defines
+[`UnitDistanceSquared`](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitDocumentation.lua#L1108-L1121)
+with a separate `checkedDistance` result. Blizzard's
+[compact unit frame](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_UnitFrame/Shared/CompactUnitFrame.lua#L1068-L1078)
+uses that guard. Hostile checked-distance availability is unverified.
+[`C_Spell.IsSpellInRange`](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_APIDocumentationGenerated/SpellDocumentation.lua#L948-L962)
+distinguishes out of range from an invalid query, and the
+[hostile target action bar](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_GamepadActionBars/TargetActionBars/HostileTargetingActionBar.lua#L150-L155)
+uses it for the current hostile target.
+
+The preview records the local character's position and an initial readable
+near/in-range result when the character applies a harmful effect to an
+identified opponent. With checked distance, the near/exit measurements
+are at most 30 and at least 40 yards respectively. The spell alternative
+uses the same harmful spell with a zero minimum and 40–45 yard maximum, so
+an out-of-range result cannot mean the target moved too close. Invalid,
+unchecked, missing or secret readings supply no exit. The first terminal
+sample must still identify the opponent alive and out of combat with a
+positive exit check. The local holder must be alive, out of combat and
+within five yards of the action position through both terminal samples.
+The opponent may be unreadable in the second sample. If the second sample
+reads it, contradictory position, range or combat evidence blocks this
+path. The holding and scoped-hostility guards still apply. A plate loss
+before a positive exit proves neither departure nor an ending.
+
+For a fight like Duskwood this means two earlier kills, a readable exit
+while the living opponent is still visible, and a sustained hold can
+produce Victory even with no hostile coordinates. A fight cut off after
+the same two kills stays Unknown. Mock tests model disappearing units,
+unchecked and secret ranges, and minimum-range ambiguity. They do not
+establish the set of Forever abilities or unit tokens that will expose the
+required values. The new rule can still confuse a voluntary departure, or
+an outward reposition followed by a later return, with being driven off.
 
 **Meter while dead or ghosted.** The patch can reuse an eligible damage
 sample as a baseline. On a matching subsequent category event it compares
@@ -553,8 +588,10 @@ Lua event mocks and saved-data replays. Fresh live checks remain necessary:
    compare a sample before release, the post-combat delta status and the
    final visible states. Returning and attacking again does not itself
    establish the result of the earlier phase.
-3. Run a retreat under pressure and a no-kill disengagement. Add a brief
-   stealth and re-entry as a negative control. Compare the saved snapshots
+3. Run a retreat under pressure and a no-kill disengagement. Keep the
+   withdrawing opponent targeted until the range check follows the combat
+   exit, then let the target go out of sight while holding the site. Repeat
+   with a brief stealth and re-entry as a negative control. Compare the saved snapshots
    and `resolution` reasons, then repeat Duskwood or its equivalent.
    Verify after a normal logout or `/reload`; share SavedVariables privately.
 

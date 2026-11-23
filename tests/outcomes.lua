@@ -60,6 +60,61 @@ local resolution = Expect(groupWin, "win", "observed", "pressured-withdrawal")
 assert(resolution.enemies.dead == 2 and resolution.enemies.away == 1 and resolution.favorsVictory)
 assert(not groupWin.rosterComplete and not ledger.FirstDeaths(groupWin).c)
 
+-- Two old, confirmed kills must still count at a late ending. A later
+-- visible survivor or explicit resurrection defeats only the current death state.
+local longFight = Battle({ me, helper }, { firstEnemy, secondEnemy, thirdEnemy },
+    { Kill(me, firstEnemy, 110), Kill(helper, secondEnemy, 120) },
+    { me = alive, helper = alive, c = retreat }, { me = alive, helper = alive, c = farther },
+    { c = { actorID = "me", offset = 40 } })
+local ending = longFight.observation.assessment
+ending.lastAction.offset = 40
+ending.first.at, ending.first.offset, ending.last.at, ending.last.offset = 142, 42, 144, 44
+assert(Expect(longFight, "win", "observed", "pressured-withdrawal").enemies.dead == 2)
+ending.first.units.a = Seen(nil, false, false)
+assert(Expect(longFight, nil, "unknown").enemies.dead == 1)
+ending.first.units.a = nil
+longFight.events[3] = { kind = "revive", targetID = "b", time = 135 }
+assert(Expect(longFight, nil, "unknown").enemies.dead == 1)
+longFight.events[3] = { kind = "revive", targetID = "b", time = 150 }
+assert(Expect(longFight, "win", "observed").enemies.dead == 2)
+longFight.events[3] = nil
+
+-- The withdrawing player is only briefly readable around the measured
+-- range boundary. The final sample observes the holders, with no enemy token.
+local exit = Seen(nil, false, false)
+exit.rangeExit = true
+ending.first.units.c, ending.last.units.c = exit, nil
+ending.pressure.c.range = { upper = 40, spell = 681, origin = alive.position }
+local rangeResult = Expect(longFight, "win", "observed", "pressured-range-withdrawal")
+assert(rangeResult.enemies.dead == 2 and rangeResult.enemies.rangeWithdrawn == 1)
+assert(not ledger.FirstDeaths(longFight).c)
+
+ending.pressure.c.offset = 25
+assert(Expect(longFight, nil, "unknown", "withdrawal-not-corroborated").enemies.dead == 2)
+ending.pressure.c.offset = 40
+ending.last.units.c = Seen(nil, false, false)
+ending.last.units.c.rangeExit = false
+Expect(longFight, nil, "unknown")
+ending.last.units.c = Seen(104, false, false)
+ending.last.units.c.rangeExit = true
+Expect(longFight, nil, "unknown") -- contradictory direct position
+ending.last.units.c = nil
+
+ending.first.units.c = nil
+Expect(longFight, nil, "unknown", "participant-state-or-position-unavailable") -- vanished with no visible exit
+ending.lastAction.offset = 43
+Expect(longFight, nil, "ongoing", "later-hostility") -- stealth followed by re-entry
+ending.lastAction.offset, ending.first.units.c = 40, exit
+
+ending.first.units.me, ending.last.units.me = west, west
+ending.first.units.helper, ending.last.units.helper = west, west
+Expect(longFight, nil, "unknown") -- retreating observer cannot establish the point was held
+ending.first.units.me, ending.last.units.me = corpse, corpse
+ending.first.units.helper, ending.last.units.helper = nil, nil
+longFight.observation.playerState = "ghost"
+ending.interrupted = "area-changed"
+Expect(longFight, nil, "unknown", "area-changed")
+
 local groupLoss = Battle({ me, helper }, { firstEnemy, secondEnemy }, { Kill(firstEnemy, helper) },
     { me = retreat, a = alive, b = alive }, { me = farther, a = alive, b = alive },
     { me = { actorID = "a", offset = 10 } })
@@ -80,10 +135,13 @@ advantageAtDeath.observation.assessment.interrupted = "area-changed"
 Expect(advantageAtDeath, nil, "unknown", "area-changed")
 
 local reversed = Battle({ me, helper }, { firstEnemy, secondEnemy, thirdEnemy },
-    { Kill(me, firstEnemy, 105), Kill(me, secondEnemy, 106), Kill(thirdEnemy, helper, 110) },
+    { Kill(me, firstEnemy, 110), Kill(me, secondEnemy, 120), Kill(thirdEnemy, helper, 140) },
     { me = retreat, c = alive }, { me = farther, c = alive },
-    { me = { actorID = "c", offset = 11 } })
-Expect(reversed, "loss", "observed", "pressured-withdrawal")
+    { me = { actorID = "c", offset = 41 } })
+local lateLoss = reversed.observation.assessment
+lateLoss.lastAction.offset, lateLoss.first.at, lateLoss.first.offset = 41, 142, 42
+lateLoss.last.at, lateLoss.last.offset = 144, 44
+assert(Expect(reversed, "loss", "observed", "pressured-withdrawal").enemies.dead == 2)
 
 local mutual = Battle({ me }, { firstEnemy }, {},
     { me = west, a = retreat }, { me = west, a = farther })

@@ -107,7 +107,7 @@ local function WatchEnding(window)
         for _, side in ipairs({ record.battle.allies, record.battle.enemies }) do
             for _, player in ipairs(side) do ids[player.id] = true end
         end
-        return { offset = GetTime() - record.began, at = place.time, units = addon.ReadWorldOutcomeUnits(ids) }
+        return { offset = GetTime() - record.began, at = place.time, units = addon.ReadWorldOutcomeUnits(ids, state.pressure) }
     end
     local first
     C_Timer.After(0.75, function() first = Sample() end)
@@ -127,7 +127,7 @@ local function InvalidateEnding(record)
     state.checkStatus = "watching"
 end
 
-local function NewActivity(window, actor, target, kind)
+local function NewActivity(window, actor, target, kind, spell, targetUnit)
     local record = window.record
     local state = Assessment(record)
     local known = record.battle.resolution and record.battle.resolution.ending == "observed"
@@ -137,7 +137,7 @@ local function NewActivity(window, actor, target, kind)
         state.meterStatus = "linked-increase"
         state.meterPair = { actorID = actor, targetID = target }
     else
-        addon.NoteWorldOutcomeAction(state, actor, target, GetTime() - record.began, kind)
+        addon.NoteWorldOutcomeAction(state, actor, target, GetTime() - record.began, kind, spell, targetUnit)
     end
     if known then Save(record) end
     WatchEnding(window)
@@ -423,7 +423,9 @@ local function ObserveHarmfulAura(targetUnit, aura)
     if Readable(aura.isHarmful) ~= true then return end
     local self = PlayerGUID()
     if not self then return end
-    local actor, source = AuraPlayer(Readable(aura.sourceUnit), self)
+    local sourceUnit = Readable(aura.sourceUnit)
+    local spell = Readable(aura.spellId)
+    local actor, source = AuraPlayer(sourceUnit, self)
     local target, affected = AuraPlayer(targetUnit, self)
     if not actor or not target or actor == target then return end
     local faction = addon.PlayerFaction()
@@ -447,7 +449,7 @@ local function ObserveHarmfulAura(targetUnit, aura)
         local coveredThrough = previous.bridge and previous.bridge.seen or latest.ended
         if now - coveredThrough > bridgeAge then return end
         previous.bridge = { opponent = hostile, seen = now }
-        TimelinePair(latest, actor, target, "harmful-aura", Readable(aura.spellId))
+        TimelinePair(latest, actor, target, "harmful-aura", spell)
         latest.segment.lastConfirmedAt = place.time
         NewActivity(latest, actor, target, "harmful-aura")
         return
@@ -476,11 +478,12 @@ local function ObserveHarmfulAura(targetUnit, aura)
     local battle = record.battle
     Participant(battle.allies, friendly, addon.UnitPlayerName(ally), nil, nil, friendly == self, addon.UnitAppearance(ally))
     Participant(battle.enemies, hostile, addon.UnitPlayerName(enemy), nil, hostile, nil, addon.UnitAppearance(enemy))
-    TimelinePair(window, actor, target, "harmful-aura", Readable(aura.spellId))
+    TimelinePair(window, actor, target, "harmful-aura", spell)
     window.segment.lastConfirmedAt = place.time
     window.dirty = true
     battle.time = math.max(battle.time, place.time or 0)
-    NewActivity(window, actor, target, "harmful-aura")
+    local directTarget = sourceUnit == "player" and targetUnit or nil
+    NewActivity(window, actor, target, "harmful-aura", spell, directTarget)
 end
 
 local handlers = {}
