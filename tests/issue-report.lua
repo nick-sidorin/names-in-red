@@ -103,10 +103,18 @@ assert(#bounded <= 24576 and bounded:sub(-4) == "\n```")
 
 local widgets = {}
 local function Widget(parent)
-    local widget = { parent = parent, scripts = {}, hooks = {} }
+    local widget = { parent = parent, scripts = {}, hooks = {}, points = {}, labels = {} }
     function widget:GetParent() return self.parent end
     function widget:GetName() return self.name end
-    function widget:CreateFontString() return Widget(self) end
+    function widget:CreateFontString(_, _, font)
+        local label = Widget(self)
+        label.font = font
+        self.labels[#self.labels + 1] = label
+        return label
+    end
+    function widget:SetPoint(anchor, ...)
+        self.points[anchor] = { ... }
+    end
     function widget:SetScript(key, callback) self.scripts[key] = callback end
     function widget:HookScript(key, callback) self.hooks[key] = callback end
     function widget:SetText(value) self.text = value end
@@ -118,6 +126,7 @@ end
 function CreateFrame(kind, name, parent, template)
     local widget = Widget(parent)
     widget.name = name
+    widget.template = template
     widgets[#widgets + 1] = widget
     if template == "InputScrollFrameTemplate" then widget.EditBox, widget.CharCount = Widget(widget), Widget(widget) end
     return widget
@@ -125,7 +134,15 @@ end
 function ButtonFrameTemplate_HidePortrait() end
 UISpecialFrames, tinsert = {}, table.insert
 addon.OpenIssueReport("bg:20")
-local window, input, select, link = unpack(widgets)
+local window, link, input, select = unpack(widgets)
+local linkHint, reportHint = unpack(window.labels)
+assert(window.template == "PortraitFrameTemplate")
+assert(linkHint.text == "Перейди на форму по ссылке и напиши о проблеме")
+assert(reportHint.text == "Отправь мне этот код с информацией о стычке")
+assert(linkHint.font == "GameFontHighlight" and reportHint.font == "GameFontHighlight")
+assert(link.points.TOPLEFT[1] == linkHint and reportHint.points.TOPLEFT[1] == link)
+assert(input.points.TOPLEFT[1] == reportHint)
+assert(link.template == "InputBoxTemplate" and input.template == "InputScrollFrameTemplate")
 assert(input.EditBox.text == bounded and select.text == addon.L.issueSelectReport)
 select.scripts.OnClick()
 assert(input.EditBox.focus and input.EditBox.selected)

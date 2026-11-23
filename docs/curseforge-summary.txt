@@ -1,1 +1,1 @@
-Track open-world PvP rivals, skirmishes, wins, losses, and honor in WoW Forever. Recognize familiar enemies on nameplates and in tooltips.
+Track rivals, open-world PvP and battleground skirmishes in WoW Forever. Review fights, outcomes and honor, and report issues from the journal.
