@@ -82,6 +82,17 @@ local function Record(death)
     local id, battle, status = addon.RecordWorldEncounter(guid, observed and observed.fullName or name, "deathsToThem", death.context)
     if addon.WorldDeathWindow and not id and status ~= "duplicate" then return end
     if id and battle and addon.RecordCombatDeathRecap then
+        -- Reuse the same recap read. Earlier entries need a readable clock
+        -- inside the matched skirmish, and the lethal entry is retained last.
+        for index = math.min(#rows, 8), 2, -1 do
+            local row = ReadTable(rows[index])
+            local time = row and Readable(row.timestamp)
+            if type(time) == "number" and type(battle.startedAt) == "number"
+                and time >= battle.startedAt and time <= stamp then
+                local actor = HostilePlayer(row, playerGUID)
+                if actor then addon.RecordCombatDeathRecap(battle, actor, playerGUID, row, index, stamp) end
+            end
+        end
         addon.RecordCombatDeathRecap(battle, guid, playerGUID, first)
     end
     addon.db.lastDeathTimestamp = stamp

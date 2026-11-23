@@ -379,4 +379,27 @@ if not arg[1] or arg[1] == "diagnostic-scope" then
     assert(captured.streams.unitCombat.rows[1].amount == 99)
     assert(not captured.streams.spellCast)
 end
+Reset()
+if not arg[1] or arg[1] == "recap-context" then
+    units.target = first
+    Begin()
+    Aura("player", "target")
+    local before = GetServerTime() - 1
+    Advance(4)
+    localPlayer.dead = true
+    recap = {
+        { sourceGUID = one, sourceFlags = 0x440, timestamp = GetServerTime(), overkill = 2,
+            amount = 105, event = "SPELL_DAMAGE", spellId = 42 },
+        { sourceGUID = one, sourceFlags = 0x440, timestamp = GetServerTime() - 1,
+            amount = 50, event = "SPELL_PERIODIC_DAMAGE", spellId = 44 },
+        { sourceGUID = one, sourceFlags = 0x440, timestamp = before,
+            amount = 500, event = "SWING_DAMAGE" },
+    }
+    Fire("PLAYER_DEAD")
+    local captured = assert(addon.db.skirmishes["world:1"]).combatDiagnostics.recaps
+    assert(#captured == 2 and captured[1].recapIndex == 2 and captured[1].amount == 50)
+    assert(captured[2].recapIndex == 1 and captured[2].amount == 105)
+    Fire("PLAYER_DEAD")
+    assert(#captured == 2)
+end
 print("Anonymized Gnomeregan event replays passed")

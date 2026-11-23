@@ -65,12 +65,30 @@ local function Fields(source, tokens, numbers, flags)
     return result
 end
 
-local function MakeWriter()
+local function MakeWriter(pageHeader)
     local lines, size, truncated = { "```jsonl" }, 9, {}
+    local pages = pageHeader and {}
+    local function Close(finalPart)
+        local names = {}
+        for section in pairs(truncated) do names[#names + 1] = section end
+        table.sort(names)
+        if pageHeader then
+            pageHeader.part = #pages + 1
+            table.insert(lines, 2, Object(pageHeader))
+        end
+        lines[#lines + 1] = Object({ section = "limits", truncatedSections = table.concat(names, ","),
+            finalPart = finalPart })
+        lines[#lines + 1] = "```"
+        return table.concat(lines, "\n")
+    end
     local function Write(section, fields)
         fields.section = section
         local line = Object(fields)
-        -- Reserve the footer even if every section reaches its cap.
+        -- Reserve room for the footer and the optional page header.
+        if pages and #lines > 1 and (size + #line + 1 > maxBytes - 1024 or #lines >= maxRows) then
+            pages[#pages + 1] = Close(false)
+            lines, size = { "```jsonl" }, 9
+        end
         if size + #line + 1 > maxBytes - 1024 or #lines >= maxRows then
             truncated[section] = true
             return
@@ -87,12 +105,9 @@ local function MakeWriter()
         end
     end
     local function Finish()
-        local names = {}
-        for section in pairs(truncated) do names[#names + 1] = section end
-        table.sort(names)
-        lines[#lines + 1] = Object({ section = "limits", truncatedSections = table.concat(names, ",") })
-        lines[#lines + 1] = "```"
-        return table.concat(lines, "\n")
+        if not pages then return Close() end
+        pages[#pages + 1] = Close(true)
+        return pages
     end
     return Write, Each, Finish, truncated
 end
@@ -201,53 +216,94 @@ local combatRegistration = "UNIT_COMBAT UNIT_AURA UNIT_FLAGS PARTY_KILL UNIT_SPE
 local primaryTokens = "effect effectStatus flag flagStatus phase castStatus signal actorStatus targetStatus interrupterStatus payloadStatus "
     .. "spellIDStatus amountStatus schoolStatus helpfulStatus harmfulStatus deadStatus inCombatStatus feignStatus "
     .. "eventTimeStatus overkillStatus absorbedStatus"
-local primaryNumbers = "offset eventTime spellID amount school overkill absorbed"
+local primaryNumbers = "offset eventTime recapIndex recapTime spellID amount school overkill absorbed"
 local primaryFlags = "helpful harmful dead inCombat feign"
 
-local function ReportCombatDiagnostics(input, write, each, alias)
-    local journal = Table(input)
+local function CombatCoverage(journal, write)
+    local coverage = Fields(journal, "retention", "version windowsDropped recapsDropped")
     if Number(journal.version) ~= 1 then
-        write("combatCapture", { availability = "not-recorded" })
-        return
+        coverage.availability = "not-recorded"
+    else
+        coverage.availability = "recorded"
     end
-    local coverage = Fields(journal, nil, "version windowsDropped recapsDropped")
-    coverage.availability = "recorded"
     write("combatCapture", coverage)
+    return coverage.availability == "recorded"
+end
+
+local function ReportCombatDiagnostics(journal, write, each, alias)
+    local function Attribution(first, second, third)
+        local known = 0
+        for _, value in pairs({ first, second, third }) do
+            local id = addon.Readable(value)
+            if type(id) == "string" then
+                if not alias(id) then return end
+                known = known + 1
+            end
+        end
+        if known > 0 then return known > 1 and "roster-endpoints" or "participant-only" end
+    end
     local function Primary(row, api, index)
+        if row.actorStatus == "non-player" or row.targetStatus == "non-player" then return false end
+        local attribution = Attribution(row.actorID, row.targetID, row.interrupterID)
+        if not attribution then return false end
         local fields = Fields(row, primaryTokens, primaryNumbers, primaryFlags)
         fields.api, fields.window = api, index
+        fields.evidence, fields.attribution = "observation", attribution
         fields.actor, fields.target = alias(row.actorID), alias(row.targetID)
         fields.interrupter = alias(row.interrupterID)
         write("primaryEvidence", fields)
+        return true
     end
     each("primaryEvidence", journal.recaps, 8, function(row)
         Primary(row, "C_DeathRecap")
     end)
     each("combatWindow", journal.windows, 4, function(window)
-        local fields = Fields(window, "ending", "time endOffset")
+        local fields = Fields(window, "ending meterStatus meterWindow meterInterruption", "time endOffset")
         fields.build = Token(window.build) or Number(window.build)
         fields.window = Number(window.index)
         write("combatWindow", fields)
         local availability = Fields(Table(window.availability), combatRegistration)
         availability.window = fields.window
         write("combatAvailability", availability)
+        each("meterFollowup", window.meterFollowups, 8, function(row)
+            local attribution = Attribution(row.actorID, row.targetID)
+            local update = Fields(row, "status category localDeadStatus localGhostStatus",
+                "sessionID readOffset", "localDead localGhost")
+            if attribution then
+                update.actor, update.target = alias(row.actorID), alias(row.targetID)
+                update.amountIncrease, update.pairTotal = Number(row.amountIncrease), Number(row.pairTotal)
+            end
+            update.window, update.evidence, update.attribution = fields.window, "aggregate", attribution
+            write("meterFollowup", update)
+        end)
+        if window.meterFollowupsDropped then
+            write("meterFollowupCoverage", { window = fields.window, dropped = Number(window.meterFollowupsDropped) })
+        end
         local meter = Table(window.meter)
         if next(meter) then
             local scope = Fields(meter, "selection", "sessionID readOffset retained dropped")
-            scope.window = fields.window
+            scope.window, scope.evidence = fields.window, "aggregate"
             write("meterSampleBatch", scope)
             for _, name in ipairs(meterCategories) do
                 local category = Table(Table(meter.categories)[name])
                 if next(category) then
-                    write("meterSampleCoverage", { window = fields.window, category = name, dropped = Number(category.dropped) })
+                    local omitted = 0
                     each("meterSpellSample", category.rows, 6, function(row)
+                        local attribution = Attribution(row.meterUnitID, row.otherID)
+                        if not attribution or (Flag(row.isMob) and not alias(row.otherID)) then
+                            omitted = omitted + 1
+                            return
+                        end
                         local spell = Fields(row, "resolution detailStatus spellIDStatus spellTotalStatus overkillStatus "
                             .. "sourceTotalStatus amountStatus nameStatus classStatus",
                             "spellID spellTotal amount sourceTotal overkill", "petOwner isPet isMob")
                         spell.window, spell.category = fields.window, name
+                        spell.evidence, spell.attribution = "aggregate", attribution
                         spell.meterUnit, spell.other = alias(row.meterUnitID), alias(row.otherID)
                         write("meterSpellSample", spell)
                     end)
+                    write("meterSampleCoverage", { window = fields.window, category = name,
+                        dropped = Number(category.dropped), outsideRosterOrUnresolved = omitted })
                 end
             end
         end
@@ -256,16 +312,19 @@ local function ReportCombatDiagnostics(input, write, each, alias)
             if next(samples) then
                 local summary = Fields(samples, nil, "dropped rateLimited duplicates")
                 summary.api, summary.window = stream[2], fields.window
-                write("combatStream", summary)
+                summary.outsideRosterOrUnresolved = 0
                 each("primaryEvidence", samples.rows, 16, function(row)
-                    Primary(row, stream[2], fields.window)
+                    if not Primary(row, stream[2], fields.window) then
+                        summary.outsideRosterOrUnresolved = summary.outsideRosterOrUnresolved + 1
+                    end
                 end)
+                write("combatStream", summary)
             end
         end
     end)
 end
 
-function addon.BuildIssueReport(db, debugDB, battleID, legacy)
+function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
     local write, each, finish, truncated = MakeWriter()
     local version, build, interface = Read(GetBuildInfo)
     local metadata = C_AddOns and C_AddOns.GetAddOnMetadata
@@ -306,6 +365,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy)
     end
 
     local aliases, roster, selfID, aliasCount = {}, {}, nil, 0
+    local rosterAliases = {}
     local function Alias(value)
         value = addon.Readable(value)
         if type(value) ~= "string" or value == "" then return end
@@ -355,7 +415,10 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy)
             local id = addon.Readable(player.id)
             local fields = Fields(player, "class race faction", "level sex", "isSelf")
             fields.player, fields.side = Alias(id), side
-            if fields.player then roster[#roster + 1] = id end
+            if fields.player then
+                roster[#roster + 1] = id
+                rosterAliases[id] = fields.player
+            end
             if fields.isSelf then selfID = id end
             write("participant", fields)
         end)
@@ -363,11 +426,16 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy)
         counts.side, counts.observed = side, #Table(battle[side])
         write("side", counts)
     end
-    write("resolution", Fields(resolution, "ending reason interrupted coverage meter localLife favorsVictory favorsDefeat",
-        "unitsRead positionsUnavailable statesUnavailable"))
+    local result = Fields(resolution, "ending reason interrupted coverage meter localLife favorsVictory favorsDefeat",
+        "unitsRead positionsUnavailable statesUnavailable")
+    result.evidence = "derived"
+    write("resolution", result)
+    local capture = Table(battle.combatDiagnostics)
+    local captured = CombatCoverage(capture, write)
     local kills, deaths = {}, {}
     each("event", battle.events, 128, function(event)
         local fields = Fields(event, "kind source", "time offset spellID", "observedDead")
+        fields.evidence = "derived"
         Actor("event", fields, event)
         if fields.kind ~= "kill" or not selfID then return end
         local actor, target = Alias(event.actorID), Alias(event.targetID)
@@ -459,13 +527,13 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy)
             write("killDecisions", decisions)
         end
         ForKnown(segment.contacts, function(contact, player)
-            local item = Fields(contact, "signal", "first last", "dead inCombat")
+            local item = Fields(contact, "signal deadStatus feignStatus", "first last", "dead inCombat feign")
             item.player, item.segment = player, index
             write("contact", item)
         end)
         each("action", segment.actions, 60, function(action)
             local item = Fields(action, "kind", "spellID first last count")
-            item.segment = index
+            item.segment, item.evidence = index, "derived"
             Actor("action", item, action)
         end)
         local meter = Table(segment.meter)
@@ -474,7 +542,8 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy)
             item.segment = index
             write("meterEvidence", item)
             each("meterLink", meter.hostileLinks, 60, function(link)
-                write("meterLink", { segment = index, ally = Alias(link.allyID), opponent = Alias(link.opponentID) })
+                write("meterLink", { segment = index, ally = Alias(link.allyID), opponent = Alias(link.opponentID),
+                    evidence = "derived" })
             end)
         end
         local snapshot = Table(segment.reportMeter)
@@ -499,11 +568,28 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy)
             or (#rows > 0 and "unlinked-time-only-ambiguous") or "unavailable" })
     end)
     if #Table(observation.segments) == 0 then write("diagnostics", { availability = "no-linked-segments" }) end
-    ReportCombatDiagnostics(battle.combatDiagnostics, write, each, Alias)
-    return finish()
+    local function RosterAlias(id)
+        id = addon.Readable(id)
+        if type(id) == "string" then return rosterAliases[id] end
+    end
+    if captured then ReportCombatDiagnostics(capture, write, each, RosterAlias) end
+    local summary = finish()
+    if not includeDetails or not captured then return summary end
+    for _, section in ipairs({ "combatWindow", "combatAvailability", "combatStream", "primaryEvidence",
+        "meterSampleBatch", "meterSampleCoverage", "meterSpellSample", "meterFollowup", "meterFollowupCoverage" }) do
+        if truncated[section] then
+            local detailWrite, detailEach, detailFinish = MakeWriter({ section = "report", schema = "names-in-red-issue",
+                version = 1, scope = "combat-details", id = record.id })
+            CombatCoverage(capture, detailWrite)
+            ReportCombatDiagnostics(capture, detailWrite, detailEach, RosterAlias)
+            return summary, detailFinish()
+        end
+    end
+    return summary
 end
 
-local window, report, link
+local window, report, link, nextPart
+local reportParts, currentPart
 local function CopyField(box, value)
     if box.reportText == nil then
         box:HookScript("OnTextChanged", function(self, userInput)
@@ -520,9 +606,18 @@ local function Select(box)
     box:HighlightText()
 end
 
+local function ShowPart(index)
+    currentPart = index
+    CopyField(report, reportParts[index])
+    report:SetCursorPosition(0)
+    report:GetParent():SetVerticalScroll(0)
+    nextPart:SetShown(#reportParts > 1)
+    nextPart:SetText(L.issueReportPart:format(index, #reportParts))
+end
+
 local function BuildWindow()
     window = CreateFrame("Frame", "NamesInRedIssueReport", UIParent, "PortraitFrameTemplate")
-    window:SetSize(550, 420)
+    window:SetSize(550, 480)
     window:SetPoint("CENTER")
     window:SetFrameStrata("DIALOG")
     window:SetToplevel(true)
@@ -557,9 +652,28 @@ local function BuildWindow()
     reportHint:SetWordWrap(true)
     reportHint:SetText(L.issueReportHint)
 
+    local savedVariablesHint = window:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    savedVariablesHint:SetPoint("BOTTOMLEFT", 20, 17)
+    savedVariablesHint:SetPoint("BOTTOMRIGHT", -20, 17)
+    savedVariablesHint:SetJustifyH("LEFT")
+    savedVariablesHint:SetWordWrap(true)
+    savedVariablesHint:SetText(L.issueSavedVariablesHint)
+
+    local copy = CreateFrame("Button", nil, window, "UIPanelButtonTemplate")
+    copy:SetPoint("BOTTOMLEFT", savedVariablesHint, "TOPLEFT", 0, 10)
+    copy:SetSize(230, 23)
+    copy:SetText(L.issueSelectReport)
+    copy:SetScript("OnClick", function() Select(report) end)
+
+    nextPart = CreateFrame("Button", nil, window, "UIPanelButtonTemplate")
+    nextPart:SetPoint("BOTTOMRIGHT", savedVariablesHint, "TOPRIGHT", 0, 10)
+    nextPart:SetSize(230, 23)
+    nextPart:SetScript("OnClick", function() ShowPart(currentPart % #reportParts + 1) end)
+
     local scroll = CreateFrame("ScrollFrame", nil, window, "InputScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", reportHint, "BOTTOMLEFT", 3, -12)
-    scroll:SetPoint("BOTTOMRIGHT", -22, 59)
+    scroll:SetPoint("TOPRIGHT", reportHint, "BOTTOMRIGHT", -2, -12)
+    scroll:SetPoint("BOTTOMLEFT", copy, "TOPLEFT", 3, 16)
     scroll.CharCount:Hide()
     report = scroll.EditBox
     report:SetMaxLetters(0)
@@ -567,20 +681,15 @@ local function BuildWindow()
     report:SetWidth(484)
     report:HookScript("OnEditFocusLost", function(self) self:HighlightText(0, 0) end)
 
-    local copy = CreateFrame("Button", nil, window, "UIPanelButtonTemplate")
-    copy:SetPoint("BOTTOMLEFT", 20, 20)
-    copy:SetSize(230, 23)
-    copy:SetText(L.issueSelectReport)
-    copy:SetScript("OnClick", function() Select(report) end)
-
     window:HookScript("OnHide", function() report:ClearFocus(); link:ClearFocus() end)
 end
 
 function addon.OpenIssueReport(battleID, legacy)
     if not window then BuildWindow() end
-    CopyField(report, addon.BuildIssueReport(addon.db, NamesInRedDebugDB, battleID, legacy))
-    report:SetCursorPosition(0)
-    report:GetParent():SetVerticalScroll(0)
+    local summary, details = addon.BuildIssueReport(addon.db, NamesInRedDebugDB, battleID, legacy, true)
+    reportParts = { summary }
+    for _, part in ipairs(details or {}) do reportParts[#reportParts + 1] = part end
+    ShowPart(1)
     window:Show()
     window:Raise()
 end

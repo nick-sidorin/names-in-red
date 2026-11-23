@@ -19,10 +19,14 @@ for _, file in ipairs({ "Locale", "Ledger", "Encounter", "CombatDiagnostics", "I
 end
 
 local db = addon.Ledger.Open()
+addon.db = db
 local battle = {
     allies = { { id = me, isSelf = true, name = "Private Local" } },
     enemies = { { id = rival, name = "Private Rival" } },
-    events = {}, observation = {},
+    events = {
+        { kind = "kill", actorID = me, targetID = rival, offset = 2 },
+        { kind = "revive", targetID = rival, offset = 4 },
+    }, observation = {},
 }
 addon.Ledger.SaveSkirmish(db, "world:14", battle)
 local function Includes(text, part) assert(text:find(part, 1, true), part) end
@@ -47,7 +51,9 @@ addon.ObserveCombatAuras(capture, "target", { isFullUpdate = secret, addedAuras 
 addon.ObserveCombatAuras(capture, "target", { isFullUpdate = true })
 local aura = { sourceUnit = "player", spellId = 234, isHarmful = true, auraInstanceID = 12345, name = "Private Aura" }
 addon.ObserveCombatAuras(capture, "target", { addedAuras = { aura, aura } })
-addon.ObserveCombatAuras(capture, "nameplate1", { addedAuras = { aura } })
+addon.ObserveCombatAuras(capture, "nameplate1", { addedAuras = {
+    { sourceUnit = "player", spellId = 999001, auraInstanceID = 12345, isHarmful = true },
+} })
 addon.ObserveCombatState(capture, { guid = rival, reason = "flags", dead = true, inCombat = false,
     status = { dead = "readable", inCombat = "readable", feign = "secret" } })
 addon.ObserveCombatPartyKill(capture, me, rival)
@@ -78,24 +84,33 @@ addon.SampleCombatMeter(meter, "HealingDone", actor, source, spell,
 addon.CommitCombatMeterProbe(capture, meter, 55, "new-archived")
 now = 108
 addon.EndCombatDiagnostics(capture, "area-changed")
-addon.RecordCombatDeathRecap(battle, rival, me, { event = "SPELL_DAMAGE", timestamp = 1800000006, spellId = 31, amount = 294 })
+local hit = { event = "SPELL_DAMAGE", timestamp = 1800000006, spellId = 31, amount = 294 }
+addon.RecordCombatDeathRecap(battle, rival, me, hit)
+addon.RecordCombatDeathRecap(battle, rival, me, hit)
+assert(#battle.combatDiagnostics.recaps == 1)
+addon.RecordCombatMeterFollowup(capture, { uptime = now, meterSessionID = 55, playerDead = true, playerGhost = true,
+    status = { meter = "linked-increase", playerDead = "readable", playerGhost = "readable" },
+}, {
+    actorID = rival, targetID = me, amount = 61,
+}, "DamageTaken", 17)
 
-local function CopySaved(value)
+local function CopySaved(value, allowCharacterNames)
     local kind = type(value)
     assert(not issecretvalue(value) and canaccesstable(value), "unreadable value was persisted")
     if kind == "table" then
         local copy = {}
-        for key, item in pairs(value) do copy[key] = CopySaved(item) end
+        for key, item in pairs(value) do copy[key] = CopySaved(item, allowCharacterNames) end
         return copy
     end
     assert(kind == "string" or kind == "number" or kind == "boolean")
     if kind == "string" then
-        assert(not value:find("Cast-private", 1, true) and not value:find("Private ", 1, true))
+        assert(not value:find("Cast-private", 1, true))
+        assert(allowCharacterNames or not value:find("Private ", 1, true))
     end
     return value
 end
 local savedBattle = {
-    allies = battle.allies, enemies = battle.enemies, events = {}, observation = {},
+    allies = battle.allies, enemies = battle.enemies, events = battle.events, observation = {},
     combatDiagnostics = CopySaved(battle.combatDiagnostics),
 }
 local saved = addon.Ledger.Open({ version = 1, rivals = {}, skirmishes = { ["world:14"] = savedBattle } })
@@ -113,9 +128,23 @@ Includes(report, '"amount": 441')
 Includes(report, '"spellTotal": 510')
 Includes(report, '"overkillStatus": "secret"')
 Includes(report, '"section": "meterSpellSample"')
+Includes(report, '"section": "meterFollowup"')
+Includes(report, '"amountIncrease": 17')
+Includes(report, '"localGhost": true')
+Includes(report, '"kind": "revive"')
+Includes(report, '"evidence": "observation"')
+Includes(report, '"evidence": "aggregate"')
+Includes(report, '"evidence": "derived"')
+Includes(report, '"outsideRosterOrUnresolved": 1')
 Includes(report, '"UNIT_SPELLCAST_CHANNEL_STOP": "unavailable"')
 Includes(report, '"ending": "area-changed"')
-for _, private in ipairs({ "Private ", me, rival, unknown, "Cast-private-guid", "12345" }) do Excludes(report, private) end
+for _, private in ipairs({ "Private ", me, rival, unknown, "Cast-private-guid", "12345", "999001" }) do Excludes(report, private) end
+for line in report:gmatch("[^\n]+") do
+    if line:find('"section": "meterSpellSample"', 1, true) or line:find('"section": "meterFollowup"', 1, true) then
+        Excludes(line, '"eventTime"')
+        Excludes(line, '"offset"')
+    end
+end
 assert(report == addon.BuildIssueReport(saved, nil, "world:14"))
 
 local bulk = addon.NewCombatMeterProbe()
@@ -151,11 +180,76 @@ for index = 1, 5 do
     assert(window.window.streams.unitCombat.dropped == 60 * 12 - 16)
     assert(window.window.streams.unitCombat.rows[16].offset == 60)
 end
-assert(#battle.combatDiagnostics.windows == 4 and battle.combatDiagnostics.windowsDropped == 2)
-local longReport = addon.BuildIssueReport(db, nil, "world:14")
-Includes(longReport, '"windowsDropped": 2')
+local longCapture = battle.combatDiagnostics
+assert(#longCapture.windows == 2 and longCapture.windowsDropped == 4)
+local longReport, parts = addon.BuildIssueReport(db, nil, "world:14", nil, true)
+Includes(longReport, '"windowsDropped": 4')
 Includes(longReport, '"rateLimited": 1080')
 local truncated = assert(longReport:match('"truncatedSections": "([^"]+)"'))
 Includes(truncated, "primaryEvidence")
 assert(#longReport <= 24576 and longReport:sub(-4) == "\n```")
+assert(#parts > 1)
+for index, part in ipairs(parts) do
+    assert(#part <= 24576 and part:sub(-4) == "\n```")
+    Includes(part, '"id": "world:14"')
+    Includes(part, '"part": ' .. index)
+    Includes(part, '"finalPart": ' .. tostring(index == #parts))
+    Excludes(part, rival)
+end
+local details = table.concat(parts, "\n")
+local _, occurrences = details:gsub('"effect": "WOUND"', "")
+assert(occurrences == #longCapture.windows * 16)
+Includes(details, '"target": "Player-2"')
+Excludes(details, '"section": "meterFollowup"') -- Its older window was dropped.
+
+local function SavedVariablesSize(value, depth)
+    if type(value) == "string" then return #("%q"):format(value) end
+    if type(value) ~= "table" then return #tostring(value) end
+    local bytes = 3 + depth
+    for key, item in pairs(value) do
+        bytes = bytes + depth + 8 + SavedVariablesSize(key, depth) + SavedVariablesSize(item, depth + 1)
+    end
+    return bytes
+end
+
+local smallBytes = SavedVariablesSize(savedBattle.combatDiagnostics, 4)
+local longBytes = SavedVariablesSize(longCapture, 4)
+local samples = CopySaved(longCapture.windows)
+collectgarbage("collect")
+local memoryBefore = collectgarbage("count")
+for i = 15, 40 do
+    local nextBattle = { sequence = i, allies = battle.allies, enemies = battle.enemies,
+        events = {}, observation = {} }
+    for _, sample in ipairs(samples) do
+        local window = addon.NewCombatDiagnostics(now, 1800010000 + i, "71037", registration)
+        window.window = CopySaved(sample)
+        addon.AttachCombatDiagnostics(nextBattle, window)
+    end
+    addon.Ledger.SaveSkirmish(db, "world:" .. i, nextBattle)
+end
+collectgarbage("collect")
+local stressMemory = collectgarbage("count") - memoryBefore
+assert(battle.combatDiagnostics.retention == "compact")
+assert(#battle.events == 2 and #battle.combatDiagnostics.windows == 1)
+assert(#battle.combatDiagnostics.windows[1].streams.unitCombat.rows == 2)
+local compactBytes = SavedVariablesSize(battle.combatDiagnostics, 4)
+local detailedBytes, detailed = 0, 0
+for _, item in pairs(db.skirmishes) do
+    if item.combatDiagnostics.retention ~= "compact" then
+        detailed = detailed + 1
+        detailedBytes = detailedBytes + SavedVariablesSize(item.combatDiagnostics, 4)
+    end
+end
+assert(detailed == 24 and detailedBytes <= 24 * 65536)
+assert(compactBytes < 4096 and longBytes <= 65536)
+local reloaded = addon.Ledger.Open(CopySaved(db, true))
+local compactReport = addon.BuildIssueReport(reloaded, nil, "world:14")
+Includes(compactReport, '"retention": "compact"')
+Includes(compactReport, '"effect": "WOUND"')
+Includes(compactReport, '"kind": "revive"')
+Includes(addon.BuildIssueReport(reloaded, nil, "world:40"), '"effect": "WOUND"')
+Excludes(compactReport, rival)
+assert(reloaded.skirmishes["world:14"] and reloaded.skirmishes["world:40"])
+print(("Saved diagnostics fixture sizes: normal %d B, dense %d B, compact %d B, detailed history %d B; "
+    .. "26 extra cards used %.1f KiB of retained Lua heap"):format(smallBytes, longBytes, compactBytes, detailedBytes, stressMemory))
 print("Bounded primary observations, secret fields, report aliases, saved reload and truncation passed")

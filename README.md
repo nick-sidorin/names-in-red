@@ -97,9 +97,12 @@ describes the participation, outcome and battleground behavior.
 Use **Report an issue** in the journal header or addon settings, or click the
 bug icon on a skirmish to prepare a report for that fight. Copy the report and
 the GitHub issue link from the dialog, then review the report before posting.
-Participant aliases replace character names and GUIDs. Older or reloaded
-records still export what is saved on the card. Additional diagnostics appear
-only when they can be linked to that combat window.
+Participant aliases replace character names and GUIDs in the report. Names in
+Red saves bounded combat evidence automatically, so it can be reported after
+a reload. Use **Next part** if the report offers additional pages.
+You can optionally attach the existing `NamesInRed.lua` SavedVariables file
+for more detail. That file may contain character names and GUIDs and is
+public when attached to a public issue.
 
 [CurseForge listing Markdown](docs/curseforge-description.md) and
 [short description](docs/curseforge-summary.txt) are ready to copy into the
