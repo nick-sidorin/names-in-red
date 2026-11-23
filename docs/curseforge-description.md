@@ -12,6 +12,7 @@ Your personal open-world PvP journal for **World of Warcraft: Forever**:
 - 🛡️ **See the full fight** — Open detailed cards showing observed allies and enemies, outcomes, casualties, finishing blows, and rewards.
 - 💬 **Recognize familiar enemies** — See your win/loss record on their nameplates and in their standard unit tooltips.
 - 📍 **Remember where it happened** — Place a map waypoint when a saved skirmish has a usable location.
+- 🐞 **Report a problem from the journal** — Copy a diagnostic report for a skirmish or a general issue.
 - ✍️ **Fill in the gaps** — Manually add a skirmish when automatic tracking cannot capture what happened.
 
 The journal is saved per character. Nameplate indicators and tooltip details can be switched off independently.
@@ -77,7 +78,7 @@ More diagnostic and demo commands are documented in the [project guide](https://
 
 **[Report a Bug or Suggest a Feature](https://github.com/nick-sidorin/names-in-red/issues)**
 
-Click **New issue** to report a problem or suggest an improvement. For a bug, include your Forever build, addon version, and steps to reproduce.
+For a bug, click the bug icon on the affected skirmish or use **Report an issue** in the journal header. Review the report, then copy it into a new issue and describe what you expected to happen. For an idea, click **New issue** on GitHub.
 
 **[Source Code](https://github.com/nick-sidorin/names-in-red)**
 

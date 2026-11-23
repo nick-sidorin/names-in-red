@@ -17,3 +17,4 @@ lua5.1 tests/waypoints.lua
 lua5.1 tests/nameplates.lua
 lua5.1 tests/settings.lua
 lua5.1 tests/world.lua
+lua5.1 tests/issue-report.lua

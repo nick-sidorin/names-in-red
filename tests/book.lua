@@ -798,9 +798,26 @@ for _, button in ipairs({ map, journalMap }) do
     end
 end
 local inset = map.insets[1]
-local mapToInfo = open.anchor[2] - open.width + inset - (map.anchor[4] - inset)
+local mapToInfo = open.anchor[4] - open.width + inset - (map.anchor[4] - inset)
 local dateToMap = map.anchor[4] - map.width + inset - FindText(compact, date("%x", first.time)).anchor[2]
 assert(mapToInfo == dateToMap and mapToInfo == 6)
+local reportAction = assert(FindRegion(compact, "title", addon.L.reportIssue))
+local reportID
+function addon.OpenIssueReport(id) reportID = id end
+assert(reportAction.shown and reportAction.anchor[4] - reportAction.width + inset - (open.anchor[4] - inset) == 6)
+reportAction.scripts.OnClick()
+assert(reportID == first.skirmishID)
+card:SetSkirmish(large, "Player-test", true, first.skirmishID)
+local fullReport = assert(FindRegion(card, "title", addon.L.reportIssue))
+reportID = nil
+fullReport.scripts.OnClick()
+assert(reportID == first.skirmishID)
+card:SetSkirmish(large, "Player-test", true, "rebound")
+fullReport.scripts.OnClick()
+assert(reportID == "rebound")
+card:SetSkirmish(nil)
+fullReport.scripts.OnClick()
+assert(reportID == "rebound")
 open.scripts.OnClick()
 assert(openedSkirmish == "battle-one")
 addon.ShowEncounterWaypoint = function(encounter) mapped = encounter; return true end
@@ -833,6 +850,8 @@ assert(not PortraitMarker(myRim, skull) and not PortraitMarker(opponentRim, skul
 assert(not FindText(compact, 51) and not FindText(compact, 42) and not map.shown)
 open.scripts.OnClick()
 assert(openedSkirmish == "battle-two")
+reportAction.scripts.OnClick()
+assert(reportID == "battle-two")
 local loadedSelfPortrait
 function SetPortraitTexture(_, unit, disableMasking)
     assert(unit == "player" and disableMasking)

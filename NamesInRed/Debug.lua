@@ -796,6 +796,12 @@ function handlers.PLAYER_REGEN_ENABLED()
     row.petOwnerCount = finished.petCount
     row.restrictedPartyKills = finished.restrictedKills
     local rows = db.rows
+    local function AttachReport()
+        if finished.worldWindow and addon.ReportMeterSnapshot then
+            finished.worldWindow.segment.reportMeter = addon.ReportMeterSnapshot(row)
+        end
+    end
+    AttachReport()
     local function ReadMeter(finalAttempt)
         if rows ~= db.rows then return end
         local sameWindow = settling == finished
@@ -804,6 +810,7 @@ function handlers.PLAYER_REGEN_ENABLED()
         if not sameWindow or finished.areaChanged or finished.meterReset then
             if sameWindow then settling = nil end
             row.status.meter = "interrupted"
+            AttachReport()
             return
         end
         row.meterAttempts = (row.meterAttempts or 0) + 1
@@ -814,6 +821,7 @@ function handlers.PLAYER_REGEN_ENABLED()
             else
                 settling = nil
                 row.status.meter = "combat-restricted"
+                AttachReport()
             end
             return
         end
@@ -827,6 +835,7 @@ function handlers.PLAYER_REGEN_ENABLED()
         if finished.context and context ~= finished.context then
             settling = nil
             row.status.meter = "journal-context-changed"
+            AttachReport()
             return
         end
         finished.context = context
@@ -861,6 +870,7 @@ function handlers.PLAYER_REGEN_ENABLED()
             addon.SnapshotWorldContacts(context, finished.contacts)
             BeginPassiveMeter(context, row, finished, evidence, reached)
         end
+        AttachReport()
     end
     if C_Timer and C_Timer.After then C_Timer.After(0.5, function() ReadMeter(false) end) else ReadMeter(true) end
 end

@@ -273,6 +273,34 @@ local function MapAction(card, onClick)
     return map
 end
 
+local function ReportAction(card)
+    local report = CardActionButton(card, compactIconY)
+    report:SetIcon(addon.issueBugIcon)
+    report:SetTooltipInfo(L.reportIssue)
+    report:SetOnClickHandler(function()
+        local ref = card.reportRef
+        if type(ref) == "string" then addon.OpenIssueReport(ref)
+        elseif ref then addon.OpenIssueReport(nil, ref) end
+    end)
+    return report
+end
+
+local function PositionActions(card, center, report, map, hasWaypoint, info, hasInfo)
+    local last
+    local function Place(button, shown)
+        button:SetShown(shown and true or false)
+        if shown then
+            last = last and last + compactActionStep or compactActionRight
+            button:ClearAllPoints()
+            button:SetPoint("RIGHT", card, "TOPRIGHT", -last, center)
+        end
+    end
+    Place(report, card.reportRef ~= nil)
+    if info then Place(info, hasInfo) end
+    Place(map, hasWaypoint)
+    return last
+end
+
 local function StampRight(actionRight)
     return actionRight and actionRight + compactActionSize - compactActionInset + compactHeaderGap or cardInset
 end
@@ -404,8 +432,8 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
     local map = MapAction(card, function()
         if card.encounter then ActivateWaypoint(card.encounter, onMapShown) end
     end)
+    local report = ReportAction(card)
     local info = CardActionButton(card, compactIconY)
-    info:SetPoint("TOPRIGHT", -compactActionRight, -5)
     info:SetIcon("Interface\\FriendsFrame\\InformationIcon")
     info:SetOnEnterHandler(function(self)
         local encounter = card.encounter
@@ -429,12 +457,15 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         if changed then
             HideTooltip(map)
             HideTooltip(info)
+            HideTooltip(report)
             if not encounter then
                 HideParticipantTooltips(mine)
                 HideParticipantTooltips(theirs)
             end
         end
         self.encounter = encounter
+        self.reportRef = encounter and (encounter.skirmishID
+            or (addon.LegacyReportRef and addon.LegacyReportRef(rivalID, encounter)))
         self:SetShown(encounter ~= nil)
         setResult(encounter and (addon.Ledger.EncounterOutcome(encounter) or "unknown"), changed,
             compactRosterTop - rosterRowHeight / 2)
@@ -459,9 +490,7 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
 
         local hasWaypoint = WaypointMap(encounter) ~= nil
         local hasInfo = encounter.skirmishID ~= nil or type(encounter.attackers) == "table" and #encounter.attackers > 0
-        local mapRight = compactActionRight + (hasInfo and compactActionStep or 0)
-        local firstActionRight = hasWaypoint and mapRight or hasInfo and compactActionRight
-        local stampRight = StampRight(firstActionRight)
+        local stampRight = StampRight(PositionActions(card, compactHeaderCenter, report, map, hasWaypoint, info, hasInfo))
         local stampWidth = encounter.manual and not encounter.time and 136 or 96
         day:SetPoint("TOPRIGHT", -stampRight, -9)
         day:SetWidth(stampWidth)
@@ -471,9 +500,6 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         time:SetText(encounterTime)
         zone:SetWidth(width - 20 - stampRight - stampWidth)
         zone:SetText(encounter.zone and encounter.zone ~= "" and encounter.zone or L.unknownLocation)
-        map:SetPoint("RIGHT", card, "TOPRIGHT", -mapRight, compactHeaderCenter)
-        map:SetShown(hasWaypoint)
-        info:SetShown(hasInfo)
         info:SetTooltipInfo(encounter.skirmishID and L.openSkirmish or L.attackers)
     end
     return card
@@ -661,14 +687,16 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
     local map = MapAction(card, function()
         ActivateWaypoint(card.skirmish, onMapShown)
     end)
-    map:SetPoint("RIGHT", card, "TOPRIGHT", -compactActionRight, fullHeaderCenter)
-    function card:SetSkirmish(battle, selectedRivalID, expanded)
+    local report = ReportAction(card)
+    function card:SetSkirmish(battle, selectedRivalID, expanded, reportRef)
         local changed = self.skirmish ~= battle
         if changed then
             HideTooltip(coverage)
             HideTooltip(map)
+            HideTooltip(report)
         end
         self.skirmish = battle
+        self.reportRef = battle and reportRef
         self:SetShown(battle ~= nil)
         if not battle then
             setResult(nil, changed)
@@ -683,10 +711,10 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
         coverage:SetShown(battle.rosterComplete ~= true)
         local day, time = EncounterDate(battle)
         local hasWaypoint = WaypointMap(battle) ~= nil
-        local stampRight = StampRight(hasWaypoint and compactActionRight)
+        local stampRight = StampRight(PositionActions(card, fullHeaderCenter, report, map, hasWaypoint))
         stamp:SetPoint("RIGHT", card, "TOPRIGHT", -stampRight, fullHeaderCenter)
+        stamp:SetWidth(width / 2 - 64 - stampRight)
         stamp:SetText(time ~= "" and day .. "  " .. time or day)
-        map:SetShown(hasWaypoint)
 
         local players, colors, blows = {}, {}, {}
         local allyColor, enemyColor, alliesHorde = SideColors(battle.demoFaction)

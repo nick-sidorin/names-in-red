@@ -275,6 +275,7 @@ end
 function addon.RecentSkirmishes(db, limit)
     local battles = addon.RecentEncounters(db, limit)
     local playerAppearance
+    local reportRefs = {}
     for index, entry in ipairs(battles) do
         if not entry.skirmish and not playerAppearance then
             local classLabel, class = SafeRead(UnitClass, "player")
@@ -284,8 +285,12 @@ function addon.RecentSkirmishes(db, limit)
             }
         end
         battles[index] = entry.skirmish or LegacySkirmish(db, entry, playerAppearance)
+        if addon.LegacyReportRef then
+            reportRefs[battles[index]] = entry.skirmish and entry.id
+                or addon.LegacyReportRef(entry.id, entry.encounter, entry.index)
+        end
     end
-    return battles
+    return battles, reportRefs
 end
 
 function addon.FindVisibleRival(guid, unit)

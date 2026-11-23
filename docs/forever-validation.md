@@ -1133,3 +1133,23 @@ The owner's 0.0.54 comparison shows the First Aid drop in both title portraits
 and Linen Cloth in both reagent slots at approximately the same relative
 positions. The inline captures support a visual comparison, with an estimated
 one-to-two-pixel uncertainty in locating the edges.
+
+### Public issue reports
+
+The journal header and each card use Blizzard's bug artwork from
+[`PTR_IssueReporter.Assets.BugReportIcon`](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_PTRFeedback/Blizzard_PTRFeedback.lua#L37-L50).
+The addon owns the report window and uses the shared
+[`InputScrollFrameTemplate`](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.xml#L72)
+and its normal EditBox selection and scrolling. The native feedback
+submission flow is outside this feature.
+
+The copy field contains a fenced JSON Lines report. Each line is an object
+with a `section`, beginning with format version 1 and ending with a list of
+truncated sections. Player aliases are scoped to the report; names, GUIDs,
+account metadata and raw chat are omitted. Review the remaining public
+context before posting. A saved segment retains a compact meter status and
+reason counts with its exact combat-end reference. Only an unambiguous
+session, combat sequence, server time and uptime match can add a retained
+debug row. Evicted rows and unlinked legacy records are explicitly labeled.
+Automated tests exercise the projection and EditBox actions. Native sizing,
+scrolling and clipboard selection still need a client smoke check.
