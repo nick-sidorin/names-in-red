@@ -22,6 +22,9 @@ end
 local function UpdateWorldRoster(id, battle)
     if type(id) == "string" and id:match("^world:%d+$") then
         battle.rosterComplete = ObservedDuel(battle)
+        if battle.observation and battle.observation.assessment and addon.EvaluateWorldSkirmish then
+            battle.resolution = addon.EvaluateWorldSkirmish(battle)
+        end
     end
 end
 
@@ -139,7 +142,9 @@ function Ledger.SkirmishOutcome(battle)
     local player = LocalParticipant(battle)
     if not player then return end
     local outcome = Ledger.EncounterOutcome(battle)
-    if not outcome and battle.rosterComplete == true and #battle.enemies > 0 then
+    if not outcome and battle.observation and battle.observation.assessment then
+        outcome = battle.resolution and battle.resolution.outcome
+    elseif not outcome and battle.rosterComplete == true and #battle.enemies > 0 then
         local dead = Deaths(battle)
         local alliesEliminated = SideEliminated(battle.allies, dead)
         local enemiesEliminated = SideEliminated(battle.enemies, dead)

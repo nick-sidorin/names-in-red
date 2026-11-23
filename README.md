@@ -74,9 +74,10 @@ for the proposed participation, outcome and battleground rules.
 - In open-world history, a direct fight between you and the only recorded
   opponent counts as a duel. If another participant is recorded in the same
   fight, the result is recalculated using the larger roster.
-- A skirmish with an unknown outcome stays in the history. The score changes
-  once the outcome is known. Older records of individual killing blows and
-  deaths stay visible. Manually entered results still count.
+- A world skirmish receives a result when terminal observations support a
+  side. A confirmed departure under pressure can count with zero kills.
+  Unknown stays in history without contributing a win or loss. Older
+  recorded and manually entered results stay available.
 - **Honorable Kills** and **Honor Points** show how much the game awarded you for
   identifiable opponents. Both skirmish card sizes show the totals for the
   whole fight. An award may count even when the team outcome is unknown.
@@ -102,10 +103,11 @@ GitHub Actions runs the same suite. For a developer smoke test, copy the
 client test matrix. See [Future ideas](docs/future-ideas.md) for
 optional, uncommitted features such as PvP ranks and achievements.
 
-Each skirmish owns its roster, timeline and rewards. Store an explicit
-`outcome` of `"win"` or `"loss"` when known. Otherwise a complete roster
-allows inference if exactly one side ends fully eliminated. A
-`kind = "revive"` event restores the participant for outcome calculation.
+Each skirmish owns its roster, timeline and rewards. Explicit and older
+results keep their existing interpretation. New world records derive
+`resolution` from their observed ending. Life state and observation
+coverage are stored separately. A `kind = "revive"` event restores the
+participant for outcome calculation.
 Mark the local player `isSelf` and identify profile links with `rivalID`.
 Store `honorableKills` and `honor` under `rewards[opponent.id]`. Re-saving
 the same skirmish ID replaces the indexed result and rewards.

@@ -50,7 +50,7 @@ local function Advance(seconds)
 end
 
 Constants = { CurrencyConsts = { CLASSIC_HONOR_CURRENCY_ID = 1901 } }
-for _, file in ipairs({ "Ledger", "Encounter", "Core", "SkirmishEvidence", "WorldSkirmishes", "Honor", "Kills" }) do
+for _, file in ipairs({ "Ledger", "SkirmishOutcomes", "Encounter", "Core", "SkirmishEvidence", "WorldSkirmishes", "Honor", "Kills" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
 addon.db = addon.Ledger.Open(nil)
@@ -161,9 +161,9 @@ assert(#recorded.enemies == 1 and recorded.enemies[1].id == "Player-rogue")
 local rogue, player = recorded.enemies[1], recorded.allies[1]
 assert(rogue.level == 32 and rogue.class == "ROGUE" and rogue.race == "scourge" and rogue.sex == 2)
 assert(player.level == 32 and player.class == "HUNTER" and player.race == "nightelf" and player.sex == 3)
-assert(recorded.rosterComplete and addon.Ledger.SkirmishOutcome(recorded) == "loss")
+assert(recorded.rosterComplete and not addon.Ledger.SkirmishOutcome(recorded))
 local wins, losses = addon.Ledger.PersonalScore(addon.db, rogue.id)
-assert(wins == 0 and losses == 1)
+assert(wins == 0 and losses == 0)
 print("Delayed death recap retains previously visible nameplate appearance")
 
 -- If a teammate later lands a blow, the same record is no longer a duel.
@@ -269,6 +269,8 @@ do
     assert(not result.rosterComplete and not addon.Ledger.SkirmishOutcome(result))
     local kills, honor = addon.Ledger.SkirmishRewards(result)
     assert(kills == 2 and honor == 5 and addon.db.rivals[third] and not addon.db.rivals[outsider])
+    Advance(3)
+    assert(result.resolution.ending == "unknown" and not addon.Ledger.SkirmishOutcome(result))
 
     -- An older Current slot must not enrich the next fight.
     Advance(10)
@@ -419,8 +421,11 @@ do
 
     ids = {}
     StartFight()
+    local previousZone = GetRealZoneText
+    function GetRealZoneText() return "Elwynn Forest" end
     Fire("ZONE_CHANGED_NEW_AREA")
     Advance(1.5)
+    GetRealZoneText = previousZone
     endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
     assert(endRow.areaChanged and endRow.status.meter == "interrupted")
     assert(#addon.db.skirmishes["world:6"].allies == 1)
@@ -859,10 +864,10 @@ do
     Advance(1.5)
     local returned = Battle(7)
     assert(#returned.events == 1 and #returned.observation.segments == 2)
-    assert(returned.observation.visibilityGap)
+    assert(not returned.observation.visibilityGap)
     local life = returned.observation.life
     assert(life[1].state == "dead" and life[2].state == "ghost" and life[3].state == "alive")
-    assert(returned.observation.segments[1].actions[2].count == 2)
+    assert(returned.observation.segments[1].actions[2].count == 3)
     assert(not addon.db.skirmishes["world:8"])
 
     -- After a longer unobserved interval, a fresh action involving the same
@@ -886,7 +891,8 @@ do
     Aura("player", "target", 679)
     End(elapsed)
     Advance(1.5)
-    assert(#Battle(8).events == 1 and Battle(8).observation.visibilityGap)
+    assert(#Battle(8).events == 1 and not Battle(8).observation.visibilityGap)
+    assert(not addon.Ledger.SkirmishOutcome(Battle(8)))
     assert(Battle(9).enemies[1].id == fenrik and #Battle(9).observation.segments == 1)
     NoRewards(Battle(9))
 
@@ -933,6 +939,8 @@ do
     Fire("PLAYER_DEAD")
     local deathAt = GetServerTime()
     End(0)
+    local previousZone = GetRealZoneText
+    function GetRealZoneText() return "Elwynn Forest" end
     Fire("ZONE_CHANGED_NEW_AREA")
     local oldFight = Battle(11)
     assert(#oldFight.events == 0 and oldFight.observation.visibilityGap)
@@ -945,5 +953,196 @@ do
     assert(#oldFight.events == 1 and oldFight.events[1].actorID == fenrik)
     assert(Battle(12).enemies[1].id == ghash)
     NoRewards(Battle(12))
+    GetRealZoneText = previousZone
 end
 print("Validated kill-free journal records, connected continuations, ghost gaps and independent combat windows")
+
+do
+    addon.ResetData()
+    inCombat, recap = false, nil
+    Advance(10)
+
+    local ally, enemy, localID = brother, fenrik, units.player[1]
+    units.target = { enemy, "First Enemy", "Horde", "HUNTER" }
+    units.mouseover = nil
+    units.party1 = { ally, "Thoren Ironbrook", "Alliance", "PRIEST" }
+    units.nameplate1, units.nameplate2, units.nameplate3 = nil, nil, nil
+
+    local dead, fighting, hidden, position = {}, {}, {}, {}
+    local spirit = false
+    local function ResetStates()
+        dead, fighting, hidden = {}, {}, {}
+        position = { [localID] = 100, [ally] = 109, [enemy] = 112 }
+        spirit = false
+    end
+    function UnitPosition(unit)
+        local x = position[UnitGUID(unit)]
+        if x then return x, 100, 0, 1 end
+    end
+    function UnitIsVisible(unit) local guid = UnitGUID(unit); return guid ~= nil and not hidden[guid] end
+    function UnitIsDeadOrGhost(unit) return dead[UnitGUID(unit)] == true end
+    function UnitIsGhost(unit) return unit == "player" and spirit end
+    function UnitIsFeignDeath() return false end
+    function UnitAffectingCombat(unit) return fighting[UnitGUID(unit)] == true end
+    local function Aura(actor, target)
+        Fire("UNIT_AURA", target, { addedAuras = { { sourceUnit = actor, isHarmful = true, spellId = 681 } } })
+    end
+    local function BeginFight()
+        inCombat = true
+        Fire("PLAYER_REGEN_DISABLED")
+        Aura("player", "target")
+        Aura("party1", "target")
+    end
+    local function Death()
+        dead[localID] = true
+        recap = { { sourceGUID = enemy, sourceName = "First Enemy", sourceFlags = 0x440,
+            timestamp = GetServerTime(), overkill = 4 } }
+        Fire("PLAYER_DEAD")
+    end
+    local function EndFight()
+        inCombat = false
+        Fire("PLAYER_REGEN_ENABLED")
+    end
+    local function Battle(id) return assert(addon.db.skirmishes["world:" .. id]) end
+
+    -- Continue while lying in the corpse. A late party kill joins the
+    -- original battle and the visible ally, not the dead player, holds it.
+    C_DamageMeter = nil
+    ResetStates()
+    BeginFight()
+    Advance(2)
+    Death()
+    fighting[ally], fighting[enemy] = true, true
+    EndFight()
+    Advance(3)
+    local corpse = Battle(1)
+    assert(corpse.observation.playerState == "dead" and not corpse.observation.visibilityGap)
+    assert(not addon.Ledger.SkirmishOutcome(corpse) and corpse.resolution.reason == "participants-still-in-combat")
+    Aura("party1", "target")
+    Advance(1)
+    dead[enemy], fighting[enemy], fighting[ally] = true, false, false
+    Fire("PARTY_KILL", ally, enemy)
+    Advance(3)
+    assert(#corpse.events == 2 and not addon.db.skirmishes["world:2"])
+    assert(addon.Ledger.SkirmishOutcome(corpse) == "win" and corpse.resolution.ending == "observed")
+
+    -- A released spirit can still receive readable native rows. A strictly
+    -- comparable post-combat delta extends observation without becoming a
+    -- kill, a retreat, or a verdict. Missing visible positions remain unknown.
+    Advance(10)
+    ResetStates()
+    local damage, length, restricted = 22, 8, false
+    local secretSample = {}
+    function issecretvalue(value) return value == secretSample end
+    Enum.DamageMeterType = { DamageTaken = 7 }
+    Enum.DamageMeterSessionType = { Current = 1 }
+    C_DamageMeter = {
+        GetAvailableCombatSessions = function() return {} end,
+        GetCombatSessionFromType = function(selector, category)
+            assert(selector == 1 and category == 7)
+            if restricted then return secretSample end
+            return { durationSeconds = length, combatSources = { { sourceGUID = ally } } }
+        end,
+        GetCombatSessionSourceFromType = function(_, _, guid)
+            assert(guid == ally)
+            return { combatSpells = { { combatSpellDetails = {
+                unitName = "First Enemy", unitClassFilename = "HUNTER", isMob = false, isPet = false,
+                amount = damage,
+            } } } }
+        end,
+    }
+
+    BeginFight()
+    Advance(8)
+    Death()
+    fighting[ally], fighting[enemy] = true, true
+    Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 7, 0)
+    EndFight()
+    Advance(1.5)
+    local ghostFight = Battle(2)
+    assert(ghostFight.resolution.meter == "baseline-ready")
+    spirit = true
+    Fire("PLAYER_ALIVE")
+    Fire("ZONE_CHANGED_NEW_AREA") -- the signal without any actual area change
+    hidden[ally], hidden[enemy] = true, true
+    Fire("NAME_PLATE_UNIT_REMOVED", "nameplate1")
+    Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 7, 0)
+    Advance(1.1)
+    local state = ghostFight.observation.assessment
+    assert(ghostFight.observation.playerState == "ghost" and not ghostFight.observation.visibilityGap)
+    assert(state.meterStatus == "unchanged" and not state.lastMeterActivity)
+    length, damage = 11, 35
+    Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 7, 88)
+    Advance(1.1)
+    assert(not state.lastMeterActivity)
+    Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 7, 0)
+    Advance(1.1)
+    local observed = state.lastMeterActivity
+    assert(observed and state.meterPair.actorID == enemy and state.meterPair.targetID == ally)
+    assert(#ghostFight.events == 1 and not addon.Ledger.SkirmishOutcome(ghostFight))
+    local probe = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
+    assert(probe.kind == "POST_COMBAT_METER_UPDATE" and probe.playerGhost and probe.status.meter == "linked-increase")
+    restricted = true
+    Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 7, 0)
+    Advance(1.1)
+    assert(state.lastMeterActivity == observed and state.meterStatus == "secret")
+    Advance(3)
+    assert(not addon.Ledger.SkirmishOutcome(ghostFight) and ghostFight.resolution.coverage == "partial")
+
+    -- A new corroborated action can still decide the outcome while ghosted.
+    -- Resurrection later does not re-adjudicate the previously observed end.
+    restricted = false
+    hidden[ally], hidden[enemy] = false, false
+    Aura("party1", "target")
+    Advance(1)
+    dead[enemy], fighting[ally], fighting[enemy] = true, false, false
+    Fire("PARTY_KILL", ally, enemy)
+    Advance(3)
+    assert(#ghostFight.events == 2 and addon.Ledger.SkirmishOutcome(ghostFight) == "win")
+    spirit, dead[localID] = false, false
+    Fire("PLAYER_UNGHOST")
+    assert(ghostFight.observation.playerState == "alive" and not ghostFight.observation.visibilityGap)
+    assert(addon.Ledger.SkirmishOutcome(ghostFight) == "win")
+
+    -- Actual movement away from the known area interrupts unfinished
+    -- observation. Delayed reads from the old selector do not change it.
+    Advance(10)
+    ResetStates()
+    BeginFight()
+    Advance(8)
+    Death()
+    Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 7, 0)
+    EndFight()
+    Advance(1.5)
+    local lost = Battle(3)
+    spirit = true
+    Fire("PLAYER_ALIVE")
+    local previousZone = GetRealZoneText
+    function GetRealZoneText() return "Elwynn Forest" end
+    Fire("ZONE_CHANGED_NEW_AREA")
+    length, damage = 15, 100
+    Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 7, 0)
+    Advance(3)
+    GetRealZoneText = previousZone
+    assert(lost.observation.visibilityGap and lost.resolution.reason == "area-changed")
+    assert(not addon.Ledger.SkirmishOutcome(lost) and #lost.events == 1)
+
+    -- A later visible unit-state transition can trigger terminal reads even
+    -- when no meter update or new aura is available after the local exit.
+    C_DamageMeter = nil
+    Advance(10)
+    ResetStates()
+    BeginFight()
+    Advance(2)
+    fighting[enemy] = true
+    EndFight()
+    Advance(3)
+    local pressureWin = Battle(4)
+    assert(not addon.Ledger.SkirmishOutcome(pressureWin))
+    position[enemy], fighting[enemy] = 178, false
+    Fire("UNIT_FLAGS", "target")
+    Advance(3)
+    assert(#pressureWin.events == 0 and addon.Ledger.SkirmishOutcome(pressureWin) == "win")
+    assert(pressureWin.resolution.reason == "pressured-withdrawal")
+end
+print("Corpse and released-spirit observations, readable meter deltas and genuine scope boundaries passed")

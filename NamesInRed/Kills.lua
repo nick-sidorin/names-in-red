@@ -52,7 +52,7 @@ frame:SetScript("OnEvent", function(_, _, attacker, victim)
         end)
     end
     local context = addon.EncounterContext(unit)
-    local opponent = not unit and addon.ObservedWorldOpponent(victim, context)
+    local opponent = not unit and addon.ObservedWorldOpponent(victim, context, attacker)
     if unit or opponent then
         if opponent then name, context.rivalLevel = opponent.name, opponent.level end
         context.rivalAppearance = unit and addon.UnitAppearance(unit)

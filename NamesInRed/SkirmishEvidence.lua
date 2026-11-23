@@ -18,12 +18,13 @@ end
 
 local support = { HealingDone = true, Absorbs = true }
 local crossFaction = { DamageTaken = true, EnemyDamageTaken = true, DamageDone = true, Interrupts = true }
+local timedDamage = { DamageDone = true, DamageTaken = true, EnemyDamageTaken = true }
 local targetFields = { "unitName", "unitClassFilename", "isMob", "isPet", "amount" }
 local Evidence = {}
 
 function addon.NewMeterParticipantEvidence(contacts, petOwners, faction)
     local evidence = setmetatable({
-        player = {}, names = {}, pet = {}, links = {}, contacts = contacts, faction = faction,
+        player = {}, names = {}, pet = {}, links = {}, damage = {}, contacts = contacts, faction = faction,
     }, { __index = Evidence })
     for guid, contact in pairs(contacts) do
         local player = contact.latest
@@ -94,6 +95,16 @@ function Evidence:Link(category, actor, detail)
     self.links[actor] = self.links[actor] or {}
     self.links[other] = self.links[other] or {}
     self.links[actor][other], self.links[other][actor] = true, true
+    if timedDamage[category] then
+        local from, to = actor.guid, other.guid
+        if category ~= "DamageDone" then from, to = to, from end
+        local totals = self.damage[category] or {}
+        self.damage[category] = totals
+        local key = from .. ":" .. to
+        local pair = totals[key] or { actorID = from, targetID = to, amount = 0 }
+        totals[key] = pair
+        pair.amount = pair.amount + detail.amount
+    end
     return "link"
 end
 
