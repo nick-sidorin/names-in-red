@@ -88,11 +88,11 @@ function Evidence:Link(category, actor, detail, accept)
     local other = self.names[detail.unitName .. "\0" .. detail.unitClassFilename]
     if other == false then return "target-contact-ambiguous" end
     if not other then return "target-contact-missing" end
-    if other == actor then return "self-action" end
-    if other.player.faction ~= self.faction and other.player.opponent ~= true then return "target-side-unverified" end
+    if other == actor then return "self-action", other end
+    if other.player.faction ~= self.faction and other.player.opponent ~= true then return "target-side-unverified", other end
     local sameSide = actor.player.faction == other.player.faction
-    if (support[category] and not sameSide) or (crossFaction[category] and sameSide) then return "unexpected-faction" end
-    if accept and not accept(actor, other) then return "duration-link-unconfirmed" end
+    if (support[category] and not sameSide) or (crossFaction[category] and sameSide) then return "unexpected-faction", other end
+    if accept and not accept(actor, other) then return "duration-link-unconfirmed", other end
     self.links[actor] = self.links[actor] or {}
     self.links[other] = self.links[other] or {}
     self.links[actor][other], self.links[other][actor] = true, true
@@ -106,7 +106,7 @@ function Evidence:Link(category, actor, detail, accept)
         totals[key] = pair
         pair.amount = pair.amount + detail.amount
     end
-    return "link"
+    return "link", other
 end
 
 -- Anchors are GUIDs supplied by the caller. The graph does not depend on kills.

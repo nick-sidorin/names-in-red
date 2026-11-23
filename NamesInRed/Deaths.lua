@@ -79,8 +79,11 @@ local function Record(death)
     death.context.rivalLevel = observed and observed.level
     death.context.rivalAppearance = observed
     death.context.attackers = attackers
-    local id, _, status = addon.RecordWorldEncounter(guid, observed and observed.fullName or name, "deathsToThem", death.context)
+    local id, battle, status = addon.RecordWorldEncounter(guid, observed and observed.fullName or name, "deathsToThem", death.context)
     if addon.WorldDeathWindow and not id and status ~= "duplicate" then return end
+    if id and battle and addon.RecordCombatDeathRecap then
+        addon.RecordCombatDeathRecap(battle, guid, playerGUID, first)
+    end
     addon.db.lastDeathTimestamp = stamp
     if addon.NotePvPDiagnostic and not death.context.rivalLevel then addon.NotePvPDiagnostic("recap-level-unavailable") end
     return true

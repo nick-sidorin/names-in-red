@@ -21,6 +21,7 @@ SkirmishOutcomes.lua
 Encounter.lua
 Core.lua
 SkirmishEvidence.lua
+CombatDiagnostics.lua
 WorldSkirmishes.lua
 Honor.lua
 Kills.lua

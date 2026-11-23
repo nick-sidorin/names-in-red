@@ -112,7 +112,7 @@ local function HK()
     Fire("PLAYER_PVP_KILLS_CHANGED", "player")
 end
 
-for _, file in ipairs({ "Locale", "Ledger", "SkirmishOutcomes", "Encounter", "Core", "SkirmishEvidence",
+for _, file in ipairs({ "Locale", "Ledger", "SkirmishOutcomes", "Encounter", "Core", "SkirmishEvidence", "CombatDiagnostics",
     "WorldSkirmishes", "Honor", "Kills", "Deaths", "IssueReport", "Debug" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
@@ -139,13 +139,17 @@ end
 if not arg[1] or arg[1] == "solo" then
     units.party1 = nil
     recap = {
-        { sourceGUID = one, sourceName = first.name, sourceFlags = 0x440, timestamp = now, overkill = 140 },
+        { sourceGUID = one, sourceName = first.name, sourceFlags = 0x440, timestamp = now, overkill = 140, amount = 175, event = "SPELL_DAMAGE", spellId = 40 },
         { sourceGUID = "Creature-fixture-npc", sourceFlags = 0, timestamp = now - 1, overkill = -1, amount = 500 },
     }
     localPlayer.dead = true
     Fire("PLAYER_DEAD")
     local solo = assert(addon.db.skirmishes["world:1"])
     assert(not solo.enemies[1].level and not solo.rosterComplete)
+    local hit = assert(solo.combatDiagnostics.recaps[1])
+    assert(hit.actorID == one and hit.targetID == me and hit.spellID == 40 and hit.amount == 175)
+    Fire("PLAYER_DEAD")
+    assert(#solo.combatDiagnostics.recaps == 1)
     units.target, first.level = second, 49
     Fire("PLAYER_TARGET_CHANGED")
     assert(not solo.enemies[1].level)
@@ -211,6 +215,8 @@ if not arg[1] or arg[1] == "meter" then
     duration = 11
     units.target = first
     Begin()
+    Fire("UNIT_COMBAT", "target", "WOUND", "CRITICAL", 42, 1)
+    Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-diagnostic-private", 102)
     Advance(0.79)
     Update(0, 7, 10)
     Advance(1.65)
@@ -224,6 +230,13 @@ if not arg[1] or arg[1] == "meter" then
     assert(#recovered.allies == 2 and recovered.allies[2].id == ally and #recovered.enemies == 1)
     local recoveredReport = addon.BuildIssueReport(addon.db, NamesInRedDebugDB, "world:1")
     assert(recoveredReport:find("eligible-corroborated", 1, true))
+    local diagnostics = recovered.combatDiagnostics.windows[1]
+    assert(diagnostics.streams.unitCombat.rows[1].targetID == one)
+    assert(diagnostics.streams.spellCast.rows[1].spellID == 102)
+    assert(diagnostics.meter.categories.DamageTaken.rows[1].amount == 45)
+    assert(recoveredReport:find('"section": "meterSpellSample"', 1, true))
+    assert(recoveredReport:find('"section": "primaryEvidence"', 1, true))
+    assert(not recoveredReport:find("Cast-diagnostic-private", 1, true))
 end
 Reset()
 
@@ -343,5 +356,27 @@ if not arg[1] or arg[1] == "nearby-independent" then
     assert(not addon.db.skirmishes["world:2"])
     local report = addon.BuildIssueReport(addon.db, NamesInRedDebugDB)
     assert(report:find("kill-staged", 1, true))
+end
+Reset()
+if not arg[1] or arg[1] == "diagnostic-scope" then
+    units.target = first
+    Begin()
+    Fire("UNIT_COMBAT", "target", "WOUND", "", 112, 1)
+    Fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-unconfirmed", 98)
+    End()
+    Advance(3)
+    assert(not addon.db.skirmishes)
+    Begin()
+    Aura("player", "target")
+    Fire("UNIT_COMBAT", "target", "WOUND", "", 99, 1)
+    zone = "Another Area"
+    Fire("ZONE_CHANGED_NEW_AREA")
+    Fire("UNIT_COMBAT", "target", "WOUND", "", 301, 1)
+    End()
+    Advance(3)
+    local captured = assert(addon.db.skirmishes["world:1"]).combatDiagnostics.windows[1]
+    assert(captured.ending == "area-changed" and #captured.streams.unitCombat.rows == 1)
+    assert(captured.streams.unitCombat.rows[1].amount == 99)
+    assert(not captured.streams.spellCast)
 end
 print("Anonymized Gnomeregan event replays passed")

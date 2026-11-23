@@ -189,6 +189,82 @@ local function LegacyBattle(db, ref)
     }, "legacy:" .. tostring(Number(ref.sequence) or index)
 end
 
+local combatStreams = {
+    { "unitCombat", "UNIT_COMBAT" },
+    { "spellCast", "UNIT_SPELLCAST" },
+    { "aura", "UNIT_AURA" },
+    { "unitState", "unit-state-sample" },
+    { "partyKill", "PARTY_KILL" },
+}
+local combatRegistration = "UNIT_COMBAT UNIT_AURA UNIT_FLAGS PARTY_KILL UNIT_SPELLCAST_START UNIT_SPELLCAST_SUCCEEDED "
+    .. "UNIT_SPELLCAST_INTERRUPTED UNIT_SPELLCAST_CHANNEL_START UNIT_SPELLCAST_CHANNEL_STOP"
+local primaryTokens = "effect effectStatus flag flagStatus phase castStatus signal actorStatus targetStatus interrupterStatus payloadStatus "
+    .. "spellIDStatus amountStatus schoolStatus helpfulStatus harmfulStatus deadStatus inCombatStatus feignStatus "
+    .. "eventTimeStatus overkillStatus absorbedStatus"
+local primaryNumbers = "offset eventTime spellID amount school overkill absorbed"
+local primaryFlags = "helpful harmful dead inCombat feign"
+
+local function ReportCombatDiagnostics(input, write, each, alias)
+    local journal = Table(input)
+    if Number(journal.version) ~= 1 then
+        write("combatCapture", { availability = "not-recorded" })
+        return
+    end
+    local coverage = Fields(journal, nil, "version windowsDropped recapsDropped")
+    coverage.availability = "recorded"
+    write("combatCapture", coverage)
+    local function Primary(row, api, index)
+        local fields = Fields(row, primaryTokens, primaryNumbers, primaryFlags)
+        fields.api, fields.window = api, index
+        fields.actor, fields.target = alias(row.actorID), alias(row.targetID)
+        fields.interrupter = alias(row.interrupterID)
+        write("primaryEvidence", fields)
+    end
+    each("primaryEvidence", journal.recaps, 8, function(row)
+        Primary(row, "C_DeathRecap")
+    end)
+    each("combatWindow", journal.windows, 4, function(window)
+        local fields = Fields(window, "ending", "time endOffset")
+        fields.build = Token(window.build) or Number(window.build)
+        fields.window = Number(window.index)
+        write("combatWindow", fields)
+        local availability = Fields(Table(window.availability), combatRegistration)
+        availability.window = fields.window
+        write("combatAvailability", availability)
+        local meter = Table(window.meter)
+        if next(meter) then
+            local scope = Fields(meter, "selection", "sessionID readOffset retained dropped")
+            scope.window = fields.window
+            write("meterSampleBatch", scope)
+            for _, name in ipairs(meterCategories) do
+                local category = Table(Table(meter.categories)[name])
+                if next(category) then
+                    write("meterSampleCoverage", { window = fields.window, category = name, dropped = Number(category.dropped) })
+                    each("meterSpellSample", category.rows, 6, function(row)
+                        local spell = Fields(row, "resolution detailStatus spellIDStatus spellTotalStatus overkillStatus "
+                            .. "sourceTotalStatus amountStatus nameStatus classStatus",
+                            "spellID spellTotal amount sourceTotal overkill", "petOwner isPet isMob")
+                        spell.window, spell.category = fields.window, name
+                        spell.meterUnit, spell.other = alias(row.meterUnitID), alias(row.otherID)
+                        write("meterSpellSample", spell)
+                    end)
+                end
+            end
+        end
+        for _, stream in ipairs(combatStreams) do
+            local samples = Table(Table(window.streams)[stream[1]])
+            if next(samples) then
+                local summary = Fields(samples, nil, "dropped rateLimited duplicates")
+                summary.api, summary.window = stream[2], fields.window
+                write("combatStream", summary)
+                each("primaryEvidence", samples.rows, 16, function(row)
+                    Primary(row, stream[2], fields.window)
+                end)
+            end
+        end
+    end)
+end
+
 function addon.BuildIssueReport(db, debugDB, battleID, legacy)
     local write, each, finish, truncated = MakeWriter()
     local version, build, interface = Read(GetBuildInfo)
@@ -423,6 +499,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy)
             or (#rows > 0 and "unlinked-time-only-ambiguous") or "unavailable" })
     end)
     if #Table(observation.segments) == 0 then write("diagnostics", { availability = "no-linked-segments" }) end
+    ReportCombatDiagnostics(battle.combatDiagnostics, write, each, Alias)
     return finish()
 end
 

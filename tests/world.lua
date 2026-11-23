@@ -50,7 +50,7 @@ local function Advance(seconds)
 end
 
 Constants = { CurrencyConsts = { CLASSIC_HONOR_CURRENCY_ID = 1901 } }
-for _, file in ipairs({ "Ledger", "SkirmishOutcomes", "Encounter", "Core", "SkirmishEvidence", "WorldSkirmishes", "Honor", "Kills" }) do
+for _, file in ipairs({ "Ledger", "SkirmishOutcomes", "Encounter", "Core", "SkirmishEvidence", "CombatDiagnostics", "WorldSkirmishes", "Honor", "Kills" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
 addon.db = addon.Ledger.Open(nil)
@@ -606,7 +606,10 @@ do
     Updates(77)
     Advance(1)
     endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
-    assert(endRow.meterSessionID == 77 and #addon.db.skirmishes["world:10"].allies == 2)
+    local archivedBattle = addon.db.skirmishes["world:10"]
+    assert(endRow.meterSessionID == 77 and #archivedBattle.allies == 2)
+    local archivedProbe = assert(archivedBattle.combatDiagnostics.windows[1].meter)
+    assert(archivedProbe.sessionID == 77 and archivedProbe.selection == "new-archived" and archivedProbe.retained > 0)
 
     ids = {}
     StartFight()
@@ -617,7 +620,9 @@ do
     Updates(78)
     Advance(1)
     endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
-    assert(endRow.status.meter == "session-changed-or-ambiguous" and #addon.db.skirmishes["world:11"].allies == 1)
+    local ambiguousBattle = addon.db.skirmishes["world:11"]
+    assert(endRow.status.meter == "session-changed-or-ambiguous" and #ambiguousBattle.allies == 1)
+    assert(not ambiguousBattle.combatDiagnostics.windows[1].meter)
 
     ids = {}
     StartFight()
@@ -626,7 +631,9 @@ do
     Fire("DAMAGE_METER_CURRENT_SESSION_UPDATED")
     Advance(1)
     endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
-    assert(endRow.status.meter == "current-changed" and #addon.db.skirmishes["world:12"].allies == 1)
+    local changedBattle = addon.db.skirmishes["world:12"]
+    assert(endRow.status.meter == "current-changed" and #changedBattle.allies == 1)
+    assert(not changedBattle.combatDiagnostics.windows[1].meter)
 
     -- A separate engagement starts before the earlier archive is published.
     -- Even with a valid party heal touching a shared player, the late window
