@@ -9,7 +9,8 @@ Your personal journal for open-world PvP and battleground skirmishes for **World
 - 📖 **Remember your rivals** — Build a searchable record of identifiable enemies you've fought, saved separately for each character.
 - ⚔️ **Track the score** — See wins, losses, Honorable Kills, and attributed Honor Points against each rival.
 - 📜 **Revisit every skirmish** — Explore one rival's history or browse your latest 100 recorded fights, newest first.
-- 🛡️ **See the full fight** — Open detailed cards showing observed allies and enemies, outcomes, casualties, finishing blows, and rewards.
+- 🛡️ **See who fought** — Open detailed cards with observed allies, enemies, results, casualties, finishing blows and rewards.
+- 🚩 **Record battleground clashes** — Review local fights in the same journal. Turn recording off in settings while keeping your existing history.
 - 💬 **Recognize familiar enemies** — See your win/loss record on their nameplates and in their standard unit tooltips.
 - 📍 **Remember where it happened** — Place a map waypoint when a saved skirmish has a usable location.
 - 🐞 **Report a problem from the journal** — Copy a diagnostic report for a skirmish or a general issue.
@@ -27,7 +28,7 @@ The separate **Skirmish History** view collects the latest 100 recorded fights a
 
 ## ⚔️ More Than a Kill Counter
 
-A skirmish can involve more than two players. The detailed view shows the participants the addon was able to observe on each side, with available class and level information, casualties, a win/loss result when known, and a **Finishing blows** list in recorded order.
+A skirmish can involve more than two players. The detailed view shows the participants the addon was able to observe on each side, with available class and level information, casualties, recorded levels or skull-level indicators, a win/loss result when known, and a **Finishing blows** list in recorded order.
 
 Fight cards also show the date, time, zone, and any Honorable Kills or Honor Points that could be linked reliably to the encounter. Alliance and Horde get their own faction artwork and Honor Points icons.
 
@@ -46,7 +47,9 @@ Both are enabled by default and have separate switches under the addon settings.
 
 Names in Red observes **open-world PvP and battleground skirmishes** using information the Forever client makes available to addons. It records readable kills and deaths, groups related observations into skirmishes, and adds other participants when there is sufficient evidence. Battleground cards identify the local fight and its outcome. Matches can contain several independent skirmishes.
 
-Not every encounter exposes a complete team or a certain result. Those records remain in the journal with an incomplete roster or unknown outcome instead of guessing. Honor and Honorable Kill rewards are attached only when the available signals identify the relevant encounter reliably. An unidentified player may appear as **Unknown rival** until their full name is available.
+Not every encounter exposes a complete team or a certain result. Those records remain in the journal with an incomplete roster or unknown outcome instead of guessing. Rewards appear on the most specific confirmed record. If the addon cannot associate an award with a fight, the journal shows it in **Rewards without a skirmish**. An unidentified player may appear as **Unknown rival** until their full name is available.
+
+Battleground recording and automatic outcome assessment are still being refined. Forever can restrict access to combat data, so some support players, revivals, repeat kills or rewards may be missing.
 
 You can also add a skirmish manually by entering an opponent's full name and choosing the outcome. The addon is a personal history, not a complete combat log or a battleground scoreboard.
 
@@ -74,7 +77,7 @@ More diagnostic and demo commands are documented in the [project guide](https://
 - **History:** Stored separately for each character; unavailable identity, team size, rewards, or outcomes are not fabricated.
 - **Diagnostics:** The latest 1,000 diagnostic records are saved locally per character. These may contain character names, identifiers, and honor messages. Review them before voluntarily sharing a SavedVariables file in a bug report.
 
-**Update 1.0.0:** A complete rival journal with detailed group skirmishes, attributed PvP rewards, and refreshed win/loss indicators on nameplates and tooltips.
+**Update 1.1.0:** Local battleground skirmishes, fights without killing blows, resurrection history and in-game issue reports.
 
 **[Report a Bug or Suggest a Feature](https://github.com/nick-sidorin/names-in-red/issues)**
 
