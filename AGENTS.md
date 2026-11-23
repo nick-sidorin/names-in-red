@@ -4,7 +4,9 @@ Use the pinned WoW Addon Standards as part of these repository instructions.
 At the start of a task involving development, documentation, packaging or
 releases, explicitly open and apply `docs/standards/AGENTS.md`. Read the
 relevant evidence in `docs/standards/FIELD_NOTES.md` and the local context in
-`README.md`, `idea.md` and `docs/forever-validation.md` before substantive work.
+`README.md`, `docs/skirmish-product-spec.md` and `docs/forever-validation.md`
+before substantive work. Consult `docs/future-ideas.md` when discussing optional
+future features; those ideas are not committed product requirements.
 `docs/standards/standards.lock.json` identifies the reviewed upstream version.
 The owner conversation is in Russian. Repository contributions are in English.
 

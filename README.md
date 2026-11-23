@@ -61,7 +61,11 @@ Enter these commands in the in-game chat box.
 
 See [diagnostics and sample data](docs/debug-preview.md) for details.
 
-## How the score works
+## How the score works (current implementation)
+
+The following describes the existing runtime, **not** the agreed future
+skirmish behavior. See the [PvP skirmish product specification](docs/skirmish-product-spec.md)
+for the proposed participation, outcome and battleground rules.
 
 - **Wins** and **Losses** count the result of your side.
   A recorded result counts once in the journal and once in each opponent's
@@ -83,6 +87,10 @@ remain in the journal with their recorded participants and timeline.
 
 ## Development
 
+The [PvP skirmish product specification](docs/skirmish-product-spec.md)
+describes intended future participation, outcome and optional battleground
+behavior; the current implementation may differ.
+
 [CurseForge listing Markdown](docs/curseforge-description.md) and
 [short description](docs/curseforge-summary.txt) are ready to copy into the
 [CurseForge description editor](https://authors.curseforge.com/#/projects/1819566/description).
@@ -91,8 +99,8 @@ Run `bash scripts/check.sh` with Python 3, Bash, `lua5.1` and `luac5.1` installe
 GitHub Actions runs the same suite. For a developer smoke test, copy the
 `NamesInRed/` folder into `_forever_/Interface/AddOns/`. See
 [Forever validation](docs/forever-validation.md) for gameplay research and the
-client test matrix. See [idea.md](idea.md) for the full scope and
-[Future ideas](docs/future-ideas.md) for features under consideration.
+client test matrix. See [Future ideas](docs/future-ideas.md) for
+optional, uncommitted features such as PvP ranks and achievements.
 
 Each skirmish owns its roster, timeline and rewards. Store an explicit
 `outcome` of `"win"` or `"loss"` when known. Otherwise a complete roster
