@@ -262,7 +262,7 @@ do
     assert(#result.allies == 1 and #result.enemies == 2)
     inCombat = false
     Fire("PLAYER_REGEN_ENABLED")
-    Advance(0.5)
+    Advance(1.5)
     assert(#result.allies == 2 and result.allies[2].id == brother)
     assert(#result.enemies == 3 and result.enemies[3].id == third and result.enemies[3].class == "PALADIN")
     assert(#result.events == 2 and not addon.Ledger.FirstDeaths(result)[third])
@@ -280,7 +280,7 @@ do
     Advance(13)
     inCombat = false
     Fire("PLAYER_REGEN_ENABLED")
-    Advance(0.5)
+    Advance(1.5)
     local later = assert(addon.db.skirmishes["world:2"])
     assert(#later.allies == 1 and #later.enemies == 1 and #later.events == 1)
 
@@ -364,7 +364,7 @@ do
     Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 4, 77)
     Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 5, 77)
     Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 6, 77)
-    Advance(0.5)
+    Advance(1.5)
     local aided = assert(addon.db.skirmishes["world:3"])
     local actual = {}
     for _, ally in ipairs(aided.allies) do actual[ally.id] = true end
@@ -379,14 +379,21 @@ do
     -- The collector can start from GUIDs supplied by other PvP observations.
     -- Changing which owners claim a pet invalidates only that ownership.
     endRow.petOwners[pet][brother] = true
-    local onlyPet = { DamageDone = { sources = { {
-        sourceGUID = pet, spells = { { target = { unitName = "First Enemy", unitClassFilename = "HUNTER",
-            amount = 7, isMob = false, isPet = false } } },
-    } } } }
     local anchors = { [fenrik] = true }
-    assert(#addon.ConnectedMeterParticipants(anchors, endRow.contacts, endRow.petOwners, onlyPet, "Alliance") == 0)
+    local function ConnectedPet()
+        local evidence = addon.NewMeterParticipantEvidence(endRow.contacts, endRow.petOwners, "Alliance")
+        local actor = evidence:Source("DamageDone", { sourceGUID = pet, status = {} })
+        if actor then
+            evidence:Link("DamageDone", actor, {
+                unitName = "First Enemy", unitClassFilename = "HUNTER", amount = 7, isMob = false, isPet = false,
+                status = { row = "readable" },
+            })
+        end
+        return evidence:Connected(anchors)
+    end
+    assert(#ConnectedPet() == 0)
     endRow.petOwners[pet][brother] = nil
-    local connected = addon.ConnectedMeterParticipants(anchors, endRow.contacts, endRow.petOwners, onlyPet, "Alliance")
+    local connected = ConnectedPet()
     assert(#connected == 1 and connected[1].guid == owner)
 
     -- A recent Current update is not an update for the archived category.
@@ -396,7 +403,7 @@ do
     ids = { { sessionID = 77 } }
     Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 2, 0)
     Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 0, 77)
-    Advance(0.5)
+    Advance(1.5)
     local staleFight = assert(addon.db.skirmishes["world:4"])
     endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
     assert(#staleFight.allies == 1 and endRow.meterEvidence.HealingDone == "no-matching-update")
@@ -406,16 +413,239 @@ do
     ids = { { sessionID = 77 } }
     Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 2, 77)
     Fire("DAMAGE_METER_RESET")
-    Advance(0.5)
+    Advance(1.5)
     endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
     assert(endRow.meterReset and #addon.db.skirmishes["world:5"].allies == 1)
 
     ids = {}
     StartFight()
     Fire("ZONE_CHANGED_NEW_AREA")
-    Advance(0.5)
+    Advance(1.5)
     endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
     assert(endRow.areaChanged and endRow.status.meter == "interrupted")
     assert(#addon.db.skirmishes["world:6"].allies == 1)
+
+    -- Stress the limits of the diagnostic sample without depending on its order.
+    -- The only valid heal appears after source 12, spell 16, target 4 and contact 32.
+    local lateHealer = "Player-late-healer"
+    local lateOwner = "Player-late-owner"
+    local noOwnerPet, latePet, pastPartyPet = "Pet-owner-unseen", "Pet-late", "Pet-after-history"
+    local otherHealer, otherFighter, otherEnemy = "Player-unrelated-healer", "Player-unrelated-fighter", "Player-unrelated-enemy"
+    local mockSources, mockDetails = {}, {}
+    local function Entry(name, class, amount)
+        return Taken(name, class, amount).combatSpellDetails
+    end
+    local function Meter(category, source, spells)
+        mockSources[category] = mockSources[category] or {}
+        mockDetails[category] = mockDetails[category] or {}
+        mockSources[category][#mockSources[category] + 1] = source
+        if source.sourceGUID and source.sourceGUID ~= secret then mockDetails[category][source.sourceGUID] = spells end
+    end
+    local function MeterData(id, category)
+        assert(id == 0 or id == 77 or id == 78)
+        return { durationSeconds = 15, combatSources = mockSources[category] or {} }
+    end
+    C_DamageMeter.GetCombatSessionFromID = MeterData
+    C_DamageMeter.GetCombatSessionFromType = MeterData
+    local blockedDetail, detailReads = false, 0
+    local function MeterDetail(_, category, guid)
+        detailReads = detailReads + 1
+        if blockedDetail and guid == lateHealer then return secret end
+        return { combatSpells = mockDetails[category] and mockDetails[category][guid] or {} }
+    end
+    C_DamageMeter.GetCombatSessionSourceFromID = MeterDetail
+    C_DamageMeter.GetCombatSessionSourceFromType = MeterDetail
+    Enum.DamageMeterType = { HealingDone = 2, DamageDone = 0 }
+    local function Updates(id)
+        Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 2, id)
+        Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 0, id)
+    end
+
+    ids = {}
+    Advance(10)
+    inCombat = true
+    Fire("PLAYER_REGEN_DISABLED")
+    for i = 1, 40 do
+        local token = "nameplate" .. (20 + i)
+        units[token] = { "Player-crowd-" .. i, "Crowd Member" .. i, "Alliance", "PRIEST" }
+        Fire("NAME_PLATE_UNIT_ADDED", token)
+        if i <= 14 then Meter(2, { sourceGUID = units[token][1] }, {}) end
+    end
+    units.nameplate61 = { lateHealer, "Late Healer", "Alliance", "PRIEST" }
+    units.nameplate62 = { lateOwner, "Late Owner", "Alliance", "HUNTER" }
+    units.nameplate63 = { latePet }
+    units.nameplate64 = { otherHealer, "Other Healer", "Alliance", "PRIEST" }
+    units.nameplate65 = { otherFighter, "Other Fighter", "Alliance", "WARRIOR" }
+    units.nameplate66 = { otherEnemy, "Other Target", "Horde", "ROGUE" }
+    function UnitIsOwnerOrControllerOfUnit(controller, controlled)
+        return controller == "nameplate62" and UnitGUID(controlled) == latePet
+    end
+    -- See the pet before the owner. Lose the pet, then reuse its nameplate token.
+    Fire("NAME_PLATE_UNIT_ADDED", "nameplate63")
+    for i = 61, 66 do if i ~= 63 then Fire("NAME_PLATE_UNIT_ADDED", "nameplate" .. i) end end
+    Fire("NAME_PLATE_UNIT_REMOVED", "nameplate63")
+    units.nameplate63 = { noOwnerPet }
+    Fire("NAME_PLATE_UNIT_ADDED", "nameplate63")
+    units.nameplate63 = nil
+    Fire("NAME_PLATE_UNIT_REMOVED", "nameplate63")
+    -- Fill the diagnostic change history before the grouped pet is observed.
+    units.partypet1 = nil
+    for i = 1, 10 do
+        units.party1target = { "Creature-" .. i }
+        Fire("UNIT_TARGET", "party1")
+    end
+    units.partypet1 = { pastPartyPet }
+    Fire("UNIT_PET", "party1")
+    units.partypet1 = nil
+    Fire("UNIT_PET", "party1")
+
+    local lateSpells = {
+        Taken("", "HUNTER", 10),
+        Taken("Missing Contact", "HUNTER", 20),
+        Taken(units.player[2], "HUNTER", secret),
+        { combatSpellDetails = secret },
+    }
+    for i = 5, 17 do lateSpells[i] = Taken("", "HUNTER", 10) end
+    local manyTargets = {}
+    for i = 1, 5 do manyTargets[i] = Entry("", "HUNTER", 5) end
+    manyTargets[6] = Entry(units.player[2], "HUNTER", 18)
+    lateSpells[18] = { combatSpellDetails = manyTargets }
+    Meter(2, { sourceGUID = lateHealer }, lateSpells)
+    Meter(2, { sourceGUID = secret }, {})
+    Meter(2, {}, {})
+    Meter(2, { sourceGUID = "Player-unseen-healer" }, {})
+    Meter(2, { sourceGUID = otherHealer }, { Taken("Other Fighter", "WARRIOR", 25) })
+    Meter(0, { sourceGUID = otherFighter }, { Taken("Other Target", "ROGUE", 20) })
+    Meter(0, { sourceGUID = latePet }, { Taken("First Enemy", "HUNTER", 11) })
+    Meter(0, { sourceGUID = noOwnerPet }, { Taken("First Enemy", "HUNTER", 12) })
+    Meter(0, { sourceGUID = pastPartyPet }, { Taken("First Enemy", "HUNTER", 13) })
+    Fire("PARTY_KILL", player.id, fenrik)
+    Advance(15)
+    inCombat = false
+    ids = { { sessionID = 77 } }
+    Updates(77)
+    Fire("PLAYER_REGEN_ENABLED")
+    Advance(1.5)
+    local massive = assert(addon.db.skirmishes["world:7"])
+    actual = {}
+    for _, ally in ipairs(massive.allies) do actual[ally.id] = true end
+    assert(#massive.allies == 4 and actual[lateHealer] and actual[lateOwner] and actual[brother])
+    assert(#massive.enemies == 1 and not actual[otherHealer] and not actual[otherFighter])
+    endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
+    assert(endRow.contactCount > 32 and endRow.contactOverflow > 0 and not endRow.contacts[lateHealer])
+    local healing = endRow.meter.HealingDone
+    assert(#healing.sources == 12 and healing.sourceCount == 19)
+    assert(healing.resolution["target-contact-missing"] == 1 and healing.resolution["target-amount-secret"] == 1)
+    assert(healing.resolution["details-secret"] == 1 and healing.resolution["target-name-missing"] > 1)
+    assert(healing.resolution["source-guid-secret"] == 1 and healing.resolution["source-guid-absent"] == 1)
+    assert(healing.resolution["source-contact-missing"] == 1)
+    assert(healing.resolution["source-connected"] == 1 and healing.resolution["source-disconnected"] == 1)
+    assert(endRow.meter.DamageDone.resolution["pet-owner-unresolved"] == 1)
+
+    -- Check native restriction and source detail can each clear during the
+    -- bounded retry, without stale data being published after the first read.
+    mockSources[2], mockDetails[2] = { { sourceGUID = lateHealer } }, {
+        [lateHealer] = { { combatSpellDetails = manyTargets } },
+    }
+    mockSources[0], mockDetails[0] = {}, {}
+    Enum.AddOnRestrictionType, Enum.AddOnRestrictionState = { Combat = 0 }, { Inactive = 0 }
+    local restriction = 2
+    C_RestrictedActions = { GetAddOnRestrictionState = function(kind)
+        assert(kind == 0)
+        return restriction
+    end }
+    ids = {}
+    StartFight()
+    Updates(0)
+    local before = detailReads
+    Advance(0.5)
+    endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
+    assert(endRow.meterRestrictionWaits == 1 and detailReads == before)
+    restriction = 0
+    Advance(1)
+    assert(endRow.meterAttempts == 2 and #addon.db.skirmishes["world:8"].allies == 2)
+    local retained = endRow.meter.HealingDone.sources[1].spells[1]
+    assert(retained.targetCount == 6 and #retained.targets == 4)
+
+    ids = {}
+    StartFight()
+    Updates(0)
+    blockedDetail = true
+    Advance(0.5)
+    assert(#addon.db.skirmishes["world:9"].allies == 1)
+    blockedDetail = false
+    Advance(1)
+    endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
+    assert(endRow.meterAttempts == 2 and #addon.db.skirmishes["world:9"].allies == 2)
+
+    -- A later archive may replace an unsampled Current candidate. A selected
+    -- archive changing underneath a retry cannot be folded into this fight.
+    ids = {}
+    StartFight()
+    Advance(0.5)
+    ids = { { sessionID = 77 } }
+    Updates(77)
+    Advance(1)
+    endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
+    assert(endRow.meterSessionID == 77 and #addon.db.skirmishes["world:10"].allies == 2)
+
+    ids = {}
+    StartFight()
+    ids = { { sessionID = 77 } }
+    Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 2, 77)
+    Advance(0.5)
+    ids = { { sessionID = 78 } }
+    Updates(78)
+    Advance(1)
+    endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
+    assert(endRow.status.meter == "session-changed-or-ambiguous" and #addon.db.skirmishes["world:11"].allies == 1)
+
+    ids = {}
+    StartFight()
+    Advance(0.5)
+    Updates(0)
+    Fire("DAMAGE_METER_CURRENT_SESSION_UPDATED")
+    Advance(1)
+    endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
+    assert(endRow.status.meter == "current-changed" and #addon.db.skirmishes["world:12"].allies == 1)
+
+    -- A separate engagement starts before the earlier archive is published.
+    -- Even with a valid party heal touching a shared player, the late window
+    -- may not overwrite or enrich either record with those aggregates.
+    ids = {}
+    StartFight()
+    Advance(0.5)
+    local previousRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
+    addon.ResetWorldTracking()
+    inCombat = true
+    Fire("PLAYER_REGEN_DISABLED")
+    ids = { { sessionID = 77 } }
+    Updates(77)
+    Fire("PARTY_KILL", player.id, ghash)
+    Advance(15)
+    inCombat = false
+    Fire("PLAYER_REGEN_ENABLED")
+    Advance(1.5)
+    endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
+    assert(previousRow.status.meter == "interrupted" and endRow.status.meterWindow == "previous-window-pending")
+    assert(#addon.db.skirmishes["world:13"].allies == 1 and #addon.db.skirmishes["world:14"].allies == 1)
+
+    -- Raid observation follows the readable roster count independently of
+    -- the ten roster entries preserved in the diagnostic snapshot.
+    local raidMember, raidPet = "Player-raid-eleven", "Pet-raid-eleven"
+    function IsInRaid() return true end
+    function GetNumGroupMembers() return 11 end
+    units.raid11 = { raidMember, "Raid Hunter", "Alliance", "HUNTER" }
+    units.raidpet11 = { raidPet }
+    mockSources[2], mockDetails[2] = {}, {}
+    Meter(0, { sourceGUID = raidPet }, { Taken("First Enemy", "HUNTER", 15) })
+    ids = {}
+    StartFight()
+    Updates(0)
+    Advance(1.5)
+    endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
+    local raidFight = assert(addon.db.skirmishes["world:15"])
+    assert(#endRow.group == 10 and endRow.groupSize == 11)
+    assert(#raidFight.allies == 2 and raidFight.allies[2].id == raidMember)
 end
-print("Duskwood replay and participant links cover support, pet ownership, session updates and interruptions")
+print("Duskwood replay and participant links cover uncapped support, pets, ambiguous sessions and delayed reads")

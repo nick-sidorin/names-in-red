@@ -60,10 +60,10 @@ local function Participant(side, guid, name, level, rivalID, isSelf, appearance)
     end
 end
 
-function addon.EnrichWorldSkirmish(row, startTime, startUptime, categories)
+function addon.WorldMeterContext(row, startTime, startUptime)
     if not active or not addon.db or not addon.db.skirmishes or addon.db.skirmishes[active.id] ~= active.battle
         or row.instanceType ~= "none" or type(row.zone) ~= "string" or not active.battle.startedAt
-        or active.battle.startedAt < startTime or active.lastEvent < startUptime or active.lastEvent > row.uptime
+        or active.battle.startedAt < startTime or active.startedUptime < startUptime or active.lastEvent < startUptime or active.lastEvent > row.uptime
         or active.battle.zone ~= row.zone then return end
     local battle = active.battle
     local localPlayer = row.player
@@ -73,8 +73,12 @@ function addon.EnrichWorldSkirmish(row, startTime, startUptime, categories)
     local anchors = {}
     for _, player in ipairs(battle.allies) do anchors[player.id] = true end
     for _, player in ipairs(battle.enemies) do anchors[player.id] = true end
-    local additions = addon.ConnectedMeterParticipants(anchors, row.contacts, row.petOwners, categories, faction)
-    if #additions == 0 then return end
+    return active, anchors, faction
+end
+
+function addon.ApplyWorldMeterEvidence(context, additions, faction)
+    if active ~= context or addon.db.skirmishes[context.id] ~= context.battle or #additions == 0 then return end
+    local battle = context.battle
     for _, entry in ipairs(additions) do
         local player = entry.player
         local friendly = player.faction == faction
@@ -96,7 +100,7 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
         local db = addon.db
         db.encounterSequence = (db.encounterSequence or 0) + 1
         local id = "world:" .. db.encounterSequence
-        active = { id = id, battle = {
+        active = { id = id, startedUptime = now, battle = {
             startedAt = context.time, sequence = db.encounterSequence,
             zone = context.zone, mapID = context.mapID, x = context.x, y = context.y,
             rosterComplete = false, allies = {}, enemies = {}, events = {},

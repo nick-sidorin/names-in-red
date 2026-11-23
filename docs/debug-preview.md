@@ -32,7 +32,11 @@ Recap rows are bounded to 32 per sample and include the original event count.
 
 The participant preview also keeps session/category update times, reset and
 area-transition markers, ownership observations, and the read status of
-post-combat spell details. It samples readable incremental aura additions
+post-combat spell details. A bounded row sample is saved alongside
+resolution counts from all eligible sources. `meterEvidence` reports
+category eligibility and `resolution` reports why rows could or could
+not link to observed players. The journal uses full eligible links even
+when a row falls beyond the saved sample. The preview samples incremental aura additions
 on tracked units in open-world combat. See the
 [participant test matrix](forever-validation.md#targeted-live-verification).
 
