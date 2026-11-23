@@ -4,7 +4,7 @@ local frame = CreateFrame("Frame")
 local db
 local deathSequence = 0
 local combatSequence = 0
-local combat
+local combat, settling
 local limit = 1000
 local plateTokens = {}
 local demoFactions = { alliance = "Alliance", horde = "Horde" }
@@ -16,7 +16,7 @@ local function ClearDiagnostics()
     end
     db.rows, db.dropped = {}, 0
     deathSequence = deathSequence + 1
-    combatSequence, combat = 0, nil
+    combatSequence, combat, settling = 0, nil, nil
 end
 
 local function ReadDeathLevel(row, victim, attacker)
@@ -220,7 +220,7 @@ end
 local function Sample(row)
     Context(row)
     Call(row, "sessionHK", GetPVPSessionStats)
-    Call(row, "damageMeterAvailable", C_DamageMeter and C_DamageMeter.IsDamageMeterAvailable)
+    Capture(row, "damageMeterFailure", Call(row, "damageMeterAvailable", C_DamageMeter and C_DamageMeter.IsDamageMeterAvailable))
     if row.instanceType == "pvp" or row.instanceType == "arena" then
         Score(row)
     end
@@ -251,6 +251,13 @@ local function CopyRow(input, fields)
     return output
 end
 
+local function PetToken(unit)
+    if unit == "player" then return "pet" end
+    local prefix, index = unit:match("^(party)(%d+)$")
+    if not prefix then prefix, index = unit:match("^(raid)(%d+)$") end
+    if prefix then return prefix .. "pet" .. index end
+end
+
 local function CopyGroup(row)
     Call(row, "groupSize", GetNumGroupMembers)
     Call(row, "subgroupSize", GetNumSubgroupMembers)
@@ -262,7 +269,7 @@ local function CopyGroup(row)
         local token = (row.inRaid and "raid" or "party") .. index
         row.group[index] = Unit(token)
         Call(row.group[index], "targetGUID", UnitGUID, token .. "target")
-        Call(row.group[index], "petGUID", UnitGUID, token .. "pet")
+        Call(row.group[index], "petGUID", UnitGUID, PetToken(token))
     end
 end
 
@@ -271,10 +278,12 @@ local function SessionIDs(result, api)
     if not sessions then return end
     local known = {}
     for _, session in ipairs(sessions) do
-        if AccessibleTable(session) then
-            local id = Value(session.sessionID)
-            if type(id) == "number" then known[id] = true end
+        local id = AccessibleTable(session) and Value(session.sessionID)
+        if type(id) ~= "number" then
+            result.status.availableSessions = "partial"
+            return
         end
+        known[id] = true
     end
     return known
 end
@@ -284,7 +293,7 @@ local sourceFields = {
     "factionGroup", "isLocalPlayer", "totalAmount", "deathRecapID", "deathTimeSeconds",
     "sourceDisplayType",
 }
-local spellFields = { "spellID", "totalAmount", "overkillAmount" }
+local spellFields = { "spellID", "totalAmount", "overkillAmount", "creatureName" }
 local targetFields = { "unitName", "unitClassFilename", "classification", "isPet", "isMob", "amount" }
 
 local function MeterSources(result, session, readSource)
@@ -298,7 +307,8 @@ local function MeterSources(result, session, readSource)
         local source = CopyRow(sources[index], sourceFields)
         result.sources[index] = source
         local guid, creature = source.sourceGUID, source.sourceCreatureID
-        if (source.isLocalPlayer and (guid or creature)) or (type(guid) == "string" and guid:match("^Player%-")) then
+        if (source.isLocalPlayer and (guid or creature))
+            or (type(guid) == "string" and (guid:match("^Player%-") or guid:match("^Pet%-"))) then
             local detail = readSource(source, guid, creature)
             local spells = detail and detail.combatSpells
             local hasSpells, why = AccessibleTable(spells)
@@ -328,6 +338,7 @@ local function CaptureMeter(row, baseline)
         return
     end
     local sessionIDs = SessionIDs(row, api)
+    if current ~= nil then Call(row, "meterCurrentDuration", api.GetSessionDurationSeconds, current) end
     local candidates = {}
     if baseline and sessionIDs then
         for candidate in pairs(sessionIDs) do
@@ -341,7 +352,7 @@ local function CaptureMeter(row, baseline)
     row.meterSelection = id and "new-archived" or "current-fallback"
     row.meter = {}
     for _, name in ipairs({
-        "DamageDone", "DamageTaken", "EnemyDamageTaken", "HealingDone", "Deaths", "Interrupts", "Dispels",
+        "DamageDone", "DamageTaken", "EnemyDamageTaken", "HealingDone", "Absorbs", "Deaths", "Interrupts", "Dispels",
     }) do
         local meterType = types[name]
         local result = { status = {} }
@@ -359,6 +370,7 @@ local function CaptureMeter(row, baseline)
             local session = ReadResult(result, "session", getter, selector, meterType)
             if session then
                 Capture(result, "duration", session.durationSeconds)
+                Capture(result, "totalAmount", session.totalAmount)
                 MeterSources(result, session, function(source, guid, creature)
                     return ReadResult(source, "detail", sourceGetter, selector, meterType, guid, creature)
                 end)
@@ -369,11 +381,28 @@ end
 
 local handlers = {}
 
+local function ObservePet(unit, guid)
+    if type(UnitIsOwnerOrControllerOfUnit) ~= "function" or combat.petChecks >= 32 then return end
+    combat.petChecks = combat.petChecks + 1
+    local evidence = combat.petOwners[guid] or {}
+    combat.petOwners[guid] = evidence
+    for owner, contact in pairs(combat.contacts) do
+        local token = contact.latest and contact.latest.token
+        if token and Value(UnitGUID(token)) == owner then
+            local ok, controls = pcall(UnitIsOwnerOrControllerOfUnit, token, unit)
+            if ok and Value(controls) == true then evidence[owner] = true end
+        end
+    end
+end
+
 local function Observe(unit, reason)
     if not combat or type(unit) ~= "string" then return end
     local isPlayer = Value(UnitIsPlayer and UnitIsPlayer(unit))
-    if isPlayer == false then return end
     local guid, status = Value(UnitGUID and UnitGUID(unit))
+    if isPlayer == false then
+        if reason ~= "flags" and type(guid) == "string" and guid:match("^Pet%-.+") then ObservePet(unit, guid) end
+        return
+    end
     if type(guid) ~= "string" or not guid:match("^Player%-") then
         if isPlayer or status == "secret" then
             local key = reason .. ":" .. status
@@ -403,7 +432,8 @@ local function Observe(unit, reason)
     local unitState = Unit(unit)
     unitState.uptime, unitState.token, unitState.reason = now, unit, reason
     Call(unitState, "targetGUID", UnitGUID, unit .. "target")
-    Call(unitState, "petGUID", UnitGUID, unit .. "pet")
+    local pet = PetToken(unit)
+    if pet then Call(unitState, "petGUID", UnitGUID, pet) end
     Call(unitState, "inCombat", UnitAffectingCombat, unit)
     Call(unitState, "dead", UnitIsDeadOrGhost, unit)
     Call(unitState, "pvp", UnitIsPVP, unit)
@@ -426,14 +456,15 @@ end
 
 local function ObserveCurrent(row, reason)
     Observe("player", reason)
+    local prefix = row.inRaid and "raid" or "party"
+    for index in ipairs(row.group) do Observe(prefix .. index, reason) end
     Observe("target", reason)
     Observe("mouseover", reason)
     for token in pairs(plateTokens) do Observe(token, reason) end
-    local prefix = row.inRaid and "raid" or "party"
-    for index in ipairs(row.group) do Observe(prefix .. index, reason) end
 end
 
 function handlers.PLAYER_REGEN_DISABLED()
+    settling = nil
     combatSequence = combatSequence + 1
     local row = Add("COMBAT_START")
     Sample(row)
@@ -441,7 +472,8 @@ function handlers.PLAYER_REGEN_DISABLED()
     local baseline = C_DamageMeter and SessionIDs(row, C_DamageMeter)
     combat = {
         sequence = combatSequence, baseline = baseline, contacts = {}, unresolved = {},
-        startedAt = row.time, startedUptime = row.uptime,
+        startedAt = row.time, startedUptime = row.uptime, startZone = row.zone, startInstanceType = row.instanceType,
+        auraUpdates = {}, auraSignals = {}, currentUpdates = {}, petOwners = {}, petChecks = 0,
         contactCount = 0, contactOverflow = 0, meterUpdates = {}, meterUpdateCount = 0,
         groupChanges = {}, groupChangeCount = 0, restrictedKills = 0,
     }
@@ -455,34 +487,53 @@ function handlers.PLAYER_REGEN_ENABLED()
     CopyGroup(row)
     ObserveCurrent(row, "combat-end")
     local finished = combat
-    combat = nil
+    combat, settling = nil, finished
     row.contacts, row.unresolvedContacts = finished.contacts, finished.unresolved
     row.contactOverflow = finished.contactOverflow
     row.groupChanges, row.groupChangeCount = finished.groupChanges, finished.groupChangeCount
-    row.meterUpdates, row.meterUpdateCount = finished.meterUpdates, finished.meterUpdateCount
+    row.meterUpdates = finished.meterUpdates
+    row.meterCurrentUpdates = finished.currentUpdates
+    row.auraUpdates, row.auraSignals = finished.auraUpdates, finished.auraSignals
+    row.petOwners, row.petChecks = finished.petOwners, finished.petChecks
     row.restrictedPartyKills = finished.restrictedKills
     local rows = db.rows
     local function ReadMeter()
         if rows ~= db.rows then return end
+        local sameWindow = settling == finished
+        if sameWindow then settling = nil end
+        row.meterUpdateCount = finished.meterUpdateCount
+        row.meterReset, row.areaChanged = finished.meterReset, finished.areaChanged
         local inCombat = Value(InCombatLockdown and InCombatLockdown())
-        if finished.sequence ~= combatSequence or inCombat ~= false then
+        if not sameWindow or inCombat ~= false or finished.areaChanged then
             row.status.meter = "interrupted"
             return
         end
         CaptureMeter(row, finished.baseline)
-        -- The Current slot can outlive the local fight. Require a category update
-        -- during this combat and a duration consistent with this window.
-        local damageTaken = row.meter and row.meter.DamageTaken
+        -- Current may outlive the local fight. Qualify each category independently.
         local types = Enum and Enum.DamageMeterType
-        if addon.EnrichWorldSkirmish and row.instanceType == "none" and finished.baseline
-            and row.status.availableSessions == "readable" and #row.newMeterSessionIDs <= 1
-            and damageTaken and type(damageTaken.duration) == "number" and damageTaken.duration > 0
-            and finished.startedAt and finished.startedUptime and row.uptime
-            and types and type(types.DamageTaken) == "number"
-            and finished.meterUpdates[(row.meterSessionID or 0) .. ":" .. types.DamageTaken]
-            and math.abs(damageTaken.duration - (row.uptime - finished.startedUptime)) <= 2 then
-            addon.EnrichWorldSkirmish(row, finished.startedAt, finished.startedUptime, damageTaken)
+        if not addon.EnrichWorldSkirmish or not types or not row.meter or not finished.baseline
+            or row.instanceType ~= "none" or finished.startInstanceType ~= row.instanceType
+            or not row.zone or finished.startZone ~= row.zone or finished.meterReset
+            or row.status.availableSessions ~= "readable" or #row.newMeterSessionIDs > 1
+            or not finished.startedAt or not finished.startedUptime or not row.uptime then return end
+        local eligible = {}
+        row.meterEvidence = {}
+        for name, result in pairs(row.meter) do
+            local meterType = types[name]
+            local update = type(meterType) == "number" and finished.meterUpdates[(row.meterSessionID or 0) .. ":" .. meterType]
+            if result.status.sources ~= "readable" then
+                row.meterEvidence[name] = "sources-unreadable"
+            elseif not update then
+                row.meterEvidence[name] = "no-matching-update"
+            elseif type(result.duration) ~= "number" or result.duration <= 0
+                or math.abs(result.duration - (row.uptime - finished.startedUptime)) > 2 then
+                row.meterEvidence[name] = "duration-mismatch"
+            else
+                row.meterEvidence[name] = "eligible"
+                eligible[name] = result
+            end
         end
+        if next(eligible) then addon.EnrichWorldSkirmish(row, finished.startedAt, finished.startedUptime, eligible) end
     end
     if C_Timer and C_Timer.After then C_Timer.After(0.5, ReadMeter) else ReadMeter() end
 end
@@ -507,6 +558,41 @@ end
 local function IsTracked(unit)
     return type(unit) == "string" and (plateTokens[unit] or unit == "target" or unit == "mouseover"
         or unit == "player" or unit:match("^party%d+$") or unit:match("^raid%d+$"))
+end
+
+local auraFields = { "spellId", "sourceUnit", "isHelpful", "isHarmful" }
+
+function handlers.UNIT_AURA(unit, update)
+    unit = Value(unit)
+    if not combat or combat.startInstanceType ~= "none" or not IsTracked(unit) then return end
+    local stats = combat.auraSignals
+    stats.count = (stats.count or 0) + 1
+    local readable, reason = AccessibleTable(update)
+    if not readable then
+        stats[reason] = (stats[reason] or 0) + 1
+        return
+    end
+    if Value(update.isFullUpdate) == true then
+        stats.full = (stats.full or 0) + 1
+        return
+    end
+    local auras = update.addedAuras
+    readable, reason = AccessibleTable(auras)
+    if not readable then
+        stats["added:" .. reason] = (stats["added:" .. reason] or 0) + 1
+        return
+    end
+    local rows = combat.auraUpdates
+    local count = math.min(#auras, 20 - #rows)
+    stats.omitted = (stats.omitted or 0) + (#auras - count)
+    for index = 1, count do
+        local aura = CopyRow(auras[index], auraFields)
+        aura.uptime = Value(GetTime())
+        aura.token = unit
+        Call(aura, "targetGUID", UnitGUID, unit)
+        if type(aura.sourceUnit) == "string" then Call(aura, "sourceGUID", UnitGUID, aura.sourceUnit) end
+        rows[#rows + 1] = aura
+    end
 end
 
 function handlers.UNIT_FLAGS(unit)
@@ -534,30 +620,63 @@ function handlers.GROUP_ROSTER_UPDATE()
 end
 
 function handlers.DAMAGE_METER_COMBAT_SESSION_UPDATED(meterType, sessionID)
-    if not combat then return end
-    combat.meterUpdateCount = combat.meterUpdateCount + 1
+    local window = combat or settling
+    if not window then return end
+    window.meterUpdateCount = window.meterUpdateCount + 1
     local id, kind = Value(sessionID), Value(meterType)
     if type(id) ~= "number" or type(kind) ~= "number" then return end
     local key = id .. ":" .. kind
-    local signal = combat.meterUpdates[key]
+    local signal = window.meterUpdates[key]
     if not signal then
-        if combat.meterUpdateCount > 80 then return end
+        if window.meterUpdateCount > 80 then return end
         signal = { sessionID = id, meterType = kind, count = 0 }
-        combat.meterUpdates[key] = signal
+        window.meterUpdates[key] = signal
     end
     signal.count = signal.count + 1
     signal.uptime = Value(GetTime())
+    signal.firstUptime = signal.firstUptime or signal.uptime
 end
 
-function handlers.PLAYER_ALIVE() Sample(Add("PLAYER_ALIVE")) end
-function handlers.PLAYER_UNGHOST() Sample(Add("PLAYER_UNGHOST")) end
+function handlers.DAMAGE_METER_CURRENT_SESSION_UPDATED()
+    local window = combat or settling
+    if not window then return end
+    local signal = window.currentUpdates
+    signal.count = (signal.count or 0) + 1
+    signal.uptime = Value(GetTime())
+    signal.firstUptime = signal.firstUptime or signal.uptime
+end
+
+function handlers.DAMAGE_METER_RESET()
+    local window = combat or settling
+    if window then window.meterReset = true end
+end
+
+local function AreaChanged(event)
+    local window = combat or settling
+    if window then window.areaChanged = true end
+    if combat then Sample(Add(event)) end
+end
+
+function handlers.ZONE_CHANGED_NEW_AREA() AreaChanged("ZONE_CHANGED_NEW_AREA") end
+function handlers.PLAYER_LEAVING_WORLD() AreaChanged("PLAYER_LEAVING_WORLD") end
+
+local function LifeState(event)
+    local row = Add(event)
+    Sample(row)
+    Call(row.player, "dead", UnitIsDeadOrGhost, "player")
+    Call(row.player, "ghost", UnitIsGhost, "player")
+    if combat then Observe("player", event) end
+    return row
+end
+
+function handlers.PLAYER_ALIVE() LifeState("PLAYER_ALIVE") end
+function handlers.PLAYER_UNGHOST() LifeState("PLAYER_UNGHOST") end
 
 function handlers.PLAYER_DEAD()
     deathSequence = deathSequence + 1
     local sequence = deathSequence
-    local row = Add("PLAYER_DEAD")
+    local row = LifeState("PLAYER_DEAD")
     row.deathSequence = sequence
-    Sample(row)
     Recap(sequence, 0)
     if C_Timer and C_Timer.After then
         for _, delay in ipairs({ 0.3, 1, 2 }) do

@@ -283,5 +283,139 @@ do
     Advance(0.5)
     local later = assert(addon.db.skirmishes["world:2"])
     assert(#later.allies == 1 and #later.enemies == 1 and #later.events == 1)
+
+    -- A healer who neither damages nor belongs to the group; an exact
+    -- controller for a separately reported pet; and other readable actions.
+    local healer, shield, purge, interrupt, owner = "Player-healer", "Player-shield", "Player-purge",
+        "Player-interrupt", "Player-owner"
+    local hidden, stale, pet = "Player-hidden", "Player-stale", "Pet-individual"
+    units.nameplate4 = { healer, "Field Healer", "Alliance", "PRIEST" }
+    units.nameplate5 = { shield, "Field Shield", "Alliance", "PRIEST" }
+    units.nameplate6 = { purge, "Field Purge", "Alliance", "SHAMAN" }
+    units.nameplate7 = { interrupt, "Field Kick", "Alliance", "ROGUE" }
+    units.nameplate8 = { owner, "Field Hunter", "Alliance", "HUNTER" }
+    units.nameplate9 = { pet }
+    units.nameplate10 = { hidden, "Hidden Healer", "Alliance", "PRIEST" }
+    units.nameplate11 = { stale, "Stale Caster", "Alliance", "MAGE" }
+    units.partypet1 = { "Pet-group" }
+    function UnitName(unit) return units[unit] and units[unit][2] end
+    function UnitIsPlayer(unit)
+        local guid = UnitGUID(unit)
+        return guid ~= nil and guid:match("^Player%-") ~= nil
+    end
+    local contestedOwner = false
+    function UnitIsOwnerOrControllerOfUnit(controller, controlled)
+        return controlled == "nameplate9" and (controller == "nameplate8"
+            or (contestedOwner and controller == "party1"))
+    end
+    local fake = {
+        [2] = {
+            [healer] = { Taken(units.player[2], "HUNTER", 24) },
+            [hidden] = { { totalAmount = 217, combatSpellDetails = {
+                unitName = "", unitClassFilename = "", amount = 0, isPet = false, isMob = false,
+            } }, Taken("Other Ally", "MAGE", 25) },
+            [unrelated] = { Taken("Other Enemy", "ROGUE", 10, true) },
+        },
+        [4] = { [shield] = { Taken("Field Healer", "PRIEST", 12) } },
+        [5] = { [interrupt] = { Taken("First Enemy", "HUNTER", 1) } },
+        [6] = { [purge] = { Taken("Field Healer", "PRIEST", 1) } },
+        [0] = { [pet] = { Taken("First Enemy", "HUNTER", 24) } },
+        [10] = { [fenrik] = { Taken("Stale Caster", "MAGE", 50) } },
+    }
+    local ids = {}
+    Enum.DamageMeterType = { HealingDone = 2, Absorbs = 4, Interrupts = 5, Dispels = 6, DamageDone = 0, EnemyDamageTaken = 10 }
+    C_DamageMeter.GetAvailableCombatSessions = function() return ids end
+    C_DamageMeter.GetCombatSessionFromID = function(id, category)
+        assert(id == 77)
+        local simulated = {}
+        for guid in pairs(fake[category]) do simulated[#simulated + 1] = { sourceGUID = guid } end
+        return { durationSeconds = 15, combatSources = simulated }
+    end
+    C_DamageMeter.GetCombatSessionSourceFromID = function(id, category, guid)
+        assert(id == 77)
+        return { combatSpells = fake[category][guid] }
+    end
+    local function StartFight()
+        Advance(10)
+        inCombat = true
+        Fire("PLAYER_REGEN_DISABLED")
+        Fire("PARTY_KILL", player.id, fenrik)
+        Advance(15)
+        inCombat = false
+        Fire("PLAYER_REGEN_ENABLED")
+    end
+    for index = 4, 11 do Fire("NAME_PLATE_UNIT_ADDED", "nameplate" .. index) end
+    inCombat = true
+    Advance(10)
+    Fire("PLAYER_REGEN_DISABLED")
+    Fire("UNIT_AURA", "player", { addedAuras = { {
+        spellId = 32, sourceUnit = "nameplate4", isHelpful = true,
+    } } })
+    Fire("UNIT_AURA", "player", secret)
+    Fire("PARTY_KILL", player.id, fenrik)
+    Advance(15)
+    ids = { { sessionID = 77 } }
+    inCombat = false
+    Fire("PLAYER_REGEN_ENABLED")
+    Fire("DAMAGE_METER_CURRENT_SESSION_UPDATED")
+    Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 10, 0)
+    Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 0, 77)
+    Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 2, 77)
+    Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 4, 77)
+    Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 5, 77)
+    Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 6, 77)
+    Advance(0.5)
+    local aided = assert(addon.db.skirmishes["world:3"])
+    local actual = {}
+    for _, ally in ipairs(aided.allies) do actual[ally.id] = true end
+    assert(#aided.allies == 6 and actual[healer] and actual[shield] and actual[purge] and actual[interrupt] and actual[owner])
+    assert(#aided.enemies == 1 and #aided.events == 1 and not actual[brother] and not actual[unrelated] and not actual[hidden] and not actual[stale])
+    local endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
+    assert(endRow.meterSelection == "new-archived" and endRow.meterEvidence.HealingDone == "eligible")
+    assert(endRow.meterCurrentUpdates.count == 1 and endRow.auraSignals.secret == 1)
+    assert(endRow.auraUpdates[1].sourceGUID == healer and endRow.auraUpdates[1].targetGUID == player.id)
+    assert(endRow.contacts[brother].latest.petGUID == "Pet-group" and endRow.petOwners[pet][owner])
+
+    -- The collector can start from GUIDs supplied by other PvP observations.
+    -- Changing which owners claim a pet invalidates only that ownership.
+    endRow.petOwners[pet][brother] = true
+    local onlyPet = { DamageDone = { sources = { {
+        sourceGUID = pet, spells = { { target = { unitName = "First Enemy", unitClassFilename = "HUNTER",
+            amount = 7, isMob = false, isPet = false } } },
+    } } } }
+    local anchors = { [fenrik] = true }
+    assert(#addon.ConnectedMeterParticipants(anchors, endRow.contacts, endRow.petOwners, onlyPet, "Alliance") == 0)
+    endRow.petOwners[pet][brother] = nil
+    local connected = addon.ConnectedMeterParticipants(anchors, endRow.contacts, endRow.petOwners, onlyPet, "Alliance")
+    assert(#connected == 1 and connected[1].guid == owner)
+
+    -- A recent Current update is not an update for the archived category.
+    ids = {}
+    contestedOwner = true
+    StartFight()
+    ids = { { sessionID = 77 } }
+    Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 2, 0)
+    Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 0, 77)
+    Advance(0.5)
+    local staleFight = assert(addon.db.skirmishes["world:4"])
+    endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
+    assert(#staleFight.allies == 1 and endRow.meterEvidence.HealingDone == "no-matching-update")
+
+    ids = {}
+    StartFight()
+    ids = { { sessionID = 77 } }
+    Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 2, 77)
+    Fire("DAMAGE_METER_RESET")
+    Advance(0.5)
+    endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
+    assert(endRow.meterReset and #addon.db.skirmishes["world:5"].allies == 1)
+
+    ids = {}
+    StartFight()
+    Fire("ZONE_CHANGED_NEW_AREA")
+    Advance(0.5)
+    endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
+    assert(endRow.areaChanged and endRow.status.meter == "interrupted")
+    assert(#addon.db.skirmishes["world:6"].allies == 1)
 end
-print("Duskwood replay recovers connected participants and rejects unrelated or stale evidence")
+print("Duskwood replay and participant links cover support, pet ownership, session updates and interruptions")

@@ -60,7 +60,7 @@ local function Participant(side, guid, name, level, rivalID, isSelf, appearance)
     end
 end
 
-function addon.EnrichWorldSkirmish(row, startTime, startUptime, damageTaken)
+function addon.EnrichWorldSkirmish(row, startTime, startUptime, categories)
     if not active or not addon.db or not addon.db.skirmishes or addon.db.skirmishes[active.id] ~= active.battle
         or row.instanceType ~= "none" or type(row.zone) ~= "string" or not active.battle.startedAt
         or active.battle.startedAt < startTime or active.lastEvent < startUptime or active.lastEvent > row.uptime
@@ -70,7 +70,10 @@ function addon.EnrichWorldSkirmish(row, startTime, startUptime, damageTaken)
     local faction = localPlayer and localPlayer.faction
     if not battle.allies[1].isSelf or not localPlayer or battle.allies[1].id ~= localPlayer.guid
         or (faction ~= "Alliance" and faction ~= "Horde") then return end
-    local additions = addon.ConnectedDamageParticipants(battle, row.contacts, damageTaken, faction)
+    local anchors = {}
+    for _, player in ipairs(battle.allies) do anchors[player.id] = true end
+    for _, player in ipairs(battle.enemies) do anchors[player.id] = true end
+    local additions = addon.ConnectedMeterParticipants(anchors, row.contacts, row.petOwners, categories, faction)
     if #additions == 0 then return end
     for _, entry in ipairs(additions) do
         local player = entry.player

@@ -8,10 +8,27 @@ local function ContactName(unit)
     if addon.HasFullName(name) then return name end
 end
 
--- Consume the sanitized post-combat snapshot. Unit sightings establish identity;
--- only a readable, positive combat interaction supplies a link to the fight.
-function addon.ConnectedDamageParticipants(battle, contacts, damageTaken, faction)
-    local byGUID, byName = {}, {}
+local function Index(index, key, entry)
+    if index[key] == nil then
+        index[key] = entry
+    elseif index[key] ~= entry then
+        index[key] = false
+    end
+end
+
+local function IndexPet(pets, state, entry)
+    local guid = state.petGUID
+    if guid and guid:match("^Pet%-.+") then Index(pets, guid, entry) end
+end
+
+local function CanJoin(player, faction)
+    return player.faction == faction or player.opponent == true
+end
+
+-- Session rows summarize interactions, so keep only positive relations between
+-- identified players. An owner can stand in for a pet only with a matching GUID.
+local function ParticipantLinks(contacts, petOwners, categories, faction)
+    local byGUID, byName, byPet = {}, {}, {}
     for guid, contact in pairs(contacts) do
         local player = contact.latest
         if player and player.guid == guid and player.isPlayer == true and guid:match("^Player%-.+")
@@ -20,35 +37,60 @@ function addon.ConnectedDamageParticipants(battle, contacts, damageTaken, factio
             if name and player.class then
                 local entry = { guid = guid, name = name, player = player }
                 byGUID[guid] = entry
-                local key = name .. "\0" .. player.class
-                -- The meter names attackers without GUIDs. Reject collisions.
-                byName[key] = byName[key] == nil and entry or false
+                Index(byName, name .. "\0" .. player.class, entry)
+                IndexPet(byPet, player, entry)
+                for _, state in ipairs(contact.changes or {}) do IndexPet(byPet, state, entry) end
             end
         end
     end
 
+    for pet, owners in pairs(petOwners) do
+        for owner in pairs(owners) do
+            Index(byPet, pet, byGUID[owner] or false)
+        end
+    end
+
     local edges = {}
-    for _, source in ipairs(damageTaken.sources or {}) do
-        local victim = byGUID[source.sourceGUID]
-        if victim and victim.player.faction == faction then
-            for _, spell in ipairs(source.spells or {}) do
-                local target = spell.target
-                if target and target.isMob == false and target.isPet == false
-                    and type(target.amount) == "number" and target.amount > 0
-                    and target.unitName and target.unitClassFilename then
-                    -- In DamageTaken, the detail target names the attacker.
-                    local attacker = byName[target.unitName .. "\0" .. target.unitClassFilename]
-                    if attacker and attacker.player.faction ~= faction and attacker.player.opponent == true then
-                        edges[#edges + 1] = { victim, attacker }
+    local function AddLinks(category, sameFaction, sourceFaction)
+        local data = categories[category]
+        for _, source in ipairs(data and data.sources or {}) do
+            local actor = byGUID[source.sourceGUID] or byPet[source.sourceGUID]
+            if actor and CanJoin(actor.player, faction)
+                and (not sourceFaction or actor.player.faction == sourceFaction) then
+                for _, spell in ipairs(source.spells or {}) do
+                    local detail = spell.target
+                    if detail and detail.isMob == false and detail.isPet == false
+                        and type(detail.amount) == "number" and detail.amount > 0
+                        and type(detail.unitName) == "string" and detail.unitName ~= ""
+                        and type(detail.unitClassFilename) == "string" then
+                        local other = byName[detail.unitName .. "\0" .. detail.unitClassFilename]
+                        if other and other ~= actor and CanJoin(other.player, faction)
+                            and (sameFaction == nil or (actor.player.faction == other.player.faction) == sameFaction) then
+                            edges[#edges + 1] = { actor, other }
+                        end
                     end
                 end
             end
         end
     end
 
+    -- The source is the victim in the taken categories and the actor otherwise.
+    AddLinks("DamageTaken", false, faction)
+    AddLinks("EnemyDamageTaken", false, faction == "Alliance" and "Horde" or "Alliance")
+    AddLinks("DamageDone", false)
+    AddLinks("Interrupts", false)
+    AddLinks("HealingDone", true)
+    AddLinks("Absorbs", true)
+    AddLinks("Dispels")
+    return edges
+end
+
+-- Anchors are GUIDs supplied by the caller. Links themselves have no dependency
+-- on journal entries or killing blows.
+function addon.ConnectedMeterParticipants(anchors, contacts, petOwners, categories, faction)
+    local edges = ParticipantLinks(contacts, petOwners, categories, faction)
     local reached, additions = {}, {}
-    for _, player in ipairs(battle.allies) do reached[player.id] = true end
-    for _, player in ipairs(battle.enemies) do reached[player.id] = true end
+    for guid in pairs(anchors) do reached[guid] = true end
     local previousCount
     repeat
         previousCount = #additions

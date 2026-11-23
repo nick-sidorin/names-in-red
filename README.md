@@ -112,9 +112,11 @@ the same skirmish ID replaces the indexed result and rewards.
 
 Live open-world capture groups readable player kills and local death recaps
 within the observed combat window. A current party member's finishing blow
-or a verified post-combat damage link can add an ally to the roster. Incoming
-damage can also identify an opposing player without a recorded death. Nearby
-player sightings alone do not count as participation. At death, visible
+or a readable post-combat link can add a participant to the roster. The
+preview checks specific damage, healing, absorb, interrupt and dispel links
+when the meter supplies both identities. It can credit a pet with a confirmed
+owner. Nearby sightings, group membership alone and unnamed meter totals do
+not establish participation. At death, visible
 nameplates can supply participant details when the target and mouseover are unavailable. For live
 records, `rosterComplete` also covers observed duels. It is recalculated at
 load and on each save. Honor correlation uses one readable
