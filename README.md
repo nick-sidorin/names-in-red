@@ -110,16 +110,17 @@ Mark the local player `isSelf` and identify profile links with `rivalID`.
 Store `honorableKills` and `honor` under `rewards[opponent.id]`. Re-saving
 the same skirmish ID replaces the indexed result and rewards.
 
-Live open-world capture groups readable player kills and local death recaps
-within the observed combat window. A current party member's finishing blow
-or a readable post-combat link can add a participant to the roster. The
-preview checks specific damage, healing, absorb, interrupt and dispel links
-when the meter supplies both identities. It can credit a pet with a confirmed
-owner. Nearby sightings, group membership alone and unnamed meter totals do
-not establish participation. At death, visible
-nameplates can supply participant details when the target and mouseover are unavailable. For live
-records, `rosterComplete` also covers observed duels. It is recalculated at
-load and on each save. Honor correlation uses one readable
+Live open-world capture can record a skirmish with zero kills or rewards
+when a readable harmful effect or post-combat link establishes that the
+player was involved. Observed local combat windows can join one record
+if a corroborating hostile action links them. The preview checks specific
+damage, healing, absorb, interrupt and dispel links when the meter supplies
+both identities. It can credit a pet with a confirmed owner. Nearby sightings,
+group membership alone and unnamed meter totals do not establish participation.
+At death, visible nameplates can supply details when the target and mouseover
+are unavailable. For live records, `rosterComplete` still covers observed
+one-on-one kills and is recalculated at load and on each save.
+Honor correlation uses one readable
 opponent death and a single increase in the session honorable kill count.
 An honor amount also requires one award message and a readable amount from
 that message or a matching honor currency update. Ambiguous broadcasts

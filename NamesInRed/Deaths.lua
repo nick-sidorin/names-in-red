@@ -72,8 +72,9 @@ local function Record(death)
     death.context.rivalLevel = observed and observed.level
     death.context.rivalAppearance = observed
     death.context.attackers = attackers
+    local id = addon.RecordWorldEncounter(guid, observed and observed.fullName or name, "deathsToThem", death.context)
+    if addon.WorldDeathWindow and not id then return end
     addon.db.lastDeathTimestamp = stamp
-    addon.RecordWorldEncounter(guid, observed and observed.fullName or name, "deathsToThem", death.context)
     return true
 end
 
@@ -91,6 +92,10 @@ frame:SetScript("OnEvent", function()
     local context = addon.EncounterContext()
     if type(context.time) ~= "number" then
         return
+    end
+    if addon.WorldDeathWindow then
+        context.worldWindow = addon.WorldDeathWindow(context)
+        if not context.worldWindow then return end
     end
     local death = { sequence = sequence, context = context, units = {} }
     local function Snapshot(unit)

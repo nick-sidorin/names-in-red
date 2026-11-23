@@ -658,6 +658,10 @@ function handlers.PLAYER_REGEN_ENABLED()
     CopyGroup(row)
     ObserveCurrent(row, "combat-end")
     local finished = combat
+    if addon.WorldCombatWindow then
+        finished.worldWindow = addon.WorldCombatWindow(finished.startedUptime)
+        addon.SnapshotWorldContacts(finished.worldWindow, finished.contacts)
+    end
     combat, settling = nil, finished
     row.contacts, row.unresolvedContacts = finished.contactSamples, finished.unresolved
     row.contactCount, row.contactOverflow = finished.contactCount, math.max(0, finished.contactCount - 32)
@@ -693,9 +697,8 @@ function handlers.PLAYER_REGEN_ENABLED()
         local context, anchors, faction
         if finished.previousPending then
             row.status.meterWindow = "previous-window-pending"
-        elseif addon.WorldMeterContext and finished.startedAt and finished.startedUptime and row.uptime
-            and row.instanceType == finished.startInstanceType and row.zone == finished.startZone then
-            context, anchors, faction = addon.WorldMeterContext(row, finished.startedAt, finished.startedUptime)
+        elseif addon.WorldMeterContext and row.instanceType == finished.startInstanceType and row.zone == finished.startZone then
+            context, anchors, faction = addon.WorldMeterContext(finished.worldWindow, row)
         end
         if finished.context and context ~= finished.context then
             settling = nil
@@ -730,7 +733,8 @@ function handlers.PLAYER_REGEN_ENABLED()
                     Count(counts, reached[actor] and "source-connected" or "source-disconnected")
                 end
             end
-            addon.ApplyWorldMeterEvidence(context, additions, faction)
+            addon.ApplyWorldMeterEvidence(context, additions, faction, row, evidence:HostileLinks(reached))
+            addon.SnapshotWorldContacts(context, finished.contacts)
         end
     end
     if C_Timer and C_Timer.After then C_Timer.After(0.5, function() ReadMeter(false) end) else ReadMeter(true) end
