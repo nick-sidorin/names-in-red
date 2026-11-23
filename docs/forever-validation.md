@@ -1153,6 +1153,10 @@ entry window's rock background from Blizzard's
 The form link precedes the report so each can be copied in sequence. The native feedback
 submission flow is outside this feature.
 
+The dialog uses a 660-unit width for the SavedVariables path and a shorter
+report field. The footer buttons use the same native three-slice template
+as the header button.
+
 The copy field contains a fenced JSON Lines report. Each line is an object
 with a `section`, beginning with format version 1 and ending with a list of
 truncated sections. Player aliases are scoped to the report; names, GUIDs,

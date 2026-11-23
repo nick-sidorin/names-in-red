@@ -118,6 +118,9 @@ local function Widget(parent)
     function widget:SetScript(key, callback) self.scripts[key] = callback end
     function widget:HookScript(key, callback) self.hooks[key] = callback end
     function widget:SetText(value) self.text = value end
+    function widget:SetSize(width, height) self.width, self.height = width, height end
+    function widget:SetWidth(width) self.width = width end
+    function widget:SetNonSpaceWrap(enabled) self.nonSpaceWrap = enabled end
     function widget:SetShown(value) self.visible = value end
     function widget:SetFocus() self.focus = true end
     function widget:ClearFocus() self.focus = false end
@@ -129,7 +132,11 @@ function CreateFrame(kind, name, parent, template)
     widget.name = name
     widget.template = template
     widgets[#widgets + 1] = widget
-    if template == "InputScrollFrameTemplate" then widget.EditBox, widget.CharCount = Widget(widget), Widget(widget) end
+    if template == "InputScrollFrameTemplate" then
+        widget.EditBox, widget.CharCount = Widget(widget), Widget(widget)
+    elseif template == "SharedButtonSmallTemplate" then
+        widget.SetTextToFit = widget.SetText
+    end
     return widget
 end
 function ButtonFrameTemplate_HidePortrait() end
@@ -138,10 +145,13 @@ addon.OpenIssueReport("bg:20")
 local window, link, select, nextPart, input = unpack(widgets)
 local linkHint, reportHint, savedVariablesHint = unpack(window.labels)
 assert(window.template == "PortraitFrameTemplate")
+assert(window.width == 660 and window.height == 410 and input.EditBox.width == 594)
+assert(select.template == "SharedButtonSmallTemplate" and nextPart.template == select.template)
 assert(linkHint.text == "Перейди на форму по ссылке и напиши о проблеме")
 assert(reportHint.text == "Отправь мне этот код с информацией о стычке")
 assert(linkHint.font == "GameFontHighlight" and reportHint.font == "GameFontHighlight")
 assert(savedVariablesHint.font == reportHint.font)
+assert(savedVariablesHint.nonSpaceWrap == false)
 assert(link.points.TOPLEFT[1] == linkHint and reportHint.points.TOPLEFT[1] == link)
 assert(input.points.TOPLEFT[1] == reportHint)
 assert(link.template == "InputBoxTemplate" and input.template == "InputScrollFrameTemplate")
