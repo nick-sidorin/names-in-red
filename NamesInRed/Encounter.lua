@@ -15,6 +15,42 @@ local function SafeRead(fn, ...)
     end
 end
 
+function addon.IsBattlegroundTrackingEnabled()
+    return not addon.db or addon.db.trackBattlegroundSkirmishes ~= false
+end
+
+function addon.SetBattlegroundTrackingEnabled(enabled)
+    if not addon.db or addon.IsBattlegroundTrackingEnabled() == enabled then return end
+    local _, instanceType = SafeRead(IsInInstance)
+    if instanceType == "pvp" and addon.OnBattlegroundTrackingChanged then
+        addon.OnBattlegroundTrackingChanged()
+    end
+    addon.db.trackBattlegroundSkirmishes = enabled
+end
+
+local battlegroundEnded
+function addon.SetBattlegroundEnded(ended)
+    battlegroundEnded = ended
+end
+
+function addon.RecordingPvPOrigin()
+    local inside, instanceType = SafeRead(IsInInstance)
+    if instanceType == "none" and inside == false then return "world" end
+    if instanceType ~= "pvp" or inside ~= true or battlegroundEnded or not addon.IsBattlegroundTrackingEnabled() then return end
+
+    local states = Enum and Enum.PvPMatchState
+    local state = SafeRead(C_PvP and C_PvP.GetActiveMatchState)
+    if states and states.Complete ~= nil and state == states.Complete then return end
+    return "battleground"
+end
+
+function addon.BattlegroundMapID()
+    if type(GetInstanceInfo) ~= "function" then return end
+    local ok, _, instanceType, _, _, _, _, _, mapID = pcall(GetInstanceInfo)
+    mapID = addon.Readable(mapID)
+    if ok and addon.Readable(instanceType) == "pvp" and type(mapID) == "number" and mapID > 0 then return mapID end
+end
+
 function addon.PlayerFaction()
     return SafeRead(UnitFactionGroup, "player")
 end
@@ -59,6 +95,8 @@ function addon.EncounterContext(unit)
         rivalLevel = unit and Level(unit),
         zone = SafeRead(GetRealZoneText),
     }
+    result.origin = addon.RecordingPvPOrigin()
+    if result.origin == "battleground" then result.instanceMapID = addon.BattlegroundMapID() end
     if C_Map then
         local mapID = SafeRead(C_Map.GetBestMapForUnit, "player")
         if type(mapID) == "number" then

@@ -89,7 +89,7 @@ function addon.RefreshBook(resetSearch)
 end
 
 Event("PLAYER_LOGIN")
-assert(registered == 1 and #rows == 4 and opened == 0)
+assert(registered == 1 and #rows == 5 and opened == 0)
 assert(rows[1].label == addon.L.showNameplateIcons and rows[2].label == addon.L.showUnitTooltip)
 assert(rows[1].get() and rows[2].get())
 rows[1].set(false)
@@ -125,15 +125,18 @@ CANCEL, CLOSE = "Cancel", "Close"
 local shown
 function StaticPopup_Show(key) shown = assert(StaticPopupDialogs[key]) end
 
-assert(rows[3].label == addon.L.resetData and rows[4].label == "Сообщить о проблеме")
+assert(rows[3].label == addon.L.trackBattlegrounds and rows[3].get())
+rows[3].set(false)
+assert(not rows[3].get())
+assert(rows[4].label == addon.L.resetData and rows[5].label == "Сообщить о проблеме")
 local resetCommand = SlashCmdList.NAMESINREDRESET
-assert(SLASH_NAMESINREDRESET1 == "/nirreset" and resetCommand == rows[3].click)
+assert(SLASH_NAMESINREDRESET1 == "/nirreset" and resetCommand == rows[4].click)
 local showPopup = StaticPopup_Show
 StaticPopup_Show = nil
 resetCommand("")
 assert(addon.Ledger.PersonalScore(db, rivalID) == 1 and journalRefreshes == 0)
 StaticPopup_Show = showPopup
-rows[3].click()
+rows[4].click()
 assert(shown.button2 == CANCEL and shown.hideOnEscape and addon.Ledger.PersonalScore(db, rivalID) == 1)
 if shown.OnCancel then shown.OnCancel() end
 assert(addon.Ledger.PersonalScore(db, rivalID) == 1 and journalRefreshes == 0)
@@ -147,6 +150,6 @@ assert(journalRefreshes == 1 and badgeRefreshes == 2 and tooltipRefreshes == 2)
 
 local reportOpens = 0
 function addon.OpenIssueReport() reportOpens = reportOpens + 1 end
-rows[4].click()
+rows[5].click()
 assert(reportOpens == 1)
 print("Native settings, minimap shortcut, confirmed reset and Issues link checks passed")

@@ -134,6 +134,10 @@ local function Add(kind)
         local _, instanceType = IsInInstance()
         return instanceType
     end)
+    if row.instanceType == "pvp" then
+        row.origin = "battleground"
+        Call(row, "instanceMapID", addon.BattlegroundMapID)
+    end
     Call(row, "inCombat", InCombatLockdown)
     Call(row, "zone", GetRealZoneText)
     if #db.rows >= limit then
@@ -1080,9 +1084,18 @@ function handlers.PVP_MATCH_COMPLETE()
     Sample(Add("PVP_MATCH_COMPLETE"))
 end
 
+function addon.CancelDiagnosticCombat()
+    combat, settling, passive = nil, nil, nil
+    deathSequence = deathSequence + 1
+end
+
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, ...)
     if event ~= "ADDON_LOADED" then
+        if addon.IsBattlegroundTrackingEnabled and not addon.IsBattlegroundTrackingEnabled() then
+            local _, instanceType = IsInInstance()
+            if Value(instanceType) == "pvp" then return end
+        end
         handlers[event](...)
         return
     end

@@ -56,7 +56,7 @@ Kill("Player-self", "Player-rival")
 target.faction = secret
 Kill("Player-self", "Player-rival")
 target.faction = "Horde"
-context = "pvp"
+context = "arena"
 Kill("Player-self", "Player-rival")
 assert(next(addon.db.rivals) == nil)
 

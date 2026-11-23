@@ -41,6 +41,11 @@ local function RegisterSettings()
             addon.RefreshUnitTooltip()
         end)
     Settings.CreateCheckbox(options, tooltip)
+
+    local battlegrounds = Settings.RegisterProxySetting(
+        options, "NAMES_IN_RED_TRACK_BATTLEGROUNDS", Settings.VarType.Boolean, L.trackBattlegrounds, true,
+        addon.IsBattlegroundTrackingEnabled, addon.SetBattlegroundTrackingEnabled)
+    Settings.CreateCheckbox(options, battlegrounds)
     layout:AddInitializer(CreateSettingsButtonInitializer("", L.resetData, RequestReset, nil, true))
     layout:AddInitializer(CreateSettingsButtonInitializer("", L.reportIssue, function() addon.OpenIssueReport() end, nil, true))
     Settings.RegisterAddOnCategory(options)

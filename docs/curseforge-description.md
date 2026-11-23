@@ -4,7 +4,7 @@
 
 ## ✨ Features at a Glance
 
-Your personal open-world PvP journal for **World of Warcraft: Forever**:
+Your personal journal for open-world PvP and battleground skirmishes for **World of Warcraft: Forever**:
 
 - 📖 **Remember your rivals** — Build a searchable record of identifiable enemies you've fought, saved separately for each character.
 - ⚔️ **Track the score** — See wins, losses, Honorable Kills, and attributed Honor Points against each rival.
@@ -44,7 +44,7 @@ Both are enabled by default and have separate switches under the addon settings.
 
 ## 📝 What Gets Recorded
 
-Names in Red observes **open-world PvP** using information the Forever client makes available to addons. It records readable kills and deaths, groups related observations into skirmishes, and adds other participants when there is sufficient evidence.
+Names in Red observes **open-world PvP and battleground skirmishes** using information the Forever client makes available to addons. It records readable kills and deaths, groups related observations into skirmishes, and adds other participants when there is sufficient evidence. Battleground cards identify the local fight and its outcome. Matches can contain several independent skirmishes.
 
 Not every encounter exposes a complete team or a certain result. Those records remain in the journal with an incomplete roster or unknown outcome instead of guessing. Honor and Honorable Kill rewards are attached only when the available signals identify the relevant encounter reliably. An unidentified player may appear as **Unknown rival** until their full name is available.
 
@@ -56,7 +56,7 @@ You can also add a skirmish manually by entering an opponent's full name and cho
 2. Click the crossed-swords minimap button to browse your recorded rivals.
 3. Select a rival for their **Information** and **Skirmishes** tabs, or open **Skirmish History** for all recent fights.
 
-Right-click the minimap icon, or open **Options → AddOns → Names in Red**, to configure nameplate icons and tooltip information. **Reset data** asks for confirmation before deleting this character's rivals, skirmishes, manual entries, demo data, and diagnostic log. Your display preferences and minimap button position are kept.
+Right-click the minimap icon, or open **Options → AddOns → Names in Red**, to configure nameplate icons, tooltip information, and battleground tracking. Battleground tracking is enabled by default. Turning it off keeps your existing history and rival recognition. **Reset data** asks for confirmation before deleting this character's rivals, skirmishes, manual entries, demo data, and diagnostic log. Your display preferences and minimap button position are kept.
 
 | Command | Action |
 | --- | --- |

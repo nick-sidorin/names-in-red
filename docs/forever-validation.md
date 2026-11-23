@@ -1153,3 +1153,34 @@ session, combat sequence, server time and uptime match can add a retained
 debug row. Evicted rows and unlinked legacy records are explicitly labeled.
 Automated tests exercise the projection and EditBox actions. Native sizing,
 scrolling and clipboard selection still need a client smoke check.
+
+### Battleground combat windows
+
+Forever build 70959 exposes the instance type and map ID through
+[`GetInstanceInfo`](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_APIDocumentationGenerated/InstanceDocumentation.lua#L103-L121).
+The recorder accepts an open-world context or an enabled instance whose
+`IsInInstance` type is `pvp`. It does not extend recording to arenas,
+dungeons or raids. The stored map ID identifies the battleground map, not
+the match, and Damage Meter session IDs identify data sources. Neither
+identifier joins local fights. A raid member's kill can extend a local
+battleground fight only when both participants are already linked.
+
+The native
+[`HandleAreaSpiritHealerInRange`](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_Game/Shared/EventImplementation.lua#L107-L114)
+queues the player at a spirit healer. The addon uses that range signal
+together with observed spirit and living states to stop carrying the
+previous local window into a fresh fight. A release alone leaves the
+observer running. A return from spirit state without recent linked
+hostility also starts fresh observation. When readable, a return within
+ongoing linked combat can still be represented in that fight. The
+[`PVP_MATCH_COMPLETE` payload](https://github.com/Gethe/wow-ui-source/blob/3d8abb1da73acd38e412e24fb3f99454a6392346/Interface/AddOns/Blizzard_APIDocumentationGenerated/PvpInfoDocumentation.lua#L1420-L1431)
+does not determine local outcomes. Match completion stops collecting;
+independently observed results remain, and unfinished assessments can
+remain Unknown.
+
+Lua event tests cover the gates, two local fights on the same map, spirit
+respawn, continuing combat, repeat kills, linked healing, and a local
+victory during a match loss. New live captures are still needed to determine
+which identities, target details and post-combat states remain readable in
+active Forever battlegrounds. Missing data may leave support players,
+rewards, repeat kills or results unconfirmed.

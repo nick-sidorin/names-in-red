@@ -852,6 +852,14 @@ open.scripts.OnClick()
 assert(openedSkirmish == "battle-two")
 reportAction.scripts.OnClick()
 assert(reportID == "battle-two")
+compact:SetEncounter({ skirmishID = "bg:22", origin = "battleground", zone = "Warsong Gulch" })
+local warsong = "Warsong Gulch  |cffc9b8a2· " .. addon.L.battleground .. "|r"
+assert(FindText(compact, warsong))
+card:SetSkirmish({ allies = large.allies, enemies = large.enemies, events = {},
+    origin = "battleground", zone = "Warsong Gulch" }, "Player-test", false, "bg:22")
+assert(FindText(card, warsong))
+fullReport.scripts.OnClick()
+assert(reportID == "bg:22")
 local loadedSelfPortrait
 function SetPortraitTexture(_, unit, disableMasking)
     assert(unit == "player" and disableMasking)
