@@ -210,6 +210,57 @@ local function Favors(holders, other, size, state)
     return other.rangeWithdrawn > 0 and "pressured-range-withdrawal" or "pressured-withdrawal"
 end
 
+local function IsolatedLethalRecap(battle, observation, state)
+    local segment = observation.segments and observation.segments[1]
+    local ally, enemy = battle.allies[1], battle.enemies[1]
+    if battle.origin ~= "world" or #battle.allies ~= 1 or #battle.enemies ~= 1 or not ally.isSelf
+        or not segment or #observation.segments ~= 1 or segment.startReason ~= "death"
+        or segment.endReason ~= "standalone-event" or segment.continuation or state.lastMeterActivity
+        or (segment.actions and next(segment.actions)) or (segment.meter and next(segment.meter.hostileLinks or {}))
+        or observation.playerState == "alive" then return end
+
+    local ledger = addon.Ledger
+    local death = ledger.LatestParticipantLife(battle, ally.id)
+    if not death or death.kind ~= "kill" or death.source ~= "death-recap" or death.actorID ~= enemy.id
+        or type(enemy.id) ~= "string" or not enemy.id:match("^Player%-.+") then return end
+    local recent = state.lastAction
+    if recent and (recent.offset or 0) > (death.offset or 0) then return end
+    for _, key in ipairs({ "first", "last" }) do
+        local sample = state[key]
+        local localState = sample and sample.units[ally.id]
+        if localState and localState.dead == false
+            and ledger.LaterBattleEvent({ time = sample.at, offset = sample.offset }, death) then return end
+    end
+    return true
+end
+
+local function StableSurvivors(side, state, dead)
+    local anchor
+    for _, player in ipairs(side) do
+        local id = player.id
+        if not dead[id] then
+            local first, last = state.first.units[id], state.last.units[id]
+            if not first or not last or first.dead ~= false or last.dead ~= false
+                or first.combat ~= false or last.combat ~= false then return end
+            local drift = Distance(first.position, last.position)
+            if not drift or drift > 12 then return end
+            anchor = anchor or first.position
+            if (Distance(anchor, first.position) or math.huge) > holderRadius
+                or (Distance(anchor, last.position) or math.huge) > holderRadius then return end
+        end
+    end
+    return anchor ~= nil
+end
+
+local function SiteFreeElimination(battle, observation, state, dead, allies, enemies)
+    if state.site or not state.lastAction or allies.active + enemies.active > 0 then return end
+    local segments = observation.segments
+    local segment = segments and segments[#segments]
+    if not segment or segment.endReason ~= "local-combat-ended" then return end
+    if allies.dead == #battle.allies and StableSurvivors(battle.enemies, state, dead) then return "loss" end
+    if enemies.dead == #battle.enemies and StableSurvivors(battle.allies, state, dead) then return "win" end
+end
+
 function addon.EvaluateWorldSkirmish(battle)
     local observation = battle.observation
     local state = observation and observation.assessment
@@ -220,17 +271,20 @@ function addon.EvaluateWorldSkirmish(battle)
     if state.checkStatus == "watching" then
         result.ending, result.reason = "ongoing", "recent-hostility-or-open-window"
     end
-    if state.interrupted then
-        result.ending, result.reason = "unknown", state.interrupted
+    result.interrupted = state.interrupted
+    if IsolatedLethalRecap(battle, observation, state) then
+        result.ending, result.reason, result.outcome = "observed", "isolated-lethal-recap", "loss"
         return result
     end
     if not state.first or not state.last or #battle.allies == 0 or #battle.enemies == 0 then
+        if state.interrupted then result.ending, result.reason = "unknown", state.interrupted end
         result.coverage = "no-terminal-samples"
         return result
     end
     local recent = math.max(state.lastAction and state.lastAction.offset or 0, state.lastMeterActivity or 0)
     if state.first.offset < recent or state.last.offset <= state.first.offset then
-        result.ending, result.reason = "ongoing", "later-hostility"
+        result.ending = state.interrupted and "unknown" or "ongoing"
+        result.reason = state.interrupted or "later-hostility"
         return result
     end
     local dead = ConfirmedDeaths(battle, state.first, state.last)
@@ -253,10 +307,17 @@ function addon.EvaluateWorldSkirmish(battle)
     local wins = Favors(allies, enemies, #battle.enemies, state)
     local losses = Favors(enemies, allies, #battle.allies, state)
     result.favorsVictory, result.favorsDefeat = wins, losses
+    local elimination = SiteFreeElimination(battle, observation, state, dead, allies, enemies)
     if wins or losses then
         result.ending, result.reason, result.outcome = "observed", wins or losses, wins and "win" or "loss"
+    elseif elimination then
+        result.ending, result.reason, result.outcome = "observed", "side-eliminated-stable-survivors", elimination
+    elseif state.interrupted then
+        result.ending, result.reason = "unknown", state.interrupted
     elseif allies.active + enemies.active > 0 then
         result.reason = "participants-still-in-combat"
+    elseif allies.unresolved + enemies.unresolved > 0 and not state.site and noPosition == 0 and noState == 0 then
+        result.reason = "site-anchor-missing"
     elseif allies.unresolved + enemies.unresolved > 0 then
         result.reason = "participant-state-or-position-unavailable"
     elseif allies.away > 0 and enemies.away > 0 and allies.holding + enemies.holding == 0 then

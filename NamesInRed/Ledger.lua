@@ -5,6 +5,9 @@ local skirmishIndexes = setmetatable({}, { __mode = "k" })
 
 local function ObservedDuel(battle)
     if #battle.allies ~= 1 or #battle.enemies ~= 1 then return false end
+    local segments = battle.observation and battle.observation.segments
+    if segments and segments[1] and segments[1].endReason == "standalone-event"
+        and segments[1].startReason == "death" then return false end
     local player, rival = battle.allies[1], battle.enemies[1]
     if not player.isSelf or not player.id or not rival.id or player.id == rival.id then return false end
     local directKill = false
@@ -53,6 +56,7 @@ function Ledger.Clear(db)
     db.skirmishes = nil
     db.encounterSequence = nil
     db.lastDeathTimestamp = nil
+    db.unassignedRewards = nil
     skirmishIndexes[db] = nil
 end
 
@@ -197,15 +201,41 @@ function Ledger.FirstDeaths(battle)
     return firstDeath
 end
 
+function Ledger.AddRewards(owner, key, honorableKills, honor)
+    if honorableKills == 0 and honor == 0 then return end
+    local rewards = owner[key] or { honorableKills = 0, honor = 0 }
+    rewards.honorableKills = (rewards.honorableKills or 0) + honorableKills
+    rewards.honor = (rewards.honor or 0) + honor
+    owner[key] = rewards
+end
+
 function Ledger.SkirmishRewards(battle)
-    local honorableKills, honor = 0, 0
-    if battle.rewards then
-        for _, reward in pairs(battle.rewards) do
-            honorableKills = honorableKills + (reward.honorableKills or 0)
-            honor = honor + (reward.honor or 0)
-        end
+    local unassigned = battle.unassignedRewards or {}
+    local honorableKills, honor = unassigned.honorableKills or 0, unassigned.honor or 0
+    for _, reward in pairs(battle.rewards or {}) do
+        honorableKills = honorableKills + (reward.honorableKills or 0)
+        honor = honor + (reward.honor or 0)
     end
     return honorableKills, honor
+end
+
+function Ledger.JournalRewards(db)
+    local unassigned = db.unassignedRewards or {}
+    local total = {
+        honorableKills = unassigned.honorableKills or 0, honor = unassigned.honor or 0,
+        unassignedHK = unassigned.honorableKills or 0, unassignedHonor = unassigned.honor or 0,
+    }
+    for _, battle in pairs(db.skirmishes or {}) do
+        local hk, honor = Ledger.SkirmishRewards(battle)
+        total.honorableKills, total.honor = total.honorableKills + hk, total.honor + honor
+    end
+    for _, rival in pairs(db.rivals) do
+        for _, encounter in ipairs(rival.encounters or {}) do
+            total.honorableKills = total.honorableKills + (encounter.honorableKills or 0)
+            total.honor = total.honor + (encounter.honor or 0)
+        end
+    end
+    return total
 end
 
 local function IndexSkirmish(index, id, battle)
