@@ -1,6 +1,7 @@
 local _, addon = ...
 
 local holderRadius, withdrawalRadius, pressureAge = 30, 55, 12
+local checkedExit, maxProbeRange, anchorDrift = 40, 45, 5
 
 local function Distance(a, b)
     if a and b and a.map == b.map then
@@ -45,7 +46,33 @@ function addon.ReadWorldOutcomeState(unit)
     return { dead = dead, combat = ReadUnit(UnitAffectingCombat, unit) }
 end
 
-function addon.ReadWorldOutcomeUnits(ids)
+local function CheckedDistance(unit)
+    if type(UnitDistanceSquared) ~= "function" then return end
+    local ok, squared, checked = pcall(UnitDistanceSquared, unit)
+    if not ok or addon.Readable(checked) ~= true then return end
+    squared = addon.Readable(squared)
+    if type(squared) == "number" and squared > 0 and squared < math.huge then return squared end
+end
+
+local function SpellRange(spell)
+    local info = C_Spell and ReadUnit(C_Spell.GetSpellInfo, spell)
+    if type(info) ~= "table" or (canaccesstable and not canaccesstable(info)) then return end
+    local upper = addon.Readable(info.maxRange)
+    if addon.Readable(info.minRange) == 0 and type(upper) == "number"
+        and upper >= checkedExit and upper <= maxProbeRange then return upper end
+end
+
+local function ReadRangeExit(unit, probe)
+    if probe.distance then
+        local squared = CheckedDistance(unit)
+        if squared then return squared >= checkedExit^2 end
+    elseif C_Spell and ReadUnit(UnitCanAttack, "player", unit) == true and SpellRange(probe.spell) == probe.upper then
+        local inRange = ReadUnit(C_Spell.IsSpellInRange, probe.spell, unit)
+        if type(inRange) == "boolean" then return not inRange end
+    end
+end
+
+function addon.ReadWorldOutcomeUnits(ids, pressure)
     local units = {}
     VisitUnits(function(unit)
         local guid = ReadUnit(UnitGUID, unit)
@@ -53,46 +80,95 @@ function addon.ReadWorldOutcomeUnits(ids)
         local state = addon.ReadWorldOutcomeState(unit)
         if not state then return end
         state.position = Position(unit)
+        local probe = pressure and pressure[guid] and pressure[guid].range
+        if probe and state.dead == false and state.combat == false then
+            state.rangeExit = ReadRangeExit(unit, probe)
+        end
         units[guid] = state
     end)
     return units
 end
 
--- Position is meaningful only for an identified pair during a witnessed action.
-function addon.NoteWorldOutcomeAction(state, actor, target, offset, kind)
+local function RangeAtAction(unit, origin, spell)
+    if not origin or type(unit) ~= "string" or ReadUnit(UnitIsVisible, unit) ~= true then return end
+    local squared = CheckedDistance(unit)
+    if squared and squared <= holderRadius^2 then return { distance = true, origin = origin } end
+    if C_Spell and type(spell) == "number" and ReadUnit(UnitCanAttack, "player", unit) == true
+        and ReadUnit(C_Spell.IsSpellHarmful, spell) == true then
+        local upper = SpellRange(spell)
+        if upper and ReadUnit(C_Spell.IsSpellInRange, spell, unit) == true then
+            return { spell = spell, upper = upper, origin = origin }
+        end
+    end
+end
+
+-- Anchor the outcome to a witnessed action. A local range probe can establish
+-- proximity without access to the opponent's coordinates.
+function addon.NoteWorldOutcomeAction(state, actor, target, offset, kind, spell, targetUnit)
     state.lastAction = { actorID = actor, targetID = target, offset = offset, kind = kind }
     state.offense = state.offense or {}
     state.offense[actor] = offset
     local units = addon.ReadWorldOutcomeUnits({ [actor] = true, [target] = true })
     local from, to = units[actor] and units[actor].position, units[target] and units[target].position
+    local range
+    if actor == ReadUnit(UnitGUID, "player") and targetUnit and ReadUnit(UnitGUID, targetUnit) == target then
+        range = RangeAtAction(targetUnit, from, spell)
+    end
     local distance = Distance(from, to)
-    if not state.site and distance and distance <= 2 * holderRadius then
-        state.site = { x = (from.x + to.x) / 2, y = (from.y + to.y) / 2, map = from.map }
+    if not state.site then
+        if distance and distance <= 2 * holderRadius then
+            state.site = { x = (from.x + to.x) / 2, y = (from.y + to.y) / 2, map = from.map }
+        elseif range then
+            state.site = from
+        end
     end
     local fromSite, toSite = Distance(state.site, from), Distance(state.site, to)
-    if fromSite and fromSite <= holderRadius and toSite and toSite <= holderRadius then
+    if fromSite and fromSite <= holderRadius and ((toSite and toSite <= holderRadius) or range) then
         state.pressure = state.pressure or {}
-        state.pressure[target] = { actorID = actor, offset = offset }
+        state.pressure[target] = { actorID = actor, offset = offset, range = range }
     end
 end
 
-local function ConfirmedDeaths(battle, last)
+local function ConfirmedDeaths(battle, first, last)
     local dead = {}
     for _, event in ipairs(battle.events) do
-        if event.kind == "kill" and event.targetID and type(event.time) == "number" and type(last.at) == "number"
-            and event.time <= last.at and last.at - event.time <= pressureAge then
-            dead[event.targetID] = true
-        elseif event.kind == "revive" and event.targetID then dead[event.targetID] = nil end
+        local id, at = event.targetID, event.time
+        if id and (type(at) ~= "number" or type(last.at) ~= "number" or at <= last.at) then
+            if event.kind == "kill" then dead[id] = event
+            elseif event.kind == "revive" then dead[id] = nil end
+        end
     end
-    -- An alive state sampled after the last known action supersedes a kill.
-    for id, unit in pairs(last.units) do
-        if unit.dead == false then dead[id] = nil end
+    for _, sample in ipairs({ first, last }) do
+        for id, unit in pairs(sample.units) do
+            local death = dead[id]
+            if unit.dead == false and death and type(sample.at) == "number" and type(death.time) == "number"
+                and sample.at > death.time then dead[id] = nil end
+        end
     end
     return dead
 end
 
+local function ObservedRangeExit(state, id, first, last)
+    local pressure = state.pressure and state.pressure[id]
+    local probe = pressure and pressure.range
+    if not probe or not first or first.rangeExit ~= true or first.dead ~= false or first.combat ~= false
+        or (last and (last.rangeExit ~= true or last.dead ~= false or last.combat ~= false)) then return end
+    for _, sample in ipairs({ state.first, state.last }) do
+        local holder = sample.units[pressure.actorID]
+        local departing = sample.units[id]
+        local position = departing and departing.position
+        if position then
+            local distance = Distance(probe.origin, position)
+            if not distance or distance < checkedExit - anchorDrift then return end
+        end
+        local drift = holder and Distance(probe.origin, holder.position)
+        if not drift or drift > anchorDrift or holder.dead ~= false or holder.combat ~= false then return end
+    end
+    return true
+end
+
 local function Classify(side, state, dead, solo)
-    local result = { dead = 0, holding = 0, away = 0, unresolved = 0, active = 0, heldBy = {}, withdrawn = {} }
+    local result = { dead = 0, holding = 0, away = 0, unresolved = 0, active = 0, heldBy = {}, withdrawn = {}, rangeWithdrawn = 0 }
     for _, player in ipairs(side) do
         local id = player.id
         local first, last = state.first.units[id], state.last.units[id]
@@ -100,6 +176,10 @@ local function Classify(side, state, dead, solo)
             result.dead = result.dead + 1
         elseif (first and first.combat == true) or (last and last.combat == true) then
             result.active = result.active + 1
+        elseif ObservedRangeExit(state, id, first, last) then
+            result.away = result.away + 1
+            result.rangeWithdrawn = result.rangeWithdrawn + 1
+            result.withdrawn[#result.withdrawn + 1] = id
         elseif first and last and first.dead == false and last.dead == false
             and first.combat == false and last.combat == false then
             local near, finish = Distance(state.site, first.position), Distance(state.site, last.position)
@@ -131,7 +211,7 @@ local function Favors(holders, other, size, state)
         if not pressure or not holders.heldBy[pressure.actorID] or state.last.offset - pressure.offset > pressureAge
             or (reply and reply > pressure.offset) then return end
     end
-    return "pressured-withdrawal"
+    return other.rangeWithdrawn > 0 and "pressured-range-withdrawal" or "pressured-withdrawal"
 end
 
 function addon.EvaluateWorldSkirmish(battle)
@@ -157,7 +237,7 @@ function addon.EvaluateWorldSkirmish(battle)
         result.ending, result.reason = "ongoing", "later-hostility"
         return result
     end
-    local dead = ConfirmedDeaths(battle, state.last)
+    local dead = ConfirmedDeaths(battle, state.first, state.last)
     local solo = #battle.allies == 1 and #battle.enemies == 1
     local allies = Classify(battle.allies, state, dead, solo)
     local enemies = Classify(battle.enemies, state, dead, solo)

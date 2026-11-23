@@ -1144,5 +1144,87 @@ do
     Advance(3)
     assert(#pressureWin.events == 0 and addon.Ledger.SkirmishOutcome(pressureWin) == "win")
     assert(pressureWin.resolution.reason == "pressured-withdrawal")
+
+    -- The native position API returns nothing for this hostile target.
+    -- Only one terminal sample can still identify the withdrawing player.
+    local inRange, checkedDistance, checked, minRange
+    function UnitDistanceSquared(unit)
+        if unit == "target" then return checkedDistance, checked end
+    end
+    C_Spell = {
+        GetSpellInfo = function(id)
+            assert(id == 681)
+            return { minRange = minRange, maxRange = 40 }
+        end,
+        IsSpellHarmful = function(id) return id == 681 end,
+        IsSpellInRange = function(_, unit)
+            assert(unit == "target")
+            return inRange
+        end,
+    }
+    local function LateRangeRead(distance, probeIsChecked, atExit, minimum, vanishEarly)
+        Advance(10)
+        ResetStates()
+        position[enemy] = nil
+        inRange, minRange = true, minimum
+        checkedDistance, checked = 16^2, probeIsChecked
+        BeginFight()
+        Advance(2)
+        checkedDistance, inRange = distance, atExit
+        EndFight()
+        if not vanishEarly then Advance(1) end
+        hidden[enemy] = true
+        Fire("NAME_PLATE_UNIT_REMOVED", "nameplate1")
+        Advance(3)
+    end
+
+    LateRangeRead(41^2, true, nil, 8, false)
+    local checkedWin = Battle(5)
+    assert(checkedWin.resolution.reason == "pressured-range-withdrawal")
+    assert(checkedWin.observation.assessment.first.units[enemy].position == nil)
+    assert(checkedWin.observation.assessment.last.units[enemy] == nil)
+
+    LateRangeRead(0, false, false, 0, false)
+    assert(addon.Ledger.SkirmishOutcome(Battle(6)) == "win")
+
+    LateRangeRead(0, false, secretSample, 0, false)
+    assert(not addon.Ledger.SkirmishOutcome(Battle(7)))
+
+    LateRangeRead(0, false, false, 0, true)
+    assert(not addon.Ledger.SkirmishOutcome(Battle(8))) -- lost before a readable exit
+
+    LateRangeRead(0, false, false, 8, false)
+    assert(not addon.Ledger.SkirmishOutcome(Battle(9))) -- false could mean too close
+
+    -- Full 2 × 3 sequence using real event entry points. The two bodies
+    -- leave the observable roster long before the last enemy withdraws.
+    Advance(10)
+    ResetStates()
+    local third = "Player-third-range"
+    position[enemy] = nil
+    checked, minRange, inRange = false, 0, true
+    BeginFight()
+    Advance(10)
+    dead[enemy] = true
+    Fire("PARTY_KILL", localID, enemy)
+    units.target = { ghash, "Second Enemy", "Horde", "SHAMAN" }
+    Aura("party1", "target")
+    Advance(10)
+    dead[ghash] = true
+    Fire("PARTY_KILL", localID, ghash)
+    units.target = { third, "Last Enemy", "Horde", "PALADIN" }
+    Advance(20)
+    Aura("player", "target")
+    inRange = false
+    EndFight()
+    Advance(1)
+    hidden[third] = true
+    Fire("NAME_PLATE_UNIT_REMOVED", "nameplate1")
+    Advance(3)
+    local longWin = Battle(10)
+    assert(#longWin.allies == 2 and #longWin.enemies == 3 and #longWin.events == 2)
+    assert(longWin.resolution.outcome == "win" and longWin.resolution.enemies.dead == 2)
+    assert(longWin.resolution.reason == "pressured-range-withdrawal")
+    assert(not addon.Ledger.FirstDeaths(longWin)[third])
 end
 print("Corpse and released-spirit observations, readable meter deltas and genuine scope boundaries passed")
