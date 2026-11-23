@@ -1169,7 +1169,7 @@ do
         inRange, minRange = true, minimum
         checkedDistance, checked = 16^2, probeIsChecked
         BeginFight()
-        Advance(2)
+        Advance(4)
         checkedDistance, inRange = distance, atExit
         EndFight()
         if not vanishEarly then Advance(1) end
@@ -1213,8 +1213,9 @@ do
     dead[ghash] = true
     Fire("PARTY_KILL", localID, ghash)
     units.target = { third, "Last Enemy", "Horde", "PALADIN" }
-    Advance(20)
+    Advance(15)
     Aura("player", "target")
+    Advance(5)
     inRange = false
     EndFight()
     Advance(1)
