@@ -56,14 +56,18 @@ abandoning a lost group fight, crossing zone borders, unrelated later PvE
 and a distinct later revenge fight. These are now in the product spec.
 Do not choose a timeout from the five-minute revenge example.
 
-One remaining refinement: successful defensive escape as personal Victory
-versus forced retreat. The spec records the recommended survival-success
-rule as a proposal, not a blanket win-on-survival policy. Confirm it before
-changing those branches; design and test the unambiguous death, return and
-continuation cases without reopening agreed scoring decisions. Exact
-thresholds, legacy/manual presentation and storage/API contracts are
-implementation choices to document and validate, not reasons to re-ask all
-the accepted product questions.
+The owner rejected the previous proposed survival-first escape rule and
+proposed a simpler replacement: finalized Victory/Defeat/Draw from observed
+PvP-linked casualty counts, including Draw at 0:0 and equal deaths, with
+In progress as a separate lifecycle state and no routine public Unknown.
+See the proposal in section 6 of the product specification. The key
+unresolved conflict is terminal personal death with favorable/equal side
+casualties: does the count rule win, or does personal death override it?
+Confirm this before implementing the new evaluator. Preserve incomplete
+coverage as evidence metadata, and settle legacy Unknown presentation
+without rewriting historical facts. The five accepted rival-score rules
+remain unchanged. Exact time thresholds and storage/UI choices remain
+implementation design.
 
 Before runtime work, follow [engineering best practices](best-practices.md).
 Have the first fresh developer session (or the existing Codex session if
@@ -86,8 +90,9 @@ fixtures before deciding exact storage and function names.
   forced withdrawal, local victory and genuine Unknown. Separate pending
   continuation from finalization, test quiet intervals, late evidence, zone
   borders, unrelated PvE and later revenge. Reuse or revise existing timers
-  based on evidence; document the chosen values. Confirm the proposed
-  defensive escape rule before changing that result.
+  based on evidence; document the chosen values. Resolve the proposed
+  casualty-count/Draw contract and personal-death conflict before changing
+  outcome semantics.
 - Use corroborated evidence for observed defeat/retreat without demanding
   a perfect site anchor or complete roster. Feign Death, token identity,
   NPC-only deaths and missing fields remain meaningful safeguards.
@@ -202,6 +207,6 @@ contracts. Independent fixture preparation may be parallelized only if
 it does not create conflicting changes.
 
 No release or runtime implementation is authorized by this proposed
-roadmap alone. Next: confirm the remaining defensive escape refinement,
-then authorize the first implementation task. No need to re-approve the five
+roadmap alone. Next: settle the casualty-count/Draw proposal and its
+conflict with terminal personal death, then authorize the first implementation task. No need to re-approve the five
 settled scoring rules.

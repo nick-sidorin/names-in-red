@@ -1,6 +1,6 @@
 # Names in Red — PvP Skirmishes: Product Specification
 
-**Status:** Owner-approved Character POV direction and death-linked rival scoring, 24 November 2026. The survival-first escape refinement below is a proposal pending final confirmation. This is the target behavior for development after 1.1.0, not a description of its shipped behavior. It supersedes the previous side-outcome and rival-score semantics. The evidence and implementation details belong in [Forever validation](forever-validation.md).
+**Status:** Owner-approved Character POV direction and death-linked rival scoring, 24 November 2026. The owner rejected survival alone as a victory and proposed a casualty-based outcome with Draw and a separate in-progress state. The replacement rule below is pending confirmation of its conflict with terminal personal death. This is the target behavior for development after 1.1.0, not a description of its shipped behavior. It supersedes the previous side-outcome and rival-score semantics. The evidence and implementation details belong in [Forever validation](forever-validation.md).
 
 ## 1. Product goal: Character POV
 
@@ -117,23 +117,56 @@ The character's own participation ends in a confirmed PvP-related death or a rea
 
 Unknown is valid when the character's participation has ended or observation is lost without reasonable evidence of a personal win or loss, including mutual disengagement, ambiguous stealth/disappearance, or an unresolved living departure. It is not an error code for a missing field, incomplete roster, unavailable coordinate or unavailable group result. While participation is ongoing, do not prematurely lock an ending. Preserve an Unknown fight even with zero rewards or casualties; it does not count as either outcome.
 
-### Proposed survival-first refinement (one remaining product question)
+### Proposed replacement: casualty-based outcome and Draw
 
-A successful escape from an unwanted attack may be a personal Victory: the
-character survives the attack, genuinely disengages and resumes their own
-activity, without evidence that they abandoned a losing confrontation. This
-is the owner's proposed direction, with a recommended distinction between
-successful survival and conceding the fight. It is not yet a settled blanket
-rule that every living character wins.
+On 24 November the owner rejected crediting an ordinary successful escape as
+Victory: surviving a fight and running away without a decisive advantage is
+neither a win nor a loss in itself. The owner proposed Draw for mutual
+disengagement, escape and equal casualties, and a simpler result based on the
+number of observed deaths on each side. This supersedes the previous
+*proposed* survival-first escape rule. The existing approved outcome rules
+above are not yet replaced; resolve the conflict below before implementation.
 
-The existing accepted rules still apply: a clear local victory is Victory,
-a proven forced withdrawal (including the fallen-allies case) is Defeat,
-and neutral mutual disengagement or genuinely unresolved observation is
-Unknown. Survival plus an expired timer or an unavailable unit is not
-positive proof of success. Before changing this part of the evaluator,
-confirm whether an independently established successful defensive escape
-should count as Victory and how to handle ambiguous solo withdrawal.
-Do not infer a private intention (such as revenge or fear) from API signals.
+Candidate contract:
+
+- A finalized encounter has Victory when the opposing side suffered more
+  confirmed PvP-linked death episodes than our side, Defeat when our side
+  suffered more, and Draw when the counts are equal, including 0:0. No
+  territorial control, inferred intention, forced-retreat classification or
+  complete roster is required by this scoring rule. Survival alone is not
+  a victory. A no-death encounter is not a rival-score win either.
+- Count distinct death episodes of observed participants, not the sum of
+  rival contribution credits. A local death to three attackers counts as one
+  casualty, not three. A real revival and later death can count again; this
+  is the recommended unit consistent with the approved rival rules, pending
+  confirmation of the aggregate outcome contract. Exclude unrelated NPC
+  deaths, bystanders, duplicate notifications and unlinked fights.
+- Evaluate only reliably linked observations available to the character's
+  client within the encounter's observation boundary. No omniscient
+  reconstruction of events after observation stops. Continue the existing
+  pending/finalized lifecycle; an active or settling record may be displayed
+  as In progress, which is a lifecycle state, not a final outcome.
+- The owner wants to remove Unknown as a routine public outcome. Preserve
+  coverage, missing/restricted evidence and reason separately. Recommended
+  interpretation of the simple count rule is a result **based on recorded
+  casualties**, not a claim that no unobserved deaths happened. A Draw with
+  no recorded deaths and incomplete observation must not assert that every
+  participant survived. Decide presentation for genuinely missing evidence
+  and legacy Unknown records; do not silently rewrite original historical
+  outcomes or invent deaths.
+
+**Decision needed:** does this count rule replace terminal personal death
+as automatic Defeat? Example: our character kills two enemies and dies
+without returning; observed casualties 1:2. Pure casualty scoring says
+Victory, the previous personal outcome rule says Defeat. Likewise if our
+character and one enemy die the pure count is Draw. Choose pure casualty
+scoring or an explicit personal-death override before changing the evaluator.
+The approved per-rival participation score, permanent history and separate
+game-awarded rewards are unaffected.
+
+If accepted, revise sections 1, 5–9 and the roadmap consistently, including
+historical regression expectations and all references to Unknown, rather
+than layering incompatible rules into runtime.
 
 ### Best-evidence inference, not a courtroom standard
 
@@ -253,7 +286,7 @@ The original capture was 1 vs 2, later reconstructed as 2 vs 3 with two enemy de
 26. Death, ghost run, resurrection and actual return to ongoing fight: keep the same record and original death. Later revenge after a finalized fight: start another record, even against the same enemies at the same place.
 27. Chase across an ordinary zone border: do not split on zone name alone. An unrelated later PvE fight in a different place/time or bounded quiet interval can close the previous participation. An NPC mixed into the original PvP fight cannot close it by itself.
 28. Delayed old meter read or kill notification after a new fight starts: only update the uniquely matched old episode; do not reopen or merge the fights. A delayed read is not proof of new activity.
-29. Proposed defensive escape case: survive an unwanted attack, break pursuit and resume normal activity without conceding a losing group fight. Expected Victory if the proposed survival-success rule is approved; an ambiguous lost contact remains Unknown.
+29. Proposed casualty-outcome cases (pending the decision in section 6): completed 0:0 escape/mutual disengagement → Draw; 1:2 → Victory; 2:1 → Defeat; 2:2 → Draw. Three attackers contributing to one local death still yield one casualty. Test the conflict case of a terminal local death with favorable or equal casualties, incomplete observation, genuine repeated deaths and an active/settling encounter separately.
 
 ## 10. Boundaries and follow-up work
 
