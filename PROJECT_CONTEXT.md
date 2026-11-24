@@ -181,7 +181,9 @@ features into an approved release. See product spec for all acceptance rules.
   implements the Character POV projection from durable timeline and local ending
   evidence. WorldSkirmishes owns participation transitions. Ledger persists the
   versioned projection alongside the legacy result; UI and existing score
-  consumers still read the legacy result in PR A.
+  consumers still read the legacy result in PR A. The durable timeline
+  includes sample-observed revivals and witnessed per-pair action offsets
+  within each segment for replay across separate lives.
 - NamesInRed/WorldSkirmishes.lua, SkirmishEvidence.lua, Debug.lua, Kills.lua,
   Deaths.lua, Honor.lua, Encounter.lua: event correlation, roster and life
   observations, late windows, group/pet identity, accepted meter links and

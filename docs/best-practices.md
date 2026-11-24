@@ -139,6 +139,13 @@ used by cards, profile, tooltip and nameplate.
   aggregate has no exact individual hit time; a cast success has no proven
   target or hit; a missing flag is not false. Validate actor/target, ownership,
   session, segment and life-episode scope. Reject stale/ambiguous signals.
+- Preserve witnessed action times on both sides of a life transition. Per-pair
+  first/last/count summaries alone can drop the only action that links an
+  earlier corpse to PvP. For live life transitions, reconcile readable,
+  identity-checked samples as they arrive so a later kill uses the right
+  life. Preserve window invalidation and the post-kill settling guard on
+  both live capture and replay. See
+  [Character POV PR A](forever-validation.md#character-pov-pr-a).
 - Use product rules rather than incidental API flags for fight boundaries.
   Current short late-event/bridge/terminal timers are implementation details,
   not product constants. No infinite waits, raw uptime persisted as absolute

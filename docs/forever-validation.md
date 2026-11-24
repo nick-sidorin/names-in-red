@@ -1479,10 +1479,13 @@ second Gnomeregan allied action after the local +6.262 second death. It also
 allows at least one pair of the existing short reads and a final pair around
 +10/+12 seconds if visibility continues. Missing late reads preserve a supported
 early ending. Later real activity or contradictory life/combat evidence can
-invalidate it. The five-second limit still
-corroborates linkage between a new segment and a witnessed intervening
-exchange (or a readable opponent still in combat at the prior live exit).
-It is not the total time allowed for a corpse or spirit to observe allies.
+invalidate it. The five-second limit corroborates linkage between a new
+segment and a witnessed intervening exchange (or a readable opponent still in
+combat at the prior live exit). A solo stealth replay rejoins within the
+bridge with that observation. A replay with the same GUID and an idle foe,
+or with a gap past five seconds, starts a separate fight even while the
+previous one is awaiting continuation. The 12-second window still allows
+the corpse or spirit to observe allies.
 A scoped meter can corroborate participants or enrich its owning window.
 Receipt of a meter delta or delayed recap does not extend the deadline.
 A deadline is private session time; only server times and offsets from the
@@ -1505,7 +1508,20 @@ observed non-elimination ending. Repeating a corpse or a kill signal within
 one life counts only once. A verified return to life opens a new life episode.
 A distinct validated server death recap can also distinguish separate local
 lives. A corpse without a finisher needs a recent timed opposing action on the
-same victim before it enters the tally. Two readable, identity-checked dead
+same victim before it enters the tally. Each live action-pair row keeps its
+existing `first`, `last` and `count` plus distinct
+`intermediateOffsets` when available. All offsets are relative to the
+segment, and represent witnessed action observations. The life timeline
+lets replay match those times to a given life, including the earlier of
+two deaths in one segment. Old rows offer only their witnessed endpoints.
+Untimed Damage Meter aggregates supply no missing action times. A readable,
+identity-checked return in any valid terminal sample is committed as a
+timeline event when captured, including the first late read before its
+partner. A genuine second kill can then use the new life before finalization.
+Live capture and replay share the 0.5-second guard for an apparent return
+immediately after `PARTY_KILL` without a corroborating corpse. Missing fields,
+reused tokens and invalidated windows do not supply a revival. Two readable,
+identity-checked dead
 observations of a known non-Hunter separated by at least 0.5 seconds can
 corroborate a corpse when Feign Death is unavailable. A single such
 observation cannot supply a death or a finisher. Raw history, legacy results,

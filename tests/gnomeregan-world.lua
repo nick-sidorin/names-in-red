@@ -585,4 +585,114 @@ if not arg[1] or arg[1] == "pov-late" then
     assert(current.personalOutcome.lifecycle == "finalized" and current.personalOutcome.outcome == "draw")
 end
 
+Reset()
+if not arg[1] or arg[1] == "pov-life-evidence" then
+    local npc = { id = "Creature-fixture-caster", name = "Mock Creature", faction = "Alliance" }
+    units.target, units.nameplate1, units.mouseover = first, second, npc
+    first.feignUnavailable = true
+    Begin()
+    Aura("player", "target")
+    Aura("nameplate1", "player") -- linked opponent, with no opposing player action on this victim
+    Advance(13) -- the first aura is too old to explain the corpse
+    Aura("player", "target")
+    Advance(1)
+    first.dead = true
+    Fire("UNIT_FLAGS", "target")
+    Advance(0.6)
+    Fire("UNIT_FLAGS", "target")
+    Fire("UNIT_FLAGS", "target")
+    Advance(1)
+    first.dead = false
+    Fire("UNIT_FLAGS", "target")
+    Advance(0.2)
+    Aura("player", "target")
+    Advance(1)
+    first.feignUnavailable = false
+    Kill(me, first)
+    Fire("PARTY_KILL", me, one)
+
+    Aura("mouseover", "nameplate1")
+    second.dead = true
+    Fire("UNIT_FLAGS", "nameplate1")
+    End()
+    Advance(12.1)
+    local fight = assert(addon.db.skirmishes["world:1"])
+    assert(#fight.events == 4 and fight.events[1].source == "corroborated-corpse" and not fight.events[1].actorID)
+    assert(fight.events[2].kind == "revive" and fight.events[2].targetID == one)
+    assert(fight.events[3].kind == "kill" and fight.events[3].targetID == one)
+    assert(fight.events[4].kind == "death" and fight.events[4].targetID == two)
+    assert(fight.personalOutcome.casualties.enemy == 2, "the middle aura should qualify the corpse in the first life")
+    local action = fight.observation.segments[1].actions[1]
+    assert(action.count == 3 and action.first == 0 and action.intermediateOffsets[1] == 13
+        and not action.intermediateOffsets[2] and action.last > fight.events[2].offset)
+    addon.ClearDiagnostics()
+    addon.Ledger.Open(addon.db)
+    assert(addon.EvaluatePersonalSkirmish(fight).casualties.enemy == 2)
+    first.feignUnavailable = false
+end
+
+for _, readable in ipairs({ true, false }) do
+    Reset()
+    if not arg[1] or arg[1] == "pov-sampled-revival" then
+        units.target = first
+        Begin()
+        Aura("player", "target")
+        Aura("party1", "target")
+        Advance(1)
+        Kill(me, first)
+        End()
+        Advance(9)
+        first.dead = false
+        if not readable then units.target = second end -- the same token now refers to a different GUID
+        Advance(1.2) -- the first late sample at +10s, with no UNIT_FLAGS or target events
+        local fight = assert(addon.db.skirmishes["world:1"])
+        assert(#fight.events == (readable and 2 or 1), "commit a verified revival when it is sampled")
+        units.target = first
+        Kill(ally, first)
+        Fire("PARTY_KILL", ally, one)
+        assert(#fight.events == (readable and 3 or 1), "only an observed return permits another kill")
+        if readable then
+            assert(fight.events[2].kind == "revive" and fight.events[2].source == "terminal-sample")
+            assert(fight.events[3].actorID == ally and fight.events[3].targetID == one)
+            assert(fight.events[2].offset < fight.events[3].offset and fight.personalOutcome.lifecycle == "awaiting")
+        end
+        Advance(12.1)
+        assert(fight.personalOutcome.casualties.enemy == (readable and 2 or 1))
+        assert(not addon.db.skirmishes["world:2"])
+    end
+end
+
+for _, scenario in ipairs({
+    { pause = 4.9, opponentStillFighting = true, continues = true },
+    { pause = 4.9, opponentStillFighting = false, continues = false },
+    { pause = 5.1, opponentStillFighting = true, continues = false },
+}) do
+    Reset()
+    if not arg[1] or arg[1] == "pov-solo-stealth" then
+        units.target, units.party1 = first, nil
+        Begin()
+        Aura("player", "target")
+        first.active = scenario.opponentStillFighting
+        End()
+        units.target = nil -- no allied bridge and no visible foe during the pause
+        Advance(scenario.pause)
+        local original = assert(addon.db.skirmishes["world:1"])
+        assert(original.personalOutcome.lifecycle == "awaiting") -- inside the 12s settlement even after 5s
+        units.target = first
+        Begin()
+        Aura("player", "target")
+        first.active = false
+        End()
+        Advance(12.1)
+        local nextFight = addon.db.skirmishes["world:2"]
+        if scenario.continues then
+            assert(#original.observation.segments == 2 and not nextFight)
+            assert(original.personalOutcome.outcome == "draw")
+        else
+            assert(#original.observation.segments == 1 and nextFight and #nextFight.observation.segments == 1)
+            assert(original.personalOutcome.finalizedBy == "independent-engagement")
+        end
+    end
+end
+
 print("Anonymized Gnomeregan event replays passed")

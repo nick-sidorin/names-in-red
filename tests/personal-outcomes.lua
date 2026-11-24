@@ -134,6 +134,28 @@ Event(fight, "kill", 6, enemy, me)
 Ending(fight, 7, me, second)
 Verify(fight, "win", "observed-disengagement", 0, 2)
 
+-- Older pair summaries retain their two witnessed endpoints. An unknown
+-- middle action cannot link a corpse in the next life.
+fight = Battle(false, second)
+fight.observation.segments[1].actions = {
+    { actorID = me, targetID = enemy, kind = "harmful-aura", first = 1, last = 9, count = 3 },
+}
+Event(fight, "death", 2, enemy)
+Event(fight, "revive", 4, enemy)
+Event(fight, "death", 5, enemy)
+Ending(fight, 10, me, second)
+Verify(fight, "win", "observed-disengagement", 0, 1)
+
+-- A stale alive read just after PARTY_KILL cannot split duplicate kills into
+-- two lives during evaluation of retained observations.
+fight = Battle(false)
+Event(fight, "kill", 1, enemy, me, "party-kill")
+Event(fight, "kill", 1.4, enemy, me, "party-kill")
+local stale = fight.observation.assessment
+stale.first = { offset = 1.1, units = { [enemy] = { dead = false, combat = false } } }
+stale.last = { offset = 1.35, units = { [enemy] = { dead = false, combat = false } } }
+Verify(fight, "unknown", "insufficient-ending-evidence", 0, 1)
+
 -- Replay the durable historical shapes recorded in Forever validation.
 -- world:4 has an uncorroborated Paladin snapshot and one confirmed killing blow.
 local world4 = Battle(true, second)

@@ -26,6 +26,12 @@ local function Hostility(battle, observation, sides, me)
         end
         for _, action in ipairs(segment.actions or {}) do
             if start and type(action.last) == "number" then
+                if type(action.first) == "number" and action.first < action.last then
+                    Add(action.actorID, action.targetID, start + action.first)
+                end
+                for _, offset in ipairs(action.intermediateOffsets or {}) do
+                    Add(action.actorID, action.targetID, start + offset)
+                end
                 local offset = start + action.last
                 Add(action.actorID, action.targetID, offset)
                 if action.actorID == me then lastLocalAction = math.max(lastLocalAction or offset, offset) end
@@ -67,7 +73,7 @@ local function Casualties(battle, sides, me, attacks, first, last, lateFirst, la
         for id, unit in pairs(sample and sample.units or {}) do
             if sides[id] and type(unit.dead) == "boolean" then
                 local event = { targetID = id, kind = unit.dead and "death" or "revive",
-                    offset = sample.offset, time = sample.at, pvpLinked = false }
+                    offset = sample.offset, time = sample.at, pvpLinked = false, sampled = true }
                 local index = #timeline + 1
                 while index > 1 and Ledger.LaterBattleEvent(timeline[index - 1], event) do index = index - 1 end
                 table.insert(timeline, index, event)
@@ -83,11 +89,13 @@ local function Casualties(battle, sides, me, attacks, first, last, lateFirst, la
         local state = life[id] or {}
         life[id] = state
         if event.kind == "revive" then
-            if state.dead then
-                state.revival = event
-                state.priorDeath = state.death or state.priorDeath
+            if not event.sampled or not state.dead or Ledger.CanObserveRevival(state.lastDeath, event) then
+                if state.dead then
+                    state.revival = event
+                    state.priorDeath = state.death or state.priorDeath
+                end
+                state.dead, state.linked, state.recap, state.death, state.lastDeath = false, nil, nil, nil, nil
             end
-            state.dead, state.linked, state.recap, state.death = false, nil, nil, nil
         else
             if event.source == "death-recap" and type(event.recapTimestamp) == "number"
                 and state.recap and event.recapTimestamp > state.recap then
@@ -100,7 +108,7 @@ local function Casualties(battle, sides, me, attacks, first, last, lateFirst, la
                 counts[sides[id]] = counts[sides[id]] + 1
                 state.linked, state.death = true, event
             end
-            state.dead = true
+            state.dead, state.lastDeath = true, event
             if event.source == "death-recap" then state.recap = event.recapTimestamp or state.recap end
         end
     end

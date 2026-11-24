@@ -114,9 +114,7 @@ local function RecordAlive(record, id, stamp, source)
     local player = record.battle.allies[1]
     if player.isSelf and player.id == id and SpiritReturnBoundary(record.lastWindow, record) then return end
     local death = Ledger.LatestParticipantLife(record.battle, id)
-    if not Ledger.IndicatesDeath(death) or not Ledger.LaterBattleEvent(stamp, death) then return end
-    if death.source == "party-kill" and not death.observedDead
-        and type(death.offset) == "number" and stamp.offset - death.offset < lifeSettle then return end
+    if not Ledger.CanObserveRevival(death, stamp) then return end
     InsertEvent(record.battle, { kind = "revive", targetID = id, time = stamp.time, offset = stamp.offset, source = source })
     if player.isSelf and player.id == id then record.battle.observation.playerState = "alive" end
     return true
@@ -191,6 +189,27 @@ local function SampleEnding(record, pressure, lifeOnly)
         units = addon.ReadWorldOutcomeUnits(ids, pressure, lifeOnly) }
 end
 
+-- Reconcile in capture order. A kill can arrive between the two reads.
+local function ReconcileLifeSample(window, sample)
+    local record = window.record
+    if not Pending(record) then return end
+    local stamp = { time = sample.at, offset = sample.offset }
+    local changed
+    for id, unit in pairs(sample.units) do
+        if id ~= window.self then
+            if unit.dead == false and RecordAlive(record, id, stamp, "terminal-sample") then
+                local participation = Participation(record)
+                participation.lifeChangedAt = stamp.offset
+                changed = true
+            end
+            changed = CorroborateCorpse(record, id, unit, stamp) or changed
+        end
+    end
+    if changed then
+        if record.id then Save(record) else window.dirty = true end
+    end
+end
+
 local function Finalize(record, reason, discardUnsaved)
     if not Pending(record) or not Valid(record.lastWindow) then return end
     local participation = Participation(record)
@@ -215,16 +234,12 @@ local function WatchParticipation(window)
     local function Sample()
         if not Current() or (open and open ~= window) or not Origin()
             or not SameScope(window.place, addon.EncounterContext()) then return end
-        return SampleEnding(record, nil, true)
+        local sample = SampleEnding(record, nil, true)
+        ReconcileLifeSample(window, sample)
+        return sample
     end
     local function SavePair(first, last, final)
         if not first or not last then return end
-        for _, sample in ipairs({ first, last }) do
-            local stamp = { time = sample.at, offset = sample.offset }
-            for id, state in pairs(sample.units) do
-                if id ~= window.self then CorroborateCorpse(record, id, state, stamp) end
-            end
-        end
         if final then
             participation.lateFirst, participation.lateLast = first, last
         else
@@ -262,15 +277,9 @@ local function WatchEnding(window)
         if record.endingTicket ~= ticket or not Valid(window) or window.area ~= area
             or lastRecord ~= record or record.lastWindow ~= window or open then return end
         local place = addon.EncounterContext()
-        if not SameScope(window.place, place) then return end
+        if not Origin() or not SameScope(window.place, place) then return end
         local sample = SampleEnding(record, state.pressure)
-        if Pending(record) then
-            for id, unit in pairs(sample.units) do
-                if unit.dead == false and id ~= window.self then
-                    RecordAlive(record, id, { time = sample.at, offset = sample.offset }, "terminal-sample")
-                end
-            end
-        end
+        ReconcileLifeSample(window, sample)
         return sample
     end
     local first
@@ -614,6 +623,13 @@ local function TimelinePair(window, actor, target, kind, spell)
     local item = pairs[key]
     local offset = GetTime() - window.began
     if item then
+        -- Retain distinct middle observations for life-episode replay while
+        -- keeping the existing first/last/count summary and its consumers.
+        if offset > item.last and item.last > item.first then
+            local middle = item.intermediateOffsets or {}
+            middle[#middle + 1] = item.last
+            item.intermediateOffsets = middle
+        end
         item.last, item.count = offset, item.count + 1
     else
         item = { actorID = actor, targetID = target, kind = kind, spellID = spell, first = offset, last = offset, count = 1 }

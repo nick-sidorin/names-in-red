@@ -195,6 +195,13 @@ function Ledger.IndicatesDeath(event)
     return event and (event.kind == "kill" or event.kind == "death")
 end
 
+-- A fresh PARTY_KILL can precede the victim's unit-state update.
+function Ledger.CanObserveRevival(death, stamp)
+    if not Ledger.IndicatesDeath(death) or not Ledger.LaterBattleEvent(stamp, death) then return false end
+    return death.source ~= "party-kill" or death.observedDead == true
+        or type(death.offset) ~= "number" or type(stamp.offset) ~= "number" or stamp.offset - death.offset >= 0.5
+end
+
 local function IsLifeEvent(event)
     return event.targetID and (Ledger.IndicatesDeath(event) or event.kind == "revive")
 end
