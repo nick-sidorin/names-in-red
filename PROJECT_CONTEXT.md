@@ -258,13 +258,20 @@ resurrection or stealth, but must close on reliable ending/quiet evidence.
 Ordinary zone borders alone must not split it. Unrelated later PvE and a
 regrouped revenge fight are separate episodes. No exact timeout selected.
 Abandoning a fight with fallen allies and surviving enemies is Defeat even
-if we live. Successful defensive escape as Victory is the remaining proposed
-refinement; preserve Unknown for neutral or unresolved endings until agreed.
+if we live under the previously agreed outcome model. The owner subsequently
+rejected ordinary survival/escape as Victory and proposed replacing outcome
+inference with observed casualty counts: Victory for fewer friendly deaths,
+Defeat for more, Draw for equal (including 0:0), plus In progress as lifecycle.
+No routine public Unknown; incomplete evidence remains explicit metadata.
+This is a proposed replacement, not yet an approved evaluator contract: resolve
+whether terminal personal death overrides a favorable/equal casualty count.
+Keep the already approved rival credit independent; no change to retention,
+rewards or encounter continuation. See section 6 of the product spec.
 
 A proposed staged [Character POV milestone roadmap](docs/character-pov-roadmap.md)
 organizes the next work into a product-decision checkpoint, personal outcome,
 rival attribution, integrated UI/migration/reporting, and release verification.
-It is a planning document, not approval of the remaining escape refinement,
+It is a planning document, not approval of the proposed casualty-outcome refinement,
 a final version number, runtime implementation, or publication.
 
 1. Keep 1.1.0 stable. Start from current main, read this spec and the existing
