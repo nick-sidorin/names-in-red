@@ -233,6 +233,12 @@ session; use repository fixtures and ask for the original only if necessary.
 
 ## Next work (approved direction, not yet implemented)
 
+A proposed staged [Character POV milestone roadmap](docs/character-pov-roadmap.md)
+organizes the next work into a product-decision checkpoint, personal outcome,
+rival attribution, integrated UI/migration/reporting, and release verification.
+It is a planning document, not approval of unresolved scoring rules, a final
+version number, runtime implementation, or publication.
+
 1. Keep 1.1.0 stable. Start from current main, read this spec and the existing
    tests. Do not reopen the release or build unnecessary global replay/sync.
 2. Design independent personal participation/end boundaries and versioned
