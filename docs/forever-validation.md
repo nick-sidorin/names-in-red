@@ -1514,19 +1514,23 @@ existing `first`, `last` and `count` plus distinct
 segment, and represent witnessed action observations. The life timeline
 lets replay match those times to a given life, including the earlier of
 two deaths in one segment. Old rows offer only their witnessed endpoints.
-Untimed Damage Meter aggregates supply no missing action times. A readable,
-identity-checked return in any valid terminal sample is committed as a
-timeline event when captured, including the first late read before its
-partner. A genuine second kill can then use the new life before finalization.
-Live capture and replay share the 0.5-second guard for an apparent return
-immediately after `PARTY_KILL` without a corroborating corpse. Missing fields,
-reused tokens and invalidated windows do not supply a revival. Two readable,
-identity-checked dead
-observations of a known non-Hunter separated by at least 0.5 seconds can
-corroborate a corpse when Feign Death is unavailable. A single such
-observation cannot supply a death or a finisher. Raw history, legacy results,
-rewards, manual entries and user-facing projections retain their existing
-contracts.
+Untimed Damage Meter aggregates supply no missing action times. A valid
+terminal read reconciles an identified non-local participant's confirmed
+death or return to life immediately, including the first read of a sample
+pair. A readable dead state with Feign Death explicitly false creates a
+durable death with an unknown finisher when no separate notification arrives.
+Repeated reads confirm the same death, and a return to life makes a later
+death distinct. A corpse contributes a PvP casualty only with evidence from
+that life. The scheduled-sample replay covers a linked death with one casualty
+and Victory, a second death after a sampled revival, Feign Death, an unlinked
+NPC death and a preexisting bystander corpse. Live capture and replay share the
+0.5-second guard for an apparent return immediately after `PARTY_KILL` without
+a corroborating corpse. Missing fields, reused tokens and invalidated windows
+do not supply a revival. Two readable, identity-checked dead observations of
+a known non-Hunter separated by at least 0.5 seconds can corroborate a corpse
+when Feign Death is unavailable. A single weak read cannot establish a death.
+Raw history, legacy results, rewards, manual entries and user-facing
+projections retain their existing contracts.
 
 **Anonymized replay results.** Only repository fixtures and documented retained
 observations were available for this PR. No original private SavedVariables

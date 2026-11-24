@@ -197,7 +197,9 @@ local function ReconcileLifeSample(window, sample)
     local changed
     for id, unit in pairs(sample.units) do
         if id ~= window.self then
-            if unit.dead == false and RecordAlive(record, id, stamp, "terminal-sample") then
+            if unit.dead == true then
+                changed = ObserveDeath(record, id, stamp, "terminal-sample") or changed
+            elseif unit.dead == false and RecordAlive(record, id, stamp, "terminal-sample") then
                 local participation = Participation(record)
                 participation.lifeChangedAt = stamp.offset
                 changed = true

@@ -662,6 +662,67 @@ for _, readable in ipairs({ true, false }) do
     end
 end
 
+Reset()
+if not arg[1] or arg[1] == "pov-sampled-death" then
+    units.target, units.nameplate1, units.party1 = first, second, nil
+    second.dead = true -- already-dead bystander
+    Begin()
+    Aura("player", "target")
+    End()
+    Advance(0.25)
+    first.dead = true -- no kill, flags, target or nameplate event
+    Advance(0.6)
+    local fight = assert(addon.db.skirmishes["world:1"])
+    assert(#fight.events == 1, "a definitive scheduled corpse read must immediately record the death")
+    local death = fight.events[1]
+    assert(death.kind == "death" and death.targetID == one and death.source == "terminal-sample" and not death.actorID)
+    assert(fight.personalOutcome.lifecycle == "awaiting")
+    Advance(12)
+    assert(#fight.events == 1 and #fight.enemies == 1)
+    assert(fight.personalOutcome.outcome == "win" and fight.personalOutcome.reason == "enemy-elimination")
+    assert(fight.personalOutcome.casualties.enemy == 1)
+    addon.ClearDiagnostics()
+    addon.Ledger.Open(addon.db)
+    assert(fight.events[1] == death and addon.EvaluatePersonalSkirmish(fight).casualties.enemy == 1)
+end
+
+Reset()
+if not arg[1] or arg[1] == "pov-sampled-death" then
+    local npc = { id = "Creature-fixture-caster", name = "Mock Creature", faction = "Alliance" }
+    units.target, units.nameplate1, units.mouseover = first, second, npc
+    Begin()
+    Aura("player", "target")
+    Aura("party1", "target")
+    Aura("nameplate1", "player") -- linked opponent with no opposed action on this victim
+    End()
+    Advance(0.25)
+    first.dead = true
+    second.dead, second.feign = true, true
+    Advance(3)
+    local fight = assert(addon.db.skirmishes["world:1"])
+    assert(#fight.events == 1 and fight.events[1].targetID == one, "Feign Death must not produce a life event")
+    first.dead = false
+    Advance(7)
+    assert(#fight.events == 2 and fight.events[2].kind == "revive" and fight.events[2].targetID == one)
+    Aura("party1", "target") -- a second timed PvP link in the new life
+    Advance(0.25)
+    second.dead, second.feign = false, false
+    Aura("mouseover", "nameplate1")
+    first.dead, second.dead = true, true
+    Advance(12.1)
+    assert(#fight.events == 4 and not addon.db.skirmishes["world:2"])
+    local deaths = {}
+    for _, event in ipairs(fight.events) do
+        if event.kind == "death" then
+            assert(event.source == "terminal-sample" and not event.actorID)
+            deaths[event.targetID] = (deaths[event.targetID] or 0) + 1
+        end
+    end
+    assert(deaths[one] == 2 and deaths[two] == 1)
+    assert(fight.personalOutcome.outcome == "win" and fight.personalOutcome.reason == "observed-disengagement")
+    assert(fight.personalOutcome.casualties.enemy == 2, "the unrelated NPC death is a life event, not a PvP casualty")
+end
+
 for _, scenario in ipairs({
     { pause = 4.9, opponentStillFighting = true, continues = true },
     { pause = 4.9, opponentStillFighting = false, continues = false },
