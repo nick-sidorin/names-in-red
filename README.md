@@ -70,7 +70,9 @@ The journal records local fights in the open world and on battlegrounds.
 Battleground cards label their origin and use the same rival profiles.
 A battleground fight can have a different result from the overall match.
 The [PvP skirmish product specification](docs/skirmish-product-spec.md)
-describes the full participation and outcome model.
+describes the approved next Character POV model. The score below describes
+**shipped 1.1.0 behavior**, not that future model. See [project context](PROJECT_CONTEXT.md)
+for the handoff.
 
 - **Wins** and **Losses** count the result of your side.
   A recorded result counts once in the journal and once in each opponent's
@@ -94,7 +96,7 @@ remain in the journal with their recorded participants and timeline.
 ## Development
 
 The [PvP skirmish product specification](docs/skirmish-product-spec.md)
-describes the participation, outcome and battleground behavior.
+describes the target participation, outcome and battleground behavior for future development.
 
 Use **Report an issue** in the journal header or addon settings, or click the
 bug icon on a skirmish to prepare a report for that fight. Copy the report and
