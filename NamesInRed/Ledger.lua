@@ -3,6 +3,12 @@ local Ledger = {}
 addon.Ledger = Ledger
 local skirmishIndexes = setmetatable({}, { __mode = "k" })
 
+local recapDamageEvents = { SWING_DAMAGE = true, RANGE_DAMAGE = true, SPELL_DAMAGE = true, SPELL_PERIODIC_DAMAGE = true }
+
+function Ledger.IsDeathRecapDamage(effect)
+    return type(effect) == "string" and recapDamageEvents[effect] == true
+end
+
 local function ObservedDuel(battle)
     if #battle.allies ~= 1 or #battle.enemies ~= 1 then return false end
     local segments = battle.observation and battle.observation.segments
@@ -105,6 +111,7 @@ function Ledger.Open(saved)
                 if IsSkirmish(battle) then
                     UpdateWorldRoster(id, battle)
                     RestoreMeterAggregates(battle)
+                    if addon.RestoreRivalContributionEvidence then addon.RestoreRivalContributionEvidence(battle) end
                     if addon.RefreshPersonalSkirmish then addon.RefreshPersonalSkirmish(battle, true) end
                 end
             end
@@ -404,4 +411,19 @@ function Ledger.PersonalCombatScore(db, id)
         end
     end
     return kills, deaths
+end
+
+
+-- Keep the death-linked projection independent of the existing UI and rewards.
+function Ledger.RivalContributionScore(db, id)
+    local wins, losses = 0, 0
+    for _, encounter in ipairs(Ledger.RivalSkirmishes(db, id)) do
+        local battle = db.skirmishes[encounter.skirmishID]
+        for _, credit in ipairs(addon.EvaluateRivalContributions(battle).credits) do
+            if credit.rivalID == id then
+                if credit.direction == "win" then wins = wins + 1 else losses = losses + 1 end
+            end
+        end
+    end
+    return wins, losses
 end

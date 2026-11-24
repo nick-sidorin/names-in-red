@@ -1494,7 +1494,7 @@ and reload closes any saved unfinished state if normal cleanup was missed.
 These intervals are engineering choices verified with mocked events, pending
 play tuning on Forever.
 
-**Projection and evidence.** `personalOutcome` version 1 records lifecycle,
+**Projection and evidence.** PR A introduced `personalOutcome` version 1 to record lifecycle,
 the final result and reason, observation boundary, coverage, distinct
 friendly/enemy casualties and latest verified life. `observation.participation`
 holds the durable state and terminal observations underneath that projection.
@@ -1507,8 +1507,9 @@ death without a reliable ending, then over the casualty balance for an
 observed non-elimination ending. Repeating a corpse or a kill signal within
 one life counts only once. A verified return to life opens a new life episode.
 A distinct validated server death recap can also distinguish separate local
-lives. A corpse without a finisher needs a recent timed opposing action on the
-same victim before it enters the tally. Each live action-pair row keeps its
+lives. PR A linked a corpse without a finisher through a recent timed opposing
+action on the same victim. PR B extends this through the shared confirmation
+rules below. Each live action-pair row keeps its
 existing `first`, `last` and `count` plus distinct
 `intermediateOffsets` when available. All offsets are relative to the
 segment, and represent witnessed action observations. The life timeline
@@ -1555,6 +1556,100 @@ cannot recover Gnomeregan's missing 20:21 card or assign the 14 historical
 unlinked honor. Verify ordinary border pursuit, a real ghost-run return, and
 true loading/respawn boundaries in Forever before activation/release. The
 native UI and rival scoring changes remain in later PRs.
+
+### Character POV PR B
+
+**Projection and durable inputs.** `EvaluateRivalContributions` shares PR A's
+death episode reconstruction. It returns one versioned row per rival,
+direction and confirmed death, with the death's timeline index and a proof
+that points to a kill, witnessed action, native recap hit or meter segment.
+A support proof also points to the supported participant and their opposing
+action. `Ledger.RivalContributionScore` sums these credits on demand.
+Saved raw events, side outcomes, killing blows, honor and HK remain separate.
+The derivation uses neither the skirmish verdict nor its roster as a substitute
+for participation.
+
+Both projections use the same confirmed PvP death episodes. An attributed
+opposing kill, explicit PvP confirmation or eligible hostile evidence linked
+to a durable corpse can confirm an episode. The directed meter path shares
+the same unique-window and single-life checks with rival attribution. The
+personal outcome counts one casualty even if an allied action earns the
+local player no credit, or several opponents earn one credit each for a
+single local death. An aggregate alone supplies no death, and a verified
+NPC death, ambiguous window or multi-life aggregate supplies no confirmation.
+For local deaths, a validated lethal recap remains necessary when the
+finisher is unknown. `personalOutcome` version 2 recomputes the cached
+projection from retained facts on reload. Original battle and reward data
+retain their existing format.
+
+The existing meter read now keeps full accepted directional pair/category
+links from the connected component in `segment.contributionLinks`. The
+permanent entry needs the pair, category, qualification and known pet
+endpoint. Existing sampled amounts remain in `combatAggregates`. This avoids
+losing the only readable heal when the technical sample hits its six-row
+category limit. Duration-mismatch corroboration remains roster evidence and
+does not authorize credit. When a historical segment lacks these links, a
+positive saved aggregate can qualify with a matching accepted read summary
+and a usable relative segment interval. Old records with only group scores,
+untimed loose links or missing scope remain without a new credit.
+
+**Life and time boundaries.** An attributed kill is positive proof. A timed
+harmful effect must involve the victim in the applicable life within the
+existing 12-second horizon. Compare segment-relative observations on the
+skirmish clock. Older whole-second segment starts carry one second of
+uncertainty. A selected meter window must contain the death within its local
+segment or match a finish within the existing 2.5-second grace. A known life
+transition across that window makes the untimed pair unsafe to assign.
+Direct damage or hostile control requires the actual directed pair. For
+healing, absorbs and defensive dispels, the recipient also needs its own
+independent hostile link to the victim and only one observed opposing
+counterpart in that window. The support must come from the matched segment
+ending at most 2.5 seconds after the death. Earlier or later disconnected
+windows, multiple possible opponents, and multi-life segments leave the
+untimed support unassigned. Single-life window attribution still cannot order
+individual heals and hits inside the native aggregate.
+
+**Native death recaps.** The existing readable hostile-player lethal recap
+can attach positive earlier damage rows to its own death event. Store the
+latest recognized hit time per attacker in native server seconds. Exclude
+hits before the skirmish, after the fatal hit, more than 12 seconds earlier,
+or in or before the previous life boundary's server second. This keeps
+a later recap from assigning prior-life damage and counts each attacker once.
+When the lethal GUID is unavailable but the lethal row confirms a hostile
+player, an already linked battle can store a PvP death without an actor.
+The bounded retry can refine damage evidence or assign a readable finisher
+to that same episode. It matches the native timestamp in the bound record
+and preserves the original timeline position. The native timestamp watermark
+advances for a confirmed unnamed death, so stale recaps cannot replace it.
+Two distinct validated timestamps remain two episodes even if no revival
+notification was retained. An NPC finisher or unreadable hostile/type flags
+do not establish that fallback. Older diagnostics only contribute when a
+recap row matches a unique saved lethal event by native timestamp and target
+before diagnostic compaction.
+
+**Forever limits and verification.** Controlled pet sources already resolve
+through a verified owner in the meter, or the matching local pet token for a
+witnessed aura. An aura applied to the pet does not stand in for an action on
+its owner. The recorder preserves that distinction for new timed rows. Old
+incoming aura rows without target provenance, restricted endpoints,
+unidentified pet sources, cast-only observations and generic buffs do not
+supply positive attribution. Meter categories can be unreadable, unnamed or
+behind a stale selector. A curse, interrupt or dispel needs a readable
+recipient in the existing aura or meter path. The native report does not give
+a reliable structured sequence for generic beneficial buffs or positive
+untimed actions in multiple lives. No extra collector, polling or native
+meter setting is required.
+
+Lua tests cover ally finishing blows, healer-only and shield-only support,
+friendly and hostile dispels/interrupts, pet identity, three verified
+attackers in one local death, both directions for one rival and repeat
+deaths. Runtime replays cover the full meter scanner past the diagnostic
+cap, restricted recipients, meter-linked corpse reconciliation after reload,
+and distinct native lethal recaps with hidden or newly readable finishers.
+Existing Duskwood, Gnomeregan and battleground fixtures still exercise the
+legacy and personal outcome paths. Verification used Forever-shaped mocks
+and the retained public API evidence above. Runtime event delivery on a fresh
+Forever client remains unverified for PR B.
 
 ### Preview and release provenance
 

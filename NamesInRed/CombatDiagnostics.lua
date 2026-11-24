@@ -23,7 +23,6 @@ local effects = { WOUND = true, HEAL = true, ENERGIZE = true, MISS = true, DODGE
     DEFLECT = true, REFLECT = true, INTERRUPT = true }
 local feedbackFlags = { CRITICAL = true, CRUSHING = true, GLANCING = true, BLOCK_REDUCED = true,
     ABSORB = true, BLOCK = true, RESIST = true }
-local recapEvents = { SWING_DAMAGE = true, RANGE_DAMAGE = true, SPELL_DAMAGE = true, SPELL_PERIODIC_DAMAGE = true }
 
 local function Value(value, expected)
     if issecretvalue and issecretvalue(value) then return nil, "secret" end
@@ -403,7 +402,7 @@ function addon.RecordCombatDeathRecap(battle, actor, target, hit, recapIndex, re
         journal.recapsDropped = (journal.recapsDropped or 0) + 1
     end
     local event, status = Value(hit.event, "string")
-    row.effect = event and recapEvents[event] and event or nil
+    row.effect = addon.Ledger.IsDeathRecapDamage(event) and event or nil
     row.effectStatus = event and (row.effect and "readable" or "unknown-token") or status
     SetField(row, "eventTime", hit.timestamp, "number")
     SetField(row, "spellID", hit.spellId, "number")

@@ -13,11 +13,14 @@ local function ReadTable(value)
     end
 end
 
+local function IsHostilePlayer(row)
+    local flags = Readable(row.sourceFlags)
+    return type(flags) == "number" and bit and bit.band(flags, 0x440) == 0x440
+end
+
 local function HostilePlayer(row, playerGUID)
     local guid = Readable(row.sourceGUID)
-    local flags = Readable(row.sourceFlags)
-    if type(guid) == "string" and guid:match("^Player%-.+") and guid ~= playerGUID
-        and type(flags) == "number" and bit and bit.band(flags, 0x440) == 0x440 then
+    if type(guid) == "string" and guid:match("^Player%-.+") and guid ~= playerGUID and IsHostilePlayer(row) then
         return guid
     end
 end
@@ -36,8 +39,10 @@ local function Record(death)
     local stamp = Readable(first.timestamp)
     local overkill = Readable(first.overkill)
     local previous = addon.db.lastDeathTimestamp
-    if type(stamp) ~= "number" or math.abs(stamp - death.context.time) > 3
-        or (type(previous) == "number" and stamp <= previous)
+    local repeatRecap = type(previous) == "number" and stamp == previous
+    if type(stamp) ~= "number" or not (stamp > 0 and stamp < math.huge) or math.abs(stamp - death.context.time) > 3
+        or (type(previous) == "number" and stamp < previous)
+        or (repeatRecap and not death.context.worldWindow)
         or type(overkill) ~= "number" or overkill < 0 then
         return
     end
@@ -45,24 +50,34 @@ local function Record(death)
     local playerGUID = Readable(UnitGUID("player"))
     local guid = HostilePlayer(first, playerGUID)
     local name = Readable(first.sourceName)
-    if not guid then
+    local unknownFinisher = not guid and Readable(first.sourceGUID) == nil and IsHostilePlayer(first)
+        and death.context.worldWindow ~= nil
+    if not guid and not unknownFinisher then
         if addon.NotePvPDiagnostic then addon.NotePvPDiagnostic("recap-finisher-unverified") end
         return
     end
 
-    local observed = death.units[guid]
-    local cached = death.cached[guid]
+    local observed = guid and death.units[guid]
+    local cached = guid and death.cached[guid]
     if cached and (not observed or not observed.level) then
         observed = observed or {}
         observed.level = cached
     end
-    local attackers = { { guid = guid, name = observed and observed.fullName or addon.ManualName(name),
-        appearance = observed } }
-    local seen = { [guid] = true }
+    local attackers, seen, recapDamage = {}, {}, {}
+    if guid then
+        attackers[1] = { guid = guid, name = observed and observed.fullName or addon.ManualName(name), appearance = observed }
+        seen[guid] = true
+    end
     for index = 2, #rows do
         local row = ReadTable(rows[index])
         local attackerGUID = row and HostilePlayer(row, playerGUID)
         local amount = row and Readable(row.amount)
+        local time = row and Readable(row.timestamp)
+        if attackerGUID and type(time) == "number" and time > 0 and time <= stamp
+            and type(amount) == "number" and amount > 0 and amount < math.huge
+            and addon.Ledger.IsDeathRecapDamage(Readable(row.event)) then
+            recapDamage[attackerGUID] = math.max(recapDamage[attackerGUID] or time, time)
+        end
         if attackerGUID and not seen[attackerGUID] and type(amount) == "number" and amount > 0 then
             local unit = death.units[attackerGUID]
             attackers[#attackers + 1] = {
@@ -79,8 +94,17 @@ local function Record(death)
     death.context.rivalLevel = observed and observed.level
     death.context.rivalAppearance = observed
     death.context.attackers = attackers
+    death.context.recapDamage = recapDamage
+    death.context.unknownFinisher = unknownFinisher
+    death.context.repeatRecap = repeatRecap
     local id, battle, status = addon.RecordWorldEncounter(guid, observed and observed.fullName or name, "deathsToThem", death.context)
     if addon.WorldDeathWindow and not id and status ~= "duplicate" then return end
+    if unknownFinisher then
+        -- Advance the native watermark even without a finisher. An exact
+        -- repeat in the bound record can still refine this death on retry.
+        if id then addon.db.lastDeathTimestamp = stamp end
+        return
+    end
     if id and battle and addon.RecordCombatDeathRecap then
         -- Reuse the same recap read. Earlier entries need a readable clock
         -- inside the matched skirmish, and the lethal entry is retained last.

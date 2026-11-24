@@ -24,7 +24,7 @@ local Evidence = {}
 
 function addon.NewMeterParticipantEvidence(contacts, petOwners, faction)
     local evidence = setmetatable({
-        player = {}, names = {}, pet = {}, links = {}, damage = {}, contacts = contacts, faction = faction,
+        player = {}, names = {}, pet = {}, links = {}, damage = {}, contributions = {}, contacts = contacts, faction = faction,
     }, { __index = Evidence })
     for guid, contact in pairs(contacts) do
         local player = contact.latest
@@ -75,7 +75,7 @@ end
 
 -- The source is the affected unit in the taken categories. Links are
 -- undirected, and repeated spells between the same two players cost one edge.
-function Evidence:Link(category, actor, detail, accept)
+function Evidence:Link(category, actor, detail, accept, petSource)
     if detail.status.row ~= "readable" then return "detail-" .. detail.status.row end
     for _, key in ipairs(targetFields) do
         if detail.status[key] == "secret" then return "target-" .. key .. "-secret" end
@@ -83,7 +83,9 @@ function Evidence:Link(category, actor, detail, accept)
     if type(detail.unitName) ~= "string" or detail.unitName == "" then return "target-name-missing" end
     if detail.isMob == true or detail.isPet == true then return "target-not-player" end
     if detail.isMob ~= false or detail.isPet ~= false then return "target-kind-unknown" end
-    if type(detail.amount) ~= "number" or detail.amount <= 0 then return "target-amount-missing-or-zero" end
+    if type(detail.amount) ~= "number" or not (detail.amount > 0 and detail.amount < math.huge) then
+        return "target-amount-missing-or-zero"
+    end
     if type(detail.unitClassFilename) ~= "string" or detail.unitClassFilename == "" then return "target-class-missing" end
     local other = self.names[detail.unitName .. "\0" .. detail.unitClassFilename]
     if other == false then return "target-contact-ambiguous" end
@@ -96,16 +98,21 @@ function Evidence:Link(category, actor, detail, accept)
     self.links[actor] = self.links[actor] or {}
     self.links[other] = self.links[other] or {}
     self.links[actor][other], self.links[other][actor] = true, true
+    local from, to = actor.guid, other.guid
+    local taken = category == "DamageTaken" or category == "EnemyDamageTaken"
+    if taken then from, to = to, from end
+    local pairKey = from .. ":" .. to
     if timedDamage[category] then
-        local from, to = actor.guid, other.guid
-        if category ~= "DamageDone" then from, to = to, from end
         local totals = self.damage[category] or {}
         self.damage[category] = totals
-        local key = from .. ":" .. to
-        local pair = totals[key] or { actorID = from, targetID = to, amount = 0 }
-        totals[key] = pair
+        local pair = totals[pairKey] or { actorID = from, targetID = to, amount = 0 }
+        totals[pairKey] = pair
         pair.amount = pair.amount + detail.amount
     end
+    local endpoint = petSource and (taken and "target" or "actor") or nil
+    local key = category .. ":" .. pairKey .. ":" .. (endpoint or "")
+    self.contributions[key] = { category = category, actorID = from, targetID = to,
+        petEndpoint = endpoint, corroborated = accept ~= nil or nil }
     return "link", other
 end
 
@@ -151,5 +158,18 @@ function Evidence:HostileLinks(reached)
         if a.allyID == b.allyID then return a.opponentID < b.opponentID end
         return a.allyID < b.allyID
     end)
+    return result
+end
+
+
+-- Take every accepted pair in the connected component before the bounded
+-- diagnostic probe can drop rows. The keys make the persisted order stable.
+function Evidence:ContributionLinks(reached)
+    local keys, result = {}, {}
+    for key, link in pairs(self.contributions) do
+        if reached[self.player[link.actorID]] and reached[self.player[link.targetID]] then keys[#keys + 1] = key end
+    end
+    table.sort(keys)
+    for _, key in ipairs(keys) do result[#result + 1] = self.contributions[key] end
     return result
 end
