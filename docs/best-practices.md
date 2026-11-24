@@ -139,12 +139,23 @@ used by cards, profile, tooltip and nameplate.
   aggregate has no exact individual hit time; a cast success has no proven
   target or hit; a missing flag is not false. Validate actor/target, ownership,
   session, segment and life-episode scope. Reject stale/ambiguous signals.
+- Preserve witnessed action times on both sides of a life transition. Per-pair
+  first/last/count summaries alone can drop the only action that links an
+  earlier corpse to PvP. Reconcile confirmed death and revival from readable,
+  identity-checked samples into the life timeline as they arrive, including
+  when no separate event fires. Keep the observed corpse, PvP linkage and
+  attributed finishing blow distinct. Preserve window invalidation and the
+  post-kill settling guard on both live capture and replay. See
+  [Character POV PR A](forever-validation.md#character-pov-pr-a).
 - Use product rules rather than incidental API flags for fight boundaries.
   Current short late-event/bridge/terminal timers are implementation details,
   not product constants. No infinite waits, raw uptime persisted as absolute
   time, or unbounded polling. Keep late evidence and ongoing participation
-  distinct. Preserve old regressions and test area transitions, reload and
-  deduplication when relevant.
+  distinct. A window-bound late read may enrich an earlier episode but its
+  receipt must never refresh the continuation deadline. Use real recording
+  scope and matched evidence across ordinary map/zone borders, and test those
+  borders separately from loading, instance or match abandonment. Preserve
+  old regressions and test reload and life-episode deduplication when relevant.
 - Preserve per-character history, old facts, explicit manual entries and
   earned rewards through additive, idempotent migrations. Age, count and
   byte budgets apply to temporary evidence. The recent-view limit applies

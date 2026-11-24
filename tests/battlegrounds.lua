@@ -88,7 +88,7 @@ local function Aura(source, target)
     Fire("UNIT_AURA", target, { addedAuras = { { sourceUnit = source, isHarmful = true, spellId = 55 } } })
 end
 
-for _, file in ipairs({ "Locale", "Ledger", "SkirmishOutcomes", "Encounter", "Core", "SkirmishEvidence",
+for _, file in ipairs({ "Locale", "Ledger", "SkirmishOutcomes", "PersonalSkirmishOutcomes", "Encounter", "Core", "SkirmishEvidence",
     "WorldSkirmishes", "Honor", "Kills", "Deaths", "IssueReport", "Debug" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
@@ -163,6 +163,7 @@ Fire("UNIT_FLAGS", "player")
 assert(#second.events == 1)
 Fire("PLAYER_UNGHOST")
 assert(#second.events == 1 and second.resolution.reason == "battleground-spirit-respawn")
+assert(second.personalOutcome.outcome == "loss" and second.personalOutcome.boundary == "battleground-spirit-respawn")
 Begin()
 Aura("player", "target")
 units.target.dead = true
@@ -174,6 +175,7 @@ assert(#third.events == 1 and addon.Ledger.SkirmishOutcome(third) == "win")
 match = 5
 Fire("PVP_MATCH_COMPLETE", 0, 1500) -- the local Alliance lost the overall match
 assert(addon.Ledger.SkirmishOutcome(third) == "win")
+assert(third.personalOutcome.outcome == "win" and third.personalOutcome.casualties.enemy == 1)
 assert(not addon.Ledger.SkirmishOutcome(second))
 Fire("PARTY_KILL", me, rival)
 assert(not addon.db.skirmishes["bg:4"])

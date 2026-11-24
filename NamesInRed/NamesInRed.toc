@@ -18,6 +18,7 @@
 Locale.lua
 Ledger.lua
 SkirmishOutcomes.lua
+PersonalSkirmishOutcomes.lua
 Encounter.lua
 Core.lua
 SkirmishEvidence.lua

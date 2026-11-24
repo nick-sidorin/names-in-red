@@ -105,6 +105,7 @@ function Ledger.Open(saved)
                 if IsSkirmish(battle) then
                     UpdateWorldRoster(id, battle)
                     RestoreMeterAggregates(battle)
+                    if addon.RefreshPersonalSkirmish then addon.RefreshPersonalSkirmish(battle, true) end
                 end
             end
         end
@@ -160,6 +161,7 @@ end
 function Ledger.SaveSkirmish(db, id, skirmish)
     if type(id) ~= "string" or id == "" or not IsSkirmish(skirmish) then return end
     UpdateWorldRoster(id, skirmish)
+    if addon.RefreshPersonalSkirmish then addon.RefreshPersonalSkirmish(skirmish) end
     db.skirmishes = db.skirmishes or {}
     db.skirmishes[id] = skirmish
     skirmishIndexes[db] = nil
@@ -191,6 +193,13 @@ end
 
 function Ledger.IndicatesDeath(event)
     return event and (event.kind == "kill" or event.kind == "death")
+end
+
+-- A fresh PARTY_KILL can precede the victim's unit-state update.
+function Ledger.CanObserveRevival(death, stamp)
+    if not Ledger.IndicatesDeath(death) or not Ledger.LaterBattleEvent(stamp, death) then return false end
+    return death.source ~= "party-kill" or death.observedDead == true
+        or type(death.offset) ~= "number" or type(stamp.offset) ~= "number" or stamp.offset - death.offset >= 0.5
 end
 
 local function IsLifeEvent(event)

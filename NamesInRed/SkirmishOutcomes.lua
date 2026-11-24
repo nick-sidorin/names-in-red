@@ -42,8 +42,18 @@ end
 function addon.ReadWorldOutcomeState(unit)
     if unit ~= "player" and ReadUnit(UnitIsVisible, unit) ~= true then return end
     local dead = ReadUnit(UnitIsDeadOrGhost, unit)
-    if dead == true and ReadUnit(UnitIsFeignDeath, unit) ~= false then dead = nil end
-    return { dead = dead, combat = ReadUnit(UnitAffectingCombat, unit) }
+    local possibleCorpse
+    if dead == true then
+        local feign = ReadUnit(UnitIsFeignDeath, unit)
+        if feign ~= false then
+            local ok, _, class
+            if feign == nil and type(UnitClass) == "function" then ok, _, class = pcall(UnitClass, unit) end
+            class = ok and addon.Readable(class)
+            possibleCorpse = type(class) == "string" and class ~= "" and class ~= "HUNTER" or nil
+            dead = nil
+        end
+    end
+    return { dead = dead, combat = ReadUnit(UnitAffectingCombat, unit), possibleCorpse = possibleCorpse }
 end
 
 local function CheckedDistance(unit)
@@ -72,19 +82,19 @@ local function ReadRangeExit(unit, probe)
     end
 end
 
-function addon.ReadWorldOutcomeUnits(ids, pressure)
+function addon.ReadWorldOutcomeUnits(ids, pressure, lifeOnly)
     local units = {}
     VisitUnits(function(unit)
         local guid = ReadUnit(UnitGUID, unit)
         if type(guid) ~= "string" or not ids[guid] or units[guid] then return end
         local state = addon.ReadWorldOutcomeState(unit)
         if not state then return end
-        state.position = Position(unit)
+        if not lifeOnly then state.position = Position(unit) end
         local probe = pressure and pressure[guid] and pressure[guid].range
         if probe and state.dead == false and state.combat == false then
             state.rangeExit = ReadRangeExit(unit, probe)
         end
-        units[guid] = state
+        if ReadUnit(UnitGUID, unit) == guid then units[guid] = state end
     end)
     return units
 end

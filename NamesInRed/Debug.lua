@@ -715,7 +715,7 @@ function handlers.PLAYER_REGEN_DISABLED()
     local baseline = C_DamageMeter and SessionIDs(row, C_DamageMeter)
     combat = {
         baseline = baseline, contacts = {}, contactSamples = {}, unresolved = {}, previousPending = previousPending,
-        startedAt = row.time, startedUptime = row.uptime, startZone = row.zone, startInstanceType = row.instanceType, previousEnd = lastCombatEnd,
+        startedAt = row.time, startedUptime = row.uptime, startInstanceType = row.instanceType, previousEnd = lastCombatEnd,
         startInstanceMapID = row.instanceMapID,
         auraUpdates = {}, auraSignals = {}, currentUpdates = {},
         petOwners = {}, petSamples = {}, petCount = 0, petChecks = 0, petSignals = {},
@@ -939,7 +939,7 @@ function handlers.PLAYER_REGEN_ENABLED()
         end
 
         local context, anchors, faction, enemies
-        if addon.WorldMeterContext and row.instanceType == finished.startInstanceType and row.zone == finished.startZone then
+        if addon.WorldMeterContext and row.instanceType == finished.startInstanceType then
             context, anchors, faction, enemies = addon.WorldMeterContext(finished.worldWindow, row)
         end
         if finished.context and context ~= finished.context then
@@ -1153,10 +1153,16 @@ local function AreaChanged(event)
     if combat then Sample(Add(event)) end
 end
 
+local function CompatibleCombatScope(window)
+    local _, instanceType = IsInInstance()
+    if window.startInstanceType ~= Value(instanceType) then return false end
+    local map = window.startInstanceMapID and addon.BattlegroundMapID()
+    return not map or window.startInstanceMapID == map
+end
+
 function handlers.ZONE_CHANGED_NEW_AREA()
     local window = combat or settling
-    local zone = Value(GetRealZoneText and GetRealZoneText())
-    if (window and window.startZone ~= zone)
+    if (window and not CompatibleCombatScope(window))
         or (passive and not addon.WorldCanObserveMeter(passive.window)) then
         AreaChanged("ZONE_CHANGED_NEW_AREA")
     end
@@ -1230,10 +1236,7 @@ end
 
 local function CurrentContactWindow()
     local window = combat or settling
-    if not window or window.areaChanged or window.startZone ~= Value(GetRealZoneText()) then return end
-    local _, instanceType = IsInInstance()
-    if window.startInstanceType ~= Value(instanceType) then return end
-    if window.startInstanceMapID and window.startInstanceMapID ~= addon.BattlegroundMapID() then return end
+    if not window or window.areaChanged or not CompatibleCombatScope(window) then return end
     if combat ~= window and (not lastCombatEnd or GetTime() - lastCombatEnd > 2.5) then return end
     return window
 end
