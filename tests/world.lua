@@ -50,7 +50,7 @@ local function Advance(seconds)
 end
 
 Constants = { CurrencyConsts = { CLASSIC_HONOR_CURRENCY_ID = 1901 } }
-for _, file in ipairs({ "Ledger", "SkirmishOutcomes", "Encounter", "Core", "SkirmishEvidence", "CombatDiagnostics", "WorldSkirmishes", "Honor", "Kills" }) do
+for _, file in ipairs({ "Ledger", "SkirmishOutcomes", "PersonalSkirmishOutcomes", "Encounter", "Core", "SkirmishEvidence", "CombatDiagnostics", "WorldSkirmishes", "Honor", "Kills" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
 addon.db = addon.Ledger.Open(nil)
@@ -288,6 +288,7 @@ do
 
     -- An older Current slot must not enrich the next fight.
     Advance(10)
+    assert(result.personalOutcome.outcome == "unknown" and result.personalOutcome.casualties.enemy == 2)
     units.nameplate1 = { third, "Third Enemy", "Horde", "PALADIN" }
     Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
     inCombat = true
@@ -437,7 +438,7 @@ do
     StartFight()
     local previousZone = GetRealZoneText
     function GetRealZoneText() return "Elwynn Forest" end
-    Fire("ZONE_CHANGED_NEW_AREA")
+    Fire("PLAYER_LEAVING_WORLD")
     Advance(1.5)
     GetRealZoneText = previousZone
     endRow = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
@@ -962,7 +963,7 @@ do
     End(0)
     local previousZone = GetRealZoneText
     function GetRealZoneText() return "Elwynn Forest" end
-    Fire("ZONE_CHANGED_NEW_AREA")
+    Fire("PLAYER_LEAVING_WORLD")
     local oldFight = Battle(11)
     assert(#oldFight.events == 0 and oldFight.observation.visibilityGap)
     Begin()
@@ -1146,12 +1147,12 @@ do
     Fire("PLAYER_ALIVE")
     local previousZone = GetRealZoneText
     function GetRealZoneText() return "Elwynn Forest" end
-    Fire("ZONE_CHANGED_NEW_AREA")
+    Fire("PLAYER_LEAVING_WORLD")
     length, damage = 15, 100
     Fire("DAMAGE_METER_COMBAT_SESSION_UPDATED", 7, 0)
     Advance(3)
     GetRealZoneText = previousZone
-    assert(lost.observation.visibilityGap and lost.resolution.reason == "area-changed")
+    assert(lost.observation.visibilityGap and lost.resolution.reason == "left-world")
     assert(not addon.Ledger.SkirmishOutcome(lost) and #lost.events == 1)
 
     -- A later visible unit-state transition can trigger terminal reads even

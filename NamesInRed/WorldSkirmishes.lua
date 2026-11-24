@@ -6,16 +6,16 @@ local spiritHealerInRange
 local generation, area = 0, 0
 local lateEvent = 2.5
 local bridgeAge = 5
-local terminalSignalAge = 12
+local continuationWait = 12
+local terminalSignalAge = continuationWait
 local lifeSettle = 0.5
 
 local Origin = addon.RecordingPvPOrigin
 
-local function SamePlace(a, b)
-    return (a.origin or "world") == (b.origin or "world")
-        and (not a.instanceMapID or not b.instanceMapID or a.instanceMapID == b.instanceMapID)
-        and type(a.zone) == "string" and a.zone == b.zone
-        and (not a.mapID or not b.mapID or a.mapID == b.mapID)
+local function SameScope(a, b)
+    local origin = a.origin or "world"
+    return origin == (b.origin or "world")
+        and (origin == "world" or not a.instanceMapID or not b.instanceMapID or a.instanceMapID == b.instanceMapID)
 end
 
 local function PlayerGUID()
@@ -75,7 +75,7 @@ local function NewWindow(place, reason)
     local now = GetTime()
     return {
         db = addon.db, generation = generation, area = area, self = self, place = place, began = now,
-        previous = tail and tail.record and SamePlace(tail.place, place) and tail.record or nil,
+        previous = lastRecord and SameScope(lastRecord.battle, place) and lastRecord or nil,
         segment = { startedAt = place.time, startReason = reason }, pairs = {},
     }
 end
@@ -122,6 +122,21 @@ local function RecordAlive(record, id, stamp, source)
     return true
 end
 
+local function Participation(record)
+    return record.battle.observation.participation
+end
+
+local function Pending(record)
+    return record and Participation(record).state ~= "finalized"
+end
+
+local function SetParticipationState(record, state)
+    local participation = Participation(record)
+    if participation.state == state then return end
+    participation.state = state
+    addon.RefreshPersonalSkirmish(record.battle)
+end
+
 local function Assessment(record)
     return record.battle.observation.assessment
 end
@@ -131,6 +146,101 @@ local function RecentHostility(record)
     local action = state.lastAction and state.lastAction.offset
     local meter = state.lastMeterActivity
     return (action or meter) and GetTime() - record.began - math.max(action or 0, meter or 0) <= terminalSignalAge
+end
+
+local function ObserveDeath(record, id, stamp, source)
+    local life = Ledger.LatestParticipantLife(record.battle, id, stamp)
+    if Ledger.IndicatesDeath(life) then
+        life.observedDead = true
+        return
+    end
+    -- A sampled corpse can precede delivery of its attributed kill.
+    local latest = Ledger.LatestParticipantLife(record.battle, id)
+    if latest and latest.kind == "kill" and latest.offset and latest.offset >= stamp.offset
+        and latest.offset - stamp.offset <= lifeSettle then
+        latest.observedDead = true
+        return
+    end
+    InsertEvent(record.battle, { kind = "death", targetID = id, time = stamp.time, offset = stamp.offset, source = source })
+    return true
+end
+
+local function CorroborateCorpse(record, id, unit, stamp)
+    record.possibleCorpses = record.possibleCorpses or {}
+    local prior = record.possibleCorpses[id]
+    if not unit.possibleCorpse then
+        record.possibleCorpses[id] = nil
+    elseif not prior or stamp.offset - prior.offset > terminalSignalAge then
+        record.possibleCorpses[id] = stamp
+    elseif stamp.offset - prior.offset >= lifeSettle then
+        return ObserveDeath(record, id, prior, "corroborated-corpse")
+    end
+end
+
+local function SampleEnding(record, pressure, lifeOnly)
+    local ids = {}
+    for _, side in ipairs({ record.battle.allies, record.battle.enemies }) do
+        for _, player in ipairs(side) do ids[player.id] = true end
+    end
+    return { offset = GetTime() - record.began, at = addon.EncounterContext().time,
+        units = addon.ReadWorldOutcomeUnits(ids, pressure, lifeOnly) }
+end
+
+local function Finalize(record, reason, discardUnsaved)
+    if not Pending(record) or not Valid(record.lastWindow) then return end
+    local participation = Participation(record)
+    participation.state, participation.boundary = "finalized", reason
+    participation.closedAt = addon.EncounterContext().time
+    record.settlement = nil
+    if record.id or not discardUnsaved then Save(record) end
+end
+
+local function WatchParticipation(window)
+    local record = window.record
+    if not Pending(record) or not Valid(window) or not (C_Timer and C_Timer.After) then return end
+    local participation = Participation(record)
+    if participation.state ~= "awaiting" then return end
+    local remaining = math.max(0, record.quietUntil - GetTime())
+    local ticket = {}
+    record.settlement = ticket
+    local function Current()
+        return record.settlement == ticket and Pending(record) and Valid(window) and window.area == area
+            and lastRecord == record and record.lastWindow == window
+    end
+    local function Sample()
+        if not Current() or (open and open ~= window) or not Origin()
+            or not SameScope(window.place, addon.EncounterContext()) then return end
+        return SampleEnding(record, nil, true)
+    end
+    local function SavePair(first, last)
+        if not first or not last then return end
+        for _, sample in ipairs({ first, last }) do
+            local stamp = { time = sample.at, offset = sample.offset }
+            for id, state in pairs(sample.units) do
+                if id ~= window.self then CorroborateCorpse(record, id, state, stamp) end
+            end
+        end
+        participation.first, participation.last = first, last
+    end
+    local early, late
+    C_Timer.After(0.75, function() early = Sample() end)
+    C_Timer.After(2.75, function() SavePair(early, Sample()) end)
+    if remaining >= 2 then C_Timer.After(remaining - 2, function() late = Sample() end) end
+    C_Timer.After(remaining, function()
+        if not Current() then return end
+        SavePair(late, Sample())
+        Finalize(record, "quiet-timeout")
+    end)
+end
+
+local function Await(window, evidenceAt)
+    local record = window.record
+    if not Pending(record) or not Valid(record.lastWindow) then return end
+    SetParticipationState(record, "awaiting")
+    if evidenceAt then
+        record.quietUntil = math.max(record.quietUntil or 0, evidenceAt + continuationWait)
+    end
+    WatchParticipation(window)
 end
 
 local function WatchEnding(window)
@@ -143,17 +253,16 @@ local function WatchEnding(window)
         if record.endingTicket ~= ticket or not Valid(window) or window.area ~= area
             or lastRecord ~= record or record.lastWindow ~= window or open then return end
         local place = addon.EncounterContext()
-        if not SamePlace(window.place, place) then return end
-        local ids = {}
-        for _, side in ipairs({ record.battle.allies, record.battle.enemies }) do
-            for _, player in ipairs(side) do ids[player.id] = true end
+        if not SameScope(window.place, place) then return end
+        local sample = SampleEnding(record, state.pressure)
+        if Pending(record) then
+            for id, unit in pairs(sample.units) do
+                if unit.dead == false and id ~= window.self then
+                    RecordAlive(record, id, { time = sample.at, offset = sample.offset }, "terminal-sample")
+                end
+            end
         end
-        local offset = GetTime() - record.began
-        local units = addon.ReadWorldOutcomeUnits(ids, state.pressure)
-        for id, unit in pairs(units) do
-            if unit.dead == false then RecordAlive(record, id, { time = place.time, offset = offset }, "terminal-sample") end
-        end
-        return { offset = offset, at = place.time, units = units }
+        return sample
     end
     local first
     C_Timer.After(0.75, function() first = Sample() end)
@@ -173,7 +282,7 @@ local function InvalidateEnding(record)
     state.checkStatus = "watching"
 end
 
-local function NewActivity(window, actor, target, kind, spell, targetUnit)
+local function NewActivity(window, actor, target, kind, spell, targetUnit, uptime)
     local record = window.record
     local state = Assessment(record)
     local known = record.battle.resolution and record.battle.resolution.ending == "observed"
@@ -183,7 +292,23 @@ local function NewActivity(window, actor, target, kind, spell, targetUnit)
         state.meterStatus = "linked-increase"
         state.meterPair = { actorID = actor, targetID = target }
     else
-        addon.NoteWorldOutcomeAction(state, actor, target, GetTime() - record.began, kind, spell, targetUnit)
+        local offset = (uptime or GetTime()) - record.began
+        addon.NoteWorldOutcomeAction(state, actor, target, offset, kind, spell, targetUnit)
+        if Pending(record) then
+            local participation = Participation(record)
+            participation.first, participation.last = nil, nil
+            local localAction = actor == window.self or target == window.self
+            local life = record.battle.observation.playerState
+            if localAction and life == "alive" and not (kind == "kill" and target == window.self) then
+                participation.returnedAt = offset
+            end
+            if window.ended or life == "dead" or life == "ghost" then
+                Await(window, record.began + offset)
+            else
+                SetParticipationState(record, "active")
+                record.settlement, record.quietUntil = nil, nil
+            end
+        end
     end
     if known then Save(record) end
     WatchEnding(window)
@@ -194,19 +319,37 @@ local function Confirm(window, opponents, basis)
     local previous = window.previous
     local bridge = previous and previous.bridge
     local record
-    if bridge and window.area == area and Valid(previous.lastWindow) and opponents[bridge.opponent]
-        and GetTime() - bridge.seen <= bridgeAge and SamePlace(window.place, previous.battle)
+    local continuing = Pending(previous) and window.area == area and not window.segment.observationStopped
+        and Valid(previous.lastWindow) and previous.lastWindow.began <= window.began
+        and SameScope(window.place, previous.battle)
+    local linked = continuing and bridge and opponents[bridge.opponent]
+        and math.abs(window.began - bridge.seen) <= bridgeAge
+        and (basis ~= "meter" or bridge.seen <= (window.ended or GetTime()))
+    if continuing and not linked and basis == "harmful-aura" and previous.endingContact
+        and GetTime() - previous.lastWindow.ended <= bridgeAge
+        and previous.battle.observation.playerState == "alive" then
+        for id in pairs(opponents) do
+            local contact = previous.endingContact[id]
+            if contact and contact.combat == true and contact.dead == false then linked = true end
+        end
+    end
+    if linked
         and (not previous.id or (addon.db.skirmishes and addon.db.skirmishes[previous.id] == previous.battle)) then
         record = previous
         InvalidateEnding(record)
-        record.bridge = nil
+        record.bridge, record.endingContact, record.settlement, record.quietUntil = nil, nil, nil, nil
+        local participation = Participation(record)
+        participation.first, participation.last = nil, nil
+        SetParticipationState(record, "active")
         window.segment.continuation = "observed-hostility"
     else
+        if continuing then Finalize(previous, "independent-engagement") end
         local place = window.place
         record = { began = window.began, lastWindow = window, battle = {
             startedAt = place.time, time = place.time, zone = place.zone, mapID = place.mapID, x = place.x, y = place.y,
             origin = place.origin or "world", instanceMapID = place.instanceMapID, rosterComplete = false, allies = {}, enemies = {}, events = {},
-            observation = { segments = {}, life = {}, coverage = "local", assessment = { checkStatus = "watching" } },
+            observation = { segments = {}, life = {}, coverage = "local", assessment = { checkStatus = "watching" },
+                participation = { state = "active" } },
         } }
         Participant(record.battle.allies, window.self, addon.UnitPlayerName("player"), place.playerLevel, nil, true,
             addon.UnitAppearance("player"))
@@ -218,6 +361,7 @@ local function Confirm(window, opponents, basis)
         observation.assessment.interrupted = window.segment.observationStopped
         observation.visibilityGap = true
     end
+    window.segment.offset = window.began - record.began
     observation.segments[#observation.segments + 1] = window.segment
     for _, event in ipairs(window.life or {}) do
         local offset = event.offset + window.began - record.began
@@ -234,7 +378,13 @@ local function Confirm(window, opponents, basis)
     window.record = record
     if window.combatDiagnostic then addon.AttachCombatDiagnostics(record.battle, window.combatDiagnostic) end
     -- A late meter or recap can confirm an earlier window without replacing a later record.
-    if window.area == area and (not lastRecord or lastRecord.began <= record.began) then lastRecord = record end
+    if window.area == area and (not lastRecord or lastRecord.began <= record.began) then
+        lastRecord = record
+        if window.ended then Await(window, window.ended) end
+    else
+        Participation(record).state = "finalized"
+        Participation(record).boundary = window.segment.observationStopped or "superseded-window"
+    end
     return record
 end
 
@@ -244,6 +394,15 @@ local function Close(window, place, reason)
     window.segment.endedAt = place.time
     window.segment.duration = window.ended - window.began
     window.segment.endReason = reason
+    if Pending(window.record) then
+        local record = window.record
+        if reason == "local-combat-ended" then
+            record.endingContact = SampleEnding(record).units
+        end
+        local life = record.battle.observation.playerState
+        local preserveDeadline = record.quietUntil and (life == "dead" or life == "ghost")
+        Await(window, not preserveDeadline and window.ended)
+    end
     WatchEnding(window)
     if window.record and (window.dirty or not window.record.id) then
         local function Flush()
@@ -271,23 +430,6 @@ function addon.BindCombatDiagnostics(window, capture)
     if not capture or not Valid(window) or window.area ~= area then return end
     window.combatDiagnostic = capture
     if window.record then addon.AttachCombatDiagnostics(window.record.battle, capture) end
-end
-
-local function ObserveDeath(record, id, stamp, source)
-    local life = Ledger.LatestParticipantLife(record.battle, id, stamp)
-    if Ledger.IndicatesDeath(life) then
-        life.observedDead = true
-        return
-    end
-    -- A sampled corpse can precede delivery of the kill for that same death.
-    local latest = Ledger.LatestParticipantLife(record.battle, id)
-    if latest and latest.kind == "kill" and latest.offset and latest.offset >= stamp.offset
-        and latest.offset - stamp.offset <= lifeSettle then
-        latest.observedDead = true
-        return
-    end
-    InsertEvent(record.battle, { kind = "death", targetID = id, time = stamp.time, offset = stamp.offset, source = source })
-    return true
 end
 
 function addon.SnapshotWorldContacts(window, contacts)
@@ -335,22 +477,22 @@ local function Present(side, guid)
 end
 
 local function LateWindow(place)
-    if Valid(tail) and tail.ended and GetTime() - tail.ended <= lateEvent and SamePlace(tail.place, place) then
+    if Valid(tail) and tail.ended and GetTime() - tail.ended <= lateEvent and SameScope(tail.place, place) then
         return tail
     end
 end
 
 function addon.HonorWorldWindow()
     local place = addon.EncounterContext()
-    if Valid(open) and SamePlace(open.place, place) then return open end
+    if Valid(open) and SameScope(open.place, place) then return open end
     return LateWindow(place)
 end
 
 function addon.WorldDeathWindow(place)
     if not Origin() then return end
-    if Valid(open) and SamePlace(open.place, place) then return open end
+    if Valid(open) and (not open.record or Pending(open.record)) and SameScope(open.place, place) then return open end
     local window = LateWindow(place)
-    if window then return window end
+    if window and (not window.record or Pending(window.record)) then return window end
     window = NewWindow(place, "death")
     if not window then return end
     if Readable(InCombatLockdown()) == true then
@@ -363,9 +505,9 @@ function addon.WorldDeathWindow(place)
 end
 
 function addon.WorldCanObserveMeter(window)
-    return Origin() and Valid(window) and window.area == area and not open and window.ended and window.record
+    return Origin() and Valid(window) and window.area == area and not open and window.ended and Pending(window.record)
         and lastRecord == window.record and lastRecord.lastWindow == window
-        and SamePlace(window.place, addon.EncounterContext())
+        and SameScope(window.place, addon.EncounterContext())
 end
 
 function addon.WorldMeterObservation(window, status, actor, target)
@@ -380,31 +522,35 @@ function addon.WorldMeterObservation(window, status, actor, target)
     local enemy = Present(battle.enemies, actor) and actor or (Present(battle.enemies, target) and target)
     local ally = Present(battle.allies, actor) and actor or (Present(battle.allies, target) and target)
     if not enemy or not ally then return end
-    record.bridge = { opponent = enemy, seen = GetTime() }
     NewActivity(window, actor, target, "meter")
 end
 
 local function LinkedWindow(guid, actor, context)
     local record = lastRecord
     local window = record and record.lastWindow
-    local bridge = record and record.bridge
-    if Valid(window) and window.area == area and bridge and GetTime() - bridge.seen <= bridgeAge
-        and SamePlace(window.place, context) and Present(record.battle.allies, actor)
-        and Present(record.battle.enemies, guid) then return window end
+    if not Pending(record) or not Valid(window) or window.area ~= area or not SameScope(window.place, context)
+        or not Present(record.battle.allies, actor) or not Present(record.battle.enemies, guid) then return end
+    local bridge = record.bridge
+    if bridge and GetTime() - bridge.seen <= bridgeAge then return window end
+    -- An attributed allied finish between already linked participants can
+    -- be the first readable action after a local death.
+    if window.ended and actor ~= window.self and not open then return window end
 end
 
 function addon.ObservedWorldOpponent(guid, context, actor)
-    local window = open or LinkedWindow(guid, actor, context) or LateWindow(context)
-    local battle = Valid(window) and SamePlace(window.place, context) and window.record and window.record.battle
-    for _, opponent in ipairs(battle and battle.enemies or {}) do
-        if opponent.id == guid then return opponent end
+    local function Find(window)
+        local battle = Valid(window) and SameScope(window.place, context) and window.record and window.record.battle
+        for _, opponent in ipairs(battle and battle.enemies or {}) do
+            if opponent.id == guid then return opponent end
+        end
     end
+    return Find(open) or Find(LinkedWindow(guid, actor, context) or LateWindow(context))
 end
 
 function addon.WorldMeterContext(window, row)
     local origin = Origin()
     if not Valid(window) or window.area ~= area or not window.ended or not origin
-        or (window.place.origin or "world") ~= origin or not SamePlace(window.place, row)
+        or (window.place.origin or "world") ~= origin or not SameScope(window.place, row)
         or row.instanceType ~= (origin == "battleground" and "pvp" or "none")
         or not row.player or row.player.guid ~= window.self then return end
     local faction = row.player.faction
@@ -428,6 +574,12 @@ function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, c
     local record = Confirm(window, enemies, "meter")
     local battle = record.battle
     local segment = window.segment
+    if segment.confirmedBy == "meter" and segment.continuation and battle.observation.playerState == "alive" then
+        -- This fresh segment was qualified from the local anchor and a
+        -- separate witnessed bridge. Store its lower bound, not a hit time.
+        local participation = Participation(record)
+        participation.returnedAt = math.max(participation.returnedAt or 0, segment.offset)
+    end
     segment.meter = { scope = "aggregate", selection = row.meterSelection, hostileLinks = links }
     if row.meterSessionID then segment.meter.sessionID = row.meterSessionID end
     battle.time = math.max(battle.time, row.time or battle.time)
@@ -466,10 +618,18 @@ end
 
 function addon.RecordWorldEncounter(guid, name, direction, context)
     local origin = Origin()
+    local bound = context.worldWindow
+    local recap = direction == "deathsToThem" and context.deathTimestamp
+    if bound and not Valid(bound) then return end
+    if bound and recap then origin = bound.place.origin or "world" end
     if not origin then return end
     context.origin = context.origin or origin
     if context.origin ~= origin then return end
-    local window = context.worldWindow or open or LinkedWindow(guid, context.actorID, context)
+    local candidate = open
+    if candidate and candidate.record and not Pending(candidate.record) then candidate = nil end
+    local linked = not bound and LinkedWindow(guid, context.actorID, context)
+    local teammateKill = direction == "killsAgainstThem" and context.actorID and context.actorID ~= PlayerGUID()
+    local window = bound or (teammateKill and linked) or candidate or linked
     if not window then
         local candidate = LateWindow(context)
         if candidate and (not candidate.record or Present(candidate.record.battle.enemies, guid)) then window = candidate end
@@ -481,15 +641,15 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
         -- can extend it through a teammate's finishing blow.
         local battle = Valid(window) and window.record and window.record.battle
         if not battle or not Present(battle.allies, context.actorID) or not Present(battle.enemies, guid)
-            or not SamePlace(window.place, context) then return nil, nil, "unlinked" end
+            or not SameScope(window.place, context) then return nil, nil, "unlinked" end
     end
-    if not Valid(window) or not SamePlace(window.place, context) then
+    if not Valid(window) or not SameScope(window.place, context) then
         if context.worldWindow then return end
         local latest = lastRecord and lastRecord.lastWindow
         -- A late standalone notification for the same observed corpse
         -- supplies no evidence of a new battle or another death.
         if direction == "killsAgainstThem" and Valid(latest) and latest.area == area
-            and SamePlace(latest.place, context) and Readable(InCombatLockdown()) == false then
+            and SameScope(latest.place, context) and Readable(InCombatLockdown()) == false then
             local prior = Ledger.LatestParticipantLife(lastRecord.battle, guid)
             if prior and prior.kind == "kill" then return nil, nil, "duplicate" end
         end
@@ -562,8 +722,10 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
     window.segment.lastConfirmedAt = math.max(window.segment.lastConfirmedAt or 0, event.time or 0)
     window.dirty = nil
     local last = Assessment(record).lastAction
-    if not window.segment.observationStopped and (not last or last.offset <= event.offset)
-        and not context.delayedAssociation then NewActivity(window, actorID, targetID, "kill") end
+    if Pending(record) and record.lastWindow == window and not window.segment.observationStopped
+        and (not last or last.offset <= event.offset) and not context.delayedAssociation and not context.retrying then
+        NewActivity(window, actorID, targetID, "kill", context.spellID, nil, context.killUptime)
+    end
     if not outgoing and not context.rivalLevel then
         local reasons = window.segment.rejectedKills or {}
         window.segment.rejectedKills = reasons
@@ -574,7 +736,7 @@ end
 
 function addon.StageWorldKill(guid, context, started)
     local window = addon.WorldCombatWindow(started)
-    if not Valid(window) or window.area ~= area or not SamePlace(window.place, context) then return end
+    if not Valid(window) or window.area ~= area or not SameScope(window.place, context) then return end
     window.stagedKills = window.stagedKills or {}
     local existing = window.stagedKills[guid]
     if existing then
@@ -626,6 +788,33 @@ local function OpenTable(value)
     if type(value) == "table" and (not canaccesstable or canaccesstable(value)) then return value end
 end
 
+local function NoteUnrelatedPvE(self, actor, target, sourceUnit, targetUnit)
+    local window = open
+    local previous = window and window.previous
+    if not Pending(previous) or window.record or window.pveBoundary or not previous.lastWindow.ended then return end
+    local npc
+    if actor == self then npc = targetUnit elseif target == self then npc = sourceUnit end
+    if not npc then return end
+    local guid = Readable(UnitGUID(npc))
+    if type(guid) ~= "string" or not guid:match("^Creature%-") or Readable(UnitIsPlayer(npc)) ~= false
+        or Readable(UnitCanAttack("player", npc)) ~= true or Readable(UnitGUID(npc)) ~= guid then return end
+    local atClose = previous.endingContact and previous.endingContact[self]
+    if window.began - previous.lastWindow.ended < bridgeAge then
+        local current = addon.ReadWorldOutcomeUnits({ [self] = true })[self]
+        local a, b = atClose and atClose.position, current and current.position
+        if not a or not b or a.map ~= b.map or (a.x - b.x)^2 + (a.y - b.y)^2 < 55^2 then return end
+    end
+    window.pveBoundary = true
+    if C_Timer and C_Timer.After then
+        C_Timer.After(lateEvent, function()
+            if Valid(window) and window.area == area and not window.record and lastRecord == previous then
+                local bridge = previous.bridge
+                if not bridge or bridge.seen < window.began then Finalize(previous, "unrelated-pve") end
+            end
+        end)
+    end
+end
+
 local function ObserveHarmfulAura(targetUnit, aura)
     if Readable(aura.isHarmful) ~= true then return end
     local self = PlayerGUID()
@@ -634,7 +823,11 @@ local function ObserveHarmfulAura(targetUnit, aura)
     local spell = Readable(aura.spellId)
     local actor, source = AuraPlayer(sourceUnit, self)
     local target, affected = AuraPlayer(targetUnit, self)
-    if not actor or not target or actor == target then return end
+    if not actor or not target then
+        NoteUnrelatedPvE(self, actor, target, sourceUnit, targetUnit)
+        return
+    end
+    if actor == target then return end
     local faction = addon.PlayerFaction()
     local from, to = Readable(UnitFactionGroup(source)), Readable(UnitFactionGroup(affected))
     if (faction ~= "Alliance" and faction ~= "Horde") or (from ~= "Alliance" and from ~= "Horde")
@@ -642,19 +835,20 @@ local function ObserveHarmfulAura(targetUnit, aura)
     local friendly, hostile, ally, enemy = target, actor, affected, source
     if from == faction then friendly, hostile, ally, enemy = actor, target, source, affected end
     local window = open
+    if Valid(window) and window.record and not Pending(window.record) then window = nil end
     local record = Valid(window) and window.record
     local previous = lastRecord
     local latest = previous and previous.lastWindow
     -- A witnessed action between known opponents can bridge a pause even
     -- while the dead player cannot use UnitCanAttack on either participant.
     if friendly ~= self and not record then
-        if not Valid(latest) or not latest.ended
+        if not Pending(previous) or not Valid(latest) or not latest.ended
             or not Present(previous.battle.allies, friendly) or not Present(previous.battle.enemies, hostile) then return end
         local place = addon.EncounterContext()
-        if not SamePlace(latest.place, place) then return end
+        if not SameScope(latest.place, place) then return end
         local now = GetTime()
         local coveredThrough = previous.bridge and previous.bridge.seen or latest.ended
-        if now - coveredThrough > bridgeAge then return end
+        if now - coveredThrough > continuationWait then return end
         previous.bridge = { opponent = hostile, seen = now }
         if not open and latest.combatDiagnostic then
             addon.ObserveCombatAuras(latest.combatDiagnostic, targetUnit, { addedAuras = { aura } })
@@ -668,7 +862,7 @@ local function ObserveHarmfulAura(targetUnit, aura)
         and (Readable(UnitCanAttack("player", enemy)) ~= true
             or (UnitIsPVP and Readable(UnitIsPVP(enemy)) == false)) then return end
     local place = addon.EncounterContext()
-    if not Valid(window) or not SamePlace(window.place, place) then
+    if not Valid(window) or not SameScope(window.place, place) then
         if friendly ~= self then return end
         window = NewWindow(place, "harmful-aura")
         if not window then return end
@@ -724,7 +918,7 @@ local function ObserveParticipantLife(unit, source)
     if not Present(record.battle.allies, id) and not Present(record.battle.enemies, id) then return end
     local now = GetTime()
     local place = addon.EncounterContext()
-    if not SamePlace(window.place, place) then return end
+    if not SameScope(window.place, place) then return end
     if open or (window.ended and now - window.ended <= terminalSignalAge) then
         local level = addon.ReadUnitLevel(unit)
         if level and Readable(UnitGUID(unit)) == id then
@@ -739,21 +933,25 @@ local function ObserveParticipantLife(unit, source)
             end
         end
     end
-    if not open and ((record.battle.resolution and record.battle.resolution.ending == "observed")
-        or not RecentHostility(record)) then return end
+    if not Pending(record) or (not open and not RecentHostility(record)) then return end
     local observed = addon.ReadWorldOutcomeState(unit)
-    if not observed or observed.dead == nil or Readable(UnitGUID(unit)) ~= id then return end
+    if not observed or Readable(UnitGUID(unit)) ~= id then return end
     local stamp = { time = place.time, offset = now - record.began }
     local changed
+    if id ~= window.self then changed = CorroborateCorpse(record, id, observed, stamp) end
     if observed.dead then
         local life = Ledger.LatestParticipantLife(record.battle, id)
         if life and not Ledger.LaterBattleEvent(stamp, life) then return end
         changed = ObserveDeath(record, id, stamp, source)
-    else
+    elseif observed.dead == false then
         changed = RecordAlive(record, id, stamp, source)
     end
-    if not changed then
-        return
+    if not changed then return end
+    local participation = Participation(record)
+    if id ~= window.self then
+        participation.lifeChangedAt = stamp.offset
+        participation.first, participation.last = nil, nil
+        WatchParticipation(window)
     end
     InvalidateEnding(record)
     Save(record)
@@ -761,6 +959,7 @@ local function ObserveParticipantLife(unit, source)
 end
 
 function handlers.NAME_PLATE_UNIT_ADDED(unit) ObserveParticipantLife(unit, "nameplate-sighting") end
+function handlers.NAME_PLATE_UNIT_REMOVED(unit) ObserveParticipantLife(unit, "nameplate-removed") end
 function handlers.PLAYER_TARGET_CHANGED() ObserveParticipantLife("target", "target-sighting") end
 function handlers.UPDATE_MOUSEOVER_UNIT() ObserveParticipantLife("mouseover", "mouseover-sighting") end
 
@@ -789,7 +988,7 @@ end
 function handlers.PLAYER_REGEN_DISABLED()
     if not Origin() then return end
     local place = addon.EncounterContext()
-    if Valid(open) and not open.localStart and open.segment.startReason == "harmful-aura" and SamePlace(open.place, place) then
+    if Valid(open) and not open.localStart and open.segment.startReason == "harmful-aura" and SameScope(open.place, place) then
         open.segment.localCombatAt = place.time
         open.localStart = GetTime()
         return
@@ -811,9 +1010,9 @@ end
 local function Life(kind, source)
     if not Origin() then return end
     local place = addon.EncounterContext()
-    local window = kind == "dead" and addon.WorldDeathWindow(place) or (open or tail)
-    if not Valid(window) then return end
-    if not SamePlace(window.place, place) then return end
+    local window = kind == "dead" and addon.WorldDeathWindow(place) or open or tail
+    if not Valid(window) or (window.record and not Pending(window.record)) then return end
+    if not SameScope(window.place, place) then return end
     local record = window.record
     local life = record and record.battle.observation.life or window.life or {}
     if life[#life] and life[#life].state == kind then return end
@@ -822,12 +1021,14 @@ local function Life(kind, source)
     if record then
         record.battle.observation.playerState = kind
         if record.battle.resolution then record.battle.resolution.localLife = kind end
-        local continuing = not window.ended or (RecentHostility(record)
-            and not (record.battle.resolution and record.battle.resolution.ending == "observed"))
-        if kind == "alive" and continuing and RecordAlive(record, window.self, { time = place.time, offset = offset }, source) then
-            InvalidateEnding(record)
+        if kind == "dead" then
+            Await(window, GetTime())
+        end
+        if kind == "alive" and Pending(record) and RecordAlive(record, window.self, { time = place.time, offset = offset }, source) then
+            local resolved = record.battle.resolution and record.battle.resolution.ending == "observed"
+            if not resolved then InvalidateEnding(record) end
             Save(record)
-            WatchEnding(window)
+            if not resolved then WatchEnding(window) end
         end
     else
         window.life = life
@@ -873,9 +1074,11 @@ Leave = function(reason, discardUnsaved)
                 state.interrupted = reason
                 record.battle.observation.visibilityGap = true
             end
-            Save(record)
+            if Pending(record) then Finalize(record, reason, discardUnsaved)
+            elseif record.id then Save(record) end
         end
     end
+    if lastRecord then Finalize(lastRecord, reason, discardUnsaved) end
     if addon.CancelPendingWorldKills then addon.CancelPendingWorldKills() end
     area = area + 1
     open, tail, lastRecord = nil, nil, nil
@@ -883,7 +1086,9 @@ end
 
 function handlers.ZONE_CHANGED_NEW_AREA()
     local window = open or tail
-    if Valid(window) and not SamePlace(window.place, addon.EncounterContext()) then Leave("area-changed") end
+    if Valid(window) and (not Origin() or not SameScope(window.place, addon.EncounterContext())) then
+        Leave("area-changed")
+    end
 end
 function handlers.PLAYER_LEAVING_WORLD()
     Leave("left-world")

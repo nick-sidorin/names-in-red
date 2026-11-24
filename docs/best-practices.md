@@ -143,8 +143,11 @@ used by cards, profile, tooltip and nameplate.
   Current short late-event/bridge/terminal timers are implementation details,
   not product constants. No infinite waits, raw uptime persisted as absolute
   time, or unbounded polling. Keep late evidence and ongoing participation
-  distinct. Preserve old regressions and test area transitions, reload and
-  deduplication when relevant.
+  distinct. A window-bound late read may enrich an earlier episode but its
+  receipt must never refresh the continuation deadline. Use real recording
+  scope and matched evidence across ordinary map/zone borders, and test those
+  borders separately from loading, instance or match abandonment. Preserve
+  old regressions and test reload and life-episode deduplication when relevant.
 - Preserve per-character history, old facts, explicit manual entries and
   earned rewards through additive, idempotent migrations. Age, count and
   byte budgets apply to temporary evidence. The recent-view limit applies

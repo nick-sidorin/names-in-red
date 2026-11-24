@@ -105,6 +105,7 @@ function Ledger.Open(saved)
                 if IsSkirmish(battle) then
                     UpdateWorldRoster(id, battle)
                     RestoreMeterAggregates(battle)
+                    if addon.RefreshPersonalSkirmish then addon.RefreshPersonalSkirmish(battle, true) end
                 end
             end
         end
@@ -160,6 +161,7 @@ end
 function Ledger.SaveSkirmish(db, id, skirmish)
     if type(id) ~= "string" or id == "" or not IsSkirmish(skirmish) then return end
     UpdateWorldRoster(id, skirmish)
+    if addon.RefreshPersonalSkirmish then addon.RefreshPersonalSkirmish(skirmish) end
     db.skirmishes = db.skirmishes or {}
     db.skirmishes[id] = skirmish
     skirmishIndexes[db] = nil

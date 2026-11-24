@@ -19,10 +19,12 @@ function IsInInstance() return false, "none" end
 function InCombatLockdown() return inCombat end
 function UnitAffectingCombat(unit) return units[unit] and (Field(unit, "active") or inCombat) end
 function UnitIsDeadOrGhost(unit) return units[unit] and (Field(unit, "dead") == true or (unit == "player" and ghost)) end
-function UnitIsFeignDeath(unit) return Field(unit, "feign") == true end
+function UnitIsFeignDeath(unit)
+    if not Field(unit, "feignUnavailable") then return Field(unit, "feign") == true end
+end
 function UnitIsVisible(unit) return units[unit] ~= nil end
 function UnitIsGhost(unit) return unit == "player" and ghost end
-function UnitIsPlayer(unit) return units[unit] ~= nil end
+function UnitIsPlayer(unit) return units[unit] ~= nil and Field(unit, "id"):match("^Player%-") ~= nil end
 function UnitIsPVP(unit) return units[unit] ~= nil end
 function UnitGUID(unit) return Field(unit, "id") end
 function UnitName(unit) return Field(unit, "name") end
@@ -112,7 +114,7 @@ local function HK()
     Fire("PLAYER_PVP_KILLS_CHANGED", "player")
 end
 
-for _, file in ipairs({ "Locale", "Ledger", "SkirmishOutcomes", "Encounter", "Core", "SkirmishEvidence", "CombatDiagnostics",
+for _, file in ipairs({ "Locale", "Ledger", "SkirmishOutcomes", "PersonalSkirmishOutcomes", "Encounter", "Core", "SkirmishEvidence", "CombatDiagnostics",
     "WorldSkirmishes", "Honor", "Kills", "Deaths", "IssueReport", "Debug" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
@@ -162,6 +164,7 @@ if not arg[1] or arg[1] == "solo" then
     Fire("ZONE_CHANGED_NEW_AREA")
     assert(addon.Ledger.SkirmishOutcome(solo) == "loss" and solo.resolution.reason == "isolated-lethal-recap")
     assert(addon.Ledger.Open(addon.db) == addon.db and addon.Ledger.SkirmishOutcome(solo) == "loss")
+    assert(solo.personalOutcome.outcome == "loss" and solo.personalOutcome.casualties.friendly == 1)
 end
 Reset()
 
@@ -380,7 +383,7 @@ if not arg[1] or arg[1] == "diagnostic-scope" then
     Aura("player", "target")
     Fire("UNIT_COMBAT", "target", "WOUND", "", 99, 1)
     zone = "Another Area"
-    Fire("ZONE_CHANGED_NEW_AREA")
+    Fire("PLAYER_LEAVING_WORLD")
     Fire("UNIT_COMBAT", "target", "WOUND", "", 301, 1)
     End()
     Advance(3)
@@ -412,4 +415,172 @@ if not arg[1] or arg[1] == "recap-context" then
     Fire("PLAYER_DEAD")
     assert(#captured == 2)
 end
+Reset()
+if not arg[1] or arg[1] == "pov-continuation" then
+    zone = "Fixture Grove"
+    local map = 1
+    C_Map = {
+        GetBestMapForUnit = function() return map end,
+        GetPlayerMapPosition = function() return { GetXY = function() return 0.01, 0.02 end } end,
+    }
+    units.target, units.nameplate1 = first, second
+    Begin()
+    Aura("player", "target")
+    Aura("party1", "target")
+    Aura("player", "nameplate1")
+    -- An ordinary map/zone border while active retains the same window.
+    zone, map = "Fixture Border", 2
+    Fire("ZONE_CHANGED_NEW_AREA")
+    Aura("target", "player")
+    End()
+    Advance(1)
+    local fight = assert(addon.db.skirmishes["world:1"])
+    assert(fight.personalOutcome.lifecycle == "awaiting" and not fight.personalOutcome.outcome)
+    units.target = nil -- stealth / loss of the local target during the gap
+    Advance(2)
+    units.target = first
+    Aura("party1", "target") -- same linked fight is still observed
+    Begin()
+    Aura("target", "player")
+    Advance(1)
+    localPlayer.dead = true
+    recap = { { sourceGUID = one, sourceName = first.name, sourceFlags = 0x440, timestamp = now, overkill = 1 },
+        { sourceGUID = two, sourceFlags = 0x440, timestamp = now - 0.5, amount = 18 } }
+    Fire("PLAYER_DEAD")
+    End()
+    ghost = true
+    Fire("PLAYER_ALIVE")
+    Advance(8) -- beyond the old five-second bridge limit
+    Aura("party1", "target")
+    Advance(1)
+    localPlayer.dead, ghost = false, false
+    Fire("PLAYER_UNGHOST")
+    assert(fight.personalOutcome.lifecycle == "awaiting")
+    Begin()
+    Aura("player", "target")
+    Advance(0.6)
+    assert(fight.personalOutcome.lifecycle == "active" and not fight.personalOutcome.outcome)
+    Kill(me, first)
+    End()
+    Advance(12.1)
+    assert(#fight.observation.segments == 3 and not addon.db.skirmishes["world:2"])
+    assert(fight.mapID == 1 and fight.zone == "Fixture Grove" and not fight.observation.visibilityGap)
+    assert(#fight.events == 3 and fight.events[2].kind == "revive")
+    assert(fight.personalOutcome.outcome == "draw" and fight.personalOutcome.reason == "observed-disengagement")
+    assert(fight.personalOutcome.casualties.friendly == 1 and fight.personalOutcome.casualties.enemy == 1)
+
+    -- A revenge engagement at the same site with the same GUID is independent.
+    first.dead = false
+    Begin()
+    Aura("player", "target")
+    End()
+    Advance(12.1)
+    local revenge = assert(addon.db.skirmishes["world:2"])
+    assert(revenge.personalOutcome.outcome == "draw" and #revenge.events == 0 and #fight.events == 3)
+    C_Map = nil
+end
+
+Reset()
+if not arg[1] or arg[1] == "pov-observation" then
+    units.target, units.party1 = first, friend
+    Begin()
+    Aura("player", "target")
+    Aura("party1", "target")
+    Advance(2)
+    localPlayer.dead = true
+    recap = { { sourceGUID = one, sourceName = first.name, sourceFlags = 0x440, timestamp = now, overkill = 1 } }
+    Fire("PLAYER_DEAD")
+    End()
+    ghost = true
+    Fire("PLAYER_ALIVE")
+    Advance(6)
+    Kill(ally, first) -- linked finish without an intervening aura or meter delta
+    Advance(12.1)
+    local observed = assert(addon.db.skirmishes["world:1"])
+    assert(observed.personalOutcome.outcome == "win" and observed.personalOutcome.reason == "enemy-elimination")
+end
+
+Reset()
+if not arg[1] or arg[1] == "pov-pve" then
+    local npc = { id = "Creature-fixture", name = "Mock Creature", faction = "Horde", x = 40 }
+    units.target, units.mouseover = first, npc
+    Begin()
+    Aura("player", "target")
+    Aura("player", "mouseover") -- a mixed encounter remains in progress
+    End()
+    Advance(6)
+    local old = assert(addon.db.skirmishes["world:1"])
+    assert(old.personalOutcome.lifecycle == "awaiting")
+    Begin()
+    Aura("player", "mouseover") -- a later local window with verified NPC activity
+    Advance(3)
+    assert(old.personalOutcome.finalizedBy == "unrelated-pve" and old.personalOutcome.outcome == "draw")
+    assert(not addon.db.skirmishes["world:2"])
+    End()
+    units.mouseover = nil
+end
+
+Reset()
+if not arg[1] or arg[1] == "pov-feign" then
+    units.target, units.nameplate1 = first, second
+    second.feignUnavailable = true
+    Begin()
+    Aura("player", "target")
+    Aura("player", "nameplate1")
+    second.dead = true
+    Fire("UNIT_FLAGS", "nameplate1")
+    Advance(0.6)
+    units.nameplate1 = first -- this token now belongs to another GUID
+    Fire("UNIT_FLAGS", "nameplate1")
+    units.nameplate1 = second
+    second.dead, second.feignUnavailable, second.feign = false, false, true
+    Fire("UNIT_FLAGS", "nameplate1")
+    second.dead = true
+    Fire("UNIT_FLAGS", "nameplate1")
+    Advance(0.6)
+    Fire("UNIT_FLAGS", "nameplate1")
+    second.feignUnavailable, second.feign = true, false
+    Fire("UNIT_FLAGS", "nameplate1")
+    Advance(0.6)
+    Fire("UNIT_FLAGS", "nameplate1")
+    End()
+    Advance(12.1)
+    local observed = assert(addon.db.skirmishes["world:1"])
+    assert(#observed.events == 1 and observed.events[1].source == "corroborated-corpse")
+    assert(observed.events[1].targetID == two and not observed.events[1].actorID)
+    assert(observed.personalOutcome.outcome == "win" and observed.personalOutcome.casualties.enemy == 1)
+    second.feignUnavailable = false
+end
+
+Reset()
+if not arg[1] or arg[1] == "pov-late" then
+    units.target = first
+    Begin()
+    local window = assert(addon.WorldCombatWindow(now))
+    Aura("player", "target")
+    Advance(1)
+    localPlayer.dead = true
+    recap = nil
+    Fire("PLAYER_DEAD")
+    local deathAt = now
+    End()
+    Fire("PLAYER_LEAVING_WORLD")
+    local previous = assert(addon.db.skirmishes["world:1"])
+    assert(previous.personalOutcome.outcome == "unknown" and previous.personalOutcome.boundary == "left-world")
+    localPlayer.dead = false
+    Begin()
+    Aura("player", "target")
+    recap = { { sourceGUID = one, sourceName = first.name, sourceFlags = 0x440, timestamp = deathAt, overkill = 2 } }
+    Advance(0.4)
+    End()
+    Advance(11)
+    local current = assert(addon.db.skirmishes["world:2"])
+    assert(previous.personalOutcome.outcome == "loss" and #previous.events == 1 and #current.events == 0)
+    assert(not addon.WorldCanObserveMeter(window))
+    local currentWindow = assert(addon.WorldCombatWindow(now - 11.4))
+    addon.WorldMeterObservation(currentWindow, "linked-increase", me, one)
+    Advance(1.1)
+    assert(current.personalOutcome.lifecycle == "finalized" and current.personalOutcome.outcome == "draw")
+end
+
 print("Anonymized Gnomeregan event replays passed")

@@ -141,6 +141,7 @@ frame:SetScript("OnEvent", function()
     if Record(death) then
         return
     end
+    context.delayedAssociation = true
     local recorded
     for _, delay in ipairs({ 0.3, 1, 2 }) do
         C_Timer.After(delay, function()

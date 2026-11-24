@@ -176,11 +176,12 @@ features into an approved release. See product spec for all acceptance rules.
   IndexSkirmish, PersonalScore, PersonalCombatScore. Currently side outcome is
   copied to all enemy profiles; personal killing blows/deaths separate already.
   Rework projections/indexes rather than destructively overwrite old records.
-- NamesInRed/SkirmishOutcomes.lua: current world evaluator, site anchor,
-  terminal samples, ConfirmedDeaths, IsolatedLethalRecap, SiteFreeElimination.
-  Currently missing terminal samples can return Unknown before considering
-  non-isolated deaths. New personal evaluator should not depend on global
-  terminal samples; retain old group result as separately versioned context.
+- NamesInRed/SkirmishOutcomes.lua continues to derive the legacy side result
+  from its site, range and terminal samples. NamesInRed/PersonalSkirmishOutcomes.lua
+  implements the Character POV projection from durable timeline and local ending
+  evidence. WorldSkirmishes owns participation transitions. Ledger persists the
+  versioned projection alongside the legacy result; UI and existing score
+  consumers still read the legacy result in PR A.
 - NamesInRed/WorldSkirmishes.lua, SkirmishEvidence.lua, Debug.lua, Kills.lua,
   Deaths.lua, Honor.lua, Encounter.lua: event correlation, roster and life
   observations, late windows, group/pet identity, accepted meter links and
@@ -255,7 +256,7 @@ session; use repository fixtures and ask for the original only if necessary.
   Unknown under the old semantics; this is a product-model change, not evidence
   that #30 failed to implement its stated diagnostic scope.
 
-## Next work (approved direction, not yet implemented)
+## Character POV implementation and next work
 
 24 November follow-up: all five roadmap scoring decisions are accepted.
 Three enemies damaging our character in the same lethal episode each earn a
@@ -263,7 +264,7 @@ rival loss; the final personal skirmish loss is still one. The owner clarified
 that a fight waits for plausible continuation, including a real return after
 resurrection or stealth, but must close on reliable ending/quiet evidence.
 Ordinary zone borders alone must not split it. Unrelated later PvE and a
-regrouped revenge fight are separate episodes. No exact timeout selected.
+regrouped revenge fight are separate episodes. Exact timing is an implementation decision.
 The owner rejected survival alone as Victory, considered pure casualty scoring,
 then approved starting implementation of the hybrid model described above and
 in spec section 6. The decisive-resolution / terminal-death / observed
@@ -273,34 +274,28 @@ independent. New edge cases may be refined during implementation; no further
 product approval checkpoint is needed for PR A. Exact UI presentation and
 technical evidence predicates remain implementation choices.
 
-The [Character POV milestone roadmap](docs/character-pov-roadmap.md) is
-approved to begin. Next: PR A, personal/POV outcome and encounter lifecycle,
-in a fresh Codex session. PR B (rival attribution) and PR C (UI/migration/
-reporting) follow after review of their dependencies. No release authorization
-or final version-number decision.
+PR A implements the independent personal result and participation lifecycle.
+See [the timing and replay notes](docs/forever-validation.md#character-pov-pr-a)
+for the 12-second settlement window, evidence rules and historical results.
+Review PR A before starting PR B, then PR C, in the
+[Character POV milestone roadmap](docs/character-pov-roadmap.md). Keep 1.1.0
+as the shipped baseline pending separate release authorization.
 
-1. Keep 1.1.0 stable. Start from current main, read this spec and the existing
-   tests. Do not reopen the release or build unnecessary global replay/sync.
-2. Design independent personal participation/end boundaries and versioned
-   personal outcome inference. Preserve group context and legacy results;
-   re-evaluate only from retained evidence. Cover decisive elimination,
-   death/observation loss, casualty comparison, Draw, exceptional Unknown,
-   revival, interruption, NPC vs PvP, 1v1, group and BG cases.
-3. Design attributable contribution to an opponent's defeat or our death:
+1. Design attributable contribution to an opponent's defeat or our death:
    direct, assisted damage and meaningful linked healing/support, pets; prevent
    cross-window/roster-wide credit and duplicates. Apply the approved per-death
    counting unit and repeat-death rules; resolve legacy/manual representation
    in the implementation design.
    Preserve facts permanently, distinguish contribution from actual last hit
    and game-awarded rewards. No arbitrary damage threshold or healer penalty.
-4. Integrate Ledger and the UI consistently: rival score and compact card,
+2. Integrate Ledger and the UI consistently: rival score and compact card,
    personal outcome in full skirmish card, optional group context, tooltips,
    nameplates, report reasons and localization. Review migration with actual
    saved data; don't reset old records or re-label unsupported legacy wins.
-5. Replay original anonymized examples and new healer/assist cases, automated
+3. Replay original anonymized examples and new healer/assist cases, automated
    Checks and narrow real-client smoke checks. Update shipped documentation
    only when feature actually ships. Release with separate authorization.
-6. Later ideas (not blockers): full timeline viewer, general history pagination,
+4. Later ideas (not blockers): full timeline viewer, general history pagination,
    optional consenting peer observations, formal duel history, target-frame
    marker, ranks/achievements. See docs/future-ideas.md.
 

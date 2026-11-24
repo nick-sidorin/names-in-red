@@ -371,6 +371,9 @@ required to record the confrontation.
 
 ### Kill-free world skirmishes and observation boundaries
 
+This section records the earlier recorder design and client evidence. See
+[Character POV PR A](#character-pov-pr-a) for the current continuation rules.
+
 The recorder keeps local combat windows separate from the saved confrontation.
 A window becomes a journal record only after positive evidence. Its identifier
 is allocated once and reused for later kills, deaths, rewards and enrichment.
@@ -457,6 +460,10 @@ delivery of the new live signals and actual meter rollover in these
 scenarios still require a fresh Forever 70959 capture.
 
 ### World outcomes and observations after death
+
+These are the legacy side-outcome rules and their client evidence. The journal
+continues consuming that projection in PR A. See
+[Character POV PR A](#character-pov-pr-a) for the independent personal result.
 
 **Three independent axes.** The journal stores the character's life phase
 (`observation.playerState` and timed `life`), whether the fight's ending
@@ -1444,6 +1451,88 @@ SavedVariables agree with the current evaluator.
 | --- | --- | --- |
 | `world:4`, 20:08 MSK | Unknown, `site-anchor-missing` | The second enemy's nameplate-removal contact at +28.043 s says dead, with no Feign Death value in the linked historical observation. A contact snapshot alone does not establish a durable confirmed death. Both allied terminal samples have readable positions and both allies are alive and out of combat. Without a combat anchor those observations do not qualify as holding the site. The existing site-free group elimination path can award Victory when both enemy deaths are corroborated and terminal survivors remain together. The current roster snapshot path already captures a matched corpse observation with a readable non-feign flag as an observed death without a killer. The historical second death is not reconstructed here. |
 | `world:7`, 20:11 MSK | Unknown, `area-changed` / `no-terminal-samples` | The local character died at +6.262 s. An enemy harmful aura was observed at +13.524 s and the ally died at +17.528 s. The comparable meter read advanced at +18.651 s while the local player was a ghost. Observation therefore continued after death and spirit release. The read offset does not establish the exact time of a hit, a final elimination, or whether either ally returned before the end. The area change interrupted coverage without terminal samples. Defeat is plausible and remains unconfirmed. |
+
+### Character POV PR A
+
+**Lifecycle and scope.** A confirmed skirmish stores participation independently
+of client combat segments. It is active during linked activity, awaits
+continuation after local combat ends or the local character dies, and finalizes
+at a bounded quiet deadline or explicit boundary. A genuine linked return
+after revival returns it to active; a revival alone changes life state.
+Open-world zone names and UI map IDs still locate the original card. The
+recorder and current meter/contact scope use world versus battleground, a
+readable battleground map when present, match events and actual world loading.
+A proven independent PvP window or a later window with a linked hostile NPC
+aura can close participation in the old fight. The NPC path needs a five-second
+gap between combat windows or at least 55 readable world yards of separation,
+then the existing 2.5-second grace for evidence of mixed combat. An NPC aura
+inside an already confirmed PvP window leaves that encounter intact.
+
+**Intervals and rationale.** The baseline used 2.5 seconds for late contacts
+and kills, five seconds for a fresh continuity bridge, 0.75/2.75 seconds for
+terminal samples, 12 seconds for recent visible life/pressure signals, and
+0.5 seconds to settle kill/corpse observations. PR A keeps those purposes
+separate. The continuation deadline is 12 seconds from the local exit or a
+new witnessed linked action, starting at the death if combat remains open.
+The old 12-second life horizon is long enough to admit the recorded +13.524
+second Gnomeregan allied action after the local +6.262 second death. It also
+allows at least one pair of the existing short reads and a final pair around
++10/+12 seconds if visibility continues. The five-second limit still
+corroborates linkage between a new segment and a witnessed intervening
+exchange (or a readable opponent still in combat at the prior live exit).
+It is not the total time allowed for a corpse or spirit to observe allies.
+A scoped meter can corroborate participants or enrich its owning window.
+Receipt of a meter delta or delayed recap does not extend the deadline.
+A deadline is private session time; only server times and offsets from the
+saved skirmish persist. Logout/loading finalizes with available observations,
+and reload closes any saved unfinished state if normal cleanup was missed.
+These intervals are engineering choices verified with mocked events, pending
+play tuning on Forever.
+
+**Projection and evidence.** `personalOutcome` version 1 records lifecycle,
+the final result and reason, observation boundary, coverage, distinct
+friendly/enemy casualties and latest verified life. `observation.participation`
+holds the durable state and terminal observations underneath that projection.
+A compatible pair of terminal reads can establish disengagement without
+coordinates. Known unresolved hostile activity or a still-fighting opponent
+lost from view can leave the ending unobserved. Decisive elimination requires
+latest confirmed opposing deaths and a corroborated surviving side, or
+corroboration of mutual elimination. This takes priority over terminal personal
+death without a reliable ending, then over the casualty balance for an
+observed non-elimination ending. Repeating a corpse or a kill signal within
+one life counts only once. A verified return to life opens a new life episode.
+A distinct validated server death recap can also distinguish separate local
+lives. A corpse without a finisher needs a recent timed opposing action on the
+same victim before it enters the tally. Two readable, identity-checked dead
+observations of a known non-Hunter separated by at least 0.5 seconds can
+corroborate a corpse when Feign Death is unavailable. A single such
+observation cannot supply a death or a finisher. Raw history, legacy results,
+rewards, manual entries and user-facing projections retain their existing
+contracts.
+
+**Anonymized replay results.** Only repository fixtures and documented retained
+observations were available for this PR. No original private SavedVariables
+were replayed and no fresh live-client check was performed.
+
+| Encounter | Personal projection | Evidence retained |
+| --- | --- | --- |
+| Gnomeregan `world:4` | Victory by casualty balance, 0:1 | Two stable allied terminal reads and the confirmed teammate kill establish the personal result without a site anchor. The single Paladin corpse snapshot has no second confirmation. Legacy stays Unknown / site-anchor-missing. |
+| Gnomeregan `world:7` | Defeat by terminal personal death | The later allied death and hostile aura remain. The original meter delta is untimed and the area cutoff has no terminal pair. The second enemy corpse is still a raw fact in the fixture, with no retained timed attack on that victim. Legacy stays Unknown. |
+| Gnomeregan `world:12` | Defeat, one confirmed local casualty | The validated lethal hostile player recap remains sufficient in the mixed PvE/PvP death. Legacy stays Defeat, and readable level recovery is tested separately. |
+| Gnomeregan `world:14` | Defeat by terminal personal death | One verified local death, no supported return or terminal pair. Legacy stays Unknown. |
+| Duskwood | Unknown, two confirmed enemy casualties | The 2 × 3 roster and five honor survive. The remaining foe was last seen alive in combat, with no readable end or safe third death. The supported favorable disengagement is covered separately. |
+
+**Remaining client limits.** Readable GUID, death, combat, harmful aura and
+corpse observations can be unavailable in PvP or while ghosted. Overlapping
+untimed meter totals, an off-target kill delivered with no identity or safe
+window, and a PvE episode that cannot be separated within one native window
+remain ambiguous. A disappearance or unavailable flag cannot establish a
+death. Later unobserved allied activity cannot decide a prior result and a
+battleground scoreboard cannot decide a local fight. The existing replay also
+cannot recover Gnomeregan's missing 20:21 card or assign the 14 historical
+unlinked honor. Verify ordinary border pursuit, a real ghost-run return, and
+true loading/respawn boundaries in Forever before activation/release. The
+native UI and rival scoring changes remain in later PRs.
 
 ### Preview and release provenance
 
