@@ -594,7 +594,9 @@ local function CheckOwner(ownerUnit, owner, petUnit, pet)
     else
         local verdict, status = Value(controls)
         Count(combat.petSignals, status)
-        if verdict == true then RememberOwner(pet, owner) end
+        if verdict == true and Value(UnitGUID(ownerUnit)) == owner and Value(UnitGUID(petUnit)) == pet then
+            RememberOwner(pet, owner)
+        end
     end
 end
 
@@ -1259,6 +1261,15 @@ function addon.ActiveCombatContacts()
         end
     end
     return result
+end
+
+function addon.CombatRecapPetOwner(worldWindow, pet)
+    local window = CurrentContactWindow()
+    if not window or not worldWindow or (window.worldWindow or addon.WorldCombatWindow(window.startedUptime)) ~= worldWindow then return end
+    local owner = addon.UniqueCombatPetOwner(window.petOwners[pet])
+    local contact = owner and window.contacts[owner]
+    local player = contact and contact.latest
+    if player and player.guid == owner and player.isPlayer == true and player.opponent == true then return owner, player end
 end
 
 function addon.NotePvPDiagnostic(reason)

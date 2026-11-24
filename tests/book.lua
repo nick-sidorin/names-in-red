@@ -1074,7 +1074,7 @@ do
     assert(FindText(book, addon.FormatRivalCounters(1, 1, false, 0)))
 
     local archiveRival = "Player-archive-warlock"
-    local archiveBattle = dofile("tests/fixtures/world16.lua")("Player-self", archiveRival)
+    local archiveBattle = dofile("tests/fixtures/terminal-local-death.lua")("Player-self", archiveRival)
     local record = addon.Ledger.Add(addon.db, archiveRival, "Mock Warlock")
     addon.db.skirmishes["world:16"] = archiveBattle
     addon.Ledger.Open(addon.db)
@@ -1085,7 +1085,14 @@ do
     ProfileStat(addon.L.honor, 5)
     compact:SetEncounter(addon.RivalEncounters(addon.db, archiveRival)[1], record, archiveRival)
     assert(CenterMarker(banner) and FindText(compact, addon.L.lossTooltip))
-    card:SetSkirmish(archiveBattle)
+    local archivedEvent = archiveBattle.events[1]
+    archiveBattle.recoveredDeathRecaps = { {
+        targetID = archivedEvent.targetID, time = archivedEvent.time, offset = archivedEvent.offset,
+        recapTimestamp = 125.75, petFinisher = { sourceID = "Pet-synthetic", timestamp = 125.75 },
+    } }
+    PET = "Pet"
+    card:SetSkirmish(archiveBattle, archiveRival, true)
+    assert(FindText(card, PET))
     assert(FindText(card, addon.L.lossTooltip) and not FindText(card, addon.L.shortUnknownOutcome))
     callback(GameTooltip, { guid = archiveRival })
     assert(tooltipLines[#tooltipLines] == addon.FormatRivalCounters(0, 1, false))

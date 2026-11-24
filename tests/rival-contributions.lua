@@ -352,14 +352,14 @@ assert(not next(archive.rivals) and not archive.skirmishes)
 assert(evaluations == 3 * length + 3)
 print("Character POV score index keeps 1,050 battles, updates affected records only, and rebuilds on reload")
 
-local world16 = dofile("tests/fixtures/world16.lua")
+local terminalLocalDeath = dofile("tests/fixtures/terminal-local-death.lua")
 local function RetainedLocalDeath()
-    return world16(me, mage)
+    return terminalLocalDeath(me, mage)
 end
 
 local stored, storedPhase, rawDeath = RetainedLocalDeath()
 local oldProjection = stored.personalOutcome
-local archiveID = "world:16"
+local archiveID = "world:508"
 local restored = Ledger.Open()
 restored.skirmishes = { [archiveID] = stored }
 Ledger.Add(restored, mage, "Mock Warlock")
@@ -371,7 +371,7 @@ assert(win == 0 and loss == 0)
 addon.EvaluateRivalContributions = currentEvaluator
 for _ = 1, 2 do
     assert(Ledger.Open(restored) == restored)
-    assert(stored.personalOutcome ~= oldProjection and stored.personalOutcome.version == 3)
+    assert(stored.personalOutcome ~= oldProjection and stored.personalOutcome.version == 4)
     assert(stored.personalOutcome.finalizedBy == "historical" and stored.personalOutcome.boundary == "area-changed")
     assert(Ledger.JournalOutcome(stored) == "loss" and stored.personalOutcome.casualties.friendly == 1)
     win, loss = Ledger.RivalContributionScore(restored, mage)

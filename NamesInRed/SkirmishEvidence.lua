@@ -22,6 +22,15 @@ local timedDamage = { DamageDone = true, DamageTaken = true, EnemyDamageTaken = 
 local targetFields = { "unitName", "unitClassFilename", "isMob", "isPet", "amount" }
 local Evidence = {}
 
+function addon.UniqueCombatPetOwner(owners)
+    local owner
+    for id in pairs(owners or {}) do
+        if owner then return false end
+        owner = id
+    end
+    return owner
+end
+
 function addon.NewMeterParticipantEvidence(contacts, petOwners, faction, localID)
     local evidence = setmetatable({
         player = {}, names = {}, pet = {}, links = {}, damage = {}, contributions = {}, contacts = contacts, faction = faction,
@@ -40,7 +49,7 @@ function addon.NewMeterParticipantEvidence(contacts, petOwners, faction, localID
         end
     end
     for pet, owners in pairs(petOwners) do
-        for owner in pairs(owners) do Index(evidence.pet, pet, owner) end
+        evidence.pet[pet] = addon.UniqueCombatPetOwner(owners)
     end
     return evidence
 end

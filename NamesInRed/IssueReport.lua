@@ -478,6 +478,14 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
     each("event", battle.events, 128, function(event, index)
         local fields = Fields(event, "kind source recapStatus nonPvPLethal", "time offset spellID segmentIndex", "observedDead pvpLinked")
         fields.index = index
+        local evidence = addon.SkirmishDeathEvidence
+        local recap = Table(evidence and Read(evidence.EventRecap, battle, event, index))
+        local pet = Table(recap.petFinisher)
+        if next(pet) then
+            fields.finisher, fields.finisherOwner, fields.finisherEffect = "pet", rosterAliases[addon.Readable(pet.ownerID)], Token(pet.effect)
+            fields.finisherTime, fields.finisherAmount = Number(pet.timestamp), Number(pet.amount)
+            fields.finisherRecovered = recap ~= event
+        end
         fields.evidence = "derived"
         Actor("event", fields, event)
         if fields.kind ~= "kill" or not selfID then return end

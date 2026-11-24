@@ -1789,6 +1789,53 @@ credit while the later ending can change the personal result. The fix
 has been replayed with client-shaped mocks. Retesting in Forever remains
 necessary for the new preview.
 
+#### Original world:16 findings and second follow-up
+
+The owner's investigation of the original SavedVariables identified two
+failures in preview `d6f7bcc`. The saved segment has no `offset`. Its
+`startedAt` matches the battle's start, `duration` is 25.00200000000041,
+and the six directed incoming Damage Meter aggregates were eligible.
+The evaluator found a segment start of zero, then gated the finish
+calculation on the absent raw offset. The previous test fixture explicitly
+supplied an offset. Outcome v4 uses the resolved start for both bounds and
+shares that resolver with timed hostility. A missing server anchor,
+unbounded timing or overlapping unbound windows still prevent a match.
+[Review of the original SavedVariables](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6046251024)
+
+The original debug store also contains two reads of the same pet lethal.
+The reviewed values are a `Pet-` GUID, flags `0x1148`, `SWING_DAMAGE`,
+56 damage, 12 HP and 44 overkill. A readable hostile player dealt periodic
+damage immediately beforehand. The player-only recap reader discarded
+both. The recorder now checks the hostile reaction, player control and
+pet type flags, and preserves the lethal pet GUID, native timestamp and hit
+fields alongside the earlier player damage. The owner's GUID is a separate
+optional field and requires the verified `UnitIsOwnerOrControllerOfUnit`
+mapping for that window. A verified hostile pet death can settle a personal
+Defeat without a known owner. The full timeline shows the pet as the
+finisher and the direct player finishing-blow counters remain independent.
+
+Load-time recovery can attach retained pet-recapping evidence beside an
+original local death. It requires the segment's diagnostic session and
+combat sequence, an unambiguous local `PLAYER_DEAD` with the same victim,
+scope, server second and compatible uptime, and readable recap rows with
+the same death sequence. Exact repeated reads of the pet and native stamp
+combine. Conflicting verified lethals, multiple candidate windows or
+competing claims on the same native stamp are rejected. A historical owner
+can be recovered only from the uniquely matched combat-end row's verified
+ownership and hostile-player contact. The original event is unchanged.
+Once attached, the proof survives diagnostic eviction. Outcome v4 and the
+rival index re-evaluate from the resulting evidence on load.
+
+Local Lua checks reproduced the pre-offset failure from the field shape in
+the review and replayed the reported flags through both versions of the
+capture path. Synthetic regressions verify the migration, contradictory
+rows, owner ambiguity, NPC and environmental deaths, duplicate reads,
+resurrection, diagnostic eviction and journal/rival consumers. The exact
+anonymized extract and original SavedVariables were unavailable in this
+workspace. Full replay of the original record and Forever retesting are
+pending. The preceding v3 fixture used reconstructed evidence and did
+not verify the original save.
+
 ### Preview and release provenance
 
 The original #29 preview included the new combat diagnostics with the old

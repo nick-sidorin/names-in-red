@@ -201,10 +201,16 @@ local function FullCardHeight(rosterBottom, blowCount, expanded)
     return -rosterBottom + SkirmishDetailsHeight(blowCount, expanded)
 end
 
+local function PetFinisher(battle, event, index)
+    local evidence = addon.SkirmishDeathEvidence
+    local recap = evidence and evidence.EventRecap(battle, event, index)
+    return recap and recap.petFinisher
+end
+
 function addon.SkirmishCardHeight(battle, expanded)
     local count = 0
-    for _, event in ipairs(battle.events) do
-        if event.kind == "kill" then count = count + 1 end
+    for index, event in ipairs(battle.events) do
+        if event.kind == "kill" or PetFinisher(battle, event, index) then count = count + 1 end
     end
     return FullCardHeight(RosterBottom(RosterHeight(battle)), count, expanded)
 end
@@ -672,7 +678,8 @@ local function CreateSkirmishDetails(card, width, toggleTimeline)
         local visible = expanded and #blows or 0
         local columnWidth = math.floor(width / 2) - cardInset
         for i = 1, math.max(visible, #rows) do
-            local event = i <= visible and blows[i]
+            local blow = i <= visible and blows[i]
+            local event = blow and blow.event
             local row = rows[i]
             if not row then
                 local y = -skirmishSummaryHeight - (i - 1) * finishingBlowStep
@@ -702,7 +709,7 @@ local function CreateSkirmishDetails(card, width, toggleTimeline)
                 local actor, target = players[event.actorID], players[event.targetID]
                 local elapsed = event.time and battle.startedAt and math.max(0, event.time - battle.startedAt)
                 row[1]:SetText(elapsed and ("%d:%02d"):format(math.floor(elapsed / 60), elapsed % 60) or "")
-                row[2]:SetText(actor and actor.name or L.unknownPlayer)
+                row[2]:SetText(blow.pet and (PET or L.unknownPlayer) or (actor and actor.name or L.unknownPlayer))
                 row[2]:SetTextColor(unpack(colors[event.actorID] or neutralColor))
                 row[4]:SetText(target and target.name or L.unknownPlayer)
                 row[4]:SetTextColor(unpack(colors[event.targetID] or neutralColor))
@@ -779,9 +786,10 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
         local allyColor, enemyColor, alliesHorde = SideColors(battle.demoFaction)
         for _, player in ipairs(battle.allies) do players[player.id], colors[player.id] = player, allyColor end
         for _, player in ipairs(battle.enemies) do players[player.id], colors[player.id] = player, enemyColor end
-        for _, event in ipairs(battle.events) do
-            if event.kind == "kill" then
-                blows[#blows + 1] = event
+        for index, event in ipairs(battle.events) do
+            local pet = PetFinisher(battle, event, index)
+            if event.kind == "kill" or pet then
+                blows[#blows + 1] = { event = event, pet = pet }
             end
         end
         local casualties = addon.Ledger.FirstDeaths(battle)

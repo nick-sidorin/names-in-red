@@ -211,8 +211,8 @@ latest accepted main; avoid parallel changes to shared scoring/storage
 contracts. Independent fixture preparation may be parallelized only if
 it does not create conflicting changes.
 
-Next: retest the revised PR C preview in Forever. The first live check
-found an uncredited local death with scoped incoming damage and an unreadable
-finisher. The follow-up includes retained-history replay and exact preview
-provenance. See [the world:16 validation](forever-validation.md#live-preview-follow-up-world16).
+Next: validate the second PR C follow-up against the original anonymized
+world:16 extract and retest its preview in Forever. The review identified
+a missing legacy segment offset and a hostile pet lethal dropped by the
+player-only recap path. See [the world:16 validation](forever-validation.md#original-world16-findings-and-second-follow-up).
 A public release still requires separate owner authorization.

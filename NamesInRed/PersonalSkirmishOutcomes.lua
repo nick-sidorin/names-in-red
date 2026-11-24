@@ -1,7 +1,7 @@
 local _, addon = ...
 local Ledger = addon.Ledger
 local DeathEvidence = addon.SkirmishDeathEvidence
-local version = 3
+local version = 4
 local deathLinkAge = DeathEvidence.timedActionAge
 
 local function LastSegment(observation)
@@ -20,10 +20,7 @@ local function Hostility(battle, observation, sides, me)
         end
     end
     for _, segment in ipairs(observation.segments or {}) do
-        local start = segment.offset
-        if not start and type(segment.startedAt) == "number" and type(battle.startedAt) == "number" then
-            start = segment.startedAt - battle.startedAt
-        end
+        local start = DeathEvidence.SegmentStart(battle, segment)
         for _, action in ipairs(segment.actions or {}) do
             if start and type(action.last) == "number" then
                 if type(action.first) == "number" and action.first < action.last then
@@ -98,8 +95,10 @@ local function ReconstructLives(battle, sides, me, attacks, first, last, lateFir
                 state.dead, state.recap, state.lastDeath = false, nil, nil
             end
         else
-            local distinctRecap = event.source == "death-recap" and type(event.recapTimestamp) == "number"
-                and state.recap and event.recapTimestamp > state.recap
+            local index = eventIndexes[event]
+            local recap = index and DeathEvidence.EventRecap(battle, event, index)
+            local stamp = recap and recap.recapTimestamp
+            local distinctRecap = stamp and state.recap and stamp > state.recap
             if distinctRecap then
                 -- Distinct validated server recaps imply a new local life.
                 state.episode = nil
@@ -114,7 +113,8 @@ local function ReconstructLives(battle, sides, me, attacks, first, last, lateFir
             local episode = state.episode
             if not event.sampled then
                 episode.event = episode.event or event
-                episode.index = episode.index or eventIndexes[event]
+                episode.index = episode.index or index
+                if recap then episode.recap = recap end
                 if OpposedKill(event, sides) and not episode.kill then
                     episode.kill, episode.killIndex = event, eventIndexes[event]
                 end
@@ -127,7 +127,7 @@ local function ReconstructLives(battle, sides, me, attacks, first, last, lateFir
                     or (id ~= me and LinkedCorpse(event, attacks[id], state.revival))))
             if linked and not episode.witnessedDeath then episode.witnessedDeath = event end
             state.dead, state.lastDeath = true, event
-            if event.source == "death-recap" then state.recap = event.recapTimestamp or state.recap end
+            if stamp then state.recap = stamp end
         end
     end
     return life, episodes
@@ -146,6 +146,8 @@ local function ConfirmDeaths(observation, segments, sides, life, episodes, me)
                 episode.qualification = "non-pvp-lethal"
             elseif event.pvpLinked == false then
                 episode.qualification = "explicitly-unlinked"
+            elseif id == me and episode.recap and episode.recap.petFinisher then
+                episode.pvpDeath, episode.qualification = event, "hostile-pet-finisher"
             else
                 episode.pvpDeath = episode.witnessedDeath
                 if episode.pvpDeath then
@@ -261,7 +263,7 @@ function addon.EvaluatePersonalSkirmish(battle)
         result.life[id] = state.dead and (state.linked and "pvp-dead" or "dead") or "alive"
     end
     result.boundary = boundary
-    if not me or #battle.enemies == 0 then return result end
+    if not me then return result end
     local localLife = life[me]
     -- A resurrection by itself is not a return to the confrontation.
     local personalDeath = localLife and (localLife.death or localLife.priorDeath)
@@ -273,6 +275,7 @@ function addon.EvaluatePersonalSkirmish(battle)
     if personalDeath and returned and type(personalDeath.offset) == "number" and returned > personalDeath.offset then
         personalDeath = nil
     end
+    if #battle.enemies == 0 and not personalDeath then return result end
     local unreturned = personalDeath and me
     local outcome, ending, active = TerminalEvidence(battle, segment, lateFirst, lateLast, lastAction, life, unreturned)
     if not ending and not active then
@@ -302,13 +305,13 @@ function addon.EvaluatePersonalSkirmish(battle)
     return result
 end
 
-function addon.RefreshPersonalSkirmish(battle, loading)
+function addon.RefreshPersonalSkirmish(battle, loading, evidenceChanged)
     local observation = battle.observation
     if battle.manual or battle.outcome or not observation or not observation.assessment then return end
     local participation = observation.participation
     if loading and participation and participation.state ~= "finalized" then
         participation.state, participation.boundary = "finalized", "reload"
-    elseif loading and battle.personalOutcome and type(battle.personalOutcome.version) == "number"
+    elseif loading and not evidenceChanged and battle.personalOutcome and type(battle.personalOutcome.version) == "number"
         and battle.personalOutcome.version >= version then
         return
     end

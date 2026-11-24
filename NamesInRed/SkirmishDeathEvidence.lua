@@ -24,9 +24,39 @@ end
 
 local Number = DeathEvidence.IsNumber
 
-local function SegmentStart(battle, segment)
+function DeathEvidence.SegmentStart(battle, segment)
     if Number(segment.offset) then return segment.offset end
-    if Number(segment.startedAt) and Number(battle.startedAt) then return segment.startedAt - battle.startedAt end
+    if Number(segment.startedAt) and Number(battle.startedAt) then
+        local start = segment.startedAt - battle.startedAt
+        if Number(start) then return start end
+    end
+end
+
+-- COMBATLOG_OBJECT_REACTION_HOSTILE, CONTROL_PLAYER and TYPE_PET.
+-- Require the exact reaction/control/type values on a readable Pet GUID.
+function DeathEvidence.IsHostilePet(id, flags)
+    return type(id) == "string" and id:match("^Pet%-.+") ~= nil and Number(flags)
+        and flags >= 0 and flags <= 0xFFFFFFFF and flags == math.floor(flags) and bit
+        and bit.band(flags, 0xFFF0) == 0x1140
+end
+
+function DeathEvidence.PetFinisher(row)
+    local read = addon.Readable
+    local id, flags = read(row.sourceGUID), read(row.sourceFlags)
+    local effect, amount, overkill = read(row.event), read(row.amount), read(row.overkill)
+    if not DeathEvidence.IsHostilePet(id, flags) or not addon.Ledger.IsDeathRecapDamage(effect)
+        or not Number(amount) or amount <= 0 or not Number(overkill) or overkill < 0 then return end
+    local hp, stamp = read(row.currentHP), read(row.timestamp)
+    if not Number(stamp) or stamp <= 0 then return end
+    return { sourceID = id, flags = flags, effect = effect, amount = amount, overkill = overkill, timestamp = stamp,
+        currentHP = Number(hp) and hp or nil }
+end
+
+function DeathEvidence.EventRecap(battle, event, index)
+    if Number(event.recapTimestamp) then return event end
+    local recovered = battle.recoveredDeathRecaps and battle.recoveredDeathRecaps[index]
+    if recovered and recovered.targetID == event.targetID and recovered.time == event.time
+        and recovered.offset == event.offset then return recovered end
 end
 
 local function MeterLinks(segment)
@@ -49,9 +79,9 @@ end
 function DeathEvidence.Segments(battle)
     local segments = {}
     for index, segment in ipairs(battle.observation and battle.observation.segments or {}) do
-        local start = SegmentStart(battle, segment)
+        local start = DeathEvidence.SegmentStart(battle, segment)
         local phase = { index = index, start = start, evidence = segment, links = MeterLinks(segment) }
-        if Number(segment.offset) and Number(segment.duration) and segment.duration >= 0 then
+        if Number(start) and Number(segment.duration) and segment.duration >= 0 then
             phase.finish = start + segment.duration
         end
         segments[index] = phase
@@ -80,6 +110,10 @@ local function DeathWindow(segments, episode, deathAt)
     end
     if matched then return matched end
     return nil, "no-death-window"
+end
+
+function DeathEvidence.LegacyDeathWindow(segments, event)
+    return DeathWindow(segments, { event = event }, event.offset)
 end
 
 function DeathEvidence.SingleLife(life, id, phase, victimEpisode)

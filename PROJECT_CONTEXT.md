@@ -293,11 +293,11 @@ PR A (#43) and PR B (#44) are merged. PR C connects both projections to the
 journal and has a commit-pinned feature preview for review. Keep 1.1.0 as
 the shipped baseline pending separate release authorization.
 
-1. Retest PR #45 with the build revision shown in Report an Issue. The first
-   live preview missed the local death in world:16. The revised shared
-   evaluator uses qualified terminal incoming damage to infer the casualty
-   and one rival loss while keeping the finisher unknown. See the
-   [world:16 validation](docs/forever-validation.md#live-preview-follow-up-world16).
+1. Verify the second PR #45 follow-up with the original anonymized
+   world:16 extract and its exact-head preview. Outcome v4 accepts legacy
+   timing and retains verified hostile pet lethals with optional ownership.
+   The original capture has no verified owner for this pet. See the
+   [world:16 findings](docs/forever-validation.md#original-world16-findings-and-second-follow-up).
 2. Smoke test the preview in Forever and repeat migration on a copy of an
    older real SavedVariables file if available. Follow the
    [milestone integration gate](docs/character-pov-roadmap.md#integration-and-release-gate).

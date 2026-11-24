@@ -759,11 +759,14 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
     local previousRecap, recapIndex = FindDeathRecap(bound, recap)
     if context.repeatRecap and not previousRecap then return end
     if previousRecap and previousRecap.kind == "kill" then return nil, nil, "duplicate" end
+    if previousRecap and previousRecap.petFinisher and guid then return nil, nil, "conflicting-finisher" end
 
     local record
     if unknownFinisher then
-        if not bound or not bound.record then return end
+        if not bound then return end
         record = bound.record
+        if not record and context.petFinisher then record = Confirm(bound, {}, "pet-death-recap") end
+        if not record then return end
     else
         record = Confirm(window, { [guid] = true }, "kill")
     end
@@ -773,10 +776,16 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
     local event = { kind = unknownFinisher and "death" or "kill", actorID = actorID, targetID = targetID, time = context.time,
         offset = (context.killUptime or GetTime()) - record.began,
         source = outgoing and "party-kill" or "death-recap", recapTimestamp = context.deathTimestamp,
-        recapDamage = context.recapDamage, segmentIndex = window.segmentIndex, pvpLinked = unknownFinisher or nil }
+        recapDamage = context.recapDamage, segmentIndex = window.segmentIndex, pvpLinked = unknownFinisher or nil,
+        petFinisher = context.petFinisher }
     if previousRecap then
         local hits, changed = event.recapDamage or {}, false
         local previousHits = previousRecap.recapDamage or {}
+        local oldPet, pet = previousRecap.petFinisher, event.petFinisher
+        if oldPet then
+            if not pet or pet.sourceID ~= oldPet.sourceID or oldPet.ownerID then event.petFinisher = oldPet end
+        end
+        changed = event.petFinisher ~= oldPet and (not oldPet or event.petFinisher.ownerID ~= oldPet.ownerID)
         for id, time in pairs(hits) do
             if time > (previousHits[id] or 0) then changed = true end
         end

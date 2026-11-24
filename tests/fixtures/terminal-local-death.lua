@@ -1,7 +1,7 @@
--- Minimal anonymous SavedVariables shape from the world:16 issue report.
+-- Synthetic terminal local death for focused evidence and UI tests.
 return function(me, rival)
     local death = { kind = "death", offset = 25.002, time = 125, targetID = me, source = "unit-flags" }
-    local segment = { offset = 0, startedAt = 100, duration = 25.002, endReason = "local-combat-ended",
+    local segment = { startedAt = 100, duration = 25.002, endReason = "local-combat-ended",
         meter = { selection = "current-fallback" }, combatAggregates = {}, actions = {},
         reportMeter = { status = "sampled", meterSelection = "current-fallback",
             categories = { DamageTaken = { evidence = "eligible", counts = { link = 8, ["source-connected"] = 1 } } } } }
@@ -13,7 +13,7 @@ return function(me, rival)
         allies = { { id = me, isSelf = true } },
         enemies = { { id = rival, rivalID = rival, name = "Mock Warlock", class = "WARLOCK" } },
         events = { death },
-        personalOutcome = { version = 2, lifecycle = "finalized", outcome = "unknown", finalizedBy = "historical" },
+        personalOutcome = { version = 3, lifecycle = "finalized", outcome = "unknown", finalizedBy = "historical" },
         rewards = { [rival] = { honor = 5, honorableKills = 1 } },
         observation = {
             segments = { segment },

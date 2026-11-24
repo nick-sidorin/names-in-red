@@ -155,6 +155,12 @@ used by cards, profile, tooltip and nameplate.
   across retries and reload. A failed recap supplies no lethal attribution.
   Keep the terminal read in its owning combat segment when later samples
   replace skirmish-level assessment.
+  Validate the derived timing bounds using the resolved offset. Retain an
+  absent runtime field in an anonymized regression from a real save. Keep
+  the literal pet finisher, verified owner and other recap attackers
+  separate. Recover diagnostic evidence only when a unique session, local
+  death and combat window match. Attach it without rewriting the original
+  timeline or requiring the diagnostic log on later loads.
 - Preserve witnessed action times on both sides of a life transition. Per-pair
   first/last/count summaries alone can drop the only action that links an
   earlier corpse to PvP. Reconcile confirmed death and revival from readable,

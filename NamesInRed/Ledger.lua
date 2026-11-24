@@ -103,18 +103,19 @@ local function RestoreMeterAggregates(battle)
     end
 end
 
-function Ledger.Open(saved)
+function Ledger.Open(saved, diagnostics)
     if saved == nil then
         return { version = 1, rivals = {} }
     end
     if type(saved) == "table" and saved.version == 1 and type(saved.rivals) == "table" then
         if type(saved.skirmishes) == "table" then
+            local changed = addon.RestoreLegacyPetRecaps and addon.RestoreLegacyPetRecaps(saved.skirmishes, diagnostics)
             for id, battle in pairs(saved.skirmishes) do
                 if IsSkirmish(battle) then
                     UpdateWorldRoster(id, battle)
                     RestoreMeterAggregates(battle)
                     if addon.RestoreRivalContributionEvidence then addon.RestoreRivalContributionEvidence(battle) end
-                    if addon.RefreshPersonalSkirmish then addon.RefreshPersonalSkirmish(battle, true) end
+                    if addon.RefreshPersonalSkirmish then addon.RefreshPersonalSkirmish(battle, true, changed and changed[battle]) end
                 end
             end
         end

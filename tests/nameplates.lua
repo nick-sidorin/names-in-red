@@ -98,7 +98,7 @@ addon.Ledger.RemoveSkirmish(addon.db, "plate-fight")
 addon.RefreshNameplates()
 assert(badge.text:find(addon.L.legacyResult, 1, true))
 
-local historic = dofile("tests/fixtures/world16.lua")("Player-self", guid)
+local historic = dofile("tests/fixtures/terminal-local-death.lua")("Player-self", guid)
 addon.db.skirmishes["world:16"] = historic
 addon.Ledger.Open(addon.db)
 addon.RefreshNameplates()
