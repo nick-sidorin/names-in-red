@@ -401,6 +401,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
     record.id = type(battleID) == "string" and battleID:match("^[%a]+:%d+$") and battleID or nil
     record.origin = addon.Readable(battle.origin) == "battleground" and "Battleground" or "Open World"
     record.zone, record.outcome, record.outcomeScope = Zone(battle.zone), Token(outcome) or "unknown", scope
+    record.personalCombatScope = "direct-player"
     record.dateUTC = record.time and record.time >= 0 and record.time <= 4102444800
         and Read(date, "!%Y-%m-%dT%H:%M:%SZ", record.time) or nil
     record.reason = scope == "personal" and Token(personal.reason)
@@ -483,6 +484,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
         local pet = Table(recap.petFinisher)
         if next(pet) then
             fields.finisher, fields.finisherOwner, fields.finisherEffect = "pet", rosterAliases[addon.Readable(pet.ownerID)], Token(pet.effect)
+            fields.finisherAttribution = fields.finisherOwner and "verified-player-owner" or "unknown-player"
             fields.finisherTime, fields.finisherAmount = Number(pet.timestamp), Number(pet.amount)
             fields.finisherRecovered = recap ~= event
             fields.finisherOwnerEvidence = Token(pet.ownerEvidence)

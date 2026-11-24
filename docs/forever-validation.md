@@ -1937,6 +1937,24 @@ conflicting owners, non-opponents, and window invalidation. The
 original save still replays as Defeat, one warlock loss, and an
 unknown player actor with the pet lethal retained privately.
 
+The PR #45 follow-up reproduced a stale rival on `278e9f8`: the first
+owner result added the player to the roster, and a conflicting retry
+revoked attribution while leaving that roster entry behind. A recap-only
+claim now stays provisional until the existing skirmish finalization
+boundary. A conflicting retry discards the claim. Independently linked
+participation still enters the roster immediately, and earlier rival
+history and manual entries remain intact. Older persisted rosters have
+no provenance for this admission, so historical entries are preserved.
+
+Duplicate reads of the same native death and pet source append probe
+statuses to the saved episode even when the outcome and score stay the
+same. Lua replay checks the four-attempt cap, ordinary logout, and
+reopening a copy of SavedVariables with the debug log cleared. The issue
+report labels the direct-player counter scope and distinguishes a verified
+player owner from an unknown player actor on a pet finishing blow. The
+literal pet death leaves the direct-player counters unchanged.
+[PR #45 review](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6047563563)
+
 ### Preview and release provenance
 
 The original #29 preview included the new combat diagnostics with the old

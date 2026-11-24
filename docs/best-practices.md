@@ -161,7 +161,11 @@ used by cards, profile, tooltip and nameplate.
   separate. Use only verified players as journal actors. Recheck a
   GUID-resolved pet token before and after reading ownership. Limit
   late attempts to the originating window and keep secret or absent API
-  results distinct from contradictory owner claims. Spell aggregates
+  results distinct from contradictory owner claims. Defer owner-only
+  roster admission until the skirmish closes so a revoked claim cannot
+  create a rival. Keep independent participant evidence on its ordinary
+  path. Append bounded probe statuses to the durable death even when a
+  duplicate needs no outcome or score recalculation. Spell aggregates
   preserve participation evidence without assigning ownership.
   Recover diagnostic evidence only when a unique session, local
   death and combat window match. Attach it without rewriting the original

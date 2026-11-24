@@ -406,6 +406,8 @@ local function SummarizeSkirmish(id, battle)
     end
     if player then
         for _, event in ipairs(battle.events) do
+            -- A verified owner can be displayed for a pet finisher on a death event.
+            -- These counters use only literal player kill events.
             if event.kind == "kill" and event.actorID and event.targetID then
                 if event.actorID == player.id then
                     kills[event.targetID] = (kills[event.targetID] or 0) + 1

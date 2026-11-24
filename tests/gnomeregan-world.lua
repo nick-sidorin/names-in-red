@@ -1123,6 +1123,13 @@ if not arg[1] or arg[1] == "world16" then
     World16({ pet = true, qualification = "no-qualified-incoming-damage" })
 end
 
+local function SavedCopy(value)
+    if type(value) ~= "table" then return value end
+    local copy = {}
+    for key, field in pairs(value) do copy[key] = SavedCopy(field) end
+    return copy
+end
+
 if not arg[1] or arg[1] == "pet-recap" then
     for _, scenario in ipairs({
         { expected = true }, { expected = true, owner = true }, { expected = true, onlyPet = true },
@@ -1165,9 +1172,16 @@ if not arg[1] or arg[1] == "pet-recap" then
             assert(fight.personalOutcome.outcome == "loss" and fight.personalOutcome.casualties.friendly == 1)
             assert(death.petFinisher.sourceID == pet.id and death.petFinisher.overkill == 44)
             assert(death.petFinisher.ownerID == (scenario.owner and two or nil))
-            assert(death.petFinisher.ownerAttempts[1].petToken == "unavailable")
+            local attempts = death.petFinisher.ownerAttempts
+            assert(#attempts == 4 and attempts[1].petToken == "unavailable")
+            assert(attempts[1].delay == 0 and attempts[2].delay == 0)
+            assert(math.abs(attempts[3].delay - 0.3) < 0.001 and math.abs(attempts[4].delay - 1) < 0.001)
             local report = addon.BuildIssueReport(addon.db, nil, "world:1")
             assert(report:find('"finisher": "pet"', 1, true) and not report:find(pet.id, 1, true))
+            local attribution = scenario.owner and "verified-player-owner" or "unknown-player"
+            assert(report:find('"finisherAttribution": "' .. attribution .. '"', 1, true))
+            assert(report:find('"personalCombatScope": "direct-player"', 1, true))
+            assert(not report:find('"section": "personal"', 1, true))
             if not scenario.onlyPet then
                 assert(death.recapDamage[one] == stamp - 0.75)
                 local wins, losses = addon.Ledger.RivalContributionScore(addon.db, one)
@@ -1178,8 +1192,15 @@ if not arg[1] or arg[1] == "pet-recap" then
             local _, ownerDirect = addon.Ledger.PersonalCombatScore(addon.db, two)
             assert(ownerDirect == 0)
             addon.ClearDiagnostics()
-            addon.Ledger.Open(addon.db)
-            assert(fight.personalOutcome.outcome == "loss" and #fight.events == 1 and fight.events[1].petFinisher)
+            local reloaded = addon.Ledger.Open(SavedCopy(addon.db))
+            local saved = reloaded.skirmishes["world:1"]
+            assert(saved.personalOutcome.outcome == "loss" and #saved.events == 1)
+            local savedPet = assert(saved.events[1].petFinisher)
+            assert(savedPet.ownerID == death.petFinisher.ownerID and #savedPet.ownerAttempts == 4)
+            for index, attempt in ipairs(attempts) do
+                assert(savedPet.ownerAttempts[index].delay == attempt.delay)
+                assert(savedPet.ownerAttempts[index].decision == attempt.decision)
+            end
         else
             assert(not death.petFinisher and fight.personalOutcome.casualties.friendly == 0)
             local _, losses = addon.Ledger.RivalContributionScore(addon.db, one)
@@ -1226,10 +1247,13 @@ end
 if not arg[1] or arg[1] == "pet-owner-api" then
     for _, scenario in ipairs({
         { mode = "direct", owner = two },
+        { mode = "logout", owner = two },
         { mode = "post-combat", owner = two },
         { mode = "aura-observation", owner = two },
         { mode = "secret-token" }, { mode = "reused-token" }, { mode = "error" },
-        { mode = "conflict" }, { mode = "out-of-scope" }, { mode = "unknown-opponent" },
+        { mode = "conflict" }, { mode = "conflict-observed", noDamage = true },
+        { mode = "conflict-history", pastRival = true }, { mode = "conflict-damage", independentOwner = true },
+        { mode = "out-of-scope" }, { mode = "unknown-opponent" },
     }) do
         Reset()
         units.party1, units.target, units.mouseover = nil, first, second
@@ -1237,6 +1261,18 @@ if not arg[1] or arg[1] == "pet-owner-api" then
         function issecretvalue(value) return rawequal(value, secret) end
         local pet = { id = "Pet-owner-api-fixture", name = "Private Pet Label", faction = "Horde" }
         local mode = scenario.mode
+        local conflict = mode:match("^conflict") ~= nil
+        local manual, pastRival, pastBattle
+        if scenario.pastRival then
+            manual = { manual = true, time = GetServerTime() - 120 }
+            addon.RecordEncounter(two, second.name, "deathsToThem", manual)
+            pastRival = assert(addon.db.rivals[two])
+            pastBattle = { time = GetServerTime() - 60, origin = "world",
+                allies = { { id = me, isSelf = true } }, enemies = { { id = two, rivalID = two, name = second.name } },
+                events = { { kind = "kill", actorID = me, targetID = two } } }
+            addon.RecordSkirmish("world:8000", pastBattle)
+        end
+        local fightID = "world:" .. ((addon.db.encounterSequence or 0) + 1)
         local ownerReads = 0
         local function GuidForToken(id)
             if id == two then return "mouseover" end
@@ -1253,7 +1289,7 @@ if not arg[1] or arg[1] == "pet-owner-api" then
             if mode == "reused-token" then units.focus = first; return two end
             if mode == "unknown-opponent" then return me end
             if (mode == "post-combat" or mode == "out-of-scope") and inCombat then return secret end
-            if mode == "conflict" and not inCombat then return one end
+            if conflict and not inCombat then return one end
             return two
         end
         Begin()
@@ -1272,12 +1308,36 @@ if not arg[1] or arg[1] == "pet-owner-api" then
             { sourceGUID = one, sourceFlags = 0x10548, timestamp = stamp - 0.75,
                 amount = 80, event = "SPELL_PERIODIC_DAMAGE" },
         }
+        if scenario.noDamage then recap[2] = nil end
+        if scenario.independentOwner then
+            recap[3] = { sourceGUID = two, sourceFlags = 0x10548, timestamp = stamp - 0.5,
+                amount = 31, event = "SPELL_PERIODIC_DAMAGE" }
+        end
         Fire("PLAYER_DEAD")
+        if conflict then
+            local pending = assert(addon.db.skirmishes[fightID])
+            assert(not pending.events[1].petFinisher.ownerID)
+            for _, enemy in ipairs(pending.enemies) do
+                assert(enemy.id ~= two or scenario.independentOwner)
+            end
+            if not scenario.independentOwner then assert(addon.db.rivals[two] == pastRival) end
+        end
         End()
         if mode == "out-of-scope" then Fire("PLAYER_LEAVING_WORLD") end
+        if mode == "logout" then
+            Advance(0.5)
+            Fire("PLAYER_LOGOUT")
+            local reloaded = addon.Ledger.Open(SavedCopy(addon.db))
+            local savedFight = reloaded.skirmishes[fightID]
+            local savedPet = savedFight.events[1].petFinisher
+            assert(savedFight.observation.participation.state == "finalized")
+            assert(savedPet.ownerID == two and #savedPet.ownerAttempts == 2)
+            local _, savedLosses = addon.Ledger.RivalContributionScore(reloaded, two)
+            assert(savedLosses == 1)
+        end
         local readsAtEnd = ownerReads
         Advance(13)
-        local fight = assert(addon.db.skirmishes["world:1"])
+        local fight = assert(addon.db.skirmishes[fightID])
         local evidence = assert(fight.events[1].petFinisher)
         local attempts = evidence.ownerAttempts
         assert(#attempts > 0 and #attempts <= 4 and evidence.ownerID == scenario.owner, mode)
@@ -1285,9 +1345,9 @@ if not arg[1] or arg[1] == "pet-owner-api" then
         for _, enemy in ipairs(fight.enemies) do assert(enemy.id:match("^Player%-")) end
         assert(not addon.db.rivals[pet.id])
         local _, ownerLosses = addon.Ledger.RivalContributionScore(addon.db, two)
-        assert(ownerLosses == (scenario.owner and 1 or 0))
+        assert(ownerLosses == ((scenario.owner or scenario.independentOwner) and 1 or 0))
         local _, standaloneLosses = addon.Ledger.RivalContributionScore(addon.db, one)
-        assert(standaloneLosses == 1)
+        assert(standaloneLosses == (scenario.noDamage and 0 or 1))
         if mode == "post-combat" then
             assert(attempts[1].ownerGUID == "secret" and attempts[2].phase == "post-combat"
                 and attempts[2].decision == "unit-owner-guid")
@@ -1300,14 +1360,34 @@ if not arg[1] or arg[1] == "pet-owner-api" then
             assert(attempts[1].ownerGUID == "error" and not evidence.sourceName)
         elseif mode == "aura-observation" then
             assert(evidence.ownerEvidence == "scoped-observation")
-        elseif mode == "conflict" then
+        elseif conflict then
             assert(evidence.ownerAmbiguous and attempts[2].decision == "ambiguous-owner")
+            local reloaded = addon.Ledger.Open(SavedCopy(addon.db))
+            local savedPet = reloaded.skirmishes[fightID].events[1].petFinisher
+            assert(savedPet.ownerAmbiguous and not savedPet.ownerID and #savedPet.ownerAttempts == 4)
+            assert(savedPet.ownerAttempts[1].decision == "unit-owner-guid"
+                and savedPet.ownerAttempts[2].decision == "ambiguous-owner")
+            local _, savedLosses = addon.Ledger.RivalContributionScore(reloaded, two)
+            assert(savedLosses == (scenario.independentOwner and 1 or 0))
+            local rivalCount = scenario.noDamage and 0 or (scenario.independentOwner and 2 or 1)
+            assert(#fight.enemies == rivalCount, mode .. " left an unsupported rival on the roster")
+            if pastRival then
+                assert(addon.db.rivals[two] == pastRival and pastRival.encounters[1] == manual)
+                assert(addon.db.skirmishes["world:8000"] == pastBattle)
+                local wins = addon.Ledger.RivalContributionScore(addon.db, two)
+                assert(wins == 1)
+                local history = addon.RivalEncounters(addon.db, two)
+                assert(#history == 2 and history[1].skirmishID == "world:8000" and history[2] == manual)
+            elseif not scenario.independentOwner then
+                assert(not addon.db.rivals[two])
+            end
         elseif mode == "out-of-scope" then
             assert(ownerReads == readsAtEnd and attempts[2].decision == "scope-unavailable")
         elseif mode == "direct" then
             assert(evidence.sourceName == pet.name and evidence.ownerEvidence == "unit-owner-guid")
+            assert(#attempts == 4 and attempts[1].phase == "combat" and attempts[4].phase == "post-combat")
         end
-        local report = addon.BuildIssueReport(addon.db, nil, "world:1")
+        local report = addon.BuildIssueReport(addon.db, nil, fightID)
         assert(report:find('"section": "petOwnerProbe"', 1, true))
         for _, private in ipairs({ pet.id, pet.name, "Private native error", '"focus"', two }) do
             assert(not report:find(private, 1, true), private)

@@ -247,22 +247,17 @@ local function Record(death)
         observed = observed or {}
         observed.level = cached
     end
-    local attackers, seen, recapDamage = {}, {}, {}
+    local attackers, seen, recapDamage, petOwner = {}, {}, {}, nil
     if pet and addon.CombatRecapPetOwner then
-        local attempts = death.petOwnerAttempts or {}
-        death.petOwnerAttempts = attempts
         local combatStatus = InCombatLockdown and Readable(InCombatLockdown())
         local probe = { phase = combatStatus == true and "combat" or (combatStatus == false and "post-combat" or "unknown"),
             delay = GetTime() - death.context.killUptime }
-        if #attempts < 4 then attempts[#attempts + 1] = probe end
         local owner, appearance = addon.CombatRecapPetOwner(window, pet.sourceID, probe)
-        pet.ownerAttempts = attempts
+        pet.ownerAttempts = { probe }
         pet.ownerAmbiguous = probe.decision == "ambiguous-owner" or nil
         if owner and owner ~= playerGUID then
-            pet.ownerID = owner
-            pet.ownerEvidence = probe.decision
-            attackers[1] = { guid = owner, name = addon.CombatContactName(appearance), appearance = appearance }
-            seen[owner] = true
+            petOwner = { guid = owner, name = addon.CombatContactName(appearance), appearance = appearance,
+                evidence = probe.decision }
         end
     end
     if guid then
@@ -291,7 +286,7 @@ local function Record(death)
     death.context.rivalAppearance = observed
     death.context.attackers = attackers
     death.context.recapDamage = recapDamage
-    death.context.petFinisher = pet
+    death.context.petFinisher, death.context.petOwner = pet, petOwner
     death.context.unknownFinisher = unknownFinisher
     death.context.repeatRecap = repeatRecap
     local id, battle, status = addon.RecordWorldEncounter(guid, observed and observed.fullName or name, "deathsToThem", death.context)

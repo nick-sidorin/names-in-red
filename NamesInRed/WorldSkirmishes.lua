@@ -128,6 +128,38 @@ local function Pending(record)
     return record and Participation(record).state ~= "finalized"
 end
 
+-- Ownership can still be contradicted by a repeat recap in this fight.
+-- Keep a pet-only claimant out of the roster and ledger until capture closes.
+local function StageRecapPetOwner(record, event, owner)
+    local pet = event.petFinisher
+    if not pet or not Pending(record) then return end
+    local claims, stamp = record.recapPetOwners, event.recapTimestamp
+    local prior = claims and claims[stamp]
+    if prior and owner and prior.guid ~= owner.guid then pet.ownerAmbiguous = true end
+    if pet.ownerAmbiguous then
+        if claims then claims[stamp] = nil end
+    elseif owner then
+        claims = claims or {}
+        claims[stamp] = prior or owner
+        record.recapPetOwners = claims
+    end
+end
+
+local function AdmitRecapPetOwners(record)
+    local claims = record.recapPetOwners
+    if not claims or not next(claims) then return end
+    for _, event in ipairs(record.battle.events) do
+        local owner = claims[event.recapTimestamp]
+        local pet = event.petFinisher
+        if owner and pet and not pet.ownerAmbiguous then
+            pet.ownerID, pet.ownerEvidence = owner.guid, owner.evidence
+            Participant(record.battle.enemies, owner.guid, owner.name, owner.appearance.level,
+                owner.guid, nil, owner.appearance)
+        end
+    end
+    record.recapPetOwners = nil
+end
+
 local function SetParticipationState(record, state)
     local participation = Participation(record)
     if participation.state == state then return end
@@ -259,6 +291,7 @@ end
 
 local function Finalize(record, reason, discardUnsaved)
     if not Pending(record) or not Valid(record.lastWindow) then return end
+    AdmitRecapPetOwners(record)
     local participation = Participation(record)
     participation.state, participation.boundary = "finalized", reason
     participation.closedAt = addon.EncounterContext().time
@@ -576,6 +609,7 @@ end
 
 function addon.WorldCanResolveRecapPet(window)
     if not Valid(window) or window.area ~= area or not Origin() or not SameScope(window.place, addon.EncounterContext()) then return end
+    if window.record and not Pending(window.record) then return end
     return open == window or (not open and tail == window and window.ended and GetTime() - window.ended <= lateEvent)
 end
 
@@ -788,15 +822,19 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
         local previousHits = previousRecap.recapDamage or {}
         local oldPet, pet = previousRecap.petFinisher, event.petFinisher
         if oldPet and pet and pet.sourceID == oldPet.sourceID then
-            pet.sourceName = oldPet.sourceName or pet.sourceName
-            local conflicting = oldPet.ownerID and pet.ownerID and oldPet.ownerID ~= pet.ownerID
-            if oldPet.ownerAmbiguous or pet.ownerAmbiguous or conflicting then
-                pet.ownerID, pet.ownerEvidence, pet.ownerAmbiguous = nil, nil, true
-            elseif not pet.ownerID then
-                pet.ownerID, pet.ownerEvidence = oldPet.ownerID, oldPet.ownerEvidence
+            local attempts = oldPet.ownerAttempts or {}
+            for _, attempt in ipairs(pet.ownerAttempts or {}) do
+                if #attempts == 4 then break end
+                attempts[#attempts + 1] = attempt
             end
-            changed = pet.ownerID ~= oldPet.ownerID or pet.ownerAmbiguous ~= oldPet.ownerAmbiguous
-                or pet.sourceName ~= oldPet.sourceName
+            -- Diagnostic reads belong to the saved death even on a duplicate
+            -- whose combat evidence does not justify a replacement or reindex.
+            oldPet.ownerAttempts, pet.ownerAttempts = attempts, attempts
+            pet.sourceName = oldPet.sourceName or pet.sourceName
+            pet.ownerID, pet.ownerEvidence = oldPet.ownerID, oldPet.ownerEvidence
+            pet.ownerAmbiguous = oldPet.ownerAmbiguous or pet.ownerAmbiguous
+            StageRecapPetOwner(record, event, context.petOwner)
+            changed = pet.ownerAmbiguous ~= oldPet.ownerAmbiguous or pet.sourceName ~= oldPet.sourceName
         elseif oldPet then
             event.petFinisher = oldPet
         elseif pet then
@@ -841,6 +879,7 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
     end
     if recapIndex then
         battle.events[recapIndex] = event
+        if not previousRecap.petFinisher then StageRecapPetOwner(record, event, context.petOwner) end
     else
         -- Attach an attributed kill to a sampled corpse. An independently
         -- validated native recap already identifies its own death.
@@ -854,6 +893,7 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
             end
         end
         InsertEvent(battle, event)
+        StageRecapPetOwner(record, event, context.petOwner)
     end
     if not outgoing then
         -- A bounded recap retry can report the old death after the local
