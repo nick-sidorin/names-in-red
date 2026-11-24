@@ -22,9 +22,10 @@ local timedDamage = { DamageDone = true, DamageTaken = true, EnemyDamageTaken = 
 local targetFields = { "unitName", "unitClassFilename", "isMob", "isPet", "amount" }
 local Evidence = {}
 
-function addon.NewMeterParticipantEvidence(contacts, petOwners, faction)
+function addon.NewMeterParticipantEvidence(contacts, petOwners, faction, localID)
     local evidence = setmetatable({
         player = {}, names = {}, pet = {}, links = {}, damage = {}, contributions = {}, contacts = contacts, faction = faction,
+        localID = localID,
     }, { __index = Evidence })
     for guid, contact in pairs(contacts) do
         local player = contact.latest
@@ -77,6 +78,11 @@ end
 -- undirected, and repeated spells between the same two players cost one edge.
 function Evidence:Link(category, actor, detail, accept, petSource)
     if detail.status.row ~= "readable" then return "detail-" .. detail.status.row end
+    if category == "DamageTaken" and not accept and not petSource and actor.guid == self.localID then
+        local npcDamage = detail.isMob == true and detail.isPet == false and type(detail.amount) == "number"
+            and detail.amount > 0 and detail.amount < math.huge
+        self.localNpcDamage = self.localNpcDamage == true or npcDamage
+    end
     for _, key in ipairs(targetFields) do
         if detail.status[key] == "secret" then return "target-" .. key .. "-secret" end
     end

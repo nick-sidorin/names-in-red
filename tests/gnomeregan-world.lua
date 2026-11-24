@@ -985,4 +985,135 @@ if not arg[1] or arg[1] == "rival-pet-control" then
     units.pet = nil
 end
 
+-- world:16-shaped Forever capture, with variants that change a single
+-- piece of the incoming evidence or the lethal recap.
+local revision = ("ab"):rep(20)
+C_AddOns = { GetAddOnMetadata = function(_, key)
+    if key == "X-Preview-Revision" then return revision end
+    if key == "Version" then return "1.1.0" end
+end }
+
+local function World16(scenario)
+    Reset()
+    units.target, units.party1 = first, nil
+    first.class, first.active = "WARLOCK", true
+    duration = 25.002
+    addon.db.encounterSequence = 15
+    local pet = { id = "Pet-fixture-warlock", name = "Mock Demon", faction = "Horde" }
+    if scenario.pet then
+        units.nameplate1 = pet
+        function UnitIsOwnerOrControllerOfUnit(owner, controlled)
+            return scenario.verifiedPet and owner == "target" and controlled == "nameplate1"
+        end
+    end
+    if scenario.npcAura then
+        units.mouseover = { id = "Creature-fixture-mob", name = "Mock Creature", faction = "Horde" }
+    end
+    Begin()
+    if scenario.pet then Fire("NAME_PLATE_UNIT_ADDED", "nameplate1") end
+    Advance(23.829)
+    Fire("UNIT_COMBAT", "player", "WOUND")
+    Advance(0.407)
+    Fire("UNIT_COMBAT", "player", "WOUND")
+    if scenario.npcAura then Aura("mouseover", "player") end
+    if scenario.pet then
+        Link(0, pet.id, localPlayer, 716)
+        Link(2, me, localPlayer, 15)
+        -- Keep a card via outgoing damage; this cannot qualify our death.
+        Link(10, one, localPlayer, 100)
+    else
+        Link(7, me, first, 716)
+    end
+    if scenario.mixed then
+        local taken = sources[7][me][1].combatSpellDetails
+        sources[7][me][1].combatSpellDetails = { taken, {
+            unitName = "Mock Creature", isMob = true, isPet = false, amount = 50,
+        } }
+    end
+    Update(0, 7, 10, 2)
+    Advance(0.766)
+    localPlayer.dead = true
+    local stamp = GetServerTime()
+    if scenario.staleNPC then addon.db.lastDeathTimestamp = stamp end
+    if not scenario.lateNPC then
+        recap = { { sourceGUID = (scenario.npc or scenario.staleNPC) and "Creature-private" or nil,
+            timestamp = stamp, overkill = 1, event = scenario.environment and "ENVIRONMENTAL_DAMAGE" or "SPELL_DAMAGE" } }
+    end
+    Fire("PLAYER_DEAD")
+    End()
+    Advance(1.3)
+    local fight = assert(addon.db.skirmishes["world:16"])
+    local segment = fight.observation.segments[1]
+    assert(fight.personalOutcome.lifecycle == "awaiting" and fight.captureRevision == revision)
+    addon.Ledger.RivalContributionScore(addon.db, one) -- warm the index before settlement
+    if scenario.lateNPC then
+        addon.RecordSkirmish("world:16", fight)
+        local _, provisional = addon.Ledger.RivalContributionScore(addon.db, one)
+        assert(provisional == 1)
+        recap = { { sourceGUID = "Creature-private", timestamp = stamp, overkill = 1, event = "SPELL_DAMAGE" } }
+        Advance(0.8)
+        local _, corrected = addon.Ledger.RivalContributionScore(addon.db, one)
+        assert(corrected == 0)
+    end
+    units.target, units.nameplate1 = nil, nil
+    Advance(2)
+    local outside = IsInInstance
+    function IsInInstance() return true, "party" end
+    Fire("ZONE_CHANGED_NEW_AREA")
+    IsInInstance = outside
+    local expected = scenario.loss and 1 or 0
+    assert(fight.personalOutcome.outcome == (scenario.loss and "loss" or "unknown"))
+    assert(fight.personalOutcome.casualties.friendly == expected and fight.personalOutcome.casualties.enemy == 0)
+    assert(fight.personalOutcome.finalizedBy == "area-changed")
+    assert(#fight.events == 1 and fight.events[1].kind == "death" and not fight.events[1].actorID)
+    assert(not fight.rosterComplete)
+    local wins, losses = addon.Ledger.RivalContributionScore(addon.db, one)
+    assert(wins == 0 and losses == expected)
+    local summary = addon.Ledger.RivalSkirmishes(addon.db, one)[1]
+    assert(summary.contributionWins == 0 and summary.contributionLosses == expected)
+    local kills, direct = addon.Ledger.PersonalCombatScore(addon.db, one)
+    assert(kills == 0 and direct == 0)
+    if not scenario.pet then
+        local link = assert(segment.contributionLinks[1])
+        assert(link.category == "DamageTaken" and link.actorID == one and link.targetID == me)
+    elseif scenario.loss then
+        local credit = addon.Ledger.SkirmishContributionEvidence(addon.db, "world:16", fight).credits[1]
+        assert(credit.evidence.petEndpoint == "actor" and credit.evidence.category == "DamageDone")
+    end
+    if scenario.mixed then assert(segment.localNpcDamage == true) end
+    if scenario.npcAura then assert(segment.localNpcPressure == true) end
+    local report = addon.BuildIssueReport(addon.db, nil, "world:16")
+    for _, key in ipairs({ "previewRevision", "captureRevision", "participation", "contributionLink", "deathEpisode" }) do
+        assert(report:find('"' .. key .. '"', 1, true), key)
+    end
+    assert(report:find(revision, 1, true) and not report:find(one, 1, true) and not report:find("Creature-private", 1, true))
+    assert(report:find('"' .. scenario.qualification .. '"', 1, true))
+    if scenario.loss then
+        assert(report:find('"deathIndex": 1', 1, true) and report:find('"localDeathWitness"', 1, true))
+    end
+
+    -- The opponent's later death is outside our finalized observation.
+    Kill(ally, first)
+    ghost = true
+    Fire("PLAYER_ALIVE")
+    Advance(1)
+    ghost, localPlayer.dead = false, false
+    Fire("PLAYER_UNGHOST")
+    assert(#fight.events == 1 and not addon.db.skirmishes["world:17"])
+    first.class, first.active, first.dead = "MAGE", nil, nil
+    UnitIsOwnerOrControllerOfUnit = nil
+end
+
+if not arg[1] or arg[1] == "world16" then
+    World16({ loss = true, qualification = "terminal-incoming-damage" })
+    World16({ npc = true, qualification = "non-pvp-lethal" })
+    World16({ lateNPC = true, qualification = "non-pvp-lethal" })
+    World16({ environment = true, qualification = "non-pvp-lethal" })
+    World16({ mixed = true, qualification = "mixed-incoming-damage" })
+    World16({ npcAura = true, qualification = "mixed-incoming-damage" })
+    World16({ staleNPC = true, loss = true, qualification = "terminal-incoming-damage" })
+    World16({ pet = true, verifiedPet = true, loss = true, qualification = "terminal-incoming-damage" })
+    World16({ pet = true, qualification = "no-qualified-incoming-damage" })
+end
+
 print("Anonymized Gnomeregan event replays passed")

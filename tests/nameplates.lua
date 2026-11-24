@@ -1,5 +1,5 @@
 local rival = { displayName = "Cute Rock", encounters = { { outcome = "win" } } }
-local addon = { db = { rivals = { ["Player-rival"] = rival } }, L = {} }
+local addon = { db = { version = 1, rivals = { ["Player-rival"] = rival } }, L = {} }
 local secret = {}
 function issecretvalue(value) return value == secret end
 local unit, guid = "nameplate1", "Player-rival"
@@ -97,6 +97,13 @@ assert(badge.text == addon.FormatRivalCounters(2, 1, true, 0))
 addon.Ledger.RemoveSkirmish(addon.db, "plate-fight")
 addon.RefreshNameplates()
 assert(badge.text:find(addon.L.legacyResult, 1, true))
+
+local historic = dofile("tests/fixtures/world16.lua")("Player-self", guid)
+addon.db.skirmishes["world:16"] = historic
+addon.Ledger.Open(addon.db)
+addon.RefreshNameplates()
+assert(badge.text == addon.FormatRivalCounters(0, 1, true, 0))
+addon.Ledger.RemoveSkirmish(addon.db, "world:16")
 
 pixelFactor, badgeScale = 0.5, 0.9
 assert(events.DISPLAY_SIZE_CHANGED and events.UI_SCALE_CHANGED)

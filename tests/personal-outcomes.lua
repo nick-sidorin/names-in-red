@@ -29,7 +29,7 @@ end
 
 local function Verify(battle, expected, reason, friendly, enemyDeaths)
     local result = addon.EvaluatePersonalSkirmish(battle)
-    assert(result.lifecycle == "finalized" and result.version == 2)
+    assert(result.lifecycle == "finalized" and result.version == 3)
     assert(result.outcome == expected, tostring(result.outcome) .. " instead of " .. expected .. " (" .. reason .. ")")
     assert(result.reason == reason, result.reason .. " instead of " .. reason)
     assert(result.casualties.friendly == friendly and result.casualties.enemy == enemyDeaths)

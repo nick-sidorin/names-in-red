@@ -1,7 +1,7 @@
 local _, addon = ...
 local Ledger = addon.Ledger
 local DeathEvidence = addon.SkirmishDeathEvidence
-local version = 2
+local version = 3
 local deathLinkAge = DeathEvidence.timedActionAge
 
 local function LastSegment(observation)
@@ -118,6 +118,9 @@ local function ReconstructLives(battle, sides, me, attacks, first, last, lateFir
                 if OpposedKill(event, sides) and not episode.kill then
                     episode.kill, episode.killIndex = event, eventIndexes[event]
                 end
+                if event.nonPvPLethal or (event.kind == "kill" and DeathEvidence.IsCreatureSource(event.actorID)) then
+                    episode.nonPvPLethal = event.nonPvPLethal or "npc"
+                end
             end
             local linked = OpposedKill(event, sides)
                 or (event.kind == "death" and (event.pvpLinked == true
@@ -130,16 +133,27 @@ local function ReconstructLives(battle, sides, me, attacks, first, last, lateFir
     return life, episodes
 end
 
-local function ConfirmDeaths(segments, sides, life, episodes, me)
+local function ConfirmDeaths(observation, segments, sides, life, episodes, me)
     local counts = { friendly = 0, enemy = 0 }
     for _, episode in ipairs(episodes) do
         local id, event = episode.targetID, episode.event
         if event then
-            episode.meterPhase, episode.meterAttacks = DeathEvidence.MeterForEpisode(segments, sides, life, episode)
-            if episode.kill or event.pvpLinked ~= false then
+            episode.meterPhase, episode.meterAttacks, episode.meterRejection, episode.rejectedSegment =
+                DeathEvidence.MeterForEpisode(segments, sides, life, episode)
+            if episode.kill then
+                episode.pvpDeath, episode.qualification = episode.witnessedDeath or episode.kill, "finishing-blow"
+            elseif episode.nonPvPLethal then
+                episode.qualification = "non-pvp-lethal"
+            elseif event.pvpLinked == false then
+                episode.qualification = "explicitly-unlinked"
+            else
                 episode.pvpDeath = episode.witnessedDeath
-                if not episode.pvpDeath and id ~= me and episode.meterAttacks and next(episode.meterAttacks) then
-                    episode.pvpDeath = event
+                if episode.pvpDeath then
+                    episode.qualification = "witnessed-link"
+                elseif id == me then
+                    episode.pvpDeath, episode.qualification = DeathEvidence.ConfirmLocalMeterDeath(observation, episode)
+                elseif episode.meterAttacks and next(episode.meterAttacks) then
+                    episode.pvpDeath, episode.qualification = event, "meter-linked-corpse"
                 end
             end
         end
@@ -177,7 +191,7 @@ function addon.AnalyzeSkirmishLives(battle)
     local lastAction, attacks, historicalReturn = Hostility(battle, observation, sides, me)
     local life, episodes = ReconstructLives(battle, sides, me, attacks, first, last, lateFirst, lateLast)
     local segments = DeathEvidence.Segments(battle)
-    local counts = ConfirmDeaths(segments, sides, life, episodes, me)
+    local counts = ConfirmDeaths(observation, segments, sides, life, episodes, me)
     return { sides = sides, me = me, first = first, last = last, lateFirst = lateFirst, lateLast = lateLast,
         lastAction = lastAction, historicalReturn = historicalReturn, counts = counts, life = life,
         episodes = episodes, segments = segments }
@@ -240,7 +254,7 @@ function addon.EvaluatePersonalSkirmish(battle)
         lastAction = math.max(lastAction or 0, participation.lifeChangedAt)
     end
     local result = { version = version, lifecycle = "finalized",
-        finalizedBy = participation and participation.boundary or "historical",
+        finalizedBy = participation and (participation.boundary or "boundary-unavailable") or "historical",
         coverage = "insufficient", outcome = "unknown", reason = "insufficient-ending-evidence",
         casualties = counts, life = {} }
     for id, state in pairs(life) do

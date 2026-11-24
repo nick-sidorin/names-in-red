@@ -150,6 +150,11 @@ used by cards, profile, tooltip and nameplate.
   episodes independently of participant credits. Reconcile a partial native
   lethal recap by exact timestamp and owning record. A later validated native
   timestamp belongs to another episode even when revival was unobserved.
+  For aggregate-only local deaths, require independent terminal evidence
+  within the scoped life. Preserve positive NPC and environmental vetoes
+  across retries and reload. A failed recap supplies no lethal attribution.
+  Keep the terminal read in its owning combat segment when later samples
+  replace skirmish-level assessment.
 - Preserve witnessed action times on both sides of a life transition. Per-pair
   first/last/count summaries alone can drop the only action that links an
   earlier corpse to PvP. Reconcile confirmed death and revival from readable,
@@ -227,8 +232,10 @@ meaningful tests for changed behavior, unless a concrete reason is stated
 For a visual retest, link the GitHub Actions artifact from the exact head
 that includes the approved UI changes. Stage the install folder from
 the PR head tree even when the workflow checks out GitHub's merge commit to
-test integration. Verify the files against the head before supplying the
-archive. Before publishing,
+test integration. Stamp the packaged TOC with the exact commit in
+`X-Preview-Revision` so a report can identify the installed build without a
+version bump. Verify the archive against the head and the expected stamp
+before supplying it. Before publishing,
 resolve the remote tag explicitly and verify the published asset against
 the tagged files. Compare the public CurseForge file independently and
 check pending automatic packaging before any manual upload. The

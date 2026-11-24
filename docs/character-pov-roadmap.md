@@ -211,6 +211,8 @@ latest accepted main; avoid parallel changes to shared scoring/storage
 contracts. Independent fixture preparation may be parallelized only if
 it does not create conflicting changes.
 
-Next: review PR C and use its exact-head preview for the Forever smoke
-test. See [PR C validation](forever-validation.md#character-pov-pr-c).
+Next: retest the revised PR C preview in Forever. The first live check
+found an uncredited local death with scoped incoming damage and an unreadable
+finisher. The follow-up includes retained-history replay and exact preview
+provenance. See [the world:16 validation](forever-validation.md#live-preview-follow-up-world16).
 A public release still requires separate owner authorization.

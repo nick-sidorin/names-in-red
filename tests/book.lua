@@ -1,4 +1,4 @@
-local addon, callback, locale = { db = { rivals = {} } }, nil, "enUS"
+local addon, callback, locale = { db = { version = 1, rivals = {} } }, nil, "enUS"
 local pixelFactor, dividerScale = 0.8, 0.7
 local displayHandlers, bookLogin = {}
 PixelUtil = {
@@ -1072,6 +1072,24 @@ do
     ProfileStat(addon.L.honorableKills, 1)
     ProfileStat(addon.L.honor, 5)
     assert(FindText(book, addon.FormatRivalCounters(1, 1, false, 0)))
+
+    local archiveRival = "Player-archive-warlock"
+    local archiveBattle = dofile("tests/fixtures/world16.lua")("Player-self", archiveRival)
+    local record = addon.Ledger.Add(addon.db, archiveRival, "Mock Warlock")
+    addon.db.skirmishes["world:16"] = archiveBattle
+    addon.Ledger.Open(addon.db)
+    openProfile(archiveRival)
+    ProfileStat(addon.L.wins, 0)
+    ProfileStat(addon.L.losses, 1)
+    ProfileStat(addon.L.honorableKills, 1)
+    ProfileStat(addon.L.honor, 5)
+    compact:SetEncounter(addon.RivalEncounters(addon.db, archiveRival)[1], record, archiveRival)
+    assert(CenterMarker(banner) and FindText(compact, addon.L.lossTooltip))
+    card:SetSkirmish(archiveBattle)
+    assert(FindText(card, addon.L.lossTooltip) and not FindText(card, addon.L.shortUnknownOutcome))
+    callback(GameTooltip, { guid = archiveRival })
+    assert(tooltipLines[#tooltipLines] == addon.FormatRivalCounters(0, 1, false))
+    openProfile(duelGUID)
 
     local before = refreshes
     StaticPopupDialogs.NAMES_IN_RED_DELETE_RIVAL.OnAccept(nil, duelGUID)

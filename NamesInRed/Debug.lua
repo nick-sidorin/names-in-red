@@ -950,7 +950,7 @@ function handlers.PLAYER_REGEN_ENABLED()
         end
         finished.context = context
         if not context and not row.status.meterWindow then row.status.meterWindow = "no-eligible-world-record" end
-        local evidence = context and addon.NewMeterParticipantEvidence(finished.contacts, finished.petOwners, faction)
+        local evidence = context and addon.NewMeterParticipantEvidence(finished.contacts, finished.petOwners, faction, context.self)
         local early = context and not context.record
         local probe = finished.primary and evidence and addon.NewCombatMeterProbe()
         local retry, linked = CaptureMeter(row, finished, evidence, finalAttempt, enemies, faction, early, probe)
@@ -987,7 +987,7 @@ function handlers.PLAYER_REGEN_ENABLED()
                 end
             end
             addon.ApplyWorldMeterEvidence(context, additions, faction, row, links, finished.contacts, probe,
-                evidence:ContributionLinks(reached))
+                evidence:ContributionLinks(reached), evidence.localNpcDamage)
             addon.SnapshotWorldContacts(context, finished.contacts)
             BeginPassiveMeter(context, row, finished, evidence, reached)
         end

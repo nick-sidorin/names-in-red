@@ -351,3 +351,92 @@ Score(0, 0)
 assert(not next(archive.rivals) and not archive.skirmishes)
 assert(evaluations == 3 * length + 3)
 print("Character POV score index keeps 1,050 battles, updates affected records only, and rebuilds on reload")
+
+local world16 = dofile("tests/fixtures/world16.lua")
+local function RetainedLocalDeath()
+    return world16(me, mage)
+end
+
+local stored, storedPhase, rawDeath = RetainedLocalDeath()
+local oldProjection = stored.personalOutcome
+local archiveID = "world:16"
+local restored = Ledger.Open()
+restored.skirmishes = { [archiveID] = stored }
+Ledger.Add(restored, mage, "Mock Warlock")
+-- Seed the already warmed index with the previous evaluator's known zero.
+local currentEvaluator = addon.EvaluateRivalContributions
+addon.EvaluateRivalContributions = function() return { version = 1, credits = {} } end
+local win, loss = Ledger.RivalContributionScore(restored, mage)
+assert(win == 0 and loss == 0)
+addon.EvaluateRivalContributions = currentEvaluator
+for _ = 1, 2 do
+    assert(Ledger.Open(restored) == restored)
+    assert(stored.personalOutcome ~= oldProjection and stored.personalOutcome.version == 3)
+    assert(stored.personalOutcome.finalizedBy == "historical" and stored.personalOutcome.boundary == "area-changed")
+    assert(Ledger.JournalOutcome(stored) == "loss" and stored.personalOutcome.casualties.friendly == 1)
+    win, loss = Ledger.RivalContributionScore(restored, mage)
+    assert(win == 0 and loss == 1)
+    local credits = Ledger.SkirmishContributionEvidence(restored, archiveID, stored).credits
+    assert(#credits == 1 and credits[1].evidence.category == "DamageTaken" and credits[1].deathIndex == 1)
+    local summary = Ledger.RivalSkirmishes(restored, mage)[1]
+    assert(summary.contributionLosses == 1 and summary.contributionWins == 0)
+    local hk, honor = Ledger.RivalRewards(restored, mage)
+    assert(hk == 1 and honor == 5 and Ledger.PersonalCombatScore(restored, mage) == 0)
+    assert(#stored.events == 1 and stored.events[1] == rawDeath and not rawDeath.actorID and not rawDeath.pvpLinked)
+    assert(#storedPhase.combatAggregates == 6 and storedPhase.combatAggregates[1].amount == 716)
+end
+
+local function Rejected(change)
+    local battle, segment, death = RetainedLocalDeath()
+    change(battle, segment, death)
+    local analysis = addon.AnalyzeSkirmishLives(battle)
+    assert(analysis.counts.friendly == 0, analysis.episodes[1] and analysis.episodes[1].qualification)
+    Credits(battle, 0)
+end
+Rejected(function(_, segment) segment.reportMeter.meterSelection = "new-archived" end)
+Rejected(function(_, segment) segment.reportMeter.categories.DamageTaken.evidence = "eligible-corroborated" end)
+Rejected(function(_, segment) segment.reportMeter.categories.DamageTaken.counts["target-not-player"] = 1 end)
+Rejected(function(_, segment) segment.duration = 18 end) -- prior unrelated damage
+Rejected(function(_, segment)
+    segment.contributionLinks = {}
+    Link(segment, "DamageDone", mage, me, "target") -- our pet
+end)
+Rejected(function(_, segment)
+    segment.contributionLinks = {}
+    Link(segment, "Interrupts", mage, me) -- hostile, but no incoming damage
+    Link(segment, "DamageTaken", mage, me).corroborated = true -- weaker duration-mismatch fallback
+end)
+Rejected(function(battle, segment) Segment(battle, 0, segment.duration) end) -- two plausible windows
+Rejected(function(battle)
+    battle.observation.assessment.first.units[mage].combat = false
+end)
+Rejected(function(battle)
+    table.insert(battle.events, 1, { kind = "death", targetID = me, offset = 8 })
+    table.insert(battle.events, 2, { kind = "revive", targetID = me, offset = 12 })
+end)
+Rejected(function(battle, _, death)
+    Life(battle, "kill", me, death.offset, "Creature-lethal")
+end)
+Rejected(function(_, _, death) death.pvpLinked = false end)
+
+-- Preserve the already established credit from a previous life after a
+-- genuine return clears the previous global sample. Outcome then uses the
+-- actual later ending rather than the old personal-death boundary.
+local resumed, priorPhase = RetainedLocalDeath()
+priorPhase.localDeathWitnesses = { [mage] = 26.274 }
+Life(resumed, "revive", me, 29)
+local resumedPhase = Segment(resumed, 31, 12)
+Control(resumedPhase, me, mage, 2)
+Life(resumed, "kill", mage, 38, me)
+Life(resumed, "revive", mage, 40)
+local terminalUnits = { [me] = { dead = false, combat = false }, [mage] = { dead = false, combat = false } }
+resumed.observation.assessment = {}
+resumed.observation.participation = { state = "finalized", boundary = "quiet-timeout", returnedAt = 33,
+    first = { offset = 45, units = terminalUnits }, last = { offset = 47, units = terminalUnits } }
+local afterReturn = addon.EvaluatePersonalSkirmish(resumed)
+assert(afterReturn.outcome == "draw" and afterReturn.casualties.friendly == 1 and afterReturn.casualties.enemy == 1)
+local opposite = Credits(resumed, 2)
+assert(opposite[1].direction == "loss" and opposite[2].direction == "win")
+resumed.observation.participation.boundary = nil
+assert(addon.EvaluatePersonalSkirmish(resumed).finalizedBy == "boundary-unavailable")
+print("Local PvP death from terminal incoming damage, negative evidence guards and preview history upgrade passed")

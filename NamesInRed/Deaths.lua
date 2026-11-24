@@ -25,36 +25,54 @@ local function HostilePlayer(row, playerGUID)
     end
 end
 
+local function NoteRecap(death, status, cause)
+    local context = death.context
+    if addon.NoteWorldDeathRecap and context.worldWindow then
+        addon.NoteWorldDeathRecap(context.worldWindow, context.killUptime, status, cause)
+    end
+end
+
 local function Record(death)
-    if death.sequence ~= sequence or not C_DeathRecap or not C_DeathRecap.GetRecapEvents then
-        return
+    if death.sequence ~= sequence then return end
+    if not C_DeathRecap or not C_DeathRecap.GetRecapEvents then
+        return NoteRecap(death, "unavailable")
     end
     local ok, rows = pcall(C_DeathRecap.GetRecapEvents)
     rows = ok and ReadTable(rows)
     local first = rows and ReadTable(rows[1])
     if not first then
-        return
+        return NoteRecap(death, "unreadable")
     end
 
     local stamp = Readable(first.timestamp)
     local overkill = Readable(first.overkill)
     local previous = addon.db.lastDeathTimestamp
     local repeatRecap = type(previous) == "number" and stamp == previous
-    if type(stamp) ~= "number" or not (stamp > 0 and stamp < math.huge) or math.abs(stamp - death.context.time) > 3
+    if type(stamp) ~= "number" or not (stamp > 0 and stamp < math.huge) or math.abs(stamp - death.observedAt) > 3
         or (type(previous) == "number" and stamp < previous)
         or (repeatRecap and not death.context.worldWindow)
-        or type(overkill) ~= "number" or overkill < 0 then
-        return
+        or type(overkill) ~= "number" or not (overkill >= 0 and overkill < math.huge) then
+        return NoteRecap(death, "stale-or-unverified-lethal")
     end
 
     local playerGUID = Readable(UnitGUID("player"))
+    local source = Readable(first.sourceGUID)
     local guid = HostilePlayer(first, playerGUID)
     local name = Readable(first.sourceName)
-    local unknownFinisher = not guid and Readable(first.sourceGUID) == nil and IsHostilePlayer(first)
+    local unknownFinisher = not guid and source == nil and IsHostilePlayer(first)
         and death.context.worldWindow ~= nil
+    local effect = Readable(first.event)
+    local cause = effect == "ENVIRONMENTAL_DAMAGE" and "environment"
+        or (addon.SkirmishDeathEvidence and addon.SkirmishDeathEvidence.IsCreatureSource(source) and "npc")
+    if not guid and cause then
+        if repeatRecap then return NoteRecap(death, "duplicate-non-pvp") end
+        NoteRecap(death, "non-pvp-lethal", cause)
+        addon.db.lastDeathTimestamp = stamp
+        return true
+    end
     if not guid and not unknownFinisher then
         if addon.NotePvPDiagnostic then addon.NotePvPDiagnostic("recap-finisher-unverified") end
-        return
+        return NoteRecap(death, "finisher-unverified")
     end
 
     local observed = guid and death.units[guid]
@@ -143,7 +161,7 @@ frame:SetScript("OnEvent", function()
         context.worldWindow = addon.WorldDeathWindow(context)
         if not context.worldWindow then return end
     end
-    local death = { sequence = sequence, context = context, units = {},
+    local death = { sequence = sequence, context = context, observedAt = context.time, units = {},
         cached = addon.ActiveCombatContacts and addon.ActiveCombatContacts() or {} }
     local function Snapshot(unit)
         local guid = Readable(UnitGUID(unit))

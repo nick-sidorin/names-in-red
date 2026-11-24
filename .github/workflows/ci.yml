@@ -25,7 +25,8 @@ jobs:
           git archive "$PREVIEW_SOURCE" NamesInRed | tar -x -C preview
           version=$(sed -n 's/^## Version: //p' preview/NamesInRed/NamesInRed.toc)
           test -n "$version"
-          echo "name=NamesInRed-$version" >> "$GITHUB_OUTPUT"
+          sed -i "/^## Version: /a ## X-Preview-Revision: $PREVIEW_SOURCE" preview/NamesInRed/NamesInRed.toc
+          echo "name=NamesInRed-$version-preview-${PREVIEW_SOURCE:0:7}" >> "$GITHUB_OUTPUT"
           (cd preview && python3 ../scripts/check_manifest.py)
           echo "Preview source: \`$PREVIEW_SOURCE\`" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload debug preview

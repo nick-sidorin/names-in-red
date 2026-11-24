@@ -1,4 +1,4 @@
-local _, addon = ...
+local addonName, addon = ...
 
 function addon.Readable(value)
     if not issecretvalue or not issecretvalue(value) then
@@ -13,6 +13,11 @@ local function SafeRead(fn, ...)
             return addon.Readable(first), addon.Readable(second)
         end
     end
+end
+
+function addon.PreviewRevision()
+    local revision = SafeRead(C_AddOns and C_AddOns.GetAddOnMetadata, addonName, "X-Preview-Revision")
+    if type(revision) == "string" and #revision == 40 and revision:match("^[0-9a-f]+$") then return revision end
 end
 
 function addon.IsBattlegroundTrackingEnabled()

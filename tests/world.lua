@@ -965,7 +965,8 @@ do
     function GetRealZoneText() return "Elwynn Forest" end
     Fire("PLAYER_LEAVING_WORLD")
     local oldFight = Battle(11)
-    assert(#oldFight.events == 0 and oldFight.observation.visibilityGap)
+    assert(#oldFight.events == 1 and oldFight.events[1].kind == "death"
+        and not oldFight.events[1].actorID and oldFight.observation.visibilityGap)
     Begin()
     Aura("player", "mouseover", 682)
     recap = { { sourceGUID = fenrik, sourceName = "First Enemy", sourceFlags = 0x440,

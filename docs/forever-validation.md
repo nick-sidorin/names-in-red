@@ -1715,11 +1715,79 @@ exercise migration. An original private SavedVariables file and a fresh
 Forever client were unavailable for this PR.
 
 **Preview.** PR checks test the GitHub integration commit. The installable
-`NamesInRed/` artifact is staged from the exact feature head and validated
-against its manifest. The Actions summary identifies the source commit.
+`NamesInRed/` artifact is staged from the exact feature head, stamped with
+`X-Preview-Revision` in the packaged TOC, and validated against its manifest.
+The public TOC version stays unchanged. The Actions summary identifies the
+source commit.
 In Forever, use a copy of an older save for compatibility checks and inspect
 full/compact cards and the profile, tooltip and nameplate before and after
 a qualifying repeat death. The PR B API restrictions above apply unchanged.
+
+#### Live preview follow-up: world:16
+
+The owner tested the first PR #45 preview on Forever 1.60.1 build 71037.
+A solo fight ended with the character's death. The warlock died later
+outside the character's observed fight. The saved report showed Unknown
+and no rival credit. It retained a local death at +25.002 s, positive
+`DamageTaken` rows directed from the warlock to the character, and a
+terminal read at +26.274 s showing the local corpse and the living
+warlock in combat. The next read had lost the warlock. Two `UNIT_COMBAT`
+wounds exposed the recipient alone. The recap could establish no lethal
+attacker. These are facts from the sanitized report, whose TOC version
+alone could not identify the running preview.
+[Review and retained evidence](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6045725460)
+
+The local `PLAYER_DEAD` signal now writes a durable corpse without a
+finisher, including when the meter qualifies the window after death.
+The shared episode analysis accepts a local death from the combination
+of that signal, a positive directed damage link in the matched single-life
+combat window and a terminal read of the same corpse with a linked
+opponent still alive and fighting. Both the signal and the read must be
+within the existing 2.5-second tolerances, measured from combat end and
+the death respectively. A prior aggregate, a pet recipient, control alone,
+an ineligible or ambiguous meter read, and multiple lives in a window
+cannot establish the fallback. A verified pet source can qualify through
+its previously verified player owner. The segment retains the earliest
+joint read per witnessed opponent so a linked return and new samples do
+not erase evidence for the prior life. The aggregate retains its segment
+scope. The result preserves the distinction between one PvP casualty,
+one opponent loss and zero attributed finishing blows in this fixture.
+
+A fresh lethal NPC/environment recap vetoes the fallback, even if it
+arrives on a bounded retry after the meter read. The recorder binds this
+status to the original local death. Stale and duplicate native times carry
+no veto into another death. Readable incoming NPC damage or hostile NPC
+aura pressure in the same window blocks aggregate-only confirmation.
+A legacy incoming category containing unresolved non-player targets also
+leaves the fallback ambiguous. A missing or restricted recap alone has
+no veto. When the client conceals all evidence of unrelated PvE, even a
+scoped aggregate cannot identify the lethal hit.
+
+The first preview could produce `finalizedBy=historical` when the saved
+record had no participation object, or when a finalized object had no
+boundary and the Lua fallback selected `historical`. The fresh capture
+replay creates participation on first confirmation and finalizes it with
+`area-changed`. The retained fixture without participation still reports
+`historical`. A finalized object without a boundary now reports
+`boundary-unavailable`. The report alone cannot distinguish which branch
+produced the owner's old result. The new JSONL includes the running preview
+revision, a capture revision on newly created skirmishes, participation
+state and sampled boundaries, scoped contribution links, and per-death
+qualification and recap status. All IDs use existing aliases and the
+existing report limits apply.
+
+Version 3 recomputes the personal outcome on load from retained evidence.
+The shared rival index invalidates on load and rebuilds from the same
+episodes. The anonymous live-shaped and retained fixtures produce Defeat
+and one loss for the warlock, including a repeat reload and checks through
+the full card, profile, compact card, tooltip and nameplate. They retain
+the raw events and separately recorded rewards. Negative cases cover an
+NPC or environmental finisher, positive mixed PvE evidence, stale recap,
+out-of-scope and multi-life aggregates, missing terminal corroboration,
+and a pet without a verified owner. A linked return preserves the prior
+credit while the later ending can change the personal result. The fix
+has been replayed with client-shaped mocks. Retesting in Forever remains
+necessary for the new preview.
 
 ### Preview and release provenance
 

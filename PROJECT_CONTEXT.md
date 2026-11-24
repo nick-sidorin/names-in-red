@@ -293,8 +293,11 @@ PR A (#43) and PR B (#44) are merged. PR C connects both projections to the
 journal and has a commit-pinned feature preview for review. Keep 1.1.0 as
 the shipped baseline pending separate release authorization.
 
-1. Review the PR C diff and exact-head preview alongside the replay and mock
-   results in [Forever validation](docs/forever-validation.md#character-pov-pr-c).
+1. Retest PR #45 with the build revision shown in Report an Issue. The first
+   live preview missed the local death in world:16. The revised shared
+   evaluator uses qualified terminal incoming damage to infer the casualty
+   and one rival loss while keeping the finisher unknown. See the
+   [world:16 validation](docs/forever-validation.md#live-preview-follow-up-world16).
 2. Smoke test the preview in Forever and repeat migration on a copy of an
    older real SavedVariables file if available. Follow the
    [milestone integration gate](docs/character-pov-roadmap.md#integration-and-release-gate).
