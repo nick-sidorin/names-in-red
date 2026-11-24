@@ -75,13 +75,15 @@ potential Evercanon pattern, not a change to that separate repository.
   ls-remote). #34 removed that temporary workflow after successful publication.
   Main at handoff before this docs update: 84b4c3a1e9a2171d3ff2687ed427b313cd38bbae;
   all checks passed and no open PRs then. Tagged commit remains unchanged.
-- Codex hit its usage limit partway through release; ChatGPT finished GitHub
-  publication and cleanup. No permanent GitHub release workflow remains.
-  CurseForge automatic upload/type/status was **not confirmed** in this chat.
-  Check https://www.curseforge.com/wow/addons/names-in-red/files/all and author
-  project 1819566; do not duplicate an automatic package. Intended type Release,
-  Forever 1.60.1. Copy-ready texts live in docs/curseforge-description.md and
-  docs/curseforge-summary.txt. Do not claim they were applied on CurseForge.
+- Codex hit its usage limit partway through release. ChatGPT finished GitHub
+  publication and cleanup. The retrospective independently verified the
+  public [CurseForge 1.1.0 file](https://www.curseforge.com/wow/addons/names-in-red/files/9782367)
+  as Release for Forever 1.60.1 and compared both archives to the tag.
+  No permanent GitHub release workflow remains. Verify the automatic
+  packaging status before any manual upload. Copy-ready listing texts
+  live in [the full description](docs/curseforge-description.md) and
+  [short summary](docs/curseforge-summary.txt). Their publication on the
+  CurseForge project page was not verified.
 - Earlier 1.1.0 live smoke test: Sanya Paint card changed to Defeat; skull level
   absent because no readable level was saved. Most Gnomeregan records remained
   Unknown. The final #31 button layout, detail report pages, and client frame

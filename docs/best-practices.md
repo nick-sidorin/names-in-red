@@ -8,11 +8,6 @@ contract, not a replacement for the pinned standards or a list of cosmetic
 suggestions. The owner has repeatedly corrected the same UI and component
 mistakes in past Codex sessions; prevent their recurrence in every new session.
 
-This initial edition (24 November 2026) records the owner's stated conventions
-and cross-checks the existing code and validation notes. It is not a complete
-audit of all private Codex chats. Add missing verified lessons from those
-sessions or repository history in the relevant PR; don't invent old decisions.
-
 ## 1. Native-first workflow: reproduce the reference, not a visual approximation
 
 When the owner names a Blizzard window, widget or interaction as a reference,
@@ -52,11 +47,11 @@ if a reference or target build changes.
 
 | Area | Existing reference / project implementation | Convention |
 | --- | --- | --- |
-| Modern text buttons | `SharedButtonSmallTemplate`, `128-RedButton` three-slice art, `SetTextToFit`; Book.lua header/add, IssueReport.lua footer, ManualDialog.lua add/cancel. PR #31 corrected report-button template. | New equivalent modern red buttons use this native path, including hover/pressed/disabled states and localized text sizing. Do not regress to older button art just because it is easy to instantiate. |
+| Modern text buttons | `SharedButtonSmallTemplate`, `128-RedButton` three-slice art, `SetTextToFit`; Book.lua header/add, IssueReport.lua footer, ManualDialog.lua add/cancel. PR #31 corrected report-button template. | Use the native height and state art for equivalent modern actions. Refit labels that change at runtime, including translated page counts. Keep adjacent actions in one control family. |
 | Other controls | EncounterCards.lua uses `CommonSquareIconButtonTemplate` for compact actions; Back in Book.lua follows `UIPanelButtonTemplate` from the professions crafter order reference. | Choose the actual reference-specific control; no blanket replacement of every old-named template. Explain exceptions. |
 | Journal window and layout | Book.lua: `PortraitFrameTemplate`, Camelot ProfessionsFrame/ProfessionsCrafting, `Profession-Background-Overview`, `Profession-Background-Template2`, `Professions-background-summarylist`, `LargeSideTabButtonTemplate`, `PanelTopTabButtonTemplate`. | Retain the professions reference's authored geometry, tab anchors, list/detail relationship, padding and continuous background; use native components first. |
 | Profession rows and statistics | RivalList.lua: `ProfessionsRecipeListRecipeTemplate` with safe handling of handlers that need recipe IDs. Book.lua: `ProfessionsReagentSlotBaseTemplate`, its intrinsic ItemButton mask/layers, `Professions-Slot-bg`, `Professions-Slot-Frame` fallback. | Reuse native reagent/recipe layouts and actual spacing, label anchors and selection art. Don't invent another card/slot style. |
-| Character portraits and framed icons | Portraits.lua: `addon.CreateParticipantPortrait(parent, options)`, shared mask/rim/badge helpers and `addon.CreateFramedMarker`; used by Book.lua and EncounterCards.lua. | A single canonical implementation owns circle, crop, facing, rim, class/level/death markers, layers and spacing. Callers configure differences through options. Do not clone the portrait in another screen. |
+| Character portraits and framed icons | Portraits.lua: `addon.CreateParticipantPortrait(parent, options)`, shared mask/rim/badge helpers and `addon.CreateFramedMarker`; used by Book.lua and EncounterCards.lua. | Share the profile portrait and level badge dimensions, font and frame across both skirmish layouts. Keep side-facing and class, level and casualty states in the shared widget. Use the reusable options for genuine differences in other contexts. |
 | Window ordering | Book.lua: independent movable top-level `MEDIUM` frame, `SetToplevel(true)`, `Raise()` on show, native close/Escape via UISpecialFrames. | Main windows must coexist and raise naturally like native panels; a permanent DIALOG stratum can prevent ordinary panels rising above them. Genuine dialogs may have different ordering, e.g. existing IssueReport.lua. Check overlap, clicking, dragging, close/Escape and focus. Don't add all windows to a protected native manager blindly. |
 | Sounds | ProfessionsMixin:OnShow/OnHide in the matching Camelot/shared source; Book.lua uses `SOUNDKIT.UI_PROFESSIONS_WINDOW_OPEN` and `UI_PROFESSIONS_WINDOW_CLOSE`. | Match the reference's sounds on equivalent actions (open/close, tabs, buttons, selection where the native reference actually plays them). Inspect native inherited handlers to avoid duplicate playback. Play once per actual transition, not on redundant Show/Hide or refresh. |
 | Minimap | Book.lua shortcut follows Azeroth Fitness Shortcut:Init; `MiniMap-TrackingBorder`, `UI-Minimap-Background`, circle mask, native highlight, stored angle and size-change positioning. | Center artwork in the visible opening, not blindly in the full texture. Preserve drag and left/right-click meanings, tooltip anchoring, scale and position persistence. |
@@ -78,6 +73,30 @@ for other frames. Use `/nirdebug icons` if still supported on the target build
 to compare the same frame with native reference art; check both normal and
 reduced UI scales. Region bounds include transparent padding and do not prove
 optical centering. Preserve the original source reference and visually verify.
+
+When a pane grows, inspect native artwork coordinates separately from layout
+coordinates. Keep an authored header band or seam visible, preserve the
+visible gap beneath section headings, and measure it to the painted button
+edge. Match both the Information and History surfaces with empty panes before
+comparing content. For replacement bitmaps, compare the established asset
+encoding and orientation as well as the decoded image. See the
+[profession and art checks](forever-validation.md#skirmish-cards-and-the-world-map).
+
+### Input ownership and cleanup
+
+Use `UISpecialFrames` and the native close callback for addon-owned portrait
+windows. Limit window dragging to its title region, outside title-bar controls.
+End dragging on mouse release and hide. Clear focus, addon-owned popups and
+tooltips where the owning surface hides or is recycled. A modal with native
+autocomplete gives Enter and Escape to the suggestion list first, then acts
+on the dialog if the list did not consume the key. See the
+[window lifecycle checks](forever-validation.md#window-ordering-sounds-and-minimap-hint).
+
+Keep report selection independent of viewport height. When resizing an
+anchored `InputScrollFrameTemplate`, check the multiline EditBox width as
+well, and exercise selection on every report part. Keep long paths and
+localized prose readable and retain native focus and scrolling. See the
+[report dialog checks](forever-validation.md#public-issue-reports).
 
 ## 3. One reusable component, many configurations
 
@@ -109,10 +128,13 @@ used by cards, profile, tooltip and nameplate.
 - Match Forever build/source and distinguish documented APIs, actual delivery,
   readable fields, test mocks and observed real-client behavior. For exact
   API research, record source/build/symbol and evidence in Forever validation.
-- Secret values/tables and absent data must be checked before comparison,
-  indexing, serialization, arithmetic or printing. Use the existing Readable
-  and restricted-field handling. `pcall` alone is not permission. Do not
-  subscribe to blocked CLEU or attempt to bypass combat/taint restrictions.
+- Use `issecretvalue` before value inspection. For a returned table, check
+  `canaccesstable` when available before indexing or iterating it. Check
+  each field again through `addon.Readable` or the existing typed diagnostic
+  reader before comparison, arithmetic or serialization. Preserve separate
+  absent, secret, restricted-table and error statuses where diagnostics need
+  them. `pcall` catches call failures. Do not subscribe to blocked CLEU or
+  attempt to bypass combat/taint restrictions.
 - Reuse existing event/identity and meter qualification paths. A readable
   aggregate has no exact individual hit time; a cast success has no proven
   target or hit; a missing flag is not false. Validate actor/target, ownership,
@@ -124,10 +146,14 @@ used by cards, profile, tooltip and nameplate.
   distinct. Preserve old regressions and test area transitions, reload and
   deduplication when relevant.
 - Preserve per-character history, old facts, explicit manual entries and
-  earned rewards; migration additive, versioned and idempotent. Temporary
-  diagnostics may compact, permanent facts and contribution evidence may not
-  be discarded by diagnostic pruning. No invented old credits or score
-  changes on disabled BG recording.
+  earned rewards through additive, idempotent migrations. Age, count and
+  byte budgets apply to temporary evidence. The recent-view limit applies
+  at presentation. A future timeline must read permanent facts and linked
+  aggregates from the saved fight. Promote old aggregates only from a
+  uniquely matched accepted segment. Keep diagnostic reset, explicit data
+  reset and stale callback invalidation separate. See the
+  [retention and reset checks](forever-validation.md#permanent-battle-history).
+  Preserve historical scores when BG recording is disabled.
 - Keep JSONL aliases, bounded exports and optional SavedVariables report path
   intact. No real private captures, secrets or unnecessary personal data in
   Git. Add focused anonymous fixtures instead.
@@ -166,6 +192,17 @@ meaningful tests for changed behavior, unless a concrete reason is stated
   available. CI must pass on the exact final PR head. If local execution is
   unavailable, state that and use actual CI evidence; do not claim local tests.
   No bypasses, no fake test success, no merging a red runtime PR.
+
+### Preview and release provenance
+
+For a visual retest, link the GitHub Actions artifact from the exact head
+that includes the approved UI changes. Verify the affected files in the
+archive when parallel branches touch the same dialog. Before publishing,
+resolve the remote tag explicitly and verify the published asset against
+the tagged files. Compare the public CurseForge file independently and
+check pending automatic packaging before any manual upload. The
+[preview and release incidents](forever-validation.md#preview-and-release-provenance)
+record why these checks matter.
 
 ## 6. Living technical memory: learn from every durable correction
 
@@ -215,16 +252,13 @@ The checklist is an agent/reviewer working agreement, not a claim that CI
 can mechanically verify these semantic or visual obligations. No new CI
 enforcement mechanism or runtime change is introduced by this document.
 
-## 8. Initial knowledge backfill for Codex
+## 8. Retrospective evidence limits
 
-Before starting Character POV, ask an agent with access to its previous
-implementation sessions and/or local repository history to check for missing
-**durable** technical lessons: exact native button and professions references,
-window lifecycle/z-order/sounds, minimap/portrait crop decisions, reuse fixes,
-API restrictions, tests and earlier rejected approaches. Reconcile any new
-verified findings into this file and Forever validation with links to code,
-PRs or observed evidence. Do not reimplement anything during the audit or
-dump chat transcripts. If prior session access is unavailable, state the
-limit and rely on existing source/history. This backfill is a targeted
-documentation task; ongoing corrections are captured immediately in the
-implementation PR that learns them.
+The 1.1.0 retrospective used the available conversation, checked-in source
+and tests, repository history, owner screenshots and recorded client
+findings, pinned Forever UI dumps, and published artifacts. Private Codex
+sessions outside the available conversation were inaccessible. A source
+match, a mock or a checked ZIP establishes only its own verification scope.
+Use the [Forever validation notes](forever-validation.md) for concrete
+examples and client checks still pending. Section 6 governs subsequent
+corrections.
