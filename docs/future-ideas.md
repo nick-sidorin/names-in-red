@@ -27,7 +27,7 @@ three distinct signals:
 
 - **Honor earned:** points actually awarded to the character.
 - **Honorable Kills:** kills credited by the game.
-- **Skirmishes won:** local confrontations won by the character's side, as
+- **Skirmishes won:** local confrontations won by the character from their own POV, as
   defined in the [product specification](skirmish-product-spec.md), rather than
   personal finishing blows or the final result of a battleground match.
 
@@ -82,3 +82,20 @@ selected opposing player is an already recognized rival.
 The precise placement, whether it adds enough value beyond the existing
 tooltip and nameplate display, and how it should be configured are **open**.
 Do not treat it as required for the current skirmish redesign.
+
+## Detailed combat timeline
+
+Consider a chronological viewer for permanent battle history: observed casts,
+damage/healing/absorbs where readable, death and revival, participation and
+contribution, plus separate Damage Meter aggregates. Distinguish true event
+times from snapshot receipt and never manufacture individual hits. No full
+combat-log API or external file logging dependency.
+
+## Optional cooperative observation
+
+Explore a consenting friend's or party member's addon-to-addon observations
+through permitted Forever addon messages. Research client restrictions and
+explicit opt-in, provenance, duplicate/overlap handling and conflicts. This
+may improve coverage after one character loses sight of a fight, but must
+not be required to record or evaluate a solo character's story. No opponent
+installation requirement; no current implementation commitment.

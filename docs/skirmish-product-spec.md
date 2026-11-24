@@ -1,18 +1,20 @@
 # Names in Red — PvP Skirmishes: Product Specification
 
-**Status:** Product behavior proposal, 23 November 2026. This describes what Names in Red should do, not a claim about what the current addon already implements. It is intentionally independent of code, events, and APIs.
+**Status:** Owner-approved Character POV direction, 24 November 2026. This is the target behavior for development after 1.1.0, not a description of its shipped behavior. It supersedes the previous side-outcome and rival-score semantics. The evidence and implementation details belong in [Forever validation](forever-validation.md).
 
-## 1. Product goal
+## 1. Product goal: Character POV
 
-Names in Red is a personal journal of **PvP skirmishes in the open world and, optionally, on battlegrounds**. A skirmish is a connected, local confrontation between opposing sides, **not** a collection of killing blows. A duel is only the simplest case. A fight may involve many people, unrelated parties, loosely allied players, controlled pets, support characters, and participants joining or leaving at different times.
+Names in Red is a **personal combat journal of an individual character**, for connected PvP skirmishes in the open world and on enabled battlegrounds. It is not a neutral referee, a global combat log, a scoreboard for all participants, or a reconstruction of the whole battlefield. It should feel like the character's own recollection of adventures in Azeroth.
 
-When revisiting a fight, the player should understand:
+A solo player must find the journal useful without any other player installing the addon. A character may enter an ongoing battle, die, be revived, leave, or lose observation. The record includes the locally available evidence, including reliable information about others from the client's APIs. It does not assume knowledge of off-screen events before arrival or after observation is lost. Voice chat and a friend's account of later events are not automatically known to the character's addon.
 
-1. **Who fought?** Show as many identifiable actual participants from both factions as were observable.
-2. **What happened?** Show confirmed deaths/finishing blows, available player details, place, time, and attributable PvP rewards.
-3. **Who won the local confrontation?** Show Victory, Defeat, or Unknown from the local character's side, based on the fight's resolution rather than a requirement to kill every opponent.
+The journal answers three independent questions:
 
-The journal records real fights, **including fights with no deaths, Honorable Kills, or Honor Points**. Never fabricate missing participants, deaths, rewards, or certainty.
+1. **How did my character fare?** The primary skirmish result is the character's own Victory, Defeat or Unknown.
+2. **What happened between me and this rival?** A separate personal score credits meaningful participation in defeating that opponent and records relevant losses to them, not simply who dealt the finishing blow.
+3. **What happened around me?** Preserve the observed sides, participants, timeline and any reliably inferable group result as context. A later allied victory does not turn the character's terminal death into a personal victory.
+
+A skirmish is more than a collection of killing blows. Healers, supporters, pets, multiple targets and battles with zero kills, HKs or honor belong in the journal. Preserve meaningful facts and reasonable local inferences; never invent a death, participant, action, reward or certainty. Missing one ideal API field is not sufficient reason to discard otherwise compelling evidence.
 
 ## 2. Scope: open-world PvP and optional battleground PvP
 
@@ -28,7 +30,7 @@ The journal records real fights, **including fights with no deaths, Honorable Ki
 
 ## 3. What is one skirmish?
 
-A skirmish is a **continuous, connected hostile confrontation** between the two sides. It begins when meaningful PvP engagement occurs or the local character joins an already ongoing confrontation. It ends when that local confrontation is resolved or genuinely ceases.
+A skirmish is a **continuous, connected hostile confrontation** between the two sides. It begins when meaningful PvP engagement occurs or the local character joins an already ongoing confrontation. The shared record can cover the observable connected confrontation, while the character's own participation and outcome have a separate ending.
 
 ### Starting, observing, and joining
 
@@ -43,7 +45,7 @@ A skirmish is a **continuous, connected hostile confrontation** between the two 
 ### Keeping a confrontation together
 
 - Multiple targets, kills, heals, brief pauses, stealth, resurrections, and reinforcements can belong to **one** skirmish.
-- A local character's death does not necessarily conclude the confrontation if known allies continue fighting.
+- A local character's death can end their own participation without ending the observed confrontation. Keep reliable allied continuation as context, and allow a genuine return to the same fight to reopen the provisional personal ending.
 - Separate nearby fights must remain separate when they are not part of the same connected confrontation.
 - A genuinely new engagement after the previous local confrontation has ended starts a new skirmish; don't merge independent fights merely because they happen near each other.
 - Do not split one continuing fight just because the local player briefly leaves combat, changes target, or loses sight of a unit.
@@ -70,86 +72,99 @@ A player does **not** become a participant solely by being in the party, appeari
 - Retain all identifiable actual participants supported by what the character could observe.
 - Show names, faction, class, race, and level when known. A known participant can remain in the report even when some details are missing.
 - Do not assume that an unseen player was absent from the fight.
-- Display team sizes as **observed participants**, not guaranteed complete numbers. An incomplete roster is a coverage limitation, **not** a reason by itself to label the outcome Unknown.
+- Display team sizes as **observed participants**, not guaranteed complete numbers. An incomplete roster is a coverage limitation, **not** a reason by itself to label the personal outcome Unknown. Distinguish a participant from a rival whom the local character actually helped defeat.
 - If a player was fighting before we arrived and there is evidence linking them to this clash, include them even if they stopped before our first attack.
 
-## 5. How a skirmish ends
+## 5. How the character's participation ends
 
-A confrontation ends when the connected local fight is actually resolved or stops, **not** necessarily when someone is killed.
+Track the connected fight and the character's participation separately. The record may continue to collect observable allied activity after the local player dies, drops combat or releases spirit. This does not require waiting indefinitely to decide the character's own result.
 
-Possible endings include:
+- A death is an event, not necessarily the end of a continuing fight. If the character genuinely returns to the same linked confrontation, preserve the death and revival, then evaluate the final participation. A brief pause, stealth, resurrection or change of target is not necessarily a new skirmish.
+- A terminal death attributable to the PvP encounter, without a return to that confrontation, is a personal Defeat. Do not demand proof of what happened to all surviving allies and enemies after that death.
+- Spirit release, leaving the area, respawning elsewhere or starting an unrelated fight can close the local participation. They are coverage/boundary signals, not outcomes by themselves. Preserve decisions supported before observation stopped.
+- Retreat under credible hostile pressure can end the character's participation with Defeat without a death. Losing a nameplate, leaving combat or losing access to an API alone is not evidence of retreat, death or victory.
+- When the character remains alive and the local threat is overcome or driven away, a clear resolution can be Victory without a coordinate anchor or a certified complete roster.
+- A death unrelated to the PvP episode (for example an unrelated NPC death) does not automatically create a PvP loss or assign a rival credit. Mixed PvE/PvP deaths require evidence connecting the death to the confrontation; a confirmed hostile player finisher is sufficient even if NPC damage preceded it.
 
-- The opposing side is killed or otherwise defeated.
-- The opposing side disengages, flees, stealths away, or is pushed out, while our side remains in control.
-- Our side is pushed out or forced to retreat.
-- Both sides stop fighting and separate without a discernible victor.
-- The player dies, while allies remain involved and eventually resolve the fight.
+## 6. Outcome: personal Victory, Defeat or genuinely Unknown
 
-A disappearance from a nameplate alone is **not proof** of death, retreat, or victory: visibility can be lost for other reasons. Similarly, a momentary combat-state change or short lull is not necessarily the end of a continuing skirmish.
-
-**Product expectation:** resolve the encounter from the overall course and ending of the connected confrontation, allowing its participants to leave, hide, or die without requiring everyone to be eliminated.
-
-## 6. Outcome: Victory, Defeat, or genuinely Unknown
-
-The result belongs to **the local character's side in this local confrontation**, not to the local player's personal kill count, damage, or survival. On battlegrounds, **winning or losing the entire match does not automatically determine the result of any individual skirmish**: a side can win a clash yet lose the match, or vice versa.
+The primary outcome is **how the local character's own participation in this skirmish ended**. It is not their kill count, and it is not necessarily the final result of their faction or group. Preserve the observed group ending as optional, separately labeled context when available. Never copy the battleground match result to a local fight.
 
 ### Victory
 
-**Victory** means our side won the local confrontation: it eliminated, drove away, or otherwise overcame the opposing side and retained the encounter.
+The character survives the concluding part of the confrontation and reasonably overcomes the local opposing threat, alone or with participating allies. A healer who helps allies win can earn the same personal Victory as a damage dealer.
 
-Examples:
-- We kill some opponents; the others flee or disengage; our side remains and the confrontation ends: **Victory**.
-- We kill no one but successfully force the opponents away and hold the location: **Victory**.
-- Our character dies, but the continuing allied side wins the same confrontation: **Victory**.
+Evidence can include defeated opponents, allies and the character remaining safely together, disengagement after pressure, or a combination of meaningful actions and settled states. A confirmed enemy retreat can count without any kill. The local player's survival alone is not enough. A single disappearance or dropping combat alone is not enough. Do not require every opponent's fate, exact team sizes, two perfect coordinate snapshots or a known site anchor when other evidence establishes the local resolution.
 
 ### Defeat
 
-**Defeat** means our side lost the local confrontation, including when we withdraw or are driven away while the opposing side holds the field. Surviving personally does not turn a team loss into a win.
+The character's own participation ends in a confirmed PvP-related death or a reasonably established forced withdrawal. A terminal death remains Defeat even if surviving allies later win; that allied result is separate. If the character revives and returns to the same continuing confrontation, the personal outcome may be revised according to the actual later ending; retain all earlier death/kill events and rival credit. A character who survives but is driven off can lose. A simultaneous death of both players can still be a personal Defeat if our own participation ends in death; it need not establish a group victor.
 
 ### Unknown
 
-**Unknown** is a **valid recorded outcome**, but a narrow exception: the skirmish definitely happened and ended (or observation stopped), yet available evidence does not reasonably establish which side prevailed.
+Unknown is valid when the character's participation has ended or observation is lost without reasonable evidence of a personal win or loss, including mutual disengagement, ambiguous stealth/disappearance, or an unresolved living departure. It is not an error code for a missing field, incomplete roster, unavailable coordinate or unavailable group result. While participation is ongoing, do not prematurely lock an ending. Preserve an Unknown fight even with zero rewards or casualties; it does not count as either outcome.
 
-Examples:
-- Two players exchange attacks, then both disengage and leave without a discernible winner.
-- A rogue stealths away; if this plausibly ends a losing retreat, the other side may have won, but if the observation cannot distinguish withdrawal from a temporary repositioning or mutual disengagement, the report may remain **Unknown**.
-- The player loses visibility of an unresolved fight before its ending and has no reliable evidence of the result.
+### Best-evidence inference, not a courtroom standard
 
-**Never discard a real skirmish solely because its outcome is Unknown.** It belongs in history even with zero kills, zero HKs, and zero honor. Unknown is not a win or a loss and must not silently increment either counter.
+Use the combined story of the observed encounter, while distinguishing confirmed facts from inferred results. Prefer independent evidence paths for lethal outcomes, observed elimination, withdrawal, and unresolved endings. Feign Death and subsequent revival matter: assess same-identity, class, readable death state, chronological observations and corroboration. Do not simply promote an unavailable Feign Death flag to false, or infer death from disappearance. Conversely, a missing flag should not veto a strongly corroborated corpse or otherwise clear local victory. A known non-Hunter class is relevant evidence, not a universal proof that no feign-like effect is possible.
 
-### Avoid false Unknowns
+Record a reason and coverage for each inferred result separately from interruption or API availability. A later interruption must not erase an already supported personal result. If evidence conflicts or is genuinely insufficient, keep Unknown. Preserve earlier evidence and recompute versioned derived results when justified; do not fabricate missing observations to make a fixture pass.
 
-**Unknown must not be the default fallback simply because the roster is incomplete or not every enemy died.** A sufficiently clear local victory/defeat remains a victory/defeat, even when some players left alive and exact team sizes are unknown.
+### Observed group result
 
-A particularly important case: **our side stays alive and holds the location; the participating enemies are killed or dispersed; no one continues contesting the local fight; the confrontation ends. That is a Victory**. The player need not prove the fate of every previously seen enemy.
-
-Do not treat *one* lost nameplate or the local player dropping combat as sufficient on its own. Consider the connected confrontation as a whole. We want a strong best-evidence result, not made-up certainty.
-
-There is no general product requirement to always force a binary result. The aim is to make **clear outcomes correctly determined**, while reserving Unknown for genuinely indecisive or unobservable endings.
+When reliable evidence supports a result for the whole observed local group, it may be recorded independently (including group Victory after personal Defeat). It may be Unknown or absent without affecting the personal result. Do not require a group result for a normal card or duplicate a second prominent badge everywhere. Its eventual UI is secondary to the character's own story.
 
 ## 7. What the journal shows and counts
 
-A skirmish report should tell the understandable story of the event:
+### Skirmish views
 
-- **Outcome:** Victory, Defeat, or Unknown.
-- **Sides and roster:** observed Alliance and Horde participants, independently of party membership, with available appearance information.
-- **Casualties:** only confirmed deaths; retreat, disappearance, or stealth is not a death marker.
-- **Key events:** confirmed finishing blows, relevant deaths/revivals and other meaningful actions when available; not a noisy transcript of every spell.
-- **Rewards:** earned Honorable Kills and Honor Points when reliably attributable to the fight. **A fight can exist without either reward**, including a legitimate PvP clash with an Unknown outcome.
-- **When/where:** approximate time, zone, and location/waypoint if known.
-- **Origin:** explicitly distinguish **Open World** from **Battleground** on saved skirmishes. For battleground skirmishes, show a compact localized **Battleground** label or badge immediately beside the battleground/zone name on **both compact and expanded cards**. The location name alone is not the indicator; the provenance remains visible even if the location text is unfamiliar or localized.
-- **Coverage:** distinguish observed participants from a certified complete roster.
+- **Primary outcome:** the character's Victory, Defeat or Unknown.
+- **Observed sides and roster:** identify actual Alliance and Horde participants, including meaningful support; keep known class, race, name and level. Use Blizzard's skull only for an explicitly observed skull-level value; hide an unavailable level.
+- **Casualties and timeline:** confirmed deaths, finishing blows and revivals, plus meaningful actions and available permanent aggregates. Do not mark disappearance as death or fabricate a killer or individual hit from an aggregate.
+- **Rewards:** distinguish game-awarded Honorable Kills and Honor Points from both personal and rival outcomes. Preserve earned rewards at the most specific confirmed scope (rival, skirmish, or journal); no invented attribution.
+- **When/where, origin and coverage:** date, zone, map waypoint if available, observed rather than guaranteed full roster. Both compact and full battleground cards retain the localized Battleground label beside the location.
+- **Group context:** optional and explicitly labeled. It does not replace the character's primary outcome.
 
-For rivalry statistics, one recorded skirmish can count once as a side Victory or Defeat against each **confirmed opposing participant** associated with it; Unknown contributes to fight history but not either win/loss counter. Open-world and enabled battleground encounters feed the **same rival history**; their origin is recorded on each encounter. Rewards are a separate concept, not proof of victory or who delivered a finishing blow.
+### Personal rival score: participation, not last-hit ownership
 
-Do not quietly omit a demonstrated healer simply because the local character landed all finishing blows.
+The rival profile, compact rival encounter card, nameplate and unit tooltip should describe **my character's history with that particular opponent**. Never copy a skirmish's personal or group outcome to every opponent on its roster.
+
+A personal victory over a rival is credited when the rival is defeated in the connected confrontation and the local character demonstrably contributed to that defeat:
+
+- A confirmed killing blow is sufficient. It is not necessary.
+- Readable damage dealt to that rival during the relevant engagement qualifies, even when a teammate lands the final hit.
+- Meaningful hostile control, dispels, interrupts, or other relevant hostile contribution can qualify with reliable linkage.
+- **Indirect support counts equally:** healing, shielding, protecting, buffing or otherwise materially supporting an ally engaged against the rival in the same connected episode qualifies. A pure healer can earn a victory over a mage killed by that supported ally without dealing any damage. No minimum damage requirement or last-hit requirement.
+- Credit verified pet/controlled-unit activity to its owner; do not invent ownership.
+- A confirmed death with no known finisher can qualify if relevant local contribution and the death are reliably linked. No need to know the final hitter.
+- A party membership, nearby appearance, unrelated heal or PvE action, generic totals, honor alone, or mere membership on the opposing roster is not proof of participation in that rival's defeat. Link support to the ally's relevant engagement and the opponent's death, not to every enemy in a large fight.
+
+For a rival loss, apply the analogous attribution principle to the local character's confirmed PvP death: a direct hostile finisher qualifies, and other rivals with reliably linked material participation in that death (damage or relevant support/control) may qualify. Do not give a loss against every enemy merely because our character or side lost. Do not presume a healer on the other side was supporting the killer without evidence. An NPC-only death cannot create rival losses.
+
+**Keep the score and literal combat statistics distinct.** Rival wins/losses represent credited participation in defeats/deaths, while personal killing blows and deaths directly caused by that rival are separately observable facts. HKs and honor remain the game's awards. A shared kill is not a personal finishing blow; neither statistic should be silently relabeled as the other.
+
+Examples:
+- I damage a mage, my brother finishes the mage: victory against the mage; zero personal finishing blows.
+- I heal my brother while he fights and defeats the mage: victory against the mage even with zero damage.
+- I kill the mage, then a rogue kills me: overall personal Defeat; victory against the mage and loss against the rogue (and any independently proven contribution to my death). The mage does not automatically get a loss credit simply because they were there.
+- I fight a mage, both of us leave alive: preserve the meeting and its context; do not invent a kill-based rival victory. Non-lethal opponent-specific wins (for example a clear 1v1 retreat) are a possible later refinement requiring their own rule. They are not necessary for this iteration's participation score.
+
+A natural implementation unit is a uniquely identified death episode plus credited rival, deduplicated across repeated signals and replay. A genuine revival followed by another defeat is a separate episode. The exact counter behavior for repeat deaths, non-lethal rival outcomes and legacy/manual rows must be settled explicitly in implementation design before changing persisted or public counters; do not silently combine different counting units. Preserve manual assertions as such.
+
+### UI semantics
+
+The full skirmish card and cross-rival journal use the character's personal outcome. A compact card inside a rival profile must present the rival-specific result/credit, or clearly distinguish it from the overall personal outcome; never show an unqualified group Defeat as the result of a fight against a mage I helped defeat. If a single fight contains both a credited victory and a loss against one rival, represent both rather than force a misleading binary badge. A rival without enough evidence for credit remains in the history with no invented score. Keep the current native visual language and use concise labels/tooltips; exact layout can be designed later.
+
+Open-world and enabled battleground encounters feed the same rival history and display the same personal-score meaning across the profile, tooltip and nameplate. Disabling recording or a display setting follows section 2. Do not quietly omit healers or turn a personal score into a faction-wide scoreboard.
 
 ### History retention
 
 **Permanent Battle History** retains every rival and skirmish indefinitely.
-It includes time, place, sides, outcome, confirmed kills, deaths and
-revivals, rewards, the core timeline, and the accepted Damage Meter
-aggregates saved with the skirmish. There is no automatic age, count or
+It includes time, place, sides, versioned outcomes, confirmed kills, deaths and
+revivals, rival contribution facts/credit, rewards, the core timeline, and the
+accepted Damage Meter aggregates saved with the skirmish. Keep evidence needed
+for future score re-evaluation and user-facing history independently of debug
+retention. Historical facts are not overwritten by a new outcome model. There is no automatic age, count or
 byte quota for this history. The cross-rival view displays the latest 100
 entries. An individual rival's history includes every linked encounter.
 
@@ -159,57 +174,58 @@ timeline and saved damage, healing and absorb amounts remain available for
 future timeline views. A user's explicit reset or profile deletion follows
 the existing confirmation flow.
 
-## 8. Real encounter: Duskwood, 22 November 2026
+## 8. Real encounters and regression targets
 
-The motivating case is an open-world PvP clash entered while fighting was already underway. The saved card currently presents **1 vs 2, Unknown** because it captured only the local hunter and two enemies she finished.
+The following are anonymized product examples, not claims that old captures already contain all required data. Preserve the real evidence and do not hard-code record IDs. See [Forever validation](forever-validation.md) for the original technical findings.
 
-The diagnostic observations support a larger picture:
+### Duskwood, 22 November 2026
 
-- **Alliance:** the local hunter, plus a priest who was in the party and demonstrably acted in combat.
-- **Horde:** two opponents with confirmed deaths, plus a third hostile player who attacked participants but whose death is not confirmed.
-- At least one additional friendly player was seen around the period, but an appearance near the fight alone is not evidence that they participated. Do not add them without a qualifying link.
-- Other players could have fought before the hunter arrived, but unavailable pre-arrival history must not be invented.
+The original capture was 1 vs 2, later reconstructed as 2 vs 3 with two enemy deaths and five honor. The local hunter joined an ongoing fight with a priest ally; the third enemy's death is not confirmed. A nearby friendly bystander is not a participant unless linked by meaningful action. The observed local result should be Victory if the character survived and the opposing force was driven away; an incomplete roster or last-seen-alive enemy alone must not force Unknown. Preserve the actual two deaths and credit supported rival contributions, not blanket wins against all three opponents. The retained replay currently remains Unknown; missing evidence cannot be invented.
 
-**Expected product result:** record at least **two observed Alliance participants and three observed Horde participants** with their available character details, exactly two confirmed enemy deaths, and a **Victory** if the recorded confrontation resolves with Alliance remaining and the opposing force dispersed. The full historical roster may still be incomplete.
+### Gnomeregan, 23 November 2026
 
-The old **Unknown** is not acceptable *merely because* the third enemy was last seen alive or the observed roster was incomplete. This example must become a regression/acceptance scenario when implementation is undertaken.
+- **20:08, world:4 (2 vs 2):** one enemy killed by the ally, the other (known Paladin) observed dead in a contact, without a recorded Feign Death value. Both allies alive and out of combat in two later samples. Existing result Unknown / site-anchor-missing. Strong candidate for personal Victory using corroborated local evidence without requiring an exact anchor. Investigate whether the available raw observations establish the second defeat; preserve uncertainty about an unconfirmed death and finisher. Rival credit requires actual local contribution, not only the observed group win.
+- **20:11, world:7 (2 vs 3):** local character killed by a hostile player, later allied death and continued hostile activity observed; area change before final samples. Existing group result Unknown / area-changed. Expected personal Defeat if no return to the same confrontation is established. Retain the observed allied continuation and do not claim a final group winner. Credit the actual killer and only other demonstrably involved rivals for the personal death.
+- **22:22, world:12 (1 vs 1):** high-level opponent lands confirmed lethal PvP damage while the character is low on health from PvE. Expected personal Defeat (already repaired in 1.1.0). Unknown level remains unknown, not a fabricated skull.
+- **22:37, world:14 (1 vs 3 observed):** hostile Paladin kills the local player, two additional opponents linked to the fight, spirit release and area change, no terminal samples. Expected personal Defeat on terminal death without return; group result unknown. Do not credit all three automatically as personal losses.
+- **20:09 and 20:20:** preserve prior improvements to teammate kills and Damage Meter-linked participation. **20:21:** do not invent the lost historical card; retain the fix preventing a subsequent combat window from replacing the first readable links. Preserve reward attribution improvements (39 historical honor, 25 linked, 14 unassigned; no automatic invented backfill).
 
 ## 9. Acceptance scenarios
 
-1. **Ordinary duel:** two players fight; one side wins. Save 1 vs 1 and the correct side result.
-2. **Group fight:** every observed damage dealer, victim, and support player involved in the connected fight is represented, regardless of who landed the final blows.
-3. **Unpartied allies:** friendly players in different parties fighting the same opponents belong on the same side.
-4. **Healer only:** a priest who heals or shields a participant, with zero damage dealt, is included.
-5. **Pet sent from range:** the hunter may enter the engagement before either health damage or visible nameplates; the pet is not a separate roster player. If nothing ever connects, don't invent a completed fight.
-6. **Late arrival:** an existing fight is joined midway; retain known earlier participants and observations.
-7. **Unobserved earlier deaths:** do not invent dead players who were never identifiable to the local character.
-8. **Bystander and party member:** presence, party membership, targeting, or an unrelated NPC fight alone do not qualify.
-9. **Enemy retreats alive:** enemy remains in the roster without a death marker; our side can win if it drives them off.
-10. **Local player dies, allies win:** record a side Victory, not an automatic personal Defeat.
-11. **Local player survives, allies lose:** record a side Defeat.
-12. **Short pause or temporary stealth:** do not split a continuing engagement into multiple records.
-13. **Separate nearby clashes:** do not merge separate fights simply because their time or location overlaps.
-14. **Mutual disengagement:** retain the fight with an Unknown result and no invented rewards; do not count it as a win or loss.
-15. **No rewards:** a confirmed meaningful skirmish with zero HKs or Honor Points still belongs in history.
-16. **Duskwood reference:** reconstruct observed 2 vs 3 participation, two confirmed deaths, and Victory when the opposing force has dispersed and Alliance holds the field.
-17. **Battleground enabled (default):** a real connected local battleground fight is saved as its own skirmish, with the **Battleground** context label by the location on compact and expanded cards; the match as a whole is not incorrectly treated as one giant fight.
-18. **Battleground recording disabled:** no new BG skirmishes, kills, deaths, rewards or BG-driven score changes; previously known enemies still show historical win/loss indicators in nameplates and tooltips, using the separate existing visibility settings. Open-world tracking continues.
-19. **Battleground vs match outcome:** win an objective-area clash and later lose the match; the clash retains its **Victory**, without importing the match's **Defeat**.
-20. **Distinct battleground clashes:** die or disengage, later respawn or travel to a different fight; do not merge unrelated encounters because they share a BG instance.
-21. **Cross-context rival:** face an opponent on a BG and meet them later in the open world; both recorded encounters appear under **one rival profile**, each with the correct context.
-22. **Known rival on BG, recording OFF:** defeat a mage in the open world, then encounter the same mage on a BG with BG tracking disabled. Show the saved score in the mage's tooltip and nameplate, but do not add BG results or rewards to the journal.
-23. **Independent display settings:** disable nameplate icons while BG recording stays ON; BG fights are still recorded and unit tooltips can still show known rivals if their separate switch is enabled.
-24. **BG unresolved fight:** a genuine clash with no clear winner, no kills, and no honor stays in history as **Unknown**.
+1. Ordinary 1 vs 1: clear terminal win/loss yields the corresponding personal outcome, with attributed death credit where supported.
+2. Group fight: include meaningful damage dealers, victims, healers, shields, crowd control and other linked support regardless of last hit or party membership.
+3. Local damage, ally finishing blow: credit the local character's victory over that rival once for the relevant defeat, without claiming a personal killing blow.
+4. Pure healer: heal or shield an ally fighting and killing a mage; credit the healer's victory even with zero direct damage. An unrelated heal or passive party membership earns no credit.
+5. Support chain: an identifiable ally receives meaningful support connected to the same opponent and death episode. No indiscriminate credit for other enemies or unrelated earlier/later windows. Test missing and restricted endpoints.
+6. Enemy receives support and kills me: attribute my loss to the killer and other rivals only where their material involvement is independently established. No automatic blanket losses.
+7. Kill mage, die to rogue: personal Defeat, mage-specific victory credit, rogue-specific loss credit, actual finishing blow/death counters independent. If both directions are credited against one rival, show both.
+8. Local character dies while allies win: personal Defeat if no return; group Victory may be shown separately if reliably observed. Loss of later observation does not erase personal Defeat.
+9. Death then resurrection and genuine return to same battle: keep death/credit, revise provisional personal result according to subsequent ending; distinguish new battle after respawn.
+10. Local character survives but is forced to retreat: personal Defeat even without a death; distinguish from neutral withdrawal.
+11. Enemy retreats alive under pressure: personal Victory when local resolution is established; no fabricated kill or automatic kill-based rival credit.
+12. Mutual disengagement, ambiguous disappearance, ongoing combat or missing decisive evidence: no forced outcome; keep real fight, even without rewards.
+13. Feign Death, true corpse with missing flag, token reuse and revival: distinguish corroborated death from uncertain observation; do not require a single perfect field in all cases.
+14. Duskwood and Gnomeregan: replay existing anonymized fixtures and original evidence; preserve prior roster, kill, reward, late-window fixes. Check world:4, world:7, world:12 and world:14 against section 8 without hard-coding outcomes.
+15. Late arrival, visible pet from range, no initial nameplate, bystanders, unrelated PvE or independent nearby fights: keep only linked observations; no invented pre-arrival history; do not count pets as additional players.
+16. Battleground recording defaults ON; label both card sizes, distinguish separate local clashes and respawns, ignore global match result as an outcome source.
+17. Battleground recording OFF: no new BG records or score/reward changes; previously recorded rivals remain recognizable; open-world tracking unaffected.
+18. One rival across both contexts; independent nameplate/tooltip options do not affect recording.
+19. Permanent history survives reload, pruning and years of new records; oldest card retains roster, outcomes, confirmed timeline, contribution facts, aggregates and rewards. The latest-100 view is display-only.
+20. Legacy group outcomes remain labeled as legacy; do not silently reinterpret as character outcomes or credit them to every rival. Re-evaluate only from sufficient retained evidence, preserve explicitly manual results, and test migration and repeat reload idempotency.
+21. Duplicate notifications, overlapping meter categories, repeated read/replay, and revival followed by a new death: don't double count the same episode or erase legitimate distinct ones.
+22. Report an Issue remains automatic, bounded and copyable; report identifies outcome reason, credit evidence and missing fields separately. No requirement for prior logging, other addon installations, or public sharing.
 
 ## 10. Boundaries and follow-up work
 
-- **Do not force battleground outcomes to equal match wins/losses.** The skirmish result always belongs to the local fight.
-- **No manual editing of participants or outcomes** as part of this redesign. Do not create a correction UI just to avoid solving automatic inference.
-- Existing manual-entry features are separate and are not implicitly removed by this specification.
-- **Later, separately:** add a visible **Beta / Report a Problem** action directly within the journal, opening the project's GitHub Issues reporting path. Existing support in settings remains. Do not expose private saved-data logs automatically.
-- This document is deliberately **product behavior, not implementation design**. The actual evidence sources, privacy/secret-value restrictions, fight correlation, timeouts, and event handling need their own technical design and in-client tests.
-- Before changing behavior, reconcile the current README and code, which describe a narrower kill-led/roster-elimination model. This specification describes the desired replacement, not the current shipping behavior.
+- This is a post-1.1.0 product redesign, not a hotfix to the released build. No runtime changes or release are implied by approval of this document.
+- Preserve all existing real history, reward totals, user settings, identity handling, and the current native UI style. Separate versioned personal outcome and rival contribution from legacy side outcome; derived results must be traceable and re-evaluable without overwriting facts.
+- No manual correction UI as a substitute for automatic inference. Existing manual-entry behavior remains separately identified.
+- The Report an Issue feature already ships in 1.1.0. Preserve pseudonymized JSONL, extra report pages, and optional existing SavedVariables attachment without prior logging or mandatory editing. Persist evidence necessary for future product views, not only in an expiring debug buffer.
+- A full battle timeline viewer is later work. Preserve accessible facts and accepted aggregates now; never reconstruct exact casts, hits or times from untimed totals.
+- Optional addon-to-addon synchronization between consenting friends/group members is a future idea, not a dependency. Research permitted Forever addon messages and provenance, trust, deduplication, privacy and conflicting observations before implementing. Solo operation must remain complete and useful; no expectation that opponents install Names in Red.
+- Feasibility design and in-client validation remain necessary, especially for support linkage, terminal deaths/return, non-lethal outcomes and migration. Prefer small PRs: outcome boundary/evaluator, rival attribution and migration, then consistent UI/stat semantics and regression checks. Reconcile README and CurseForge descriptions when the behavior actually ships.
+- Technical investigation uses [Forever validation](forever-validation.md), current source and anonymized fixtures, not speculative global combat events. See [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md) for the development handoff.
 
 ---
 
-**Guiding principle:** **Record the local fight that actually happened, in the open world or on an enabled battleground. Show as many genuine participants as can be observed. Award victory for a won confrontation, not only for exterminating every opponent. Keep Unknown for genuinely uncertain outcomes—not as a substitute for recognizing a clear win.**
+**Guiding principle:** Tell my character's story. Remember who I fought and helped defeat, what happened to me, and what I could know about the fight. Give healers and teammates fair credit without inventing last hits. Preserve history indefinitely. Reserve Unknown for genuinely uncertain personal endings, not for unavailable global knowledge.
