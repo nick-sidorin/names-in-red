@@ -319,8 +319,8 @@ distinguish those fights.
   ID, pet name, ambiguous ownership or a second-unit pet name cannot identify
   an owner. Observed claims survive changes of target, token reuse and
   temporary visibility loss throughout one local window. An independent
-  conflicting claim invalidates attribution. Pet evidence adds a
-  participant rather than a killing blow.
+  conflicting claim invalidates attribution. A qualifying pet action adds
+  evidence about its verified player owner.
 - The restricted combat log is not a supported alternative. The
   `UNIT_SPELLCAST_SUCCEEDED` payload identifies the casting unit and spell,
   but gives no recipient or applied effect. `UNIT_SPELLCAST_SENT` can include
@@ -1811,10 +1811,11 @@ damage immediately beforehand. The player-only recap reader discarded
 both. The recorder now checks the hostile reaction, player control and
 pet type flags, and preserves the lethal pet GUID, native timestamp and hit
 fields alongside the earlier player damage. The owner's GUID is a separate
-optional field and requires the verified `UnitIsOwnerOrControllerOfUnit`
-mapping for that window. A verified hostile pet death can settle a personal
-Defeat without a known owner. The full timeline shows the pet as the
-finisher and the direct player finishing-blow counters remain independent.
+optional field and requires a verified ownership mapping for that window.
+A verified hostile pet death can settle a personal Defeat without a known
+owner. The full timeline shows the verified owner or an unknown player.
+The literal source remains available as technical evidence, and direct
+player finishing-blow counters remain independent.
 
 Load-time recovery can attach retained pet-recapping evidence beside an
 original local death. It requires the segment's diagnostic session and
@@ -1848,6 +1849,93 @@ recovery, and the full card, compact card, profile, tooltip and nameplate.
 Separate controlled tests exercise contradictory rows, owner ambiguity,
 NPC and environmental deaths, resurrection and diagnostic eviction.
 For the new preview, live Forever verification remains pending.
+
+#### Pet ownership in Forever 71037
+
+The generated unit API at the exact Forever 1.60.1 build declares
+`UnitTokenFromGUID(guid)` with a possibly absent token, `UnitOwnerGUID(unit)`
+with an owner GUID, and `UnitIsOwnerOrControllerOfUnit(owner, controlled)`
+with a Boolean verdict. All three and `UnitGUID` are marked
+`SecretWhenUnitIdentityRestricted`. `UnitGUID` and `UnitOwnerGUID` take
+`UnitTokenPvPRestrictedForAddOns`. The token lookup has
+`SecretArguments = AllowedWhenTainted`; the other three declare
+`AllowedWhenUntainted`. These are API capabilities and restrictions
+from generated source. They do not establish which hostile tokens an
+addon can read in a live world fight or after death.
+[Forever UnitDocumentation.lua](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitDocumentation.lua)
+
+The existing recorder checks the local `pet`, `partypetN` and `raidpetN`
+tokens and compares simultaneous readable player/pet tokens. Visible
+nameplates and current target or mouseover can provide other tokens
+while their GUIDs remain readable. The aura handler can inspect
+`addedAuras[].sourceUnit` only when its table and field are readable.
+A source token points to the caster, with ownership established separately.
+`UNIT_AURA` is marked `SecretWhenAurasRestricted`. The existing bounded
+world-aura sample now observes a source only when its readable GUID is
+a pet. The sample may omit later or restricted transitions. Identity
+absence may also reflect an unseen unit or a recycled token.
+[Forever UnitAuraDocumentation.lua](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitAuraDocumentation.lua)
+· [Forever NamePlateDocumentation.lua](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/NamePlateDocumentation.lua)
+
+The original `world:16` combat-end row recorded zero paired owner
+checks and just the local pet mapping. The lethal hostile pet GUID
+appears only in raw recap sources. This is an observation gap.
+`UnitTokenFromGUID` and `UnitOwnerGUID` were uncollected in that preview,
+so the old record cannot tell whether either would have returned
+a readable value. No ownership for this pet was recovered on reload.
+
+The private save shows native owner aggregation for the player's own
+pet. The local player's DamageDone entry contains pet-labelled
+`creatureName` rows for spells 6603 and 17256, with totals 1,374 and
+151. The incoming meter links 324 damage for spell 1293697 to the
+warlock. The same hostile pet that later landed the lethal swing dealt
+54 and 52 with spell 1293697 in the native recap. This corroborates
+involvement, but the spell aggregate has neither the physical pet GUID
+nor the timestamp of an individual hit. Amounts, spell IDs, names, class
+and the number of observed enemies cannot establish ownership.
+`DamageMeterCombatSource` carries a conditionally secret source GUID.
+The per-spell aggregate exposes `creatureName`, while the second-unit
+details expose name, class, type flags and amount. Technical diagnostic
+samples can omit rows, and the permanent aggregate intentionally keeps
+only qualified linked evidence. The Deaths row identified the local
+victim and native `deathRecapID=56`. Blizzard passes that ID to
+`OpenDeathRecapUI`, which reads `GetRecapEvents(recapID)`. It identifies
+the death selected in the meter. Neither that relationship nor the
+documented recap API supplies a pet-owner join. The generated
+`DeathRecapEventInfo` structure declares no fields; the saved recap
+demonstrates readable source and hit fields, with no recorded owner.
+[Forever DamageMeter schema](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/DamageMeterDocumentation.lua)
+· [Native meter recap action](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_DamageMeter/DamageMeterSessionWindow.lua#L968)
+· [Forever DeathRecap schema](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/DeathRecapDocumentation.lua)
+· [Native recap reader](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_DeathRecap/Mainline/Blizzard_DeathRecap.lua#L315)
+
+The recorder now looks up the owner directly for an observed pet and
+tries the recap GUID-to-token path at the initial read and existing
+0.3, 1 and 2 second retries. It verifies the pet token against the
+same GUID before and after reading the owner, verifies the owning
+opponent from the scoped contact or another identity-checked token,
+and rejects conflicting ownership. The lookup obeys the owning active
+combat window or its existing 2.5-second post-combat tail, before any
+scope change or newer combat. An unavailable API or lost token can
+leave the attribution unknown. A prior verified scoped observation
+can survive lost visibility. Existing retry and death deduplication
+also apply when ownership is first discovered after combat. The
+literal name, when readable, stays in private technical evidence.
+The displayed actor is the verified player or an unknown player.
+
+Per-death diagnostics retain at most four attempts. They report phase,
+delay, token lookup, identity checks, owner result and verification
+decision as statuses. They contain no raw token, GUID, name or native
+error text. In a future ordinary PvP death involving a hostile pet,
+inspect whether the initial combat read or a post-combat retry gets
+a stable pet token and confirmed owner. Check an off-nameplate pet
+and compare secret, absent and error outcomes. There is no need
+to recreate `world:16`. The live API and native rendering still need
+verification. Lua tests cover success, delayed readability, aura
+observation, absent and secret results, token reuse, native errors,
+conflicting owners, non-opponents, and window invalidation. The
+original save still replays as Defeat, one warlock loss, and an
+unknown player actor with the pet lethal retained privately.
 
 ### Preview and release provenance
 

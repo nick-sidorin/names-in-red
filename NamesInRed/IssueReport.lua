@@ -485,9 +485,16 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
             fields.finisher, fields.finisherOwner, fields.finisherEffect = "pet", rosterAliases[addon.Readable(pet.ownerID)], Token(pet.effect)
             fields.finisherTime, fields.finisherAmount = Number(pet.timestamp), Number(pet.amount)
             fields.finisherRecovered = recap ~= event
+            fields.finisherOwnerEvidence = Token(pet.ownerEvidence)
+            fields.finisherOwnerAmbiguous = Flag(pet.ownerAmbiguous)
         end
         fields.evidence = "derived"
         Actor("event", fields, event)
+        each("petOwnerProbe", pet.ownerAttempts, 4, function(attempt)
+            local detail = Fields(attempt, "phase petToken tokenSource petBefore petAfter ownerGUID ownerToken decision", "delay")
+            detail.deathIndex = index
+            write("petOwnerProbe", detail)
+        end)
         if fields.kind ~= "kill" or not selfID then return end
         local actor, target = Alias(event.actorID), Alias(event.targetID)
         if actor == aliases[selfID] and target then kills[target] = (kills[target] or 0) + 1 end

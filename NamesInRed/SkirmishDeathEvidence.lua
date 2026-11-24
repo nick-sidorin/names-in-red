@@ -52,7 +52,8 @@ function DeathEvidence.PetFinisher(row)
         or not Number(amount) or amount <= 0 or not Number(overkill) or overkill < 0 then return end
     local hp, stamp = read(row.currentHP), read(row.timestamp)
     if not Number(stamp) or stamp <= 0 then return end
-    return { sourceID = id, flags = flags, effect = effect, amount = amount, overkill = overkill, timestamp = stamp,
+    return { sourceID = id, sourceName = addon.ManualName(read(row.sourceName)),
+        flags = flags, effect = effect, amount = amount, overkill = overkill, timestamp = stamp,
         currentHP = Number(hp) and hp or nil }
 end
 

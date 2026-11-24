@@ -1092,9 +1092,15 @@ do
     ProfileStat(addon.L.honor, 0)
     compact:SetEncounter(addon.RivalEncounters(addon.db, archiveRival)[1], record, archiveRival)
     assert(CenterMarker(banner) and FindText(compact, addon.L.lossTooltip))
-    PET = "Pet"
+    local petProof = archiveBattle.recoveredDeathRecaps[1].petFinisher
+    assert(petProof.sourceName == "Fixture Pet")
     card:SetSkirmish(archiveBattle, archiveRival, true)
-    assert(FindText(card, PET))
+    assert(FindText(card, addon.L.unknownPlayer) and not FindText(card, petProof.sourceName))
+    petProof.ownerID = archiveRival -- test the separately verified owner projection
+    card:SetSkirmish(archiveBattle, archiveRival, true)
+    local timeline = assert(FindText(card, "0:25")).parent
+    assert(FindText(timeline, archiveBattle.enemies[1].name) and not FindText(timeline, addon.L.unknownPlayer))
+    petProof.ownerID = nil
     assert(FindText(card, addon.L.lossTooltip) and not FindText(card, addon.L.shortUnknownOutcome))
     callback(GameTooltip, { guid = archiveRival })
     assert(tooltipLines[#tooltipLines] == addon.FormatRivalCounters(0, 1, false))

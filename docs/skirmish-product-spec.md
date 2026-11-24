@@ -60,7 +60,7 @@ Qualifying involvement can include:
 - Attacking, attempting a relevant hostile ability, damaging, or controlling an opponent.
 - Being attacked or otherwise directly affected by an opposing participant.
 - Healing, shielding, buffing, dispelling, protecting, crowd-controlling, or otherwise materially supporting a participant **in this same fight**.
-- Fighting via a pet or other controlled unit; credit that involvement to the owning player, rather than counting the pet as another player on the roster.
+- Fighting via a pet or other controlled unit. This activity belongs to its verified player owner. Roster slots and rival histories are for players.
 - Joining later, retreating, dying, reviving, or leaving early, after having participated.
 
 The support case matters: **a priest who only heals a fighting ally is still a participant**, even with no recorded damage or killing blow.
@@ -199,7 +199,7 @@ No new requirement for global synchronization or exhaustive observation.
 
 - **Primary outcome:** Victory, Defeat or Draw from section 6; exceptional Unknown for genuinely unresolved endings. Show In progress separately for ongoing/settling encounters.
 - **Observed sides and roster:** identify actual Alliance and Horde participants, including meaningful support; keep known class, race, name and level. Use Blizzard's skull only for an explicitly observed skull-level value; hide an unavailable level.
-- **Casualties and timeline:** confirmed deaths, finishing blows and revivals, plus meaningful actions and available permanent aggregates. Do not mark disappearance as death or fabricate a killer or individual hit from an aggregate.
+- **Casualties and timeline:** confirmed deaths, finishing blows and revivals, plus meaningful actions and available permanent aggregates. A pet finishing blow shows its verified player owner as the actor. When ownership is unresolved, show an unknown player and retain the actual source as technical evidence. Do not mark disappearance as death or fabricate a killer or individual hit from an aggregate.
 - **Rewards:** distinguish game-awarded Honorable Kills and Honor Points from both personal and rival outcomes. Preserve earned rewards at the most specific confirmed scope (rival, skirmish, or journal); no invented attribution.
 - **When/where, origin and coverage:** date, zone, map waypoint if available, observed rather than guaranteed full roster. Both compact and full battleground cards retain the localized Battleground label beside the location.
 - **Group context:** optional and explicitly labeled. It does not replace the character's primary outcome.

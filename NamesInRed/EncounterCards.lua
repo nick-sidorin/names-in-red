@@ -706,11 +706,12 @@ local function CreateSkirmishDetails(card, width, toggleTimeline)
             end
             for _, region in ipairs(row) do region:SetShown(event and true or false) end
             if event then
-                local actor, target = players[event.actorID], players[event.targetID]
+                local actorID = blow.pet and blow.pet.ownerID or event.actorID
+                local actor, target = players[actorID], players[event.targetID]
                 local elapsed = event.time and battle.startedAt and math.max(0, event.time - battle.startedAt)
                 row[1]:SetText(elapsed and ("%d:%02d"):format(math.floor(elapsed / 60), elapsed % 60) or "")
-                row[2]:SetText(blow.pet and (PET or L.unknownPlayer) or (actor and actor.name or L.unknownPlayer))
-                row[2]:SetTextColor(unpack(colors[event.actorID] or neutralColor))
+                row[2]:SetText(actor and actor.name or L.unknownPlayer)
+                row[2]:SetTextColor(unpack(colors[actorID] or neutralColor))
                 row[4]:SetText(target and target.name or L.unknownPlayer)
                 row[4]:SetTextColor(unpack(colors[event.targetID] or neutralColor))
             end

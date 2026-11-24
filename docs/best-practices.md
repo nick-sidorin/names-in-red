@@ -158,7 +158,12 @@ used by cards, profile, tooltip and nameplate.
   Validate the derived timing bounds using the resolved offset. Retain an
   absent runtime field in an anonymized regression from a real save. Keep
   the literal pet finisher, verified owner and other recap attackers
-  separate. Recover diagnostic evidence only when a unique session, local
+  separate. Use only verified players as journal actors. Recheck a
+  GUID-resolved pet token before and after reading ownership. Limit
+  late attempts to the originating window and keep secret or absent API
+  results distinct from contradictory owner claims. Spell aggregates
+  preserve participation evidence without assigning ownership.
+  Recover diagnostic evidence only when a unique session, local
   death and combat window match. Attach it without rewriting the original
   timeline or requiring the diagnostic log on later loads.
 - Preserve witnessed action times on both sides of a life transition. Per-pair
@@ -196,7 +201,8 @@ used by cards, profile, tooltip and nameplate.
   [Character POV PR C](forever-validation.md#character-pov-pr-c).
 - Keep JSONL aliases, bounded exports and optional SavedVariables report path
   intact. No real private captures, secrets or unnecessary personal data in
-  Git. Add focused anonymous fixtures instead.
+  Git. In anonymous fixtures, redact identity values and preserve status
+  enums even when they use the same field names.
 
 ## 5. Tests: behavior and regression, not implementation snapshots
 

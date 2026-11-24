@@ -574,6 +574,11 @@ function addon.WorldDeathWindow(place)
     return window
 end
 
+function addon.WorldCanResolveRecapPet(window)
+    if not Valid(window) or window.area ~= area or not Origin() or not SameScope(window.place, addon.EncounterContext()) then return end
+    return open == window or (not open and tail == window and window.ended and GetTime() - window.ended <= lateEvent)
+end
+
 function addon.WorldCanObserveMeter(window)
     return Origin() and Valid(window) and window.area == area and not open and window.ended and Pending(window.record)
         and lastRecord == window.record and lastRecord.lastWindow == window
@@ -782,10 +787,21 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
         local hits, changed = event.recapDamage or {}, false
         local previousHits = previousRecap.recapDamage or {}
         local oldPet, pet = previousRecap.petFinisher, event.petFinisher
-        if oldPet then
-            if not pet or pet.sourceID ~= oldPet.sourceID or oldPet.ownerID then event.petFinisher = oldPet end
+        if oldPet and pet and pet.sourceID == oldPet.sourceID then
+            pet.sourceName = oldPet.sourceName or pet.sourceName
+            local conflicting = oldPet.ownerID and pet.ownerID and oldPet.ownerID ~= pet.ownerID
+            if oldPet.ownerAmbiguous or pet.ownerAmbiguous or conflicting then
+                pet.ownerID, pet.ownerEvidence, pet.ownerAmbiguous = nil, nil, true
+            elseif not pet.ownerID then
+                pet.ownerID, pet.ownerEvidence = oldPet.ownerID, oldPet.ownerEvidence
+            end
+            changed = pet.ownerID ~= oldPet.ownerID or pet.ownerAmbiguous ~= oldPet.ownerAmbiguous
+                or pet.sourceName ~= oldPet.sourceName
+        elseif oldPet then
+            event.petFinisher = oldPet
+        elseif pet then
+            changed = true
         end
-        changed = event.petFinisher ~= oldPet and (not oldPet or event.petFinisher.ownerID ~= oldPet.ownerID)
         for id, time in pairs(hits) do
             if time > (previousHits[id] or 0) then changed = true end
         end

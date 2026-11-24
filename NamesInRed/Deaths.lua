@@ -116,7 +116,9 @@ local function RestorePetRecap(battle, event, group)
                 if HostilePlayer(first, event.targetID) or evidence.IsCreatureSource(first.sourceGUID)
                     or first.event == "ENVIRONMENTAL_DAMAGE" then return end
             elseif not pet or (confirmed.timestamp == pet.timestamp and confirmed.sourceID == pet.sourceID) then
+                if first.status.sourceName ~= "readable" then confirmed.sourceName = nil end
                 pet, damage = pet or confirmed, damage or {}
+                pet.sourceName = pet.sourceName or confirmed.sourceName
                 for i = 2, #row.events do
                     local hit = row.events[i]
                     local rival = hit.status and hit.status.row == "readable" and HostilePlayer(hit, event.targetID)
@@ -159,6 +161,7 @@ function addon.RestoreLegacyPetRecaps(skirmishes, diagnostics)
                         local proof = RestorePetRecap(battle, event, group)
                         if proof then
                             proof.petFinisher.ownerID = RestorePetOwner(battle, window, snapshot, proof.petFinisher.sourceID)
+                            if proof.petFinisher.ownerID then proof.petFinisher.ownerEvidence = "combat-end-ownership" end
                             local stamp = proof.recapTimestamp
                             claims[stamp] = claims[stamp] == nil and true or false
                             matches[#matches + 1] = { battle = battle, index = index, event = event, proof = proof }
@@ -170,10 +173,18 @@ function addon.RestoreLegacyPetRecaps(skirmishes, diagnostics)
     end
     for _, match in ipairs(matches) do
         local battle = match.battle
-        if claims[match.proof.recapTimestamp] and not evidence.EventRecap(battle, match.event, match.index) then
-            battle.recoveredDeathRecaps = battle.recoveredDeathRecaps or {}
-            battle.recoveredDeathRecaps[match.index] = match.proof
-            changed[battle] = true
+        if claims[match.proof.recapTimestamp] then
+            local known = evidence.EventRecap(battle, match.event, match.index)
+            if not known then
+                battle.recoveredDeathRecaps = battle.recoveredDeathRecaps or {}
+                battle.recoveredDeathRecaps[match.index] = match.proof
+                changed[battle] = true
+            else
+                local old, new = known.petFinisher, match.proof.petFinisher
+                if old and old.sourceID == new.sourceID and old.timestamp == new.timestamp and not old.sourceName then
+                    old.sourceName = new.sourceName
+                end
+            end
         end
     end
     return changed
@@ -238,9 +249,18 @@ local function Record(death)
     end
     local attackers, seen, recapDamage = {}, {}, {}
     if pet and addon.CombatRecapPetOwner then
-        local owner, appearance = addon.CombatRecapPetOwner(window, pet.sourceID)
+        local attempts = death.petOwnerAttempts or {}
+        death.petOwnerAttempts = attempts
+        local combatStatus = InCombatLockdown and Readable(InCombatLockdown())
+        local probe = { phase = combatStatus == true and "combat" or (combatStatus == false and "post-combat" or "unknown"),
+            delay = GetTime() - death.context.killUptime }
+        if #attempts < 4 then attempts[#attempts + 1] = probe end
+        local owner, appearance = addon.CombatRecapPetOwner(window, pet.sourceID, probe)
+        pet.ownerAttempts = attempts
+        pet.ownerAmbiguous = probe.decision == "ambiguous-owner" or nil
         if owner and owner ~= playerGUID then
             pet.ownerID = owner
+            pet.ownerEvidence = probe.decision
             attackers[1] = { guid = owner, name = addon.CombatContactName(appearance), appearance = appearance }
             seen[owner] = true
         end
