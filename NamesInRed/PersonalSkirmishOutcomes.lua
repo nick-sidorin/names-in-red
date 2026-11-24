@@ -53,7 +53,7 @@ local function LinkedCorpse(event, attacks, prior)
     end
 end
 
-local function Casualties(battle, sides, me, attacks, first, last)
+local function Casualties(battle, sides, me, attacks, first, last, lateFirst, lateLast)
     local timeline, life = {}, {}
     local counts = { friendly = 0, enemy = 0 }
     for _, event in ipairs(battle.events) do
@@ -76,6 +76,8 @@ local function Casualties(battle, sides, me, attacks, first, last)
     end
     AddSample(first)
     AddSample(last)
+    AddSample(lateFirst)
+    AddSample(lateLast)
     for _, event in ipairs(timeline) do
         local id = event.targetID
         local state = life[id] or {}
@@ -120,7 +122,7 @@ local function TerminalEvidence(battle, segment, first, last, lastAction, life, 
             if not dead then
                 eliminated = false
                 if (a and a.dead ~= true and a.combat == true) or (b and b.dead ~= true and b.combat == true) then
-                    return
+                    return nil, nil, true
                 end
                 local contact = segment and segment.contacts and segment.contacts[id]
                 if not a and not b and contact and contact.signal == "nameplate-removed" and contact.inCombat == true then
@@ -159,9 +161,10 @@ function addon.EvaluatePersonalSkirmish(battle)
     end
     local assessment = observation and observation.assessment or {}
     local segment = observation and LastSegment(observation)
-    local first, last
+    local first, last, lateFirst, lateLast
     if participation then
         first, last = participation.first, participation.last
+        lateFirst, lateLast = participation.lateFirst, participation.lateLast
     else
         first, last = assessment.first, assessment.last
     end
@@ -171,7 +174,7 @@ function addon.EvaluatePersonalSkirmish(battle)
     if participation and participation.lifeChangedAt then
         lastAction = math.max(lastAction or 0, participation.lifeChangedAt)
     end
-    local counts, life = Casualties(battle, sides, me, attacks, first, last)
+    local counts, life = Casualties(battle, sides, me, attacks, first, last, lateFirst, lateLast)
     local result = { version = version, lifecycle = "finalized",
         finalizedBy = participation and participation.boundary or "historical",
         coverage = "insufficient", outcome = "unknown", reason = "insufficient-ending-evidence",
@@ -192,12 +195,18 @@ function addon.EvaluatePersonalSkirmish(battle)
     if personalDeath and returned and type(personalDeath.offset) == "number" and returned > personalDeath.offset then
         personalDeath = nil
     end
-    local outcome, ending = TerminalEvidence(battle, segment, first, last, lastAction, life, personalDeath and me)
+    local unreturned = personalDeath and me
+    local outcome, ending, active = TerminalEvidence(battle, segment, lateFirst, lateLast, lastAction, life, unreturned)
+    if not ending and not active then
+        -- Later loss of visibility does not erase an already observed ending.
+        outcome, ending = TerminalEvidence(battle, segment, first, last, lastAction, life, unreturned)
+    end
     if not outcome and personalDeath and battle.rosterComplete == true and #battle.allies == 1 and #battle.enemies == 1 then
         local rival = battle.enemies[1].id
-        local survivor = last and last.units and last.units[rival]
+        local sample = lateLast and lateLast.units and lateLast.units[rival] and lateLast or last
+        local survivor = sample and sample.units and sample.units[rival]
         if personalDeath.actorID == rival and survivor and survivor.dead == false
-            and Ledger.LaterBattleEvent({ time = last.at, offset = last.offset }, personalDeath) then
+            and Ledger.LaterBattleEvent({ time = sample.at, offset = sample.offset }, personalDeath) then
             outcome, ending = "loss", "friendly-elimination"
         end
     end

@@ -1477,7 +1477,9 @@ new witnessed linked action, starting at the death if combat remains open.
 The old 12-second life horizon is long enough to admit the recorded +13.524
 second Gnomeregan allied action after the local +6.262 second death. It also
 allows at least one pair of the existing short reads and a final pair around
-+10/+12 seconds if visibility continues. The five-second limit still
++10/+12 seconds if visibility continues. Missing late reads preserve a supported
+early ending. Later real activity or contradictory life/combat evidence can
+invalidate it. The five-second limit still
 corroborates linkage between a new segment and a witnessed intervening
 exchange (or a readable opponent still in combat at the prior live exit).
 It is not the total time allowed for a corpse or spirit to observe allies.

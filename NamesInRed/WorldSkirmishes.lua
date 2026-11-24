@@ -137,6 +137,11 @@ local function SetParticipationState(record, state)
     addon.RefreshPersonalSkirmish(record.battle)
 end
 
+local function ClearParticipationSamples(record)
+    local participation = Participation(record)
+    participation.first, participation.last, participation.lateFirst, participation.lateLast = nil, nil, nil, nil
+end
+
 local function Assessment(record)
     return record.battle.observation.assessment
 end
@@ -212,7 +217,7 @@ local function WatchParticipation(window)
             or not SameScope(window.place, addon.EncounterContext()) then return end
         return SampleEnding(record, nil, true)
     end
-    local function SavePair(first, last)
+    local function SavePair(first, last, final)
         if not first or not last then return end
         for _, sample in ipairs({ first, last }) do
             local stamp = { time = sample.at, offset = sample.offset }
@@ -220,7 +225,11 @@ local function WatchParticipation(window)
                 if id ~= window.self then CorroborateCorpse(record, id, state, stamp) end
             end
         end
-        participation.first, participation.last = first, last
+        if final then
+            participation.lateFirst, participation.lateLast = first, last
+        else
+            participation.first, participation.last = first, last
+        end
     end
     local early, late
     C_Timer.After(0.75, function() early = Sample() end)
@@ -228,7 +237,7 @@ local function WatchParticipation(window)
     if remaining >= 2 then C_Timer.After(remaining - 2, function() late = Sample() end) end
     C_Timer.After(remaining, function()
         if not Current() then return end
-        SavePair(late, Sample())
+        SavePair(late, Sample(), true)
         Finalize(record, "quiet-timeout")
     end)
 end
@@ -296,7 +305,7 @@ local function NewActivity(window, actor, target, kind, spell, targetUnit, uptim
         addon.NoteWorldOutcomeAction(state, actor, target, offset, kind, spell, targetUnit)
         if Pending(record) then
             local participation = Participation(record)
-            participation.first, participation.last = nil, nil
+            ClearParticipationSamples(record)
             local localAction = actor == window.self or target == window.self
             local life = record.battle.observation.playerState
             if localAction and life == "alive" and not (kind == "kill" and target == window.self) then
@@ -338,8 +347,7 @@ local function Confirm(window, opponents, basis)
         record = previous
         InvalidateEnding(record)
         record.bridge, record.endingContact, record.settlement, record.quietUntil = nil, nil, nil, nil
-        local participation = Participation(record)
-        participation.first, participation.last = nil, nil
+        ClearParticipationSamples(record)
         SetParticipationState(record, "active")
         window.segment.continuation = "observed-hostility"
     else
@@ -950,7 +958,7 @@ local function ObserveParticipantLife(unit, source)
     local participation = Participation(record)
     if id ~= window.self then
         participation.lifeChangedAt = stamp.offset
-        participation.first, participation.last = nil, nil
+        ClearParticipationSamples(record)
         WatchParticipation(window)
     end
     InvalidateEnding(record)

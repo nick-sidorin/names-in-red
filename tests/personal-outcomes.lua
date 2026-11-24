@@ -64,6 +64,20 @@ local samples = fight.observation.assessment
 samples.last = nil
 Verify(fight, "loss", "terminal-personal-death", 1, 1)
 
+-- Missing final reads preserve an earlier observed ending; readable renewed
+-- combat by the revived rival invalidates the earlier snapshots.
+fight = Battle(true)
+Event(fight, "kill", 1, me, enemy)
+Event(fight, "kill", 2, enemy, ally)
+fight.observation.participation = { state = "finalized", boundary = "quiet-timeout" }
+Ending(fight, 3, ally)
+local participation = fight.observation.participation
+participation.lateFirst = { offset = 10, units = {} }
+participation.lateLast = { offset = 12, units = {} }
+Verify(fight, "win", "enemy-elimination", 1, 1)
+participation.lateLast.units[enemy] = { dead = false, combat = true }
+Verify(fight, "loss", "terminal-personal-death", 1, 1)
+
 -- A dead character may observe an ordinary ending with surviving enemies.
 fight = Battle(true, second, third)
 Event(fight, "kill", 1, enemy, me)

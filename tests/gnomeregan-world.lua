@@ -495,7 +495,9 @@ if not arg[1] or arg[1] == "pov-observation" then
     Fire("PLAYER_ALIVE")
     Advance(6)
     Kill(ally, first) -- linked finish without an intervening aura or meter delta
-    Advance(12.1)
+    Advance(3)
+    units.target, units.party1 = nil, nil -- the verified ending survives later loss of coverage
+    Advance(9.1)
     local observed = assert(addon.db.skirmishes["world:1"])
     assert(observed.personalOutcome.outcome == "win" and observed.personalOutcome.reason == "enemy-elimination")
 end
