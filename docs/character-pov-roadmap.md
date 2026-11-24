@@ -56,18 +56,22 @@ abandoning a lost group fight, crossing zone borders, unrelated later PvE
 and a distinct later revenge fight. These are now in the product spec.
 Do not choose a timeout from the five-minute revenge example.
 
-The owner rejected the previous proposed survival-first escape rule and
-proposed a simpler replacement: finalized Victory/Defeat/Draw from observed
-PvP-linked casualty counts, including Draw at 0:0 and equal deaths, with
-In progress as a separate lifecycle state and no routine public Unknown.
-See the proposal in section 6 of the product specification. The key
-unresolved conflict is terminal personal death with favorable/equal side
-casualties: does the count rule win, or does personal death override it?
-Confirm this before implementing the new evaluator. Preserve incomplete
-coverage as evidence metadata, and settle legacy Unknown presentation
-without rewriting historical facts. The five accepted rival-score rules
-remain unchanged. Exact time thresholds and storage/UI choices remain
-implementation design.
+The owner rejected survival alone as Victory, proposed casualty scoring and
+Draw, then identified counterexamples to a pure casualty tally. The current
+proposal in spec section 6 is an ordered hybrid: corroborated decisive
+elimination first; terminal personal death with lost observation and no known
+decisive ending second; confirmed casualty comparison for observed
+non-elimination endings third. Separate In progress from final outcomes.
+A dead solo player who killed two of three enemies still loses; a dead player
+who observes a surviving ally finish the whole opposing side can win. Ordinary
+0:0 or equal-loss endings are Draw; mere missing data is not a confirmed
+Draw. Keep evidence coverage separate and exceptional indeterminate cases
+explicit until final presentation is agreed.
+
+Confirm the priority order and edge cases with the owner before implementing
+the new evaluator; do not reopen the five approved rival-score rules. Exact
+time thresholds, technical evidence predicates and storage/UI choices remain
+implementation design. Keep original historical facts and legacy results.
 
 Before runtime work, follow [engineering best practices](best-practices.md).
 Have the first fresh developer session (or the existing Codex session if
@@ -90,9 +94,9 @@ fixtures before deciding exact storage and function names.
   forced withdrawal, local victory and genuine Unknown. Separate pending
   continuation from finalization, test quiet intervals, late evidence, zone
   borders, unrelated PvE and later revenge. Reuse or revise existing timers
-  based on evidence; document the chosen values. Resolve the proposed
-  casualty-count/Draw contract and personal-death conflict before changing
-  outcome semantics.
+  based on evidence; document the chosen values. Confirm the proposed
+  decisive-resolution / terminal-death / casualty-count priority order and
+  Draw contract before changing outcome semantics.
 - Use corroborated evidence for observed defeat/retreat without demanding
   a perfect site anchor or complete roster. Feign Death, token identity,
   NPC-only deaths and missing fields remain meaningful safeguards.
@@ -207,6 +211,6 @@ contracts. Independent fixture preparation may be parallelized only if
 it does not create conflicting changes.
 
 No release or runtime implementation is authorized by this proposed
-roadmap alone. Next: settle the casualty-count/Draw proposal and its
-conflict with terminal personal death, then authorize the first implementation task. No need to re-approve the five
+roadmap alone. Next: confirm the refined outcome priority order and
+Draw/indeterminate edge cases, then authorize the first implementation task. No need to re-approve the five
 settled scoring rules.
