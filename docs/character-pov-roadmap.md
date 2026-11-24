@@ -211,8 +211,8 @@ latest accepted main; avoid parallel changes to shared scoring/storage
 contracts. Independent fixture preparation may be parallelized only if
 it does not create conflicting changes.
 
-Next: validate the second PR C follow-up against the original anonymized
-world:16 extract and retest its preview in Forever. The review identified
-a missing legacy segment offset and a hostile pet lethal dropped by the
-player-only recap path. See [the world:16 validation](forever-validation.md#original-world16-findings-and-second-follow-up).
+Next: product and technical review of the second PR C follow-up and a
+Forever preview retest. The original world:16 save and its anonymized
+regression now produce Defeat, one warlock loss and the pet finisher
+without owner attribution. See [the world:16 validation](forever-validation.md#original-world16-findings-and-second-follow-up).
 A public release still requires separate owner authorization.

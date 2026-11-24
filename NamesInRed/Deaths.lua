@@ -146,7 +146,7 @@ function addon.RestoreLegacyPetRecaps(skirmishes, diagnostics)
             for _, ally in ipairs(battle.allies) do if ally.isSelf then me = ally.id; break end end
             local segments
             for index, event in ipairs(battle.events) do
-                if me and event.targetID == me and event.kind == "death" and event.source == "player-dead"
+                if me and event.targetID == me and event.kind == "death" and evidence.IsLocalDeathSignal(event.source)
                     and not event.recapTimestamp and not event.nonPvPLethal and event.pvpLinked ~= false then
                     segments = segments or evidence.Segments(battle)
                     local phase = evidence.LegacyDeathWindow(segments, event)

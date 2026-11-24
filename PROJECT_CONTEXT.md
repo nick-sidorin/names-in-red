@@ -293,10 +293,10 @@ PR A (#43) and PR B (#44) are merged. PR C connects both projections to the
 journal and has a commit-pinned feature preview for review. Keep 1.1.0 as
 the shipped baseline pending separate release authorization.
 
-1. Verify the second PR #45 follow-up with the original anonymized
-   world:16 extract and its exact-head preview. Outcome v4 accepts legacy
-   timing and retains verified hostile pet lethals with optional ownership.
-   The original capture has no verified owner for this pet. See the
+1. Review the second PR #45 follow-up and retest its exact-head preview in
+   Forever. Outcome v4 replays the original world:16 as Defeat with one
+   loss against the warlock and one literal pet finisher. The original
+   capture has no verified owner for this pet. See the
    [world:16 findings](docs/forever-validation.md#original-world16-findings-and-second-follow-up).
 2. Smoke test the preview in Forever and repeat migration on a copy of an
    older real SavedVariables file if available. Follow the

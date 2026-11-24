@@ -98,12 +98,17 @@ addon.Ledger.RemoveSkirmish(addon.db, "plate-fight")
 addon.RefreshNameplates()
 assert(badge.text:find(addon.L.legacyResult, 1, true))
 
-local historic = dofile("tests/fixtures/terminal-local-death.lua")("Player-self", guid)
-addon.db.skirmishes["world:16"] = historic
+local historic = dofile("tests/fixtures/world16-anonymized.lua")
+local world16 = historic.skirmishes["world:16"]
+local historicRival = world16.enemies[1].rivalID
+addon.db.skirmishes["world:16"], addon.db.rivals[historicRival] = world16, historic.rivals[historicRival]
+guid = historicRival
 addon.Ledger.Open(addon.db)
 addon.RefreshNameplates()
 assert(badge.text == addon.FormatRivalCounters(0, 1, true, 0))
 addon.Ledger.RemoveSkirmish(addon.db, "world:16")
+addon.Ledger.Remove(addon.db, historicRival)
+guid = id
 
 pixelFactor, badgeScale = 0.5, 0.9
 assert(events.DISPLAY_SIZE_CHANGED and events.UI_SCALE_CHANGED)

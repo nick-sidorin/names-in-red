@@ -22,6 +22,10 @@ function DeathEvidence.IsCreatureSource(id)
     return type(id) == "string" and id:match("^Creature%-.+") ~= nil
 end
 
+function DeathEvidence.IsLocalDeathSignal(source)
+    return source == "player-dead" or source == "PLAYER_DEAD"
+end
+
 local Number = DeathEvidence.IsNumber
 
 function DeathEvidence.SegmentStart(battle, segment)
@@ -160,7 +164,7 @@ function DeathEvidence.ConfirmLocalMeterDeath(observation, episode)
     if not phase then return nil, episode.meterRejection end
     if phase.evidence.endReason ~= "local-combat-ended" or not Number(event.offset)
         or math.abs(phase.finish - event.offset) > lateEvent then return nil, "away-from-combat-end" end
-    local signaled = event.source == "player-dead"
+    local signaled = DeathEvidence.IsLocalDeathSignal(event.source)
     for _, row in ipairs(observation.life or {}) do
         if row.state == "dead" and row.source == "player-dead" and Number(row.offset)
             and math.abs(row.offset - event.offset) <= 0.5

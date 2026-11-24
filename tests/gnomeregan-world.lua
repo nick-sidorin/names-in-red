@@ -1299,4 +1299,51 @@ if not arg[1] or arg[1] == "legacy-pet-recap" then
     assert(Losses(one) == 1 and Losses(two) == 0)
 end
 
+-- The owner's original pre-offset record and its retained native reads.
+if not arg[1] or arg[1] == "world16-original" then
+    local journal, log = dofile("tests/fixtures/world16-anonymized.lua")
+    local ledger = addon.Ledger
+    local id = "world:16"
+    local battle = journal.skirmishes[id]
+    local rivalID = battle.enemies[1].rivalID
+    local event = battle.events[1]
+    local segment = battle.observation.segments[1]
+    local old = battle.personalOutcome
+    assert(old.version == 3 and old.outcome == "unknown" and event.source == "PLAYER_DEAD")
+    assert(not segment.offset and not segment.contributionLinks and not battle.observation.participation)
+    assert(not battle.rewards and #segment.combatAggregates == 6)
+
+    assert(ledger.Open(journal) == journal)
+    assert(battle.personalOutcome ~= old and battle.personalOutcome.version == 4)
+    assert(ledger.JournalOutcome(battle) == "loss")
+    local warm = ledger.SkirmishContributionEvidence(journal, id, battle)
+    assert(warm.credits[1].evidence.kind == "meter")
+
+    local proof
+    for _ = 1, 2 do
+        assert(ledger.Open(journal, log) == journal)
+        assert(ledger.JournalOutcome(battle) == "loss")
+        assert(battle.personalOutcome.casualties.friendly == 1 and battle.personalOutcome.casualties.enemy == 0)
+        assert(#battle.events == 1 and battle.events[1] == event and not event.actorID and not event.recapTimestamp)
+        assert(not segment.offset and not battle.rewards)
+        proof = proof or battle.recoveredDeathRecaps[1]
+        assert(battle.recoveredDeathRecaps[1] == proof and not battle.recoveredDeathRecaps[2])
+        local pet = proof.petFinisher
+        assert(pet.sourceID == "Pet-1" and pet.flags == 4424 and pet.effect == "SWING_DAMAGE")
+        assert(pet.timestamp == 1795547079.822 and pet.amount == 56 and pet.currentHP == 12 and pet.overkill == 44)
+        assert(not pet.ownerID and proof.recapDamage[rivalID] == 1795547079.056)
+        local wins, losses = ledger.RivalContributionScore(journal, rivalID)
+        assert(wins == 0 and losses == 1)
+        local projection = ledger.SkirmishContributionEvidence(journal, id, battle)
+        assert(projection ~= warm and #projection.credits == 1 and projection.credits[1].evidence.kind == "recap-damage")
+        local kills, directDeaths = ledger.PersonalCombatScore(journal, rivalID)
+        assert(kills == 0 and directDeaths == 0)
+    end
+    ledger.Open(journal)
+    assert(battle.recoveredDeathRecaps[1] == proof and ledger.JournalOutcome(battle) == "loss")
+    local cards, refs = addon.RecentSkirmishes(journal, 100)
+    assert(cards[1] == battle and refs[battle] == id)
+    print("Original world:16 replay recovered one pet lethal and one rival loss across reloads")
+end
+
 print("Anonymized Gnomeregan event replays passed")

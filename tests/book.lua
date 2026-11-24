@@ -1073,23 +1073,25 @@ do
     ProfileStat(addon.L.honor, 5)
     assert(FindText(book, addon.FormatRivalCounters(1, 1, false, 0)))
 
-    local archiveRival = "Player-archive-warlock"
-    local archiveBattle = dofile("tests/fixtures/terminal-local-death.lua")("Player-self", archiveRival)
-    local record = addon.Ledger.Add(addon.db, archiveRival, "Mock Warlock")
-    addon.db.skirmishes["world:16"] = archiveBattle
-    addon.Ledger.Open(addon.db)
+    local saved, log = dofile("tests/fixtures/world16-anonymized.lua")
+    local archiveBattle = saved.skirmishes["world:16"]
+    local archiveRival = archiveBattle.enemies[1].rivalID
+    local record = saved.rivals[archiveRival]
+    addon.db.skirmishes["world:16"], addon.db.rivals[archiveRival] = archiveBattle, record
+    bit = { band = function(flags, mask)
+        if mask == 0xFFF0 then return flags - flags % 16 end
+        return flags == 66888 and 0x440 or 0
+    end }
+    assert(loadfile("NamesInRed/Deaths.lua"))("NamesInRed", addon)
+    addon.Ledger.Open(addon.db, log)
+    assert(archiveBattle.recoveredDeathRecaps[1].petFinisher.sourceID == "Pet-1")
     openProfile(archiveRival)
     ProfileStat(addon.L.wins, 0)
     ProfileStat(addon.L.losses, 1)
-    ProfileStat(addon.L.honorableKills, 1)
-    ProfileStat(addon.L.honor, 5)
+    ProfileStat(addon.L.honorableKills, 0)
+    ProfileStat(addon.L.honor, 0)
     compact:SetEncounter(addon.RivalEncounters(addon.db, archiveRival)[1], record, archiveRival)
     assert(CenterMarker(banner) and FindText(compact, addon.L.lossTooltip))
-    local archivedEvent = archiveBattle.events[1]
-    archiveBattle.recoveredDeathRecaps = { {
-        targetID = archivedEvent.targetID, time = archivedEvent.time, offset = archivedEvent.offset,
-        recapTimestamp = 125.75, petFinisher = { sourceID = "Pet-synthetic", timestamp = 125.75 },
-    } }
     PET = "Pet"
     card:SetSkirmish(archiveBattle, archiveRival, true)
     assert(FindText(card, PET))

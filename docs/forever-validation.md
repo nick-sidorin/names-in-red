@@ -1802,7 +1802,9 @@ shares that resolver with timed hostility. A missing server anchor,
 unbounded timing or overlapping unbound windows still prevent a match.
 [Review of the original SavedVariables](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6046251024)
 
-The original debug store also contains two reads of the same pet lethal.
+The original debug store contains seven reads of the same pet lethal
+across two `PLAYER_DEAD` notifications. Three of those reads are retained
+in the anonymized fixture.
 The reviewed values are a `Pet-` GUID, flags `0x1148`, `SWING_DAMAGE`,
 56 damage, 12 HP and 44 overkill. A readable hostile player dealt periodic
 damage immediately beforehand. The player-only recap reader discarded
@@ -1818,23 +1820,34 @@ Load-time recovery can attach retained pet-recapping evidence beside an
 original local death. It requires the segment's diagnostic session and
 combat sequence, an unambiguous local `PLAYER_DEAD` with the same victim,
 scope, server second and compatible uptime, and readable recap rows with
-the same death sequence. Exact repeated reads of the pet and native stamp
-combine. Conflicting verified lethals, multiple candidate windows or
+the same death sequence. The exact saved event uses the legacy uppercase
+`PLAYER_DEAD` source. The first diagnostic notification matches its server
+second and combat uptime. The next notification has a later clock and
+recaps with the same native lethal timestamp. Exact repeated reads of the
+pet and native stamp combine for the matched death. Conflicting verified lethals, multiple candidate windows or
 competing claims on the same native stamp are rejected. A historical owner
 can be recovered only from the uniquely matched combat-end row's verified
 ownership and hostile-player contact. The original event is unchanged.
 Once attached, the proof survives diagnostic eviction. Outcome v4 and the
 rival index re-evaluate from the resulting evidence on load.
 
-Local Lua checks reproduced the pre-offset failure from the field shape in
-the review and replayed the reported flags through both versions of the
-capture path. Synthetic regressions verify the migration, contradictory
-rows, owner ambiguity, NPC and environmental deaths, duplicate reads,
-resurrection, diagnostic eviction and journal/rival consumers. The exact
-anonymized extract and original SavedVariables were unavailable in this
-workspace. Full replay of the original record and Forever retesting are
-pending. The preceding v3 fixture used reconstructed evidence and did
-not verify the original save.
+A local Lua replay used the privately supplied original SavedVariables
+with the full journal and all retained debug rows. Preview `d6f7bcc`
+produced Unknown, 0:0 against the warlock and no finisher. The revised
+code produced Defeat, 0:1 and one literal pet finisher without an owner.
+It recovered the `SWING_DAMAGE` row and the independent prior hostile
+periodic-damage timestamp `1795547079.056`. Direct player kills and deaths
+stayed 0:0, and the original event table and rewards were preserved.
+Repeated loads produced the same score and proof.
+
+`tests/fixtures/world16-anonymized.lua` contains the original battle,
+rival and relevant diagnostic rows with anonymized identities. It omits
+unrelated diagnostic probes and preserves the absent offset and rewards.
+The exact fixture exercises stale v3 migration, a warm index before recap
+recovery, and the full card, compact card, profile, tooltip and nameplate.
+Separate controlled tests exercise contradictory rows, owner ambiguity,
+NPC and environmental deaths, resurrection and diagnostic eviction.
+For the new preview, live Forever verification remains pending.
 
 ### Preview and release provenance
 
