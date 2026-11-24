@@ -1,8 +1,8 @@
 local _, addon = ...
 local Ledger = addon.Ledger
-local version = 1
--- Scope a witnessed action on the victim to the same life episode.
-local deathLinkAge = 12
+local DeathEvidence = addon.SkirmishDeathEvidence
+local version = 2
+local deathLinkAge = DeathEvidence.timedActionAge
 
 local function LastSegment(observation)
     local segments = observation.segments
@@ -59,9 +59,8 @@ local function LinkedCorpse(event, attacks, prior)
     end
 end
 
-local function Casualties(battle, sides, me, attacks, first, last, lateFirst, lateLast)
+local function ReconstructLives(battle, sides, me, attacks, first, last, lateFirst, lateLast)
     local timeline, life, eventIndexes, episodes = {}, {}, {}, {}
-    local counts = { friendly = 0, enemy = 0 }
     for index, event in ipairs(battle.events) do
         if sides[event.targetID] and (Ledger.IndicatesDeath(event) or event.kind == "revive") then
             timeline[#timeline + 1] = event
@@ -93,18 +92,16 @@ local function Casualties(battle, sides, me, attacks, first, last, lateFirst, la
             if not event.sampled or not state.dead or Ledger.CanObserveRevival(state.lastDeath, event) then
                 if state.dead then
                     state.revival = event
-                    state.priorDeath = state.death or state.priorDeath
                     state.episode.revival = event
                     state.episode = nil
                 end
-                state.dead, state.linked, state.recap, state.death, state.lastDeath = false, nil, nil, nil, nil
+                state.dead, state.recap, state.lastDeath = false, nil, nil
             end
         else
             local distinctRecap = event.source == "death-recap" and type(event.recapTimestamp) == "number"
                 and state.recap and event.recapTimestamp > state.recap
             if distinctRecap then
                 -- Distinct validated server recaps imply a new local life.
-                state.linked = nil
                 state.episode = nil
             end
             if not state.episode then
@@ -125,15 +122,38 @@ local function Casualties(battle, sides, me, attacks, first, last, lateFirst, la
             local linked = OpposedKill(event, sides)
                 or (event.kind == "death" and (event.pvpLinked == true
                     or (id ~= me and LinkedCorpse(event, attacks[id], state.revival))))
-            if linked and not state.linked then
-                counts[sides[id]] = counts[sides[id]] + 1
-                state.linked, state.death = true, event
-            end
+            if linked and not episode.witnessedDeath then episode.witnessedDeath = event end
             state.dead, state.lastDeath = true, event
             if event.source == "death-recap" then state.recap = event.recapTimestamp or state.recap end
         end
     end
-    return counts, life, episodes
+    return life, episodes
+end
+
+local function ConfirmDeaths(segments, sides, life, episodes, me)
+    local counts = { friendly = 0, enemy = 0 }
+    for _, episode in ipairs(episodes) do
+        local id, event = episode.targetID, episode.event
+        if event then
+            episode.meterPhase, episode.meterAttacks = DeathEvidence.MeterForEpisode(segments, sides, life, episode)
+            if episode.kill or event.pvpLinked ~= false then
+                episode.pvpDeath = episode.witnessedDeath
+                if not episode.pvpDeath and id ~= me and episode.meterAttacks and next(episode.meterAttacks) then
+                    episode.pvpDeath = event
+                end
+            end
+        end
+        if episode.pvpDeath then
+            counts[sides[id]] = counts[sides[id]] + 1
+            local state = life[id]
+            if state.episode == episode then
+                state.linked, state.death = true, episode.pvpDeath
+            else
+                state.priorDeath = episode.pvpDeath
+            end
+        end
+    end
+    return counts
 end
 
 -- Shared life reconstruction for the outcome and rival projections.
@@ -155,9 +175,12 @@ function addon.AnalyzeSkirmishLives(battle)
         first, last = assessment.first, assessment.last
     end
     local lastAction, attacks, historicalReturn = Hostility(battle, observation, sides, me)
-    local counts, life, episodes = Casualties(battle, sides, me, attacks, first, last, lateFirst, lateLast)
+    local life, episodes = ReconstructLives(battle, sides, me, attacks, first, last, lateFirst, lateLast)
+    local segments = DeathEvidence.Segments(battle)
+    local counts = ConfirmDeaths(segments, sides, life, episodes, me)
     return { sides = sides, me = me, first = first, last = last, lateFirst = lateFirst, lateLast = lateLast,
-        lastAction = lastAction, historicalReturn = historicalReturn, counts = counts, life = life, episodes = episodes }
+        lastAction = lastAction, historicalReturn = historicalReturn, counts = counts, life = life,
+        episodes = episodes, segments = segments }
 end
 
 local function TerminalEvidence(battle, segment, first, last, lastAction, life, unreturned)

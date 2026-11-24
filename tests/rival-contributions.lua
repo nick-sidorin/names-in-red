@@ -1,5 +1,5 @@
 local addon = {}
-for _, file in ipairs({ "Ledger", "PersonalSkirmishOutcomes", "RivalContributions" }) do
+for _, file in ipairs({ "Ledger", "SkirmishDeathEvidence", "PersonalSkirmishOutcomes", "RivalContributions" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
 local Ledger = addon.Ledger
@@ -127,6 +127,50 @@ Life(fight, "death", mage, 9)
 Credits(fight, 1)
 fight.events[1].pvpLinked = false
 Credits(fight, 0)
+
+-- A confirmed anonymous corpse plus an exact directed meter pair is one
+-- PvP casualty in both projections, even when a second opponent survives.
+local function MeterCorpse(actor)
+    local battle, segment = Fight()
+    battle.outcome = nil
+    local units = { [me] = { dead = false, combat = false }, [rogue] = { dead = false, combat = false },
+        [mage] = { dead = true, combat = false } }
+    battle.observation.assessment = {}
+    battle.observation.participation = { state = "finalized", boundary = "quiet-timeout",
+        first = { offset = 10, units = units }, last = { offset = 12, units = units } }
+    Life(battle, "death", mage, 9)
+    return battle, Link(segment, "DamageDone", actor, mage)
+end
+
+local consistent, pair = MeterCorpse(me)
+Credits(consistent, 1)
+local personal = addon.EvaluatePersonalSkirmish(consistent)
+assert(personal.casualties.enemy == 1 and personal.outcome == "win" and personal.reason == "observed-disengagement",
+    "a meter-linked PvP corpse must not produce a casualty-free Draw")
+local meterDB = Ledger.Open()
+Ledger.SaveSkirmish(meterDB, "world:1", consistent)
+consistent.personalOutcome = { version = 1, lifecycle = "finalized", outcome = "draw", casualties = { enemy = 0, friendly = 0 } }
+Ledger.Open(meterDB)
+assert(consistent.personalOutcome.outcome == "win" and consistent.personalOutcome.casualties.enemy == 1)
+Credits(consistent, 1)
+consistent, pair = MeterCorpse(brother)
+Credits(consistent, 0)
+assert(addon.EvaluatePersonalSkirmish(consistent).casualties.enemy == 1) -- no local credit required
+pair.corroborated = true
+assert(addon.EvaluatePersonalSkirmish(consistent).casualties.enemy == 0)
+consistent, pair = MeterCorpse(me)
+consistent.events[1].pvpLinked = false -- verified NPC death
+Credits(consistent, 0)
+assert(addon.EvaluatePersonalSkirmish(consistent).casualties.enemy == 0)
+consistent, pair = MeterCorpse(me)
+table.insert(consistent.events, 1, { kind = "death", targetID = mage, offset = 2 })
+table.insert(consistent.events, 2, { kind = "revive", targetID = mage, offset = 5 })
+Credits(consistent, 0)
+assert(addon.EvaluatePersonalSkirmish(consistent).casualties.enemy == 0)
+consistent, pair = MeterCorpse(me)
+table.insert(consistent.observation.segments, { offset = 8, duration = 2, contributionLinks = { pair } })
+Credits(consistent, 0)
+assert(addon.EvaluatePersonalSkirmish(consistent).casualties.enemy == 0)
 
 -- Same fight and same rival can earn both directions, even on group Defeat.
 -- Attributed damage from three rivals earns three losses for one local death.

@@ -39,8 +39,10 @@ local function Record(death)
     local stamp = Readable(first.timestamp)
     local overkill = Readable(first.overkill)
     local previous = addon.db.lastDeathTimestamp
-    if type(stamp) ~= "number" or math.abs(stamp - death.context.time) > 3
-        or (type(previous) == "number" and stamp <= previous)
+    local repeatRecap = type(previous) == "number" and stamp == previous
+    if type(stamp) ~= "number" or not (stamp > 0 and stamp < math.huge) or math.abs(stamp - death.context.time) > 3
+        or (type(previous) == "number" and stamp < previous)
+        or (repeatRecap and not death.context.worldWindow)
         or type(overkill) ~= "number" or overkill < 0 then
         return
     end
@@ -94,11 +96,15 @@ local function Record(death)
     death.context.attackers = attackers
     death.context.recapDamage = recapDamage
     death.context.unknownFinisher = unknownFinisher
+    death.context.repeatRecap = repeatRecap
     local id, battle, status = addon.RecordWorldEncounter(guid, observed and observed.fullName or name, "deathsToThem", death.context)
     if addon.WorldDeathWindow and not id and status ~= "duplicate" then return end
-    -- Preserve the confirmed death without consuming the existing bounded
-    -- retry. A later readable finisher can upgrade the same event.
-    if unknownFinisher then return end
+    if unknownFinisher then
+        -- Advance the native watermark even without a finisher. An exact
+        -- repeat in the bound record can still refine this death on retry.
+        if id then addon.db.lastDeathTimestamp = stamp end
+        return
+    end
     if id and battle and addon.RecordCombatDeathRecap then
         -- Reuse the same recap read. Earlier entries need a readable clock
         -- inside the matched skirmish, and the lethal entry is retained last.

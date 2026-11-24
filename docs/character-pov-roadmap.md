@@ -141,6 +141,11 @@ manufacture perfect coverage.
 
 - Update Ledger indexes and the rival profile/compact cards, full journal
   cards, nameplates, tooltips and shared counters consistently.
+- Put rival contribution behind a shared ledger index or invalidated cache
+  before using it on nameplate and tooltip update paths. The PR B query
+  replays a rival's linked history on each call. Verify warm lookups on long
+  histories and invalidation after save, deletion, reset and reload. Preserve
+  permanent history and its existing presentation limit.
 - Full card: primary personal outcome. Rival card: rival-specific credit,
   including both directions if applicable; no misleading blanket group
   badge. Optional observed group outcome is secondary. Do not require a new

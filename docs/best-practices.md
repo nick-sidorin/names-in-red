@@ -144,6 +144,12 @@ used by cards, profile, tooltip and nameplate.
   source ownership and window scope. For untimed support require an
   independently linked opponent of the recipient in the same life window.
   Multiple plausible opponent links leave the support unassigned.
+- Confirm PvP death once per life before projecting casualties or rival
+  attribution. A directed aggregate can corroborate a durable corpse only
+  within an unambiguous, single-life window. Casualty totals count confirmed
+  episodes independently of participant credits. Reconcile a partial native
+  lethal recap by exact timestamp and owning record. A later validated native
+  timestamp belongs to another episode even when revival was unobserved.
 - Preserve witnessed action times on both sides of a life transition. Per-pair
   first/last/count summaries alone can drop the only action that links an
   earlier corpse to PvP. Reconcile confirmed death and revival from readable,

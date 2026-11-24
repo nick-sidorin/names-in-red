@@ -1,16 +1,9 @@
 local _, addon = ...
 local Ledger = addon.Ledger
-local episodeAge, lateEvent = 12, 2.5
-local meterHostile = { DamageDone = true, DamageTaken = true, EnemyDamageTaken = true, Interrupts = true, Dispels = true }
+local DeathEvidence = addon.SkirmishDeathEvidence
+local episodeAge, lateEvent = DeathEvidence.timedActionAge, DeathEvidence.lateWindowGrace
+local Number, Opponents = DeathEvidence.IsNumber, DeathEvidence.Opponents
 local meterSupport = { HealingDone = true, Absorbs = true, Dispels = true }
-
-local function Number(value)
-    return type(value) == "number" and value > -math.huge and value < math.huge
-end
-
-local function Opponents(sides, a, b)
-    return sides[a] and sides[b] and sides[a] ~= sides[b]
-end
 
 -- Recap timestamps remain in native server seconds, attached to one lethal
 -- event. They cannot be converted to exact offsets on the local action clock.
@@ -47,45 +40,19 @@ function addon.RestoreRivalContributionEvidence(battle)
     for death, hits in pairs(restored) do death.recapDamage = hits end
 end
 
-local function SegmentStart(battle, segment)
-    if Number(segment.offset) then return segment.offset end
-    if Number(segment.startedAt) and Number(battle.startedAt) then return segment.startedAt - battle.startedAt end
-end
-
-local function MeterLinks(segment)
-    if segment.contributionLinks then return segment.contributionLinks end
-    -- Older accepted samples carry amounts and a separate qualification
-    -- summary. Use exact category scope only when both survived.
-    local report, meter = segment.reportMeter, segment.meter
-    local accepted = {}
-    if not report or not meter or report.status ~= "sampled" or report.areaChanged or report.meterReset
-        or report.meterSelection ~= meter.selection or report.meterSessionID ~= meter.sessionID then return accepted end
-    for _, link in ipairs(segment.combatAggregates or {}) do
-        local category = report.categories and report.categories[link.category]
-        if category and category.evidence == "eligible" and Number(link.amount) and link.amount > 0 then
-            accepted[#accepted + 1] = link
-        end
-    end
-    return accepted
-end
-
-local function CollectSegments(battle, sides, me)
-    local segments = {}
-    for index, segment in ipairs(battle.observation and battle.observation.segments or {}) do
-        local start = SegmentStart(battle, segment)
-        local phase = { index = index, start = start, evidence = segment, actions = {}, links = MeterLinks(segment) }
-        if Number(segment.offset) and Number(segment.duration) and segment.duration >= 0 then
-            phase.finish = start + segment.duration
-        end
+local function CollectActions(segments, sides, me)
+    for _, phase in ipairs(segments) do
+        local start = phase.start
+        phase.actions = {}
         if start then
-            for _, action in ipairs(segment.actions or {}) do
+            for _, action in ipairs(phase.evidence.actions or {}) do
                 if action.kind == "harmful-aura" and Opponents(sides, action.actorID, action.targetID)
                     and action.petEndpoint ~= "target" and (action.targetID ~= me or action.targetIsPlayer == true) then
                     local function Add(offset)
                         if Number(offset) then
                             phase.actions[#phase.actions + 1] = {
                                 actorID = action.actorID, targetID = action.targetID, offset = start + offset,
-                                kind = action.kind, petEndpoint = action.petEndpoint, segmentIndex = index,
+                                kind = action.kind, petEndpoint = action.petEndpoint, segmentIndex = phase.index,
                             }
                         end
                     end
@@ -95,9 +62,7 @@ local function CollectSegments(battle, sides, me)
                 end
             end
         end
-        segments[index] = phase
     end
-    return segments
 end
 
 local function TimedInEpisode(phase, episode, offset, deathAt)
@@ -109,51 +74,12 @@ local function TimedInEpisode(phase, episode, offset, deathAt)
         and (not after or (Number(after.offset) and offset - uncertainty > after.offset))
 end
 
-local function DeathWindow(segments, episode, deathAt)
-    if not Number(deathAt) then return end
-    local function Fits(phase)
-        return phase.finish and phase.start <= deathAt
-            and deathAt - phase.finish <= lateEvent
-    end
-    local index = (episode.kill or episode.event).segmentIndex
-    if index then
-        local phase = segments[index]
-        if phase and Fits(phase) then return phase end
-        return
-    end
-    local matched
-    for _, phase in ipairs(segments) do
-        if Fits(phase) then
-            if matched then return end
-            matched = phase
-        end
-    end
-    return matched
-end
-
-local function SingleLife(life, id, phase, victimEpisode)
-    local state = life[id]
-    if not state then return true end
-    for _, episode in ipairs(state.episodes or {}) do
-        local died, revived = episode.first.offset, episode.revival and episode.revival.offset
-        if not Number(died) or (episode.revival and not Number(revived)) then return false end
-        if episode == victimEpisode then
-            if revived and revived <= phase.finish then return false end
-            if episode.after and (not Number(episode.after.offset) or episode.after.offset >= phase.start) then return false end
-        elseif died <= phase.finish and (not revived or revived >= phase.start) then
-            return false
-        end
-    end
-    return true
-end
-
 local function Put(map, actor, evidence)
     if not map[actor] then map[actor] = evidence end
 end
 
 local function AddWindowEvidence(battle, analysis, phase, episode, deathAt, direct)
     local sides, targetID = analysis.sides, episode.targetID
-    if not SingleLife(analysis.life, targetID, phase, episode) then return end
     local qualifying, opponent = {}, {}
     local function Note(a, b)
         if not Opponents(sides, a, b) then return end
@@ -181,16 +107,12 @@ local function AddWindowEvidence(battle, analysis, phase, episode, deathAt, dire
         end
     end
     for _, link in ipairs(phase.links) do
-        if meterHostile[link.category] and link.petEndpoint ~= "target" then
-            local from, to = link.actorID, link.targetID
-            Note(from, to)
-            if to == targetID and Opponents(sides, from, to) and not link.corroborated
-                and SingleLife(analysis.life, from, phase) then
-                local proof = { kind = "meter", category = link.category, segmentIndex = phase.index, petEndpoint = link.petEndpoint }
-                Put(qualifying, from, proof)
-                Put(direct, from, proof)
-            end
-        end
+        if DeathEvidence.IsHostileMeterLink(link) then Note(link.actorID, link.targetID) end
+    end
+    for actor, link in pairs(episode.meterAttacks) do
+        local proof = { kind = "meter", category = link.category, segmentIndex = phase.index, petEndpoint = link.petEndpoint }
+        Put(qualifying, actor, proof)
+        Put(direct, actor, proof)
     end
     local recap = episode.kill or episode.event
     if recap then
@@ -212,7 +134,8 @@ local function AddWindowEvidence(battle, analysis, phase, episode, deathAt, dire
         local actor, recipient = link.actorID, link.targetID
         if meterSupport[link.category] and not link.corroborated and link.petEndpoint ~= "target" and actor ~= recipient
             and sides[actor] and sides[actor] == sides[recipient] and qualifying[recipient] and opponent[recipient] == targetID
-            and SingleLife(analysis.life, actor, phase) and SingleLife(analysis.life, recipient, phase) then
+            and DeathEvidence.SingleLife(analysis.life, actor, phase)
+            and DeathEvidence.SingleLife(analysis.life, recipient, phase) then
             Put(assists, actor, { kind = "support", category = link.category, segmentIndex = phase.index,
                 petEndpoint = link.petEndpoint, viaID = recipient, viaEvidence = qualifying[recipient] })
         end
@@ -228,7 +151,8 @@ function addon.EvaluateRivalContributions(battle)
     local analysis = addon.AnalyzeSkirmishLives(battle)
     local sides, me = analysis.sides, analysis.me
     if not me then return result end
-    local phases = CollectSegments(battle, sides, me)
+    local phases = analysis.segments
+    CollectActions(phases, sides, me)
     local function Credit(rival, episode, actor, direction, evidence, credited)
         if not evidence or not rival.rivalID or credited[rival.rivalID] then return end
         credited[rival.rivalID] = true
@@ -239,8 +163,7 @@ function addon.EvaluateRivalContributions(battle)
         local victim = episode.targetID
         local personalLoss = victim == me
         local death = episode.event
-        if death and (episode.kill or death.pvpLinked ~= false) and
-            (sides[victim] == "enemy" or (personalLoss and (episode.kill or death.pvpLinked == true))) then
+        if episode.pvpDeath and (sides[victim] == "enemy" or personalLoss) then
             local direct, credited = {}, {}
             local deathAt = episode.first.offset
             if episode.kill then
@@ -259,7 +182,7 @@ function addon.EvaluateRivalContributions(battle)
                     end
                 end
             end
-            local window = DeathWindow(phases, episode, deathAt)
+            local window = episode.meterPhase
             local support = window and AddWindowEvidence(battle, analysis, window, episode, deathAt, direct) or {}
             if personalLoss then
                 for _, rival in ipairs(battle.enemies) do

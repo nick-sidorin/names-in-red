@@ -1,5 +1,5 @@
 local addon = {}
-for _, file in ipairs({ "Ledger", "SkirmishOutcomes", "PersonalSkirmishOutcomes" }) do
+for _, file in ipairs({ "Ledger", "SkirmishOutcomes", "SkirmishDeathEvidence", "PersonalSkirmishOutcomes" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
 local me, ally, enemy, second, third = "Player-me", "Player-ally", "Player-enemy", "Player-second", "Player-third"
@@ -29,7 +29,7 @@ end
 
 local function Verify(battle, expected, reason, friendly, enemyDeaths)
     local result = addon.EvaluatePersonalSkirmish(battle)
-    assert(result.lifecycle == "finalized" and result.version == 1)
+    assert(result.lifecycle == "finalized" and result.version == 2)
     assert(result.outcome == expected, tostring(result.outcome) .. " instead of " .. expected .. " (" .. reason .. ")")
     assert(result.reason == reason, result.reason .. " instead of " .. reason)
     assert(result.casualties.friendly == friendly and result.casualties.enemy == enemyDeaths)

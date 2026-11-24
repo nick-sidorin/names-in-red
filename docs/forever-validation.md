@@ -1494,7 +1494,7 @@ and reload closes any saved unfinished state if normal cleanup was missed.
 These intervals are engineering choices verified with mocked events, pending
 play tuning on Forever.
 
-**Projection and evidence.** `personalOutcome` version 1 records lifecycle,
+**Projection and evidence.** PR A introduced `personalOutcome` version 1 to record lifecycle,
 the final result and reason, observation boundary, coverage, distinct
 friendly/enemy casualties and latest verified life. `observation.participation`
 holds the durable state and terminal observations underneath that projection.
@@ -1507,8 +1507,9 @@ death without a reliable ending, then over the casualty balance for an
 observed non-elimination ending. Repeating a corpse or a kill signal within
 one life counts only once. A verified return to life opens a new life episode.
 A distinct validated server death recap can also distinguish separate local
-lives. A corpse without a finisher needs a recent timed opposing action on the
-same victim before it enters the tally. Each live action-pair row keeps its
+lives. PR A linked a corpse without a finisher through a recent timed opposing
+action on the same victim. PR B extends this through the shared confirmation
+rules below. Each live action-pair row keeps its
 existing `first`, `last` and `count` plus distinct
 `intermediateOffsets` when available. All offsets are relative to the
 segment, and represent witnessed action observations. The life timeline
@@ -1568,6 +1569,19 @@ Saved raw events, side outcomes, killing blows, honor and HK remain separate.
 The derivation uses neither the skirmish verdict nor its roster as a substitute
 for participation.
 
+Both projections use the same confirmed PvP death episodes. An attributed
+opposing kill, explicit PvP confirmation or eligible hostile evidence linked
+to a durable corpse can confirm an episode. The directed meter path shares
+the same unique-window and single-life checks with rival attribution. The
+personal outcome counts one casualty even if an allied action earns the
+local player no credit, or several opponents earn one credit each for a
+single local death. An aggregate alone supplies no death, and a verified
+NPC death, ambiguous window or multi-life aggregate supplies no confirmation.
+For local deaths, a validated lethal recap remains necessary when the
+finisher is unknown. `personalOutcome` version 2 recomputes the cached
+projection from retained facts on reload. Original battle and reward data
+retain their existing format.
+
 The existing meter read now keeps full accepted directional pair/category
 links from the connected component in `segment.contributionLinks`. The
 permanent entry needs the pair, category, qualification and known pet
@@ -1604,8 +1618,12 @@ a later recap from assigning prior-life damage and counts each attacker once.
 When the lethal GUID is unavailable but the lethal row confirms a hostile
 player, an already linked battle can store a PvP death without an actor.
 The bounded retry can refine damage evidence or assign a readable finisher
-to that same episode. An NPC finisher or unreadable hostile/type flags do
-not establish that fallback. Older diagnostics only contribute when a
+to that same episode. It matches the native timestamp in the bound record
+and preserves the original timeline position. The native timestamp watermark
+advances for a confirmed unnamed death, so stale recaps cannot replace it.
+Two distinct validated timestamps remain two episodes even if no revival
+notification was retained. An NPC finisher or unreadable hostile/type flags
+do not establish that fallback. Older diagnostics only contribute when a
 recap row matches a unique saved lethal event by native timestamp and target
 before diagnostic compaction.
 
@@ -1626,7 +1644,8 @@ Lua tests cover ally finishing blows, healer-only and shield-only support,
 friendly and hostile dispels/interrupts, pet identity, three verified
 attackers in one local death, both directions for one rival and repeat
 deaths. Runtime replays cover the full meter scanner past the diagnostic
-cap, restricted recipients, native recap replay and delayed finisher recovery.
+cap, restricted recipients, meter-linked corpse reconciliation after reload,
+and distinct native lethal recaps with hidden or newly readable finishers.
 Existing Duskwood, Gnomeregan and battleground fixtures still exercise the
 legacy and personal outcome paths. Verification used Forever-shaped mocks
 and the retained public API evidence above. Runtime event delivery on a fresh

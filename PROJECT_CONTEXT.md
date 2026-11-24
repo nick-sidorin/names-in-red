@@ -190,7 +190,7 @@ features into an approved release. See product spec for all acceptance rules.
   rewards. Debug.lua currently requires explicit feign=false to add dead life
   samples; assess class-aware corroboration without blindly treating nil as false.
 - NamesInRed/RivalContributions.lua derives versioned per-rival credits from
-  the shared life analysis. Ledger.RivalContributionScore queries the new
+  the shared PvP death episodes used by the personal outcome. Ledger.RivalContributionScore queries the new
   projection without changing existing UI, honor, HK and direct stats.
   Full accepted meter pairs and scoped native recap contributors survive
   diagnostic pruning. See [PR B validation](docs/forever-validation.md#character-pov-pr-b).

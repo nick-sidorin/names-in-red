@@ -645,6 +645,17 @@ local function TimelinePair(window, actor, target, kind, spell, petEndpoint)
     end
 end
 
+local function FindDeathRecap(window, timestamp)
+    if not window or not window.record or type(timestamp) ~= "number" then return end
+    local events = window.record.battle.events
+    for index = #events, 1, -1 do
+        local event = events[index]
+        if event.targetID == window.self and event.source == "death-recap" and event.recapTimestamp == timestamp then
+            return event, index
+        end
+    end
+end
+
 function addon.RecordWorldEncounter(guid, name, direction, context)
     local origin = Origin()
     local bound = context.worldWindow
@@ -692,7 +703,12 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
         end
     end
     if context.retrying and (window.area ~= area or (open and open ~= window and open.record ~= window.record)) then return end
-    local unknownFinisher = direction == "deathsToThem" and not guid and context.unknownFinisher
+    local outgoing = direction == "killsAgainstThem"
+    local unknownFinisher = not outgoing and not guid and context.unknownFinisher
+    local previousRecap, recapIndex = FindDeathRecap(bound, recap)
+    if context.repeatRecap and not previousRecap then return end
+    if previousRecap and previousRecap.kind == "kill" then return nil, nil, "duplicate" end
+
     local record
     if unknownFinisher then
         if not bound or not bound.record then return end
@@ -701,27 +717,26 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
         record = Confirm(window, { [guid] = true }, "kill")
     end
     local battle = record.battle
-    local outgoing = direction == "killsAgainstThem"
     local actorID = outgoing and (context.actorID or window.self) or guid
     local targetID = outgoing and guid or window.self
     local event = { kind = unknownFinisher and "death" or "kill", actorID = actorID, targetID = targetID, time = context.time,
         offset = (context.killUptime or GetTime()) - record.began,
         source = outgoing and "party-kill" or "death-recap", recapTimestamp = context.deathTimestamp,
         recapDamage = context.recapDamage, segmentIndex = window.segmentIndex, pvpLinked = unknownFinisher or nil }
-    local prior = Ledger.LatestParticipantLife(battle, targetID, event)
-    if not outgoing and prior and prior.recapTimestamp and prior.recapTimestamp == event.recapTimestamp then
-        if prior.kind == "death" and prior.pvpLinked then
-            local hits, changed = event.recapDamage or {}, false
-            for id, time in pairs(hits) do
-                if time > ((prior.recapDamage or {})[id] or 0) then changed = true end
-            end
-            if unknownFinisher and not changed then return nil, nil, "duplicate" end
-            for id, time in pairs(prior.recapDamage or {}) do hits[id] = math.max(hits[id] or time, time) end
-            event.recapDamage = hits
-        elseif unknownFinisher then
-            return nil, nil, "duplicate"
+    if previousRecap then
+        local hits, changed = event.recapDamage or {}, false
+        local previousHits = previousRecap.recapDamage or {}
+        for id, time in pairs(hits) do
+            if time > (previousHits[id] or 0) then changed = true end
         end
+        if unknownFinisher and not changed then return nil, nil, "duplicate" end
+        for id, time in pairs(previousHits) do hits[id] = math.max(hits[id] or time, time) end
+        event.recapDamage = hits
+        event.offset, event.time, event.segmentIndex = previousRecap.offset, previousRecap.time, previousRecap.segmentIndex
     end
+
+    local prior = Ledger.LatestParticipantLife(battle, targetID, event)
+    if recap and prior and prior.recapTimestamp and recap < prior.recapTimestamp then return end
     if prior and prior.kind == "kill" then
         local distinctRecap = not outgoing and type(event.recapTimestamp) == "number" and type(prior.recapTimestamp) == "number"
             and event.recapTimestamp > prior.recapTimestamp
@@ -748,18 +763,22 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
                 attacker.guid, nil, appearance)
         end
     end
-    -- A directly seen corpse can acquire an attributed finishing blow
-    -- when PARTY_KILL or the validated local recap follows the state change.
-    for index, recorded in ipairs(battle.events) do
-        if recorded == prior and recorded.kind == "death" then
-            table.remove(battle.events, index)
-            break
-        elseif recorded.targetID == targetID and Ledger.LaterBattleEvent(recorded, event) then
-            if recorded.kind == "death" then table.remove(battle.events, index) end
-            break
+    if recapIndex then
+        battle.events[recapIndex] = event
+    else
+        -- Attach an attributed kill to a sampled corpse. An independently
+        -- validated native recap already identifies its own death.
+        for index, recorded in ipairs(battle.events) do
+            if recorded == prior and recorded.kind == "death" then
+                if not recorded.recapTimestamp then table.remove(battle.events, index) end
+                break
+            elseif recorded.targetID == targetID and Ledger.LaterBattleEvent(recorded, event) then
+                if recorded.kind == "death" and not recorded.recapTimestamp then table.remove(battle.events, index) end
+                break
+            end
         end
+        InsertEvent(battle, event)
     end
-    InsertEvent(battle, event)
     if not outgoing then
         -- A bounded recap retry can report the old death after the local
         -- resurrection event has already been observed.
@@ -772,7 +791,7 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
     window.segment.lastConfirmedAt = math.max(window.segment.lastConfirmedAt or 0, event.time or 0)
     window.dirty = nil
     local last = Assessment(record).lastAction
-    if actorID and Pending(record) and record.lastWindow == window and not window.segment.observationStopped
+    if actorID and not recapIndex and Pending(record) and record.lastWindow == window and not window.segment.observationStopped
         and (not last or last.offset <= event.offset) and not context.delayedAssociation and not context.retrying then
         NewActivity(window, actorID, targetID, "kill", context.spellID, nil, context.killUptime)
     end
