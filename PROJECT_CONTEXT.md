@@ -264,8 +264,8 @@ refinement; preserve Unknown for neutral or unresolved endings until agreed.
 A proposed staged [Character POV milestone roadmap](docs/character-pov-roadmap.md)
 organizes the next work into a product-decision checkpoint, personal outcome,
 rival attribution, integrated UI/migration/reporting, and release verification.
-It is a planning document, not approval of unresolved scoring rules, a final
-version number, runtime implementation, or publication.
+It is a planning document, not approval of the remaining escape refinement,
+a final version number, runtime implementation, or publication.
 
 1. Keep 1.1.0 stable. Start from current main, read this spec and the existing
    tests. Do not reopen the release or build unnecessary global replay/sync.
@@ -275,8 +275,9 @@ version number, runtime implementation, or publication.
    interruption, NPC vs PvP, 1v1, group and BG cases.
 3. Design attributable contribution to an opponent's defeat or our death:
    direct, assisted damage and meaningful linked healing/support, pets; prevent
-   cross-window/roster-wide credit and duplicates. Resolve exact counter units,
-   repeated deaths and legacy/manual semantics in the implementation design.
+   cross-window/roster-wide credit and duplicates. Apply the approved per-death
+   counting unit and repeat-death rules; resolve legacy/manual representation
+   in the implementation design.
    Preserve facts permanently, distinguish contribution from actual last hit
    and game-awarded rewards. No arbitrary damage threshold or healer penalty.
 4. Integrate Ledger and the UI consistently: rival score and compact card,
