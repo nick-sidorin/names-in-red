@@ -355,7 +355,7 @@ local function SpellTargets(entry, sample, actor, category, evidence, counts, sc
             if listed then sample.targets[index] = target else sample.target = target end
         end
         if actor then
-            local resolution, other = evidence:Link(category, actor, target, accept)
+            local resolution, other = evidence:Link(category, actor, target, accept, source.sourceGUID ~= actor.guid)
             if probe then addon.SampleCombatMeter(probe, category, actor, source, entry, target, resolution, other) end
             Count(counts, resolution)
             retry = retry or resolution:match("%-secret$") ~= nil or resolution == "detail-restricted-table"
@@ -986,7 +986,8 @@ function handlers.PLAYER_REGEN_ENABLED()
                     Count(counts, reached[actor] and "source-connected" or "source-disconnected")
                 end
             end
-            addon.ApplyWorldMeterEvidence(context, additions, faction, row, links, finished.contacts, probe)
+            addon.ApplyWorldMeterEvidence(context, additions, faction, row, links, finished.contacts, probe,
+                evidence:ContributionLinks(reached))
             addon.SnapshotWorldContacts(context, finished.contacts)
             BeginPassiveMeter(context, row, finished, evidence, reached)
         end

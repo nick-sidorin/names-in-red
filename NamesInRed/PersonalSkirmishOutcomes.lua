@@ -60,11 +60,12 @@ local function LinkedCorpse(event, attacks, prior)
 end
 
 local function Casualties(battle, sides, me, attacks, first, last, lateFirst, lateLast)
-    local timeline, life = {}, {}
+    local timeline, life, eventIndexes, episodes = {}, {}, {}, {}
     local counts = { friendly = 0, enemy = 0 }
-    for _, event in ipairs(battle.events) do
+    for index, event in ipairs(battle.events) do
         if sides[event.targetID] and (Ledger.IndicatesDeath(event) or event.kind == "revive") then
             timeline[#timeline + 1] = event
+            eventIndexes[event] = index
         end
     end
     -- Samples refine the latest life state. They do not attribute a death
@@ -93,17 +94,37 @@ local function Casualties(battle, sides, me, attacks, first, last, lateFirst, la
                 if state.dead then
                     state.revival = event
                     state.priorDeath = state.death or state.priorDeath
+                    state.episode.revival = event
+                    state.episode = nil
                 end
                 state.dead, state.linked, state.recap, state.death, state.lastDeath = false, nil, nil, nil, nil
             end
         else
-            if event.source == "death-recap" and type(event.recapTimestamp) == "number"
-                and state.recap and event.recapTimestamp > state.recap then
+            local distinctRecap = event.source == "death-recap" and type(event.recapTimestamp) == "number"
+                and state.recap and event.recapTimestamp > state.recap
+            if distinctRecap then
                 -- Distinct validated server recaps imply a new local life.
                 state.linked = nil
+                state.episode = nil
+            end
+            if not state.episode then
+                local episode = { targetID = id, first = event, after = distinctRecap and state.lastDeath or state.revival }
+                state.episode = episode
+                state.episodes = state.episodes or {}
+                state.episodes[#state.episodes + 1] = episode
+                episodes[#episodes + 1] = episode
+            end
+            local episode = state.episode
+            if not event.sampled then
+                episode.event = episode.event or event
+                episode.index = episode.index or eventIndexes[event]
+                if OpposedKill(event, sides) and not episode.kill then
+                    episode.kill, episode.killIndex = event, eventIndexes[event]
+                end
             end
             local linked = OpposedKill(event, sides)
-                or (event.kind == "death" and id ~= me and LinkedCorpse(event, attacks[id], state.revival))
+                or (event.kind == "death" and (event.pvpLinked == true
+                    or (id ~= me and LinkedCorpse(event, attacks[id], state.revival))))
             if linked and not state.linked then
                 counts[sides[id]] = counts[sides[id]] + 1
                 state.linked, state.death = true, event
@@ -112,7 +133,31 @@ local function Casualties(battle, sides, me, attacks, first, last, lateFirst, la
             if event.source == "death-recap" then state.recap = event.recapTimestamp or state.recap end
         end
     end
-    return counts, life
+    return counts, life, episodes
+end
+
+-- Shared life reconstruction for the outcome and rival projections.
+function addon.AnalyzeSkirmishLives(battle)
+    local observation = battle.observation or {}
+    local participation, assessment = observation.participation, observation.assessment or {}
+    local sides, me = {}, nil
+    for key, side in pairs({ friendly = battle.allies, enemy = battle.enemies }) do
+        for _, player in ipairs(side) do
+            if player.id then sides[player.id] = key end
+            if key == "friendly" and player.isSelf then me = player.id end
+        end
+    end
+    local first, last, lateFirst, lateLast
+    if participation then
+        first, last = participation.first, participation.last
+        lateFirst, lateLast = participation.lateFirst, participation.lateLast
+    else
+        first, last = assessment.first, assessment.last
+    end
+    local lastAction, attacks, historicalReturn = Hostility(battle, observation, sides, me)
+    local counts, life, episodes = Casualties(battle, sides, me, attacks, first, last, lateFirst, lateLast)
+    return { sides = sides, me = me, first = first, last = last, lateFirst = lateFirst, lateLast = lateLast,
+        lastAction = lastAction, historicalReturn = historicalReturn, counts = counts, life = life, episodes = episodes }
 end
 
 local function TerminalEvidence(battle, segment, first, last, lastAction, life, unreturned)
@@ -160,29 +205,17 @@ function addon.EvaluatePersonalSkirmish(battle)
     if participation and participation.state ~= "finalized" then
         return { version = version, lifecycle = participation.state }
     end
-    local sides, me = {}, nil
-    for key, side in pairs({ friendly = battle.allies, enemy = battle.enemies }) do
-        for _, player in ipairs(side) do
-            if player.id then sides[player.id] = key end
-            if key == "friendly" and player.isSelf then me = player.id end
-        end
-    end
+    local analysis = addon.AnalyzeSkirmishLives(battle)
+    local me, life, counts = analysis.me, analysis.life, analysis.counts
+    local first, last, lateFirst, lateLast = analysis.first, analysis.last, analysis.lateFirst, analysis.lateLast
     local assessment = observation and observation.assessment or {}
     local segment = observation and LastSegment(observation)
-    local first, last, lateFirst, lateLast
-    if participation then
-        first, last = participation.first, participation.last
-        lateFirst, lateLast = participation.lateFirst, participation.lateLast
-    else
-        first, last = assessment.first, assessment.last
-    end
     local boundary = participation and participation.boundary or assessment.interrupted
         or (segment and segment.observationStopped)
-    local lastAction, attacks, historicalReturn = Hostility(battle, observation or {}, sides, me)
+    local lastAction, historicalReturn = analysis.lastAction, analysis.historicalReturn
     if participation and participation.lifeChangedAt then
         lastAction = math.max(lastAction or 0, participation.lifeChangedAt)
     end
-    local counts, life = Casualties(battle, sides, me, attacks, first, last, lateFirst, lateLast)
     local result = { version = version, lifecycle = "finalized",
         finalizedBy = participation and participation.boundary or "historical",
         coverage = "insufficient", outcome = "unknown", reason = "insufficient-ending-evidence",

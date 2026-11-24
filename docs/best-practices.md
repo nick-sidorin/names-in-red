@@ -139,6 +139,11 @@ used by cards, profile, tooltip and nameplate.
   aggregate has no exact individual hit time; a cast success has no proven
   target or hit; a missing flag is not false. Validate actor/target, ownership,
   session, segment and life-episode scope. Reject stale/ambiguous signals.
+- Promote accepted attribution links from the full, qualified read before
+  diagnostic sampling drops rows. Keep direction, positive pair evidence,
+  source ownership and window scope. For untimed support require an
+  independently linked opponent of the recipient in the same life window.
+  Multiple plausible opponent links leave the support unassigned.
 - Preserve witnessed action times on both sides of a life transition. Per-pair
   first/last/count summaries alone can drop the only action that links an
   earlier corpse to PvP. Reconcile confirmed death and revival from readable,

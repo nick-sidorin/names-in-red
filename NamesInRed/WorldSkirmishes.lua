@@ -381,7 +381,8 @@ local function Confirm(window, opponents, basis)
         observation.visibilityGap = true
     end
     window.segment.offset = window.began - record.began
-    observation.segments[#observation.segments + 1] = window.segment
+    window.segmentIndex = #observation.segments + 1
+    observation.segments[window.segmentIndex] = window.segment
     for _, event in ipairs(window.life or {}) do
         local offset = event.offset + window.began - record.began
         observation.life[#observation.life + 1] = { at = event.at, offset = offset, state = event.state, source = event.source }
@@ -583,7 +584,7 @@ function addon.WorldMeterContext(window, row)
     return window, anchors, faction, enemies
 end
 
-function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, contacts, probe)
+function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, contacts, probe, contributionLinks)
     if not Valid(window) or window.area ~= area then return end
     local enemies = {}
     for _, entry in ipairs(additions) do
@@ -601,6 +602,7 @@ function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, c
     end
     segment.meter = { scope = "aggregate", selection = row.meterSelection, hostileLinks = links }
     if row.meterSessionID then segment.meter.sessionID = row.meterSessionID end
+    segment.contributionLinks = contributionLinks
     battle.time = math.max(battle.time, row.time or battle.time)
     for _, entry in ipairs(additions) do
         local player = entry.player
@@ -619,8 +621,8 @@ function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, c
     window.dirty = nil
 end
 
-local function TimelinePair(window, actor, target, kind, spell)
-    local key = actor .. ":" .. target .. ":" .. kind
+local function TimelinePair(window, actor, target, kind, spell, petEndpoint)
+    local key = actor .. ":" .. target .. ":" .. kind .. ":" .. (petEndpoint or "")
     local pairs = window.pairs
     local item = pairs[key]
     local offset = GetTime() - window.began
@@ -634,7 +636,8 @@ local function TimelinePair(window, actor, target, kind, spell)
         end
         item.last, item.count = offset, item.count + 1
     else
-        item = { actorID = actor, targetID = target, kind = kind, spellID = spell, first = offset, last = offset, count = 1 }
+        item = { actorID = actor, targetID = target, kind = kind, spellID = spell, first = offset, last = offset,
+            count = 1, petEndpoint = petEndpoint, targetIsPlayer = petEndpoint ~= "target" }
         pairs[key] = item
         local actions = window.segment.actions or {}
         window.segment.actions = actions
@@ -689,15 +692,36 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
         end
     end
     if context.retrying and (window.area ~= area or (open and open ~= window and open.record ~= window.record)) then return end
-    local record = Confirm(window, { [guid] = true }, "kill")
+    local unknownFinisher = direction == "deathsToThem" and not guid and context.unknownFinisher
+    local record
+    if unknownFinisher then
+        if not bound or not bound.record then return end
+        record = bound.record
+    else
+        record = Confirm(window, { [guid] = true }, "kill")
+    end
     local battle = record.battle
     local outgoing = direction == "killsAgainstThem"
     local actorID = outgoing and (context.actorID or window.self) or guid
     local targetID = outgoing and guid or window.self
-    local event = { kind = "kill", actorID = actorID, targetID = targetID, time = context.time,
+    local event = { kind = unknownFinisher and "death" or "kill", actorID = actorID, targetID = targetID, time = context.time,
         offset = (context.killUptime or GetTime()) - record.began,
-        source = outgoing and "party-kill" or "death-recap", recapTimestamp = context.deathTimestamp }
+        source = outgoing and "party-kill" or "death-recap", recapTimestamp = context.deathTimestamp,
+        recapDamage = context.recapDamage, segmentIndex = window.segmentIndex, pvpLinked = unknownFinisher or nil }
     local prior = Ledger.LatestParticipantLife(battle, targetID, event)
+    if not outgoing and prior and prior.recapTimestamp and prior.recapTimestamp == event.recapTimestamp then
+        if prior.kind == "death" and prior.pvpLinked then
+            local hits, changed = event.recapDamage or {}, false
+            for id, time in pairs(hits) do
+                if time > ((prior.recapDamage or {})[id] or 0) then changed = true end
+            end
+            if unknownFinisher and not changed then return nil, nil, "duplicate" end
+            for id, time in pairs(prior.recapDamage or {}) do hits[id] = math.max(hits[id] or time, time) end
+            event.recapDamage = hits
+        elseif unknownFinisher then
+            return nil, nil, "duplicate"
+        end
+    end
     if prior and prior.kind == "kill" then
         local distinctRecap = not outgoing and type(event.recapTimestamp) == "number" and type(prior.recapTimestamp) == "number"
             and event.recapTimestamp > prior.recapTimestamp
@@ -712,7 +736,7 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
     battle.time = math.max(battle.time, context.time or 0)
     Participant(battle.allies, window.self, addon.UnitPlayerName("player"), context.playerLevel, nil, true,
         addon.UnitAppearance("player"))
-    Participant(battle.enemies, guid, name, context.rivalLevel, guid, nil, context.rivalAppearance)
+    if guid then Participant(battle.enemies, guid, name, context.rivalLevel, guid, nil, context.rivalAppearance) end
     if outgoing then
         if actorID ~= window.self then
             Participant(battle.allies, actorID, context.actorName, context.actorLevel, nil, nil, context.actorAppearance)
@@ -748,7 +772,7 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
     window.segment.lastConfirmedAt = math.max(window.segment.lastConfirmedAt or 0, event.time or 0)
     window.dirty = nil
     local last = Assessment(record).lastAction
-    if Pending(record) and record.lastWindow == window and not window.segment.observationStopped
+    if actorID and Pending(record) and record.lastWindow == window and not window.segment.observationStopped
         and (not last or last.offset <= event.offset) and not context.delayedAssociation and not context.retrying then
         NewActivity(window, actorID, targetID, "kill", context.spellID, nil, context.killUptime)
     end
@@ -806,7 +830,7 @@ local function AuraPlayer(unit, playerGUID)
     local guid = Readable(UnitGUID(unit))
     if type(guid) ~= "string" then return end
     if Readable(UnitIsPlayer(unit)) == true and guid:match("^Player%-.+") then return guid, unit end
-    if guid:match("^Pet%-.+") and Readable(UnitGUID("pet")) == guid then return playerGUID, "player" end
+    if guid:match("^Pet%-.+") and Readable(UnitGUID("pet")) == guid then return playerGUID, "player", true end
 end
 
 local function OpenTable(value)
@@ -847,13 +871,14 @@ local function ObserveHarmfulAura(targetUnit, aura)
     if not self then return end
     local sourceUnit = Readable(aura.sourceUnit)
     local spell = Readable(aura.spellId)
-    local actor, source = AuraPlayer(sourceUnit, self)
-    local target, affected = AuraPlayer(targetUnit, self)
+    local actor, source, petActor = AuraPlayer(sourceUnit, self)
+    local target, affected, petTarget = AuraPlayer(targetUnit, self)
     if not actor or not target then
         NoteUnrelatedPvE(self, actor, target, sourceUnit, targetUnit)
         return
     end
     if actor == target then return end
+    local petEndpoint = petActor and "actor" or (petTarget and "target")
     local faction = addon.PlayerFaction()
     local from, to = Readable(UnitFactionGroup(source)), Readable(UnitFactionGroup(affected))
     if (faction ~= "Alliance" and faction ~= "Horde") or (from ~= "Alliance" and from ~= "Horde")
@@ -879,7 +904,7 @@ local function ObserveHarmfulAura(targetUnit, aura)
         if not open and latest.combatDiagnostic then
             addon.ObserveCombatAuras(latest.combatDiagnostic, targetUnit, { addedAuras = { aura } })
         end
-        TimelinePair(latest, actor, target, "harmful-aura", spell)
+        TimelinePair(latest, actor, target, "harmful-aura", spell, petEndpoint)
         latest.segment.lastConfirmedAt = place.time
         NewActivity(latest, actor, target, "harmful-aura")
         return
@@ -908,7 +933,7 @@ local function ObserveHarmfulAura(targetUnit, aura)
     local battle = record.battle
     Participant(battle.allies, friendly, addon.UnitPlayerName(ally), nil, nil, friendly == self, addon.UnitAppearance(ally))
     Participant(battle.enemies, hostile, addon.UnitPlayerName(enemy), nil, hostile, nil, addon.UnitAppearance(enemy))
-    TimelinePair(window, actor, target, "harmful-aura", spell)
+    TimelinePair(window, actor, target, "harmful-aura", spell, petEndpoint)
     window.segment.lastConfirmedAt = place.time
     window.dirty = true
     battle.time = math.max(battle.time, place.time or 0)

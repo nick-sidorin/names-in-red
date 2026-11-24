@@ -1556,6 +1556,82 @@ unlinked honor. Verify ordinary border pursuit, a real ghost-run return, and
 true loading/respawn boundaries in Forever before activation/release. The
 native UI and rival scoring changes remain in later PRs.
 
+### Character POV PR B
+
+**Projection and durable inputs.** `EvaluateRivalContributions` shares PR A's
+death episode reconstruction. It returns one versioned row per rival,
+direction and confirmed death, with the death's timeline index and a proof
+that points to a kill, witnessed action, native recap hit or meter segment.
+A support proof also points to the supported participant and their opposing
+action. `Ledger.RivalContributionScore` sums these credits on demand.
+Saved raw events, side outcomes, killing blows, honor and HK remain separate.
+The derivation uses neither the skirmish verdict nor its roster as a substitute
+for participation.
+
+The existing meter read now keeps full accepted directional pair/category
+links from the connected component in `segment.contributionLinks`. The
+permanent entry needs the pair, category, qualification and known pet
+endpoint. Existing sampled amounts remain in `combatAggregates`. This avoids
+losing the only readable heal when the technical sample hits its six-row
+category limit. Duration-mismatch corroboration remains roster evidence and
+does not authorize credit. When a historical segment lacks these links, a
+positive saved aggregate can qualify with a matching accepted read summary
+and a usable relative segment interval. Old records with only group scores,
+untimed loose links or missing scope remain without a new credit.
+
+**Life and time boundaries.** An attributed kill is positive proof. A timed
+harmful effect must involve the victim in the applicable life within the
+existing 12-second horizon. Compare segment-relative observations on the
+skirmish clock. Older whole-second segment starts carry one second of
+uncertainty. A selected meter window must contain the death within its local
+segment or match a finish within the existing 2.5-second grace. A known life
+transition across that window makes the untimed pair unsafe to assign.
+Direct damage or hostile control requires the actual directed pair. For
+healing, absorbs and defensive dispels, the recipient also needs its own
+independent hostile link to the victim and only one observed opposing
+counterpart in that window. The support must come from the matched segment
+ending at most 2.5 seconds after the death. Earlier or later disconnected
+windows, multiple possible opponents, and multi-life segments leave the
+untimed support unassigned. Single-life window attribution still cannot order
+individual heals and hits inside the native aggregate.
+
+**Native death recaps.** The existing readable hostile-player lethal recap
+can attach positive earlier damage rows to its own death event. Store the
+latest recognized hit time per attacker in native server seconds. Exclude
+hits before the skirmish, after the fatal hit, more than 12 seconds earlier,
+or in or before the previous life boundary's server second. This keeps
+a later recap from assigning prior-life damage and counts each attacker once.
+When the lethal GUID is unavailable but the lethal row confirms a hostile
+player, an already linked battle can store a PvP death without an actor.
+The bounded retry can refine damage evidence or assign a readable finisher
+to that same episode. An NPC finisher or unreadable hostile/type flags do
+not establish that fallback. Older diagnostics only contribute when a
+recap row matches a unique saved lethal event by native timestamp and target
+before diagnostic compaction.
+
+**Forever limits and verification.** Controlled pet sources already resolve
+through a verified owner in the meter, or the matching local pet token for a
+witnessed aura. An aura applied to the pet does not stand in for an action on
+its owner. The recorder preserves that distinction for new timed rows. Old
+incoming aura rows without target provenance, restricted endpoints,
+unidentified pet sources, cast-only observations and generic buffs do not
+supply positive attribution. Meter categories can be unreadable, unnamed or
+behind a stale selector. A curse, interrupt or dispel needs a readable
+recipient in the existing aura or meter path. The native report does not give
+a reliable structured sequence for generic beneficial buffs or positive
+untimed actions in multiple lives. No extra collector, polling or native
+meter setting is required.
+
+Lua tests cover ally finishing blows, healer-only and shield-only support,
+friendly and hostile dispels/interrupts, pet identity, three verified
+attackers in one local death, both directions for one rival and repeat
+deaths. Runtime replays cover the full meter scanner past the diagnostic
+cap, restricted recipients, native recap replay and delayed finisher recovery.
+Existing Duskwood, Gnomeregan and battleground fixtures still exercise the
+legacy and personal outcome paths. Verification used Forever-shaped mocks
+and the retained public API evidence above. Runtime event delivery on a fresh
+Forever client remains unverified for PR B.
+
 ### Preview and release provenance
 
 The original #29 preview included the new combat diagnostics with the old

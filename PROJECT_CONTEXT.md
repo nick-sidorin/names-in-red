@@ -181,7 +181,7 @@ features into an approved release. See product spec for all acceptance rules.
   implements the Character POV projection from durable timeline and local ending
   evidence. WorldSkirmishes owns participation transitions. Ledger persists the
   versioned projection alongside the legacy result; UI and existing score
-  consumers still read the legacy result in PR A. The durable timeline
+  consumers still read the legacy result through PR B. The durable timeline
   includes sample-observed revivals and witnessed per-pair action offsets
   within each segment for replay across separate lives.
 - NamesInRed/WorldSkirmishes.lua, SkirmishEvidence.lua, Debug.lua, Kills.lua,
@@ -189,6 +189,11 @@ features into an approved release. See product spec for all acceptance rules.
   observations, late windows, group/pet identity, accepted meter links and
   rewards. Debug.lua currently requires explicit feign=false to add dead life
   samples; assess class-aware corroboration without blindly treating nil as false.
+- NamesInRed/RivalContributions.lua derives versioned per-rival credits from
+  the shared life analysis. Ledger.RivalContributionScore queries the new
+  projection without changing existing UI, honor, HK and direct stats.
+  Full accepted meter pairs and scoped native recap contributors survive
+  diagnostic pruning. See [PR B validation](docs/forever-validation.md#character-pov-pr-b).
 - CombatDiagnostics.lua and IssueReport.lua capture/export bounded evidence.
   Ledger.RecordMeterAggregates preserves linked pairs/spell/amount permanently.
   Book.lua, EncounterCards.lua, Nameplates.lua, Portraits.lua, Locale.lua and
@@ -279,25 +284,18 @@ technical evidence predicates remain implementation choices.
 PR A implements the independent personal result and participation lifecycle.
 See [the timing and replay notes](docs/forever-validation.md#character-pov-pr-a)
 for the 12-second settlement window, evidence rules and historical results.
-Review PR A before starting PR B, then PR C, in the
-[Character POV milestone roadmap](docs/character-pov-roadmap.md). Keep 1.1.0
-as the shipped baseline pending separate release authorization.
+PR A is merged. PR B adds attributable contribution and waits for review
+before PR C in the [Character POV roadmap](docs/character-pov-roadmap.md).
+Keep 1.1.0 as the shipped baseline pending separate release authorization.
 
-1. Design attributable contribution to an opponent's defeat or our death:
-   direct, assisted damage and meaningful linked healing/support, pets; prevent
-   cross-window/roster-wide credit and duplicates. Apply the approved per-death
-   counting unit and repeat-death rules; resolve legacy/manual representation
-   in the implementation design.
-   Preserve facts permanently, distinguish contribution from actual last hit
-   and game-awarded rewards. No arbitrary damage threshold or healer penalty.
-2. Integrate Ledger and the UI consistently: rival score and compact card,
+1. Integrate Ledger and the UI consistently: rival score and compact card,
    personal outcome in full skirmish card, optional group context, tooltips,
    nameplates, report reasons and localization. Review migration with actual
    saved data; don't reset old records or re-label unsupported legacy wins.
-3. Replay original anonymized examples and new healer/assist cases, automated
+2. Replay original anonymized examples and new healer/assist cases, automated
    Checks and narrow real-client smoke checks. Update shipped documentation
    only when feature actually ships. Release with separate authorization.
-4. Later ideas (not blockers): full timeline viewer, general history pagination,
+3. Later ideas (not blockers): full timeline viewer, general history pagination,
    optional consenting peer observations, formal duel history, target-frame
    marker, ranks/achievements. See docs/future-ideas.md.
 

@@ -114,7 +114,7 @@ local function HK()
     Fire("PLAYER_PVP_KILLS_CHANGED", "player")
 end
 
-for _, file in ipairs({ "Locale", "Ledger", "SkirmishOutcomes", "PersonalSkirmishOutcomes", "Encounter", "Core", "SkirmishEvidence", "CombatDiagnostics",
+for _, file in ipairs({ "Locale", "Ledger", "SkirmishOutcomes", "PersonalSkirmishOutcomes", "RivalContributions", "Encounter", "Core", "SkirmishEvidence", "CombatDiagnostics",
     "WorldSkirmishes", "Honor", "Kills", "Deaths", "IssueReport", "Debug" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
@@ -754,6 +754,151 @@ for _, scenario in ipairs({
             assert(original.personalOutcome.finalizedBy == "independent-engagement")
         end
     end
+end
+
+Reset()
+if not arg[1] or arg[1] == "rival-meter-healer" then
+    duration = 10
+    units.target, units.nameplate1 = first, second
+    Begin()
+    Advance(1)
+    Link(2, me, friend, 87)
+    Link(0, ally, first, 420)
+    -- Seven rejected rows keep the only valid healing detail out of the
+    -- bounded technical sample, but it still goes through meter validation.
+    local heal = sources[2][me][1].combatSpellDetails
+    local details = {}
+    for i = 1, 7 do
+        details[i] = { unitName = friend.name, unitClassFilename = friend.class, isPet = false, isMob = false, amount = 0 }
+    end
+    details[8] = heal
+    sources[2][me][1].combatSpellDetails = details
+    Update(0, 2, 7, 10)
+    Advance(8)
+    Kill(ally, first)
+    Advance(1)
+    End()
+    Advance(3)
+    local fight = assert(addon.db.skirmishes["world:1"])
+    local phase = fight.observation.segments[1]
+    assert(#phase.contributionLinks == 2 and #phase.combatAggregates == 1)
+    local credit = assert(addon.EvaluateRivalContributions(fight).credits[1])
+    assert(credit.rivalID == one and credit.evidence.kind == "support" and credit.evidence.viaID == ally)
+    assert(addon.Ledger.RivalContributionScore(addon.db, one) == 1)
+    assert(addon.Ledger.PersonalCombatScore(addon.db, one) == 0)
+    assert(addon.Ledger.RivalContributionScore(addon.db, two) == 0)
+    fight.combatDiagnostics = nil
+    addon.ClearDiagnostics()
+    addon.Ledger.Open(addon.db)
+    assert(addon.Ledger.RivalContributionScore(addon.db, one) == 1)
+end
+
+Reset()
+if not arg[1] or arg[1] == "rival-restricted-healer" then
+    duration = 10
+    units.target = first
+    Begin()
+    Advance(1)
+    local secret = {}
+    function issecretvalue(value) return rawequal(value, secret) end
+    Link(2, me, friend, 87)
+    sources[2][me][1].combatSpellDetails.unitName = secret
+    Link(0, ally, first, 420)
+    Update(0, 2, 7, 10)
+    Advance(8)
+    Kill(ally, first)
+    Advance(1)
+    End()
+    Advance(3)
+    local fight = assert(addon.db.skirmishes["world:1"])
+    assert(#fight.observation.segments[1].contributionLinks == 1)
+    assert(#addon.EvaluateRivalContributions(fight).credits == 0)
+    issecretvalue = nil
+end
+
+Reset()
+if not arg[1] or arg[1] == "rival-recap" then
+    units.target, units.nameplate1 = first, second
+    Begin()
+    Aura("player", "target")
+    Advance(4)
+    local deathAt = GetServerTime()
+    local third, early = "Player-fixture-third", "Player-fixture-earlier"
+    recap = {
+        { sourceGUID = one, sourceFlags = 0x440, timestamp = deathAt, overkill = 2, amount = 77, event = "SPELL_DAMAGE" },
+        { sourceGUID = two, sourceFlags = 0x440, timestamp = deathAt - 1, amount = 25, event = "SWING_DAMAGE" },
+        { sourceGUID = third, sourceFlags = 0x440, timestamp = deathAt - 2, amount = 15, event = "SPELL_DAMAGE" },
+        { sourceGUID = early, sourceFlags = 0x440, timestamp = deathAt - 7, amount = 51, event = "SPELL_DAMAGE" },
+    }
+    localPlayer.dead = true
+    Fire("PLAYER_DEAD")
+    Fire("PLAYER_DEAD")
+    End()
+    Advance(3)
+    local fight = assert(addon.db.skirmishes["world:1"])
+    assert(#fight.events == 1 and fight.events[1].recapDamage[two] == deathAt - 1)
+    local lostTo = {}
+    for _, credit in ipairs(addon.EvaluateRivalContributions(fight).credits) do
+        assert(credit.direction == "loss" and credit.deathIndex == 1)
+        lostTo[credit.rivalID] = credit.evidence.kind
+    end
+    assert(lostTo[one] == "finishing-blow" and lostTo[two] == "recap-damage" and lostTo[third] == "recap-damage")
+    assert(not lostTo[early] and select(2, addon.Ledger.PersonalCombatScore(addon.db, two)) == 0)
+    fight.combatDiagnostics = nil
+    addon.Ledger.Open(addon.db)
+    assert(#addon.EvaluateRivalContributions(fight).credits == 3)
+end
+
+Reset()
+if not arg[1] or arg[1] == "rival-unknown-finisher" then
+    units.target, units.nameplate1 = first, second
+    Begin()
+    Aura("target", "player")
+    Advance(2)
+    local secret = {}
+    function issecretvalue(value) return rawequal(value, secret) end
+    local stamp = GetServerTime()
+    recap = {
+        { sourceGUID = secret, sourceFlags = 0x440, timestamp = stamp, overkill = 1, amount = 70, event = "SPELL_DAMAGE" },
+        { sourceGUID = one, sourceFlags = 0x440, timestamp = stamp - 1, amount = 27, event = "SPELL_DAMAGE" },
+    }
+    localPlayer.dead = true
+    Fire("PLAYER_DEAD")
+    local fight = assert(addon.db.skirmishes["world:1"])
+    assert(#fight.events == 1 and fight.events[1].kind == "death" and not fight.events[1].actorID)
+    local credit = assert(addon.EvaluateRivalContributions(fight).credits[1])
+    assert(credit.rivalID == one and credit.direction == "loss" and credit.evidence.kind == "recap-damage")
+    assert(select(2, addon.Ledger.PersonalCombatScore(addon.db, one)) == 0)
+    Advance(0.5) -- the first retry finds the same unnamed death
+    assert(#fight.events == 1)
+    recap[1].sourceGUID = two
+    recap[2] = nil -- the newly readable finisher must preserve the earlier damage evidence
+    Advance(0.6)
+    assert(#fight.events == 1 and fight.events[1].kind == "kill" and fight.events[1].actorID == two)
+    assert(#addon.EvaluateRivalContributions(fight).credits == 2)
+    End()
+    issecretvalue = nil
+end
+
+Reset()
+if not arg[1] or arg[1] == "rival-pet-control" then
+    local pet = { id = "Pet-fixture-local", name = "Mock Pet", faction = "Alliance" }
+    units.target, units.nameplate1, units.pet = first, second, pet
+    Begin()
+    Aura("pet", "target")
+    Aura("nameplate1", "pet") -- enemy has affected our pet, with no proof against its owner
+    Advance(2)
+    Kill(ally, first)
+    local stamp = GetServerTime()
+    recap = { { sourceGUID = two, sourceFlags = 0x440, timestamp = stamp, overkill = 1, event = "SPELL_DAMAGE" } }
+    localPlayer.dead = true
+    Fire("PLAYER_DEAD")
+    End()
+    Advance(3)
+    local credits = addon.EvaluateRivalContributions(assert(addon.db.skirmishes["world:1"])).credits
+    assert(#credits == 2 and credits[1].rivalID == one and credits[1].evidence.petEndpoint == "actor")
+    assert(credits[2].rivalID == two and credits[2].evidence.kind == "finishing-blow")
+    units.pet = nil
 end
 
 print("Anonymized Gnomeregan event replays passed")

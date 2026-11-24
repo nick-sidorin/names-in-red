@@ -2,8 +2,8 @@
 
 **Status:** Approved to begin implementation, 24 November 2026. The Character POV
 contract is in [the product specification](skirmish-product-spec.md).
-PR A implements the independent personal projection and is ready for review.
-Review each dependent PR in turn. This roadmap is not release
+PR A is merged. PR B implements the independently queryable rival projection
+and awaits review. Review each dependent PR in turn. This roadmap is not release
 authorization or a final version-number decision.
 
 **Baseline:** GitHub v1.1.0, with permanent battle history, automatic diagnostics,
@@ -205,7 +205,7 @@ latest accepted main; avoid parallel changes to shared scoring/storage
 contracts. Independent fixture preparation may be parallelized only if
 it does not create conflicting changes.
 
-Next: review PR A on its branch before starting PR B from the accepted main.
-See [the PR A evidence and timing notes](forever-validation.md#character-pov-pr-a).
-No public release until separately
-authorized. Do not reopen the settled scoring or outcome rules.
+Next: review PR B before starting PR C from the accepted main. See
+[the PR B evidence and timing notes](forever-validation.md#character-pov-pr-b).
+No public release until separately authorized. Do not reopen the settled
+scoring or outcome rules.
