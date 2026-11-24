@@ -37,33 +37,39 @@ formal duels, ranks/achievements, general-history pagination, manual correction
 UI, unrelated interface redesign, or a replacement combat-log collector.
 See [future ideas](future-ideas.md).
 
-## Step 0 — settle the narrow remaining product decisions
+## Step 0 — product decisions and one remaining refinement
 
-Before changing public counters, agree on:
+The owner approved all five proposed rival-score rules on 24 November:
 
-1. **Counting unit:** recommended starting rule is one credit per rival per
-   genuine death episode, deduplicated across observations, meter categories
-   and reload/replay. A revival followed by another confirmed death is another
-   episode. Keep this a proposal until accepted.
-2. **Non-lethal rival outcomes:** recommended initial scope is death-linked
-   contribution credit only. A clear non-lethal retreat can still determine
-   the primary skirmish outcome. Separate opponent-specific non-lethal score
-   rules can follow later.
-3. **Legacy/manual display:** retain explicit historical/manual outcomes, label
-   old side scores separately where needed, and do not turn an old side win
-   into a new contribution win without supporting evidence. Decide concise
-   user-facing labels and treatment of unprovable old credits.
-4. **Evidence boundary:** agree what makes participation in a particular
-   death episode sufficiently linked. Start with accepted same-episode direct
-   damage, relevant hostile actions and support of a qualifying fighting ally.
-   A broad session total may span multiple lives; do not infer per-hit timing
-   or attribute unrelated opponents. No arbitrary damage threshold or healer
-   penalty. Incomplete coverage is possible.
+- One credit per rival per genuine death episode, per direction, including
+  repeat deaths after revival. No double count from replay or overlapping signals.
+- Non-lethal retreats can determine the skirmish result, but do not give
+  rival credit in this milestone.
+- Preserve original historical outcomes; recompute only from supported evidence.
+- A confirmed death and linked contribution suffice even without a known finisher.
+- Link healing/support to the relevant ally/opponent episode, not every enemy.
+  Likewise all three enemies who contributed damage to our lethal episode
+  receive a rival loss, even though the skirmish has one final personal result.
 
-The spec already resolves terminal death, revival/return, retreat, group
-context, BG scope, permanent history and support eligibility. Do not reopen
-those decisions unnecessarily. Capture any newly settled semantics in the
-spec and project context before assigning implementation.
+The owner also clarified settling/continuation, real return after revival,
+abandoning a lost group fight, crossing zone borders, unrelated later PvE
+and a distinct later revenge fight. These are now in the product spec.
+Do not choose a timeout from the five-minute revenge example.
+
+One remaining refinement: successful defensive escape as personal Victory
+versus forced retreat. The spec records the recommended survival-success
+rule as a proposal, not a blanket win-on-survival policy. Confirm it before
+changing those branches; design and test the unambiguous death, return and
+continuation cases without reopening agreed scoring decisions. Exact
+thresholds, legacy/manual presentation and storage/API contracts are
+implementation choices to document and validate, not reasons to re-ask all
+the accepted product questions.
+
+Before runtime work, follow [engineering best practices](best-practices.md).
+Have the first fresh developer session (or the existing Codex session if
+still accessible) reconcile any missing prior technical lessons into the
+best-practices/validation documents; this is a focused onboarding review,
+not a new requirement to redesign the entire addon.
 
 ## Implementation PR A — Personal outcome and participation boundaries
 
@@ -77,7 +83,11 @@ fixtures before deciding exact storage and function names.
 - Introduce a versioned, separate result/reason/coverage contract for personal
   participation. Retain old side results rather than overwrite them.
 - Handle terminal PvP death, return to the same battle, unrelated new fight,
-  forced withdrawal, local victory and genuine Unknown.
+  forced withdrawal, local victory and genuine Unknown. Separate pending
+  continuation from finalization, test quiet intervals, late evidence, zone
+  borders, unrelated PvE and later revenge. Reuse or revise existing timers
+  based on evidence; document the chosen values. Confirm the proposed
+  defensive escape rule before changing that result.
 - Use corroborated evidence for observed defeat/retreat without demanding
   a perfect site anchor or complete roster. Feign Death, token identity,
   NPC-only deaths and missing fields remain meaningful safeguards.
@@ -180,6 +190,9 @@ Read AGENTS.md, PROJECT_CONTEXT.md, the relevant product specification and
 validation evidence, current main and tests. Give the agent the specific PR
 objective and acceptance cases, not the full historical chat.
 
+Each implementation PR must read and apply the engineering best practices,
+run the relevant pre-PR/pre-merge checklist, and record newly learned durable
+technical conventions in the same PR (especially owner-requested corrections).
 Each implementation PR should report: changes, tests, actual evidence,
 limitations, migration impact, and what remains. Product partner reviews
 the exact diff and CI before squash merge. Reconcile project documentation
@@ -189,5 +202,6 @@ contracts. Independent fixture preparation may be parallelized only if
 it does not create conflicting changes.
 
 No release or runtime implementation is authorized by this proposed
-roadmap alone. Next discussion: settle step 0, then authorize the first
-implementation task.
+roadmap alone. Next: confirm the remaining defensive escape refinement,
+then authorize the first implementation task. No need to re-approve the five
+settled scoring rules.

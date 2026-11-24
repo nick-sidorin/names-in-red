@@ -4,8 +4,8 @@ Use the pinned WoW Addon Standards as part of these repository instructions.
 At the start of a task involving development, documentation, packaging or
 releases, explicitly open and apply `docs/standards/AGENTS.md`. Read the
 relevant evidence in `docs/standards/FIELD_NOTES.md` and the local context in
-`README.md`, `PROJECT_CONTEXT.md`, `docs/skirmish-product-spec.md` and `docs/forever-validation.md`
-before substantive work. Consult `docs/future-ideas.md` when discussing optional
+`README.md`, `PROJECT_CONTEXT.md`, `docs/skirmish-product-spec.md`,
+`docs/best-practices.md` and `docs/forever-validation.md` before substantive work. Consult `docs/future-ideas.md` when discussing optional
 future features; those ideas are not committed product requirements.
 `docs/standards/standards.lock.json` identifies the reviewed upstream version.
 The owner conversation is in Russian. Repository contributions are in English.
@@ -28,6 +28,10 @@ for a later documentation batch or wait for implementation to start.
   exploratory and not approved implementation or a committed roadmap.
 - `docs/forever-validation.md`: verified technical findings and their
   evidence/limitations, when relevant. Distinguish proposals from facts.
+- `docs/best-practices.md`: mandatory project engineering conventions,
+  reusable native UI decisions, known pitfalls and the review checklist.
+  Capture durable owner corrections and proven lessons in the same PR that
+  implements the fix. Do not leave them in an agent's conversation.
 
 A tentative or ambiguous thought is not automatically a product decision.
 Discuss and clarify it with the owner when necessary; an idea can be
@@ -43,6 +47,24 @@ actual merge/check status in the conversation. If blocked, report the blocker;
 do not bypass protections. If implementation is already in progress, avoid
 conflicting edits and coordinate with that work. This authorization does not
 extend to runtime changes, settings, infrastructure or publishing releases.
+
+## Engineering learning and mandatory review
+
+Every fresh agent must explicitly read and apply [project best practices](docs/best-practices.md)
+and the pinned shared standards before editing runtime code. Research the exact
+native reference before implementing a Blizzard-like UI/UX; do not approximate
+it first and wait for the owner to correct it. Reuse shared components.
+Before opening or updating an implementation PR, self-review the diff against
+the best-practices checklist, run the applicable tests and record new lessons.
+Before merge, repeat the applicable checklist on the exact final diff/head;
+green CI alone does not establish native visual fidelity or client behavior.
+In the PR report the relevant source/template, reuse/fallback, test and live
+verification status, and any updated convention (or state no new durable rule).
+If the owner says a correction is how we should always do it, reconcile the
+rule in the best-practices document in that same PR. For evidence-specific
+findings, link the validation notes. No separate permission to document an
+already authorized implementation correction is needed. Do not alter pinned
+upstream standards locally; promote reusable lessons upstream only separately.
 
 Target WoW: Forever 1.60.1 (Camelot), TOC interface 16001, Lua 5.1 compatibility.
 Run `bash scripts/check.sh` before submitting changes. Use feature branches,

@@ -1,6 +1,6 @@
 # Names in Red — PvP Skirmishes: Product Specification
 
-**Status:** Owner-approved Character POV direction, 24 November 2026. This is the target behavior for development after 1.1.0, not a description of its shipped behavior. It supersedes the previous side-outcome and rival-score semantics. The evidence and implementation details belong in [Forever validation](forever-validation.md).
+**Status:** Owner-approved Character POV direction and death-linked rival scoring, 24 November 2026. The survival-first escape refinement below is a proposal pending final confirmation. This is the target behavior for development after 1.1.0, not a description of its shipped behavior. It supersedes the previous side-outcome and rival-score semantics. The evidence and implementation details belong in [Forever validation](forever-validation.md).
 
 ## 1. Product goal: Character POV
 
@@ -86,6 +86,19 @@ Track the connected fight and the character's participation separately. The reco
 - When the character remains alive and the local threat is overcome or driven away, a clear resolution can be Victory without a coordinate anchor or a certified complete roster.
 - A death unrelated to the PvP episode (for example an unrelated NPC death) does not automatically create a PvP loss or assign a rival credit. Mixed PvE/PvP deaths require evidence connecting the death to the confrontation; a confirmed hostile player finisher is sufficient even if NPC damage preceded it.
 
+### Waiting for continuation and closing the encounter
+
+Separate a real local PvP episode from the client's combat flag. A lull, stealth, death, spirit release or crossing an ordinary open-world zone boundary can occur during the same fight. Keep a bounded pending/settling state when continuation is plausible, with a provisional result that can be revised if genuine participation resumes.
+
+- Meaningful renewed hostile/support activity linked to the same continuing confrontation, or a revival followed by actual return, can continue the record. Merely sharing opponents, party, location or map is insufficient. Resurrection alone is not proof of re-engagement.
+- A sufficiently long quiet interval since the last qualifying activity, combined with the character's state and other available boundary evidence, can finalize the encounter. Use a bounded timeout so an unobservable fight cannot wait forever. Exact intervals are technical choices to justify against existing fixtures and real play, not a new owner-specified number of seconds. Late diagnostic receipt alone does not reset the hostile activity clock.
+- The character beginning an unrelated PvE fight in a different place/time, resuming ordinary travel or engaging an independent fight is positive evidence that the previous PvP participation ended. An NPC attack during the same mixed PvE/PvP episode is not by itself a boundary.
+- A change in localized zone name or map within the open world is not a sufficient hard boundary: opponents can chase one another across a border. Distinguish true instance/match changes, loading/disconnect and incompatible context from ordinary zone transitions. Preserve any already supported personal result if observation genuinely ends.
+- Once an encounter is genuinely finalized, later revenge against the same opponents is a new skirmish, even near the same location. For example, the party is killed, regroups, searches for the opponents and fights them again roughly five minutes later: two encounters, not one continuing record. The example is not a literal five-minute timeout.
+- Keep late evidence reconciliation distinct from reopening participation. A late readable kill or meter sample can update its exact earlier episode without merging a new fight. Reject stale callbacks and ambiguous links.
+
+A practical lifecycle is Active → Awaiting continuation → Finalized, with an evidence-linked return from Awaiting continuation to Active. These are conceptual states, not required enum names. Persist enough information to keep boundaries and outcomes coherent after reload; do not persist raw session-relative uptime as a durable clock.
+
 ## 6. Outcome: personal Victory, Defeat or genuinely Unknown
 
 The primary outcome is **how the local character's own participation in this skirmish ended**. It is not their kill count, and it is not necessarily the final result of their faction or group. Preserve the observed group ending as optional, separately labeled context when available. Never copy the battleground match result to a local fight.
@@ -98,11 +111,29 @@ Evidence can include defeated opponents, allies and the character remaining safe
 
 ### Defeat
 
-The character's own participation ends in a confirmed PvP-related death or a reasonably established forced withdrawal. A terminal death remains Defeat even if surviving allies later win; that allied result is separate. If the character revives and returns to the same continuing confrontation, the personal outcome may be revised according to the actual later ending; retain all earlier death/kill events and rival credit. A character who survives but is driven off can lose. A simultaneous death of both players can still be a personal Defeat if our own participation ends in death; it need not establish a group victor.
+The character's own participation ends in a confirmed PvP-related death or a reasonably established forced withdrawal. A terminal death remains Defeat even if surviving allies later win; that allied result is separate. If the character revives and returns to the same continuing confrontation, the personal outcome may be revised according to the actual later ending; retain all earlier death/kill events and rival credit. A character who survives but is driven off can lose. In particular, if participating allies are killed, enemies remain a credible threat, and the character abandons the confrontation by fleeing or hiding and does not return before it ends, the personal outcome is Defeat even though the character survived. Stealth, sprint or survival alone does not establish forced retreat. A simultaneous death of both players can still be a personal Defeat if our own participation ends in death; it need not establish a group victor.
 
 ### Unknown
 
 Unknown is valid when the character's participation has ended or observation is lost without reasonable evidence of a personal win or loss, including mutual disengagement, ambiguous stealth/disappearance, or an unresolved living departure. It is not an error code for a missing field, incomplete roster, unavailable coordinate or unavailable group result. While participation is ongoing, do not prematurely lock an ending. Preserve an Unknown fight even with zero rewards or casualties; it does not count as either outcome.
+
+### Proposed survival-first refinement (one remaining product question)
+
+A successful escape from an unwanted attack may be a personal Victory: the
+character survives the attack, genuinely disengages and resumes their own
+activity, without evidence that they abandoned a losing confrontation. This
+is the owner's proposed direction, with a recommended distinction between
+successful survival and conceding the fight. It is not yet a settled blanket
+rule that every living character wins.
+
+The existing accepted rules still apply: a clear local victory is Victory,
+a proven forced withdrawal (including the fallen-allies case) is Defeat,
+and neutral mutual disengagement or genuinely unresolved observation is
+Unknown. Survival plus an expired timer or an unavailable unit is not
+positive proof of success. Before changing this part of the evaluator,
+confirm whether an independently established successful defensive escape
+should count as Victory and how to handle ambiguous solo withdrawal.
+Do not infer a private intention (such as revenge or fear) from API signals.
 
 ### Best-evidence inference, not a courtroom standard
 
@@ -139,7 +170,7 @@ A personal victory over a rival is credited when the rival is defeated in the co
 - A confirmed death with no known finisher can qualify if relevant local contribution and the death are reliably linked. No need to know the final hitter.
 - A party membership, nearby appearance, unrelated heal or PvE action, generic totals, honor alone, or mere membership on the opposing roster is not proof of participation in that rival's defeat. Link support to the ally's relevant engagement and the opponent's death, not to every enemy in a large fight.
 
-For a rival loss, apply the analogous attribution principle to the local character's confirmed PvP death: a direct hostile finisher qualifies, and other rivals with reliably linked material participation in that death (damage or relevant support/control) may qualify. Do not give a loss against every enemy merely because our character or side lost. Do not presume a healer on the other side was supporting the killer without evidence. An NPC-only death cannot create rival losses.
+For a rival loss, apply the analogous attribution principle to the local character's confirmed PvP death: a direct hostile finisher qualifies, and every other rival with reliably linked material participation in that death qualifies (including damage or relevant support/control). If three enemies damaged the character in the same lethal episode, all three receive a rival-specific loss credit, regardless of who finished the character. This is one personal skirmish Defeat if participation ends in death, not three skirmish losses. Do not give a loss against every enemy merely because our character or side lost. Do not presume a healer on the other side was supporting the killer without evidence. An NPC-only death cannot create rival losses.
 
 **Keep the score and literal combat statistics distinct.** Rival wins/losses represent credited participation in defeats/deaths, while personal killing blows and deaths directly caused by that rival are separately observable facts. HKs and honor remain the game's awards. A shared kill is not a personal finishing blow; neither statistic should be silently relabeled as the other.
 
@@ -147,9 +178,11 @@ Examples:
 - I damage a mage, my brother finishes the mage: victory against the mage; zero personal finishing blows.
 - I heal my brother while he fights and defeats the mage: victory against the mage even with zero damage.
 - I kill the mage, then a rogue kills me: overall personal Defeat; victory against the mage and loss against the rogue (and any independently proven contribution to my death). The mage does not automatically get a loss credit simply because they were there.
-- I fight a mage, both of us leave alive: preserve the meeting and its context; do not invent a kill-based rival victory. Non-lethal opponent-specific wins (for example a clear 1v1 retreat) are a possible later refinement requiring their own rule. They are not necessary for this iteration's participation score.
+- I fight a mage, both of us leave alive: preserve the meeting and its context; do not invent a kill-based rival victory. Non-lethal opponent-specific wins/losses are excluded from this milestone's death-linked rival score. A non-lethal retreat can still determine the primary skirmish outcome.
 
-A natural implementation unit is a uniquely identified death episode plus credited rival, deduplicated across repeated signals and replay. A genuine revival followed by another defeat is a separate episode. The exact counter behavior for repeat deaths, non-lethal rival outcomes and legacy/manual rows must be settled explicitly in implementation design before changing persisted or public counters; do not silently combine different counting units. Preserve manual assertions as such.
+**Approved counting unit:** one credit per rival, per genuine death episode, per direction. Repeated signals, overlapping categories, late reads and replay of the same death do not add another credit. A confirmed revival followed by another relevant death is another episode: helping defeat the same mage twice earns two rival victories. The character's own two deaths may likewise earn two losses against a qualifying rival even if they belong to one skirmish. The skirmish itself has one final personal outcome, independent of those counts. A confirmed death plus reliably linked participation is enough even if the finisher is unknown.
+
+Keep original historical side outcomes and explicitly manual results, and re-evaluate old records only where retained evidence supports the new semantics. No blanket conversion of side wins into rival credits. Precise legacy/manual labels and additive migration representation remain implementation design choices; do not erase originals or invent missing facts.
 
 ### UI semantics
 
@@ -214,6 +247,13 @@ The original capture was 1 vs 2, later reconstructed as 2 vs 3 with two enemy de
 20. Legacy group outcomes remain labeled as legacy; do not silently reinterpret as character outcomes or credit them to every rival. Re-evaluate only from sufficient retained evidence, preserve explicitly manual results, and test migration and repeat reload idempotency.
 21. Duplicate notifications, overlapping meter categories, repeated read/replay, and revival followed by a new death: don't double count the same episode or erase legitimate distinct ones.
 22. Report an Issue remains automatic, bounded and copyable; report identifies outcome reason, credit evidence and missing fields separately. No requirement for prior logging, other addon installations, or public sharing.
+23. Three rivals damage the character in the same lethal episode: each earns one rival loss; one final skirmish Defeat absent return. A bystander or unrelated earlier attacker gets none.
+24. Two genuine deaths of the same rival separated by revival, with qualifying local contribution in both: two rival victories, one skirmish; duplicate reads of either death do not add credit.
+25. Stealth or temporary disengagement then linked re-engagement: continue the same skirmish. Allies dead, opponents remain, character escapes and does not re-engage: Defeat when evidence supports abandonment.
+26. Death, ghost run, resurrection and actual return to ongoing fight: keep the same record and original death. Later revenge after a finalized fight: start another record, even against the same enemies at the same place.
+27. Chase across an ordinary zone border: do not split on zone name alone. An unrelated later PvE fight in a different place/time or bounded quiet interval can close the previous participation. An NPC mixed into the original PvP fight cannot close it by itself.
+28. Delayed old meter read or kill notification after a new fight starts: only update the uniquely matched old episode; do not reopen or merge the fights. A delayed read is not proof of new activity.
+29. Proposed defensive escape case: survive an unwanted attack, break pursuit and resume normal activity without conceding a losing group fight. Expected Victory if the proposed survival-success rule is approved; an ambiguous lost contact remains Unknown.
 
 ## 10. Boundaries and follow-up work
 
