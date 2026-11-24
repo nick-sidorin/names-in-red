@@ -43,6 +43,20 @@ keep this handoff concise, and record technical evidence in the validation
 notes when applicable. See the standing rule in [AGENTS.md](AGENTS.md).
 Runtime changes and releases remain separately scoped.
 
+### Continuous engineering learning
+
+The owner requires the same living-documentation approach for technical
+conventions, not only product decisions. [Best practices](docs/best-practices.md)
+is a mandatory entry point for each fresh agent; it links actual native UI
+references, reusable components, API safeguards and the pre-PR/pre-merge
+checklist. If a correction is a durable convention (for example, use the
+modern native red button, reuse a shared portrait, or match native sounds),
+record it in the same implementation PR as the correction. Do not rely on
+Codex conversation history. Audit any accessible prior Codex sessions and
+repository history for missing reusable lessons; mark unverified details
+rather than invent them. Generic continuous engineering learning is also a
+potential Evercanon pattern, not a change to that separate repository.
+
 ## Released baseline: 1.1.0
 
 - Target WoW: Forever 1.60.1 (Camelot), interface 16001, Lua 5.1. Research initially
@@ -102,8 +116,11 @@ establish objective truth for every player. Three separate questions:
    roster. Keep literal killing blows, deaths from a particular finisher, HKs
    and honor separate. A mage I help kill and a rogue who later kills me give
    mage credit and rogue loss even though the skirmish itself is Defeat.
-   Per-death deduplication, repeat episodes, non-lethal rival wins and manual/
-   legacy counting details need a deliberate design before public counters change.
+   The owner approved one credit per rival per genuine death episode, with
+   repeated deaths after revival counted separately, no non-lethal rival
+   credits for this milestone, original legacy results retained and supported
+   re-evaluation only. A confirmed death plus linked contribution qualifies
+   even with unknown finisher. Exact legacy/manual UI remains a design choice.
 3. Observed group context: preserve allied continuation, known casualties and
    any supported group result; it can differ from personal result and need not
    be knowable. The character at a graveyard does not magically know the final
@@ -232,6 +249,17 @@ session; use repository fixtures and ask for the original only if necessary.
   that #30 failed to implement its stated diagnostic scope.
 
 ## Next work (approved direction, not yet implemented)
+
+24 November follow-up: all five roadmap scoring decisions are accepted.
+Three enemies damaging our character in the same lethal episode each earn a
+rival loss; the final personal skirmish loss is still one. The owner clarified
+that a fight waits for plausible continuation, including a real return after
+resurrection or stealth, but must close on reliable ending/quiet evidence.
+Ordinary zone borders alone must not split it. Unrelated later PvE and a
+regrouped revenge fight are separate episodes. No exact timeout selected.
+Abandoning a fight with fallen allies and surviving enemies is Defeat even
+if we live. Successful defensive escape as Victory is the remaining proposed
+refinement; preserve Unknown for neutral or unresolved endings until agreed.
 
 A proposed staged [Character POV milestone roadmap](docs/character-pov-roadmap.md)
 organizes the next work into a product-decision checkpoint, personal outcome,
