@@ -102,13 +102,18 @@ On 24 November the owner and assistant agreed to replace that model with
 1.1.0. The addon should reflect the character's own experienced episode, not
 establish objective truth for every player. Three separate questions:
 
-1. Personal result of the skirmish: final participation is Victory, Defeat or
-   Unknown. Terminal PvP death without return is Defeat; a real revival/return
-   to the same confrontation can change the final result. Clear local survival
-   and overcoming/forcing off opponents is Victory even without kills. Forced
-   retreat is Defeat; mutual disengagement or truly missing evidence is Unknown.
-   Death is a fact; lack of a perfect site anchor/complete roster/terminal
-   samples is not a universal veto. Never infer death from invisibility.
+1. Primary skirmish result uses the approved ordered hybrid: decisive
+   observed elimination first (mutual elimination = Draw); terminal PvP death
+   with lost observation before a reliable ending = Defeat; otherwise compare
+   distinct confirmed death episodes at an observed non-elimination ending
+   (fewer friendly deaths = Victory, more = Defeat, equal including 0:0 = Draw).
+   Genuine insufficient ending evidence can exceptionally be Unknown.
+   In progress is lifecycle, not outcome. Death while still observing an
+   allied victory need not be Defeat; solo death to a surviving enemy is.
+   Actual revival/return can continue the encounter. No universal site anchor,
+   complete roster or terminal sample requirement; never invent deaths.
+   Survival/retreat alone is not an outcome.
+
 2. Personal rival score: meaningful contribution to defeating **that rival**,
    not the entire side's outcome and not only last hits. The owner explicitly
    requires damage + teammate's kill and pure healing/support of the ally who
@@ -117,7 +122,7 @@ establish objective truth for every player. Three separate questions:
    death should be evidence-based as well, not a blanket loss against the
    roster. Keep literal killing blows, deaths from a particular finisher, HKs
    and honor separate. A mage I help kill and a rogue who later kills me give
-   mage credit and rogue loss even though the skirmish itself is Defeat.
+   mage credit and rogue loss even if the skirmish itself is Defeat.
    The owner approved one credit per rival per genuine death episode, with
    repeated deaths after revival counted separately, no non-lethal rival
    credits for this milestone, original legacy results retained and supported
@@ -259,30 +264,28 @@ that a fight waits for plausible continuation, including a real return after
 resurrection or stealth, but must close on reliable ending/quiet evidence.
 Ordinary zone borders alone must not split it. Unrelated later PvE and a
 regrouped revenge fight are separate episodes. No exact timeout selected.
-The owner rejected ordinary survival/escape as Victory and proposed Draw
-and casualty counts, then clarified that solo terminal death to a surviving
-enemy is Defeat even after two kills, while staying dead and observing an ally
-finish the enemy side can be Victory. Killing one enemy and escaping alive
-from another can win. The recommended hybrid is decisive observed elimination
-first, terminal local death with loss of observation second, observed ending
-with casualty comparison third (equal including 0:0 = Draw). In progress is
-lifecycle, not result; insufficient observation is not a proven Draw. The
-priority order and rare indeterminate presentation remain a proposal pending
-owner approval. Keep the approved rival credit independent; no change to
-retention, rewards or encounter continuation. See spec section 6.
+The owner rejected survival alone as Victory, considered pure casualty scoring,
+then approved starting implementation of the hybrid model described above and
+in spec section 6. The decisive-resolution / terminal-death / observed
+casualty-balance priority order replaces earlier withdrawal and automatic
+terminal-death assumptions. Keep rival credit, permanent history and rewards
+independent. New edge cases may be refined during implementation; no further
+product approval checkpoint is needed for PR A. Exact UI presentation and
+technical evidence predicates remain implementation choices.
 
-A proposed staged [Character POV milestone roadmap](docs/character-pov-roadmap.md)
-organizes the next work into a product-decision checkpoint, personal outcome,
-rival attribution, integrated UI/migration/reporting, and release verification.
-It is a planning document, not approval of the proposed hybrid outcome refinement,
-a final version number, runtime implementation, or publication.
+The [Character POV milestone roadmap](docs/character-pov-roadmap.md) is
+approved to begin. Next: PR A, personal/POV outcome and encounter lifecycle,
+in a fresh Codex session. PR B (rival attribution) and PR C (UI/migration/
+reporting) follow after review of their dependencies. No release authorization
+or final version-number decision.
 
 1. Keep 1.1.0 stable. Start from current main, read this spec and the existing
    tests. Do not reopen the release or build unnecessary global replay/sync.
 2. Design independent personal participation/end boundaries and versioned
    personal outcome inference. Preserve group context and legacy results;
-   re-evaluate only from retained evidence. Cover death/revival, retreat,
-   interruption, NPC vs PvP, 1v1, group and BG cases.
+   re-evaluate only from retained evidence. Cover decisive elimination,
+   death/observation loss, casualty comparison, Draw, exceptional Unknown,
+   revival, interruption, NPC vs PvP, 1v1, group and BG cases.
 3. Design attributable contribution to an opponent's defeat or our death:
    direct, assisted damage and meaningful linked healing/support, pets; prevent
    cross-window/roster-wide credit and duplicates. Apply the approved per-death
