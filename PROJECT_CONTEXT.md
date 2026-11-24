@@ -172,16 +172,18 @@ features into an approved release. See product spec for all acceptance rules.
 
 ## Technical map and limitations
 
-- NamesInRed/Ledger.lua: saved records, index, existing SkirmishOutcome,
-  IndexSkirmish, PersonalScore, PersonalCombatScore. Currently side outcome is
-  copied to all enemy profiles; personal killing blows/deaths separate already.
-  Rework projections/indexes rather than destructively overwrite old records.
+- NamesInRed/Ledger.lua owns saved records and the in-memory journal index.
+  On first use it projects each battle once. Warm lookups read per-rival
+  totals for contribution, finishing blows and rewards. A save replaces one
+  battle's numeric snapshot even when the recorder updates the same table.
+  The index and projections used by the report are rebuilt from durable
+  evidence after reload.
 - NamesInRed/SkirmishOutcomes.lua continues to derive the legacy side result
   from its site, range and terminal samples. NamesInRed/PersonalSkirmishOutcomes.lua
   implements the Character POV projection from durable timeline and local ending
   evidence. WorldSkirmishes owns participation transitions. Ledger persists the
-  versioned projection alongside the legacy result; UI and existing score
-  consumers still read the legacy result through PR B. The durable timeline
+  versioned projection alongside the legacy result. The full journal uses
+  the personal result, with active and awaiting shown as In progress. The durable timeline
   includes sample-observed revivals and witnessed per-pair action offsets
   within each segment for replay across separate lives.
 - NamesInRed/WorldSkirmishes.lua, SkirmishEvidence.lua, Debug.lua, Kills.lua,
@@ -190,15 +192,18 @@ features into an approved release. See product spec for all acceptance rules.
   rewards. Debug.lua currently requires explicit feign=false to add dead life
   samples; assess class-aware corroboration without blindly treating nil as false.
 - NamesInRed/RivalContributions.lua derives versioned per-rival credits from
-  the shared PvP death episodes used by the personal outcome. Ledger.RivalContributionScore queries the new
-  projection without changing existing UI, honor, HK and direct stats.
-  Full accepted meter pairs and scoped native recap contributors survive
-  diagnostic pruning. See [PR B validation](docs/forever-validation.md#character-pov-pr-b).
+  the shared PvP death episodes used by the personal outcome. The profile,
+  compact cards, nameplates and unit tooltip read the same indexed credit.
+  Scoped legacy and manual results remain available. Accepted meter pairs
+  and scoped recap contributors survive diagnostic pruning. See the
+  [PR B evidence](docs/forever-validation.md#character-pov-pr-b) and
+  [PR C journal validation](docs/forever-validation.md#character-pov-pr-c).
 - CombatDiagnostics.lua and IssueReport.lua capture/export bounded evidence.
   Ledger.RecordMeterAggregates preserves linked pairs/spell/amount permanently.
-  Book.lua, EncounterCards.lua, Nameplates.lua, Portraits.lua, Locale.lua and
-  relevant tooltip code must agree on changed score semantics; use native
-  templates and concise localized labels, consistent EN/RU and all supported
+  Report cards include the personal outcome's coverage, boundary and
+  casualties, and aliased credit evidence linked to durable event indexes.
+  Book.lua, EncounterCards.lua, Nameplates.lua and Portraits.lua share
+  existing frames and counter art. Labels and tooltips cover all supported
   locales. Keep skull level (-1) distinct from death skull and missing level.
 - Full structured COMBAT_LOG_EVENT_UNFILTERED restricted in Forever; do not
   bypass it. UNIT_COMBAT may give recipient/effect/amount (secret possible) but
@@ -284,17 +289,15 @@ technical evidence predicates remain implementation choices.
 PR A implements the independent personal result and participation lifecycle.
 See [the timing and replay notes](docs/forever-validation.md#character-pov-pr-a)
 for the 12-second settlement window, evidence rules and historical results.
-PR A is merged. PR B adds attributable contribution and waits for review
-before PR C in the [Character POV roadmap](docs/character-pov-roadmap.md).
-Keep 1.1.0 as the shipped baseline pending separate release authorization.
+PR A (#43) and PR B (#44) are merged. PR C connects both projections to the
+journal and has a commit-pinned feature preview for review. Keep 1.1.0 as
+the shipped baseline pending separate release authorization.
 
-1. Integrate Ledger and the UI consistently: rival score and compact card,
-   personal outcome in full skirmish card, optional group context, tooltips,
-   nameplates, report reasons and localization. Review migration with actual
-   saved data; don't reset old records or re-label unsupported legacy wins.
-2. Replay original anonymized examples and new healer/assist cases, automated
-   Checks and narrow real-client smoke checks. Update shipped documentation
-   only when feature actually ships. Release with separate authorization.
+1. Review the PR C diff and exact-head preview alongside the replay and mock
+   results in [Forever validation](docs/forever-validation.md#character-pov-pr-c).
+2. Smoke test the preview in Forever and repeat migration on a copy of an
+   older real SavedVariables file if available. Follow the
+   [milestone integration gate](docs/character-pov-roadmap.md#integration-and-release-gate).
 3. Later ideas (not blockers): full timeline viewer, general history pagination,
    optional consenting peer observations, formal duel history, target-frame
    marker, ranks/achievements. See docs/future-ideas.md.

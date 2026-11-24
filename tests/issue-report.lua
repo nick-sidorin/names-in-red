@@ -88,6 +88,51 @@ assert(refs[recent[1]] == "world:17" or refs[recent[2]] == "world:17")
 local fullManual = type(refs[recent[1]]) == "table" and refs[recent[1]] or refs[recent[2]]
 assert(addon.BuildIssueReport(db, nil, nil, fullManual) == old)
 
+-- Replay a saved assisted win alongside the rival's finishing blow against
+-- us. The old side Victory remains visible independently of the POV Defeat.
+for _, file in ipairs({ "SkirmishDeathEvidence", "PersonalSkirmishOutcomes", "RivalContributions" }) do
+    assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
+end
+local helper = aliases[3]
+local scopeBattle = {
+    time = row.time, startedAt = row.time, outcome = "win",
+    personalOutcome = { version = 2, lifecycle = "finalized", outcome = "loss", reason = "terminal-personal-death",
+        coverage = "partial", casualties = { friendly = 1, enemy = 1 } },
+    allies = { { id = aliases[1], isSelf = true }, { id = helper } },
+    enemies = { { id = aliases[2], rivalID = aliases[2] } },
+    events = { { kind = "kill", actorID = helper, targetID = aliases[2], offset = 4 },
+        { kind = "revive", targetID = aliases[2], offset = 5 },
+        { kind = "kill", actorID = aliases[2], targetID = aliases[1], offset = 7 } },
+    observation = { segments = { { offset = 1, duration = 3, contributionLinks = {
+        { category = "HealingDone", actorID = aliases[1], targetID = helper },
+    } } } },
+}
+addon.Ledger.SaveSkirmish(db, "world:18", scopeBattle)
+addon.Ledger.RivalContributionScore(db, aliases[2])
+local projected = addon.BuildIssueReport(db, nil, "world:18")
+for _, part in ipairs({ '"outcome": "loss"', '"outcomeScope": "personal"', '"legacyOutcome": "win"',
+    '"section": "personalOutcome"', '"coverage": "partial"', '"friendlyDeaths": 1', '"enemyDeaths": 1',
+    '"section": "rivalContribution"', '"credits": 2', '"section": "rivalCredit"', '"deathIndex": 1',
+    '"kind": "support"', '"category": "HealingDone"', '"supported": "Player-2"',
+    '"supportedEvidence": "finishing-blow"', '"deathIndex": 3', '"direction": "loss"' }) do
+    Includes(projected, part)
+end
+for line in projected:gmatch("[^\n]+") do
+    if line:find('"kind": "support"', 1, true) then
+        Excludes(line, '"offset":')
+        Excludes(line, '"eventTime":')
+    end
+end
+for _, id in ipairs(aliases) do Excludes(projected, id) end
+scopeBattle.personalOutcome = { version = 2, lifecycle = "awaiting" }
+Includes(addon.BuildIssueReport(db, nil, "world:18"), '"outcome": "ongoing"')
+local direct = { direction = "killsAgainstThem", time = 80 }
+db.rivals[aliases[2]].encounters[2] = direct
+local directional = addon.BuildIssueReport(db, nil, nil, addon.LegacyReportRef(aliases[2], direct))
+Includes(directional, '"section": "rivalCredit"')
+Includes(directional, '"kind": "finishing-blow"')
+Includes(directional, '"outcomeScope": "unavailable"')
+
 local large = { origin = "battleground", observation = { segments = {} }, allies = {}, enemies = {}, events = {} }
 for i = 1, 215 do
     large.enemies[i] = { id = "Player-5566-secret" .. i }

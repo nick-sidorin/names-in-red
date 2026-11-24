@@ -176,7 +176,18 @@ local function CreateClassBadge(parent, rim, rightSide, size)
     return badge
 end
 
-function addon.CreateFramedMarker(parent, size, texture, tooltipText)
+function addon.SetFramedMarkerTooltip(marker, text)
+    if marker.tooltipText == text then return end
+    if marker.tooltipText then addon.HideOwnedTooltip(marker) end
+    marker.tooltipText = text
+    if text and not marker.hasMarkerTooltip then
+        EnableMarkerTooltip(marker)
+        marker.hasMarkerTooltip = true
+    end
+    marker:SetMouseMotionEnabled(text ~= nil)
+end
+
+function addon.CreateFramedMarker(parent, size, texture, tooltipText, glyph)
     local marker = CreateFrame("Frame", nil, parent)
     marker:SetSize(size, size)
     local rim = marker:CreateTexture(nil, "BACKGROUND")
@@ -186,7 +197,7 @@ function addon.CreateFramedMarker(parent, size, texture, tooltipText)
     if not texture then
         local mark = marker:CreateFontString(nil, "OVERLAY", size >= 24 and "GameFontNormalLarge" or "GameFontNormal")
         mark:SetPoint("CENTER")
-        mark:SetText("?")
+        mark:SetText(glyph or "?")
     else
         local icon = marker:CreateTexture(nil, "OVERLAY", nil, 1)
         local iconSize = size * (texture == addon.defeatBannerPath and 0.95 or 0.7)
@@ -198,11 +209,24 @@ function addon.CreateFramedMarker(parent, size, texture, tooltipText)
             icon:SetTexCoord(inset, 1 - inset, inset, 1 - inset)
         end
     end
-    if tooltipText then
-        marker.tooltipText = tooltipText
-        EnableMarkerTooltip(marker)
-    end
+    if tooltipText then addon.SetFramedMarkerTooltip(marker, tooltipText) end
     return marker
+end
+
+function addon.FormatRivalCounters(winCount, lossCount, hideZero, iconOffsetY)
+    if winCount == 0 and lossCount == 0 then return end
+    iconOffsetY = iconOffsetY or 1
+    local wins, losses
+    if not hideZero or winCount > 0 then
+        local inset, edge = addon.smallSwordsInset, 128 - addon.smallSwordsInset
+        wins = ("|T%s:14:14:0:%d:128:128:%d:%d:%d:%d|t %d"):format(
+            addon.swordsIconPath, iconOffsetY, inset, edge, inset, edge, winCount)
+    end
+    if not hideZero or lossCount > 0 then
+        losses = ("|T%s:14:14:0:%d|t %d"):format(addon.smallSkullIconPath, iconOffsetY, lossCount)
+    end
+    if wins and losses then return wins .. "   " .. losses end
+    return wins or losses
 end
 
 function addon.CreateParticipantPortrait(parent, options)

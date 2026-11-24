@@ -313,31 +313,79 @@ local function CreateSkirmishResult(card)
         win = addon.CreateFramedMarker(center, size, addon.swordsIconPath),
         loss = addon.CreateFramedMarker(center, size, addon.defeatBannerPath),
         unknown = addon.CreateFramedMarker(center, size, nil, L.unknownOutcome),
+        draw = addon.CreateFramedMarker(center, size, nil, nil, "="),
+        ongoing = addon.CreateFramedMarker(center, size, nil, nil, "…"),
+        noCredit = addon.CreateFramedMarker(center, size, nil, L.noRivalCreditHint, "–"),
     }
     for _, marker in pairs(markers) do
         marker:SetPoint("TOP", center)
         marker:Hide()
     end
+    local labels = { win = L.winTooltip, loss = L.lossTooltip, unknown = L.shortUnknownOutcome,
+        draw = L.drawOutcome, ongoing = L.ongoingOutcome, noCredit = L.noRivalCredit }
     local caption = Label(center, "GameFontNormalSmall", "TOP", 0, -size - 4, resultWidth)
     caption:SetJustifyH("CENTER")
     caption:SetWordWrap(true)
     caption:SetMaxLines(2)
-    return function(outcome, changed, top)
-        if changed then HideTooltip(markers.unknown) end
+    local tally = Label(center, "GameFontHighlightSmall", "CENTER", 0, 6, resultWidth)
+    tally:SetJustifyH("CENTER")
+    tally:SetWordWrap(true)
+    local previous
+    return function(outcome, changed, top, qualifier, wins, losses)
+        if changed or outcome ~= previous then
+            for _, marker in pairs(markers) do HideTooltip(marker) end
+        end
+        previous = outcome
         for result, marker in pairs(markers) do marker:SetShown(outcome == result) end
+        tally:SetShown(outcome == "mixed")
+        caption:SetShown(outcome ~= "mixed")
         center:SetShown(outcome ~= nil)
         if not outcome then return end
         center:SetPoint("CENTER", card, "TOP", 0, top)
-        caption:SetText(outcome == "win" and L.winTooltip
-            or outcome == "loss" and L.lossTooltip or L.shortUnknownOutcome)
+        if outcome == "mixed" then
+            tally:SetText(addon.FormatRivalCounters(wins, losses, false, 0))
+            return
+        end
+        local label = labels[outcome]
+        local count = outcome == "win" and wins or outcome == "loss" and losses
+        if count and count > 1 then label = L.resultCount:format(label, count) end
+        local marker = markers[outcome]
+        if qualifier == "legacy" then
+            addon.SetFramedMarkerTooltip(marker, L.qualifiedOutcome:format(L.legacyResult, label) .. "\n" .. L.legacyResultHint)
+            label = L.legacyResult
+        elseif qualifier == "manual" then
+            addon.SetFramedMarkerTooltip(marker, nil)
+            label = L.qualifiedOutcome:format(L.manual, label)
+        elseif outcome == "win" or outcome == "loss" or outcome == "unknown" then
+            addon.SetFramedMarkerTooltip(marker, outcome == "unknown" and L.unknownOutcome or nil)
+        end
+        caption:SetText(label)
         if outcome == "loss" then
             caption:SetTextColor(1, 0.72, 0.62)
-        elseif outcome == "unknown" then
+        elseif outcome ~= "win" then
             caption:SetTextColor(unpack(neutralColor))
         else
             caption:SetTextColor(1, 0.82, 0.50)
         end
     end
+end
+
+local function CompactResult(encounter, rivalID)
+    if not encounter then return end
+    local legacy = addon.Ledger.EncounterOutcome(encounter)
+    if encounter.manual and legacy then return legacy, "manual" end
+    local wins, losses = encounter.contributionWins or 0, encounter.contributionLosses or 0
+    if not encounter.skirmishID then
+        local direction = addon.Ledger.LegacyContribution(encounter, rivalID)
+        if direction == "win" then wins = 1 elseif direction == "loss" then losses = 1 end
+    end
+    if wins > 0 and losses > 0 then return "mixed", nil, wins, losses end
+    if wins > 0 then return "win", nil, wins end
+    if losses > 0 then return "loss", nil, nil, losses end
+    if encounter.legacyResult or (not encounter.skirmishID and legacy) then
+        return encounter.legacyResult or legacy, "legacy"
+    end
+    return "noCredit"
 end
 
 local function CreateParticipantTile(parent, isOpponent, openRival, compact)
@@ -475,8 +523,8 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         self.reportRef = encounter and (encounter.skirmishID
             or (addon.LegacyReportRef and addon.LegacyReportRef(rivalID, encounter)))
         self:SetShown(encounter ~= nil)
-        setResult(encounter and (addon.Ledger.EncounterOutcome(encounter) or "unknown"), changed,
-            compactRosterTop - rosterRowHeight / 2)
+        local result, qualifier, wins, losses = CompactResult(encounter, rivalID)
+        setResult(result, changed, compactRosterTop - rosterRowHeight / 2, qualifier, wins, losses)
         if not encounter then return end
 
         local skirmishes = addon.db and addon.db.skirmishes
@@ -715,7 +763,8 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
         local height = RosterHeight(battle)
         local bottom = RosterBottom(height)
         local middle = rosterTop - height / 2
-        setResult(addon.Ledger.SkirmishOutcome(battle) or "unknown", changed, middle)
+        local result, qualifier = addon.Ledger.JournalOutcome(battle)
+        setResult(result, changed, middle, qualifier)
         zone:SetText(LocationLabel(battle))
         score:SetText(("%d × %d"):format(#battle.allies, #battle.enemies))
         coverage:SetShown(battle.rosterComplete ~= true)

@@ -176,6 +176,13 @@ used by cards, profile, tooltip and nameplate.
   reset and stale callback invalidation separate. See the
   [retention and reset checks](forever-validation.md#permanent-battle-history).
   Preserve historical scores when BG recording is disabled.
+- Put history-derived data queried by nameplates and tooltips behind one
+  shared ledger index. Cache numeric per-battle deltas independently of the
+  live record table so late in-place edits can replace an old contribution
+  exactly once. Validate the number of computations in a long-history
+  test after writes, deletes and rebuilds. Keep presentation and diagnostic
+  limits out of permanent storage. See
+  [Character POV PR C](forever-validation.md#character-pov-pr-c).
 - Keep JSONL aliases, bounded exports and optional SavedVariables report path
   intact. No real private captures, secrets or unnecessary personal data in
   Git. Add focused anonymous fixtures instead.
@@ -218,8 +225,10 @@ meaningful tests for changed behavior, unless a concrete reason is stated
 ### Preview and release provenance
 
 For a visual retest, link the GitHub Actions artifact from the exact head
-that includes the approved UI changes. Verify the affected files in the
-archive when parallel branches touch the same dialog. Before publishing,
+that includes the approved UI changes. Stage the install folder from
+the PR head tree even when the workflow checks out GitHub's merge commit to
+test integration. Verify the files against the head before supplying the
+archive. Before publishing,
 resolve the remote tag explicitly and verify the published asset against
 the tagged files. Compare the public CurseForge file independently and
 check pending automatic packaging before any manual upload. The

@@ -133,6 +133,7 @@ local function SetParticipationState(record, state)
     if participation.state == state then return end
     participation.state = state
     addon.RefreshPersonalSkirmish(record.battle)
+    if record.id and addon.RefreshBook then addon.RefreshBook() end
 end
 
 local function ClearParticipationSamples(record)

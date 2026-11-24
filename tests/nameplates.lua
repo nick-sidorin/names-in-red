@@ -4,6 +4,7 @@ local secret = {}
 function issecretvalue(value) return value == secret end
 local unit, guid = "nameplate1", "Player-rival"
 function UnitGUID(token) return token == "player" and "Player-self" or guid end
+function GetLocale() return "enUS" end
 function UnitIsPlayer() return true end
 function UnitIsFriend() return true end
 function UnitName() return "Cute", "Rock" end
@@ -63,7 +64,7 @@ function CreateFrame(_, _, owner)
     return badge
 end
 
-for _, file in ipairs({ "Ledger", "Encounter", "Portraits", "EncounterCards", "Core", "Book", "Nameplates" }) do
+for _, file in ipairs({ "Locale", "Ledger", "SkirmishDeathEvidence", "PersonalSkirmishOutcomes", "RivalContributions", "Encounter", "Portraits", "EncounterCards", "Core", "Book", "Nameplates" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
 
@@ -82,6 +83,21 @@ rival.encounters[2] = { outcome = "loss" }
 addon.RefreshNameplates()
 assert(badge.shown and badge.text:find("TooltipSkull.tga:14:14:0:0|t 1", 1, true))
 assert(not badge.text:find("DefeatBanner.tga", 1, true))
+local _, id = addon.FindVisibleRival(guid, unit)
+assert(id == guid and badge.text:find(addon.L.legacyResult, 1, true))
+local battle = { startedAt = 10, allies = { { id = "Player-self", isSelf = true } },
+    enemies = { { id = guid, rivalID = guid } }, events = {
+        { kind = "kill", actorID = "Player-self", targetID = guid, offset = 1 },
+        { kind = "revive", targetID = guid, offset = 3 },
+        { kind = "kill", actorID = "Player-self", targetID = guid, offset = 6 },
+        { kind = "kill", actorID = guid, targetID = "Player-self", offset = 9 },
+    } }
+addon.RecordSkirmish("plate-fight", battle)
+assert(badge.text == addon.FormatRivalCounters(2, 1, true, 0))
+addon.Ledger.RemoveSkirmish(addon.db, "plate-fight")
+addon.RefreshNameplates()
+assert(badge.text:find(addon.L.legacyResult, 1, true))
+
 pixelFactor, badgeScale = 0.5, 0.9
 assert(events.DISPLAY_SIZE_CHANGED and events.UI_SCALE_CHANGED)
 onEvent(nil, "DISPLAY_SIZE_CHANGED")

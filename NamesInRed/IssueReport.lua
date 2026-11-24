@@ -181,6 +181,7 @@ local function LegacyBattle(db, ref)
     encounter = Table(encounter)
     local opponent = Fields(rival, "class race", "sex")
     opponent.id, opponent.level = ref.rivalID, Number(encounter.rivalLevel)
+    if Read(addon.Ledger.LegacyContribution, encounter, ref.rivalID) then opponent.rivalID = ref.rivalID end
     local manual, direction = Flag(encounter.manual), Token(encounter.direction)
     local outgoing = direction == "killsAgainstThem"
     local outcome = Token(encounter.outcome)
@@ -365,7 +366,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
     end
 
     local aliases, roster, selfID, aliasCount = {}, {}, nil, 0
-    local rosterAliases = {}
+    local rosterAliases, rivalAliases = {}, {}
     local function Alias(value)
         value = addon.Readable(value)
         if type(value) ~= "string" or value == "" then return end
@@ -390,24 +391,22 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
     end
 
     local resolution = Table(battle.resolution)
-    local outcome = Token(battle.outcome) or Token(resolution.outcome)
-    local reason = Token(resolution.reason)
-    if not outcome and Flag(battle.rosterComplete) == true and not next(Table(battle.observation))
-        and not next(resolution) then
-        -- Ledger can infer a result on older, complete rosters. Invalid historical
-        -- data must not prevent the rest of the sanitized report from opening.
-        local ok, inferred = pcall(addon.Ledger.SkirmishOutcome, battle)
-        if ok then outcome = Token(inferred) end
-    end
-    if outcome ~= "win" and outcome ~= "loss" then outcome = "unknown" end
+    local personal = Table(battle.personalOutcome)
+    local outcome, qualifier = Read(addon.Ledger.JournalOutcome, battle)
+    local oldOutcome = Read(addon.Ledger.EncounterOutcome, battle) or Read(addon.Ledger.SkirmishOutcome, battle)
+    local scope = qualifier or (next(personal) and not Flag(battle.manual) and "personal") or "unavailable"
     local record = Fields(battle, nil, "sequence time startedAt recordedAt mapID x y instanceMapID", "rosterComplete manual")
     record.id = type(battleID) == "string" and battleID:match("^[%a]+:%d+$") and battleID or nil
     record.origin = addon.Readable(battle.origin) == "battleground" and "Battleground" or "Open World"
-    record.zone, record.outcome = Zone(battle.zone), outcome
+    record.zone, record.outcome, record.outcomeScope = Zone(battle.zone), Token(outcome) or "unknown", scope
     record.dateUTC = record.time and record.time >= 0 and record.time <= 4102444800
         and Read(date, "!%Y-%m-%dT%H:%M:%SZ", record.time) or nil
-    record.reason = reason or (record.manual and "manual-outcome")
-        or (outcome ~= "unknown" and "legacy-recorded-or-elimination") or "unavailable"
+    record.reason = scope == "personal" and Token(personal.reason)
+        or (scope == "manual" and "manual-outcome") or (scope == "legacy" and
+            (Token(resolution.reason) or "legacy-recorded-or-elimination")) or (outcome == "ongoing" and "pending") or "unavailable"
+    if scope ~= "manual" then
+        record.legacyOutcome = Token(oldOutcome) or ((battle.outcome or next(resolution)) and "unknown") or nil
+    end
     write("record", record)
 
     for _, side in ipairs({ "allies", "enemies" }) do
@@ -418,6 +417,8 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
             if fields.player then
                 roster[#roster + 1] = id
                 rosterAliases[id] = fields.player
+                local rivalID = addon.Readable(player.rivalID)
+                if side == "enemies" and type(rivalID) == "string" then rivalAliases[rivalID] = fields.player end
             end
             if fields.isSelf then selfID = id end
             write("participant", fields)
@@ -426,9 +427,38 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
         counts.side, counts.observed = side, #Table(battle[side])
         write("side", counts)
     end
+    local pov = Fields(personal, "lifecycle outcome reason coverage boundary finalizedBy", "version")
+    pov.availability = scope
+    local casualties = Table(personal.casualties)
+    pov.friendlyDeaths, pov.enemyDeaths = Number(casualties.friendly), Number(casualties.enemy)
+    write("personalOutcome", pov)
+
+    local contribution = Table(Read(addon.Ledger.SkirmishContributionEvidence, journal, battleID, battle))
+    local credits = Table(contribution.credits)
+    local count = #credits
+    write("rivalContribution", { version = Number(contribution.version), credits = count,
+        availability = scope == "manual" and "manual" or count > 0 and "confirmed-links-only"
+            or (scope == "personal" and "no-confirmed-credit" or "legacy-or-unavailable") })
+    each("rivalCredit", credits, 128, function(credit)
+        local rival = rivalAliases[addon.Readable(credit.rivalID)]
+        local actor = rosterAliases[addon.Readable(credit.actorID)]
+        local victim = rosterAliases[addon.Readable(credit.victimID)]
+        if not rival or not actor or not victim then return end
+        local proof = Table(credit.evidence)
+        local via = Table(proof.viaEvidence)
+        local fields = Fields(proof, "kind category petEndpoint", "segmentIndex offset eventTime eventIndex")
+        fields.rival, fields.actor, fields.target = rival, actor, victim
+        fields.direction, fields.deathIndex = Token(credit.direction), Number(credit.deathIndex)
+        fields.supported = rosterAliases[addon.Readable(proof.viaID)]
+        fields.supportedEvidence = Token(via.kind)
+        fields.supportedEventIndex, fields.supportedEventTime = Number(via.eventIndex), Number(via.eventTime)
+        fields.supportedOffset, fields.supportedCategory = Number(via.offset), Token(via.category)
+        write("rivalCredit", fields)
+    end)
+
     local result = Fields(resolution, "ending reason interrupted coverage meter localLife favorsVictory favorsDefeat",
         "unitsRead positionsUnavailable statesUnavailable")
-    result.evidence = "derived"
+    result.evidence, result.scope = "derived", "legacy-side"
     write("resolution", result)
     local capture = Table(battle.combatDiagnostics)
     local captured = CombatCoverage(capture, write)

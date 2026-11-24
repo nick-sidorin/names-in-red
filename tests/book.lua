@@ -1,6 +1,6 @@
 local addon, callback, locale = { db = { rivals = {} } }, nil, "enUS"
 local pixelFactor, dividerScale = 0.8, 0.7
-local displayHandlers = {}
+local displayHandlers, bookLogin = {}
 PixelUtil = {
     GetPixelToUIUnitFactor = function() return pixelFactor end,
     GetNearestPixelSize = function(size, scale, minimum)
@@ -12,10 +12,16 @@ local function DisplayChanged()
 end
 function GetLocale() return locale end
 function CreateFrame()
-    local layoutFrame
+    local layoutFrame, playerLogin
     return {
-        RegisterEvent = function(_, event) if event == "UI_SCALE_CHANGED" then layoutFrame = true end end,
-        SetScript = function(_, _, handler) if layoutFrame then displayHandlers[#displayHandlers + 1] = handler end end,
+        RegisterEvent = function(_, event)
+            if event == "UI_SCALE_CHANGED" then layoutFrame = true end
+            if event == "PLAYER_LOGIN" then playerLogin = true end
+        end,
+        SetScript = function(_, _, handler)
+            if layoutFrame then displayHandlers[#displayHandlers + 1] = handler end
+            if playerLogin then bookLogin = handler end
+        end,
     }
 end
 
@@ -101,7 +107,9 @@ LoadLocale("NamesInRed", addon)
 
 local secret = {}
 function issecretvalue(value) return value == secret end
-assert(loadfile("NamesInRed/Ledger.lua"))("NamesInRed", addon)
+for _, file in ipairs({ "Ledger", "SkirmishDeathEvidence", "PersonalSkirmishOutcomes", "RivalContributions" }) do
+    assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
+end
 assert(loadfile("NamesInRed/Encounter.lua"))("NamesInRed", addon)
 assert(loadfile("NamesInRed/Portraits.lua"))("NamesInRed", addon)
 assert(loadfile("NamesInRed/EncounterCards.lua"))("NamesInRed", addon)
@@ -144,9 +152,9 @@ assert(#tooltipLines == 3)
 assert(tooltipLines[1] == " ")
 assert(tooltipLines[2] == addon.title)
 local art = "|TInterface\\AddOns\\NamesInRed\\Art\\"
-local victory = art .. "CrossedSwords.tga:14:14:0:1:128:128:22:106:22:106|t"
+local swordCounter = art .. "CrossedSwords.tga:14:14:0:1:128:128:22:106:22:106|t"
 local loss = art .. "TooltipSkull.tga:14:14:0:1|t"
-assert(tooltipLines[3] == victory .. " 2   " .. loss .. " 1")
+assert(tooltipLines[3] == addon.L.historyPair:format(addon.L.legacyResult, 2, 1))
 addon.db.showUnitTooltip = false
 callback(GameTooltip, { guid = "Player-test" })
 assert(#tooltipLines == 3)
@@ -201,7 +209,7 @@ local manualRival = addon.db.rivals[manualID]
 function GameTooltip:GetUnit() return "Айро", "mouseover", "Player-ayro" end
 callback(GameTooltip, { guid = "Player-ayro" })
 assert(#tooltipLines == 9)
-assert(tooltipLines[9] == victory .. " 0   " .. loss .. " 1")
+assert(tooltipLines[9] == addon.L.historyPair:format(addon.L.manual, 0, 1))
 assert(addon.db.rivals[manualID] == manualRival and manualRival.deathsToThem == 1)
 assert(addon.db.rivals["Player-ayro"] == nil)
 surname = nil
@@ -217,14 +225,36 @@ assert(#tooltipLines == 12)
 print("Full-name manual tooltip checks passed")
 
 local duelGUID = "Player-reciprocal"
-addon.db.rivals[duelGUID] = { displayName = "Reciprocal Rival" }
-addon.Ledger.SaveSkirmish(addon.db, "tooltip-skirmish", {
-    allies = { { id = "Player-self", isSelf = true } }, enemies = { { id = duelGUID, rivalID = duelGUID } },
-    events = { { kind = "kill", actorID = "Player-self", targetID = duelGUID },
-        { kind = "revive", targetID = duelGUID }, { kind = "kill", actorID = duelGUID, targetID = "Player-self" } },
-})
+local directBattle = {
+    startedAt = 100, time = 100,
+    personalOutcome = { lifecycle = "finalized", outcome = "draw", version = 2 },
+    allies = { { id = "Player-self", isSelf = true } }, enemies = { { id = duelGUID, rivalID = duelGUID, name = "Reciprocal Rival" } },
+    events = { { kind = "kill", actorID = "Player-self", targetID = duelGUID, offset = 1 },
+        { kind = "revive", targetID = duelGUID, offset = 4 },
+        { kind = "kill", actorID = duelGUID, targetID = "Player-self", offset = 5 } },
+}
+local duelRef = "tooltip-skirmish"
+local refreshes = 0
+function GameTooltip:IsShown() return true end
+function GameTooltip:IsTooltipType(kind) return kind == Enum.TooltipDataType.Unit end
+function GameTooltip:RefreshDataNextUpdate() refreshes = refreshes + 1 end
+addon.RecordSkirmish(duelRef, directBattle)
 callback(GameTooltip, { guid = duelGUID })
-assert(#tooltipLines == 15 and tooltipLines[15] == addon.L.personalFinishingBlows:format(1, 1))
+assert(refreshes == 1 and #tooltipLines == 16)
+assert(tooltipLines[15] == swordCounter .. " 1   " .. loss .. " 1")
+assert(tooltipLines[16] == addon.L.personalFinishingBlows:format(1, 1))
+directBattle.allies[2] = { id = "Player-ally" }
+directBattle.events[4] = { kind = "revive", targetID = "Player-self", offset = 5.5 }
+directBattle.events[5] = { kind = "kill", actorID = "Player-ally", targetID = duelGUID, offset = 8 }
+directBattle.observation = { segments = { {
+    offset = 6, duration = 3,
+    contributionLinks = { { category = "HealingDone", actorID = "Player-self", targetID = "Player-ally" } },
+} } }
+addon.RecordSkirmish(duelRef, directBattle)
+callback(GameTooltip, { guid = duelGUID })
+assert(refreshes == 2 and #tooltipLines == 20)
+assert(tooltipLines[19] == swordCounter .. " 2   " .. loss .. " 1")
+assert(tooltipLines[20] == addon.L.personalFinishingBlows:format(1, 1))
 
 local function MockRegion(parent)
     local region = { parent = parent, children = {}, shown = true, scripts = {} }
@@ -624,6 +654,7 @@ CheckLevelLabel(assert(FindText(name.parent, 42)))
 name.parent.scripts.OnClick(name.parent)
 assert(selectedRival == "Player-test")
 local finished = { allies = { allies[1] }, enemies = { enemies[1] }, rosterComplete = true,
+    personalOutcome = { lifecycle = "finalized", outcome = "win" },
     events = { { kind = "kill", actorID = "me", targetID = "enemy" } } }
 card:SetSkirmish(finished)
 CheckRewards(card, "0", "0", 463450)
@@ -634,7 +665,8 @@ assert(fullOutcome.anchor[4] == 0 and FindText(fullOutcome, addon.L.winTooltip))
 assert(fullVictory.width == 56 and fullVictory.height == 56)
 assert(FindRegion(fullVictory, "atlas", "UI-HUD-UnitFrame-SmallCircle"))
 assert(not fullVictory.scripts.OnEnter)
-card:SetSkirmish({ allies = finished.allies, enemies = finished.enemies, outcome = "loss", events = {} })
+card:SetSkirmish({ allies = finished.allies, enemies = finished.enemies,
+    personalOutcome = { lifecycle = "finalized", outcome = "loss" }, events = {} })
 assert(CheckRewards(card, "0", "0", 463450) == rewardIcon)
 assert(not FindText(card, addon.L.finishingBlows) and not FindText(card, "0:11"))
 assert(not GameTooltip.shown and not fullVictory.shown)
@@ -643,6 +675,22 @@ assert(FindText(fullOutcome, addon.L.lossTooltip))
 assert(fullDefeat.width == fullVictory.width and fullDefeat.height == fullVictory.height)
 local bannerArt = assert(FindRegion(fullDefeat, "texture", addon.defeatBannerPath))
 assert(bannerArt.width >= 0.9 * fullDefeat.width and not fullDefeat.scripts.OnEnter)
+card:SetSkirmish({ allies = finished.allies, enemies = finished.enemies, outcome = "win", events = {} })
+assert(FindText(fullOutcome, addon.L.legacyResult) and not FindText(fullOutcome, addon.L.winTooltip))
+fullVictory.scripts.OnEnter(fullVictory)
+assert(GameTooltip.shown and GameTooltip.title:find(addon.L.winTooltip, 1, true))
+card:SetSkirmish(directBattle)
+assert(FindText(fullOutcome, addon.L.drawOutcome) and FindText(fullOutcome, "="))
+assert(not GameTooltip.shown)
+directBattle.personalOutcome = { lifecycle = "awaiting", outcome = "win" }
+card:SetSkirmish(directBattle)
+assert(FindText(fullOutcome, addon.L.ongoingOutcome) and FindText(fullOutcome, "…"))
+directBattle.personalOutcome = { lifecycle = "active" }
+card:SetSkirmish(directBattle)
+assert(FindText(fullOutcome, addon.L.ongoingOutcome))
+directBattle.personalOutcome = { lifecycle = "finalized", outcome = "unknown" }
+card:SetSkirmish(directBattle)
+assert(FindText(fullOutcome, addon.L.shortUnknownOutcome) and FindText(fullOutcome, "?"))
 card:SetSkirmish({ allies = { allies[1] }, enemies = { enemies[1] }, events = {} })
 assert(not GameTooltip.shown and not fullDefeat.shown and FindText(card, "?"))
 assert(not name.parent.highlightLocked)
@@ -701,7 +749,7 @@ DisplayChanged()
 for _, line in ipairs({ headerLine, blowsLine, compactLine }) do
     assert(line.height == 2 * pixelFactor / dividerScale)
 end
-local first = { skirmishID = "battle-one", outcome = "win", opponentDeathIndex = 1, mapID = 1424, x = 0.45, y = 0.51,
+local first = { skirmishID = "battle-one", contributionWins = 1, opponentDeathIndex = 1, mapID = 1424, x = 0.45, y = 0.51,
     zone = "Hillsbrad Foothills", time = 100, player = allies[1], opponent = enemies[1],
     playerLevel = 51, rivalLevel = 42 }
 first.player.race, first.player.sex = "orc", 2
@@ -709,10 +757,10 @@ first.opponent.race, first.opponent.sex, first.opponent.classLabel = "human", 3,
 function GetRaceAtlas(race, gender) return race .. "-" .. gender end
 compact:SetEncounter(first)
 assert(CheckRewards(compact, "0", "0", 463450).anchor[1] == "BOTTOMRIGHT")
-addon.db.skirmishes = { [first.skirmishID] = large }
+addon.db.skirmishes[first.skirmishID] = large
 compact:SetEncounter(first)
 CheckRewards(compact, "3", "4010", 463450)
-addon.db.skirmishes = nil
+addon.db.skirmishes[first.skirmishID] = nil
 assert(FindText(compact, "Hillsbrad Foothills") and FindText(compact, date("%x", first.time)))
 assert(FindText(compact, "Hillsbrad Foothills").anchor[1] == "LEFT")
 assert(FindText(compact, "My Character") and FindText(compact, "Test Rival"))
@@ -838,14 +886,14 @@ addon.ShowEncounterWaypoint = function(encounter) mapped = encounter; return tru
 map.scripts.OnClick()
 assert(openedMap and mapped == first)
 
-compact:SetEncounter({ skirmishID = "battle-loss", outcome = "loss", playerDeathIndex = 1 })
+compact:SetEncounter({ skirmishID = "battle-loss", contributionLosses = 1, playerDeathIndex = 1 })
 assert(not GameTooltip.shown and not CenterMarker(swords))
 local defeat = assert(CenterMarker(banner))
 assert(not CenterMarker(skull))
 assert(FindText(defeat.parent, addon.L.lossTooltip) and not defeat.scripts.OnEnter)
 CheckPortraitMarker(myRim, skull, "TOPRIGHT")
 assert(not PortraitMarker(opponentRim, swords) and defeat.parent.anchor[4] == 0)
-compact:SetEncounter({ skirmishID = "win-while-dead", outcome = "win", playerDeathIndex = 1, opponentDeathIndex = 2 })
+compact:SetEncounter({ skirmishID = "win-while-dead", contributionWins = 1, playerDeathIndex = 1, opponentDeathIndex = 2 })
 assert(not GameTooltip.shown and CenterMarker(swords) and not CenterMarker(banner))
 CheckPortraitMarker(myRim, skull, "TOPRIGHT")
 CheckPortraitMarker(opponentRim, skull, "TOPLEFT")
@@ -854,12 +902,12 @@ assert(GameTooltip.shown and GameTooltip.title == addon.L.portraitDeath)
 compact:SetEncounter({ skirmishID = "player-casualty", playerDeathIndex = 1 })
 assert(not GameTooltip.shown and not CenterMarker(swords) and not CenterMarker(banner))
 assert(PortraitMarker(myRim, skull) and not PortraitMarker(opponentRim, skull))
-local unknownMark = assert(FindText(compact, "?"))
-assert(unknownMark.parent.shown and FindText(unknownMark.parent.parent, addon.L.shortUnknownOutcome))
-unknownMark.parent.scripts.OnEnter(unknownMark.parent)
-assert(GameTooltip.shown and GameTooltip.title == addon.L.unknownOutcome)
+local noCreditMark = assert(FindText(compact, "–"))
+assert(noCreditMark.parent.shown and FindText(noCreditMark.parent.parent, addon.L.noRivalCredit))
+noCreditMark.parent.scripts.OnEnter(noCreditMark.parent)
+assert(GameTooltip.shown and GameTooltip.title == addon.L.noRivalCreditHint)
 compact:SetEncounter({ skirmishID = "battle-two" })
-assert(not GameTooltip.shown and unknownMark.parent.shown)
+assert(not GameTooltip.shown and noCreditMark.parent.shown)
 assert(not PortraitMarker(myRim, skull) and not PortraitMarker(opponentRim, skull))
 assert(not FindText(compact, 51) and not FindText(compact, 42) and not map.shown)
 open.scripts.OnClick()
@@ -887,7 +935,17 @@ assert(FindText(compact, "Legacy Rival") and loadedSelfPortrait and not open.sho
 UnitRace = unitRace
 assert(rivalPortrait.texture == "Interface\\Icons\\INV_Misc_QuestionMark")
 assert(rivalPortrait.texcoords[1] < rivalPortrait.texcoords[2])
-assert(not CenterMarker(swords) and unknownMark.parent.shown)
+assert(not CenterMarker(swords) and noCreditMark.parent.shown)
+local rivalSummary = assert(addon.Ledger.RivalSkirmishes(addon.db, duelGUID)[1])
+compact:SetEncounter(rivalSummary, nil, duelGUID)
+assert(FindText(compact, addon.FormatRivalCounters(2, 1, false, 0)))
+assert(not CenterMarker(swords) and not CenterMarker(banner))
+compact:SetEncounter({ contributionLosses = 2 })
+assert(FindText(compact, addon.L.resultCount:format(addon.L.lossTooltip, 2)) and CenterMarker(banner))
+compact:SetEncounter({ manual = true, direction = "killsAgainstThem" })
+assert(FindText(compact, addon.L.qualifiedOutcome:format(addon.L.manual, addon.L.winTooltip)))
+compact:SetEncounter({ outcome = "loss" })
+assert(FindText(compact, addon.L.legacyResult) and CenterMarker(banner))
 compact:SetEncounter(first)
 AssertFullPortrait(rivalPortrait, true)
 compact:SetEncounter(nil)
@@ -940,3 +998,86 @@ assert(FindText(compact, 53) and not FindRegion(compact, "atlas", skullLevelAtla
 compact:SetEncounter({}, knownRival, rivalID)
 assert(not FindText(compact, 53) and not FindRegion(compact, "atlas", skullLevelAtlas))
 print("Numeric, skull-level, and unknown badges survive card recycling")
+
+-- Open the journal through the minimap and verify the actual profile's
+-- native stats and latest card after late evidence, removal and data reset.
+do
+    local createFrame = CreateFrame
+    local book, shortcut, openProfile
+    UIParent, Minimap = MockRegion(), MockRegion()
+    Minimap:SetSize(120, 120)
+    function Minimap:GetFrameLevel() return 1 end
+    function Minimap:GetWidth() return self.width end
+    function Minimap:GetHeight() return self.height end
+    UISpecialFrames, StaticPopupDialogs, SOUNDKIT = {}, {}, {}
+    tinsert, BACK = table.insert, "Back"
+    function PlaySound() end
+    function PanelTemplates_SetNumTabs(parent)
+        parent.Tabs = {}
+        for _, child in ipairs(parent.children) do
+            if child.template == "PanelTopTabButtonTemplate" then table.insert(parent.Tabs, child) end
+        end
+    end
+    function PanelTemplates_SetTab(parent, id) parent.selectedTab = id end
+    function PanelTemplates_GetSelectedTab(parent) return parent.selectedTab end
+    function PanelTemplates_TabResize() end
+    function addon.CreateRivalList(parent, selectRival)
+        openProfile = selectRival
+        return MockRegion(parent), MockRegion(parent)
+    end
+    function CreateFrame(frameType, frameName, parent, template)
+        local frame = createFrame(frameType, frameName, parent, template)
+        function frame:GetName() return frameName end
+        function frame:GetWidth() return self.width or 0 end
+        function frame:GetHeight() return self.height or 0 end
+        function frame:GetFrameLevel() return 1 end
+        function frame:IsShown() return self.shown end
+        function frame:GetVerticalScroll() return self.scroll or 0 end
+        function frame:SetVerticalScroll(value) self.scroll = value end
+        if template == "SearchBoxTemplate" then frame:SetText("") end
+        if template == "ScrollFrameTemplate" then frame.ScrollBar = MockRegion(frame) end
+        if template == "PanelTopTabButtonTemplate" then
+            frame.LeftActive, frame.MiddleActive, frame.RightActive = MockRegion(), MockRegion(), MockRegion()
+        end
+        if template == "LargeSideTabButtonTemplate" then frame.Icon = MockRegion(frame) end
+        if frameName == "NamesInRedMinimapButton" then shortcut = frame end
+        if frameName == "NamesInRedRivalBook" then
+            book = frame
+            local portrait = MockRegion(frame)
+            function frame:GetPortrait() return portrait end
+            frame.PortraitContainer = MockRegion(frame)
+            frame.Bg, frame.TopTileStreaks = MockRegion(frame), MockRegion(frame)
+        end
+        return frame
+    end
+
+    directBattle.rewards = { [duelGUID] = { honorableKills = 1, honor = 5 } }
+    addon.RecordSkirmish(duelRef, directBattle)
+    bookLogin({ UnregisterEvent = function() end })
+    shortcut.scripts.OnClick(shortcut, "LeftButton")
+    openProfile(duelGUID)
+    local function ProfileStat(label, value)
+        assert(FindText(book, addon.L.statValue:format(label, value)))
+    end
+    ProfileStat(addon.L.wins, 2)
+    ProfileStat(addon.L.losses, 1)
+    ProfileStat(addon.L.honorableKills, 1)
+    ProfileStat(addon.L.honor, 5)
+    assert(FindText(book, addon.FormatRivalCounters(2, 1, false, 0)))
+
+    directBattle.observation.segments[1].contributionLinks = {}
+    addon.RecordSkirmish(duelRef, directBattle)
+    ProfileStat(addon.L.wins, 1)
+    ProfileStat(addon.L.losses, 1)
+    ProfileStat(addon.L.honorableKills, 1)
+    ProfileStat(addon.L.honor, 5)
+    assert(FindText(book, addon.FormatRivalCounters(1, 1, false, 0)))
+
+    local before = refreshes
+    StaticPopupDialogs.NAMES_IN_RED_DELETE_RIVAL.OnAccept(nil, duelGUID)
+    assert(not addon.db.rivals[duelGUID] and refreshes == before + 1)
+    assert(not FindText(book, addon.FormatRivalCounters(1, 1, false, 0)))
+    addon.ResetData()
+    assert(not next(addon.db.rivals) and refreshes == before + 2)
+end
+print("Journal profile, compact card, unit tooltip refresh, removal and reset stay synchronized")

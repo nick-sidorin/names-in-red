@@ -257,3 +257,97 @@ Ledger.Open(db)
 all = Credits(fight, 2)
 assert(all[1].rivalID == mage and all[2].rivalID == rogue and lethal.recapDamage[mage] == 108)
 print("Rival contribution, evidence scope, multiple life episodes and historical replay passed")
+
+-- Build a long existing history before the first hot-path demand. Repeated
+-- nameplate/tooltip queries must reuse each battle's projected evidence.
+local evaluate = addon.EvaluateRivalContributions
+local evaluations = 0
+addon.EvaluateRivalContributions = function(battle)
+    evaluations = evaluations + 1
+    return evaluate(battle)
+end
+local archive = Ledger.Open()
+local rival = Ledger.Add(archive, mage, "Mock Mage")
+local legacyGroup = { time = 80, outcome = "loss", honor = 12 }
+local manualWin = { manual = true, direction = "killsAgainstThem" }
+local legacyDirect = { time = 90, direction = "killsAgainstThem", honorableKills = 1, honor = 3 }
+local undated = { direction = "deathsToThem" }
+rival.encounters = { legacyGroup, manualWin, legacyDirect, undated }
+local length = 1050
+for index = 1, length do
+    local battle = Fight()
+    battle.startedAt, battle.time = index * 100, index * 100
+    battle.outcome, battle.observation = nil, nil
+    battle.enemies = { battle.enemies[1] }
+    battle.personalOutcome = { version = 2, lifecycle = "finalized", outcome = "loss" }
+    battle.rewards = { [mage] = { honorableKills = 1, honor = 2 } }
+    Life(battle, "kill", mage, 4, me)
+    Ledger.SaveSkirmish(archive, "archive:" .. index, battle)
+end
+assert(evaluations == 0)
+
+local function Score(w, l)
+    local wins, losses = Ledger.RivalContributionScore(archive, mage)
+    assert(wins == w and losses == l, ("%d, %d; expected %d, %d"):format(wins, losses, w, l))
+end
+
+Score(length + 1, 0)
+assert(evaluations == length and #Ledger.RivalSkirmishes(archive, mage) == length)
+local function AssertTotals(w, l, directKills, directDeaths)
+    Score(w, l)
+    local kills, deaths = Ledger.PersonalCombatScore(archive, mage)
+    assert(kills == directKills and deaths == directDeaths)
+    local hk, honor = Ledger.RivalRewards(archive, mage)
+    assert(hk == length + 1 and honor == 2 * length + 15)
+    local manualWins, manualLosses, legacyWins, legacyLosses = Ledger.RivalHistoryContext(archive, mage)
+    assert(manualWins == 1 and manualLosses == 0 and legacyWins == 0 and legacyLosses == 1)
+end
+for _ = 1, 300 do
+    AssertTotals(length + 1, 0, length + 1, 1)
+    assert(Ledger.RivalContributionScore(archive, "Player-absent") == 0)
+end
+
+local first = archive.skirmishes["archive:1"]
+assert(Ledger.SkirmishContributionEvidence(archive, "archive:1", first).credits[1].rivalID == mage)
+assert(evaluations == length)
+
+-- A late qualification on a reused table adds one assisted win after a
+-- revive and one loss. It leaves the original direct kill and side untouched.
+Life(first, "revive", mage, 5)
+Life(first, "kill", mage, 9, brother)
+Life(first, "kill", me, 11, mage)
+first.observation = { segments = {} }
+Link(Segment(first, 6, 4), "HealingDone", me, brother)
+Ledger.SaveSkirmish(archive, "archive:1", first)
+assert(evaluations == length + 1 and first.personalOutcome.outcome == "loss")
+AssertTotals(length + 2, 1, length + 1, 2)
+local last = Fight()
+last.time, last.startedAt = 200000, 200000
+last.enemies = { last.enemies[2] }
+Life(last, "kill", rogue, 7, me)
+Ledger.SaveSkirmish(archive, "archive:new", last)
+assert(evaluations == length + 2 and Ledger.RivalContributionScore(archive, rogue) == 1)
+Ledger.RemoveSkirmish(archive, "archive:1")
+Score(length, 0)
+assert(evaluations == length + 2 and #Ledger.RivalSkirmishes(archive, mage) == length - 1)
+
+-- Repeat reload from the same SavedVariables. The original rows and their
+-- fields survive, and a cold rebuild yields the same score each time.
+for i = 1, 2 do
+    assert(Ledger.Open(archive) == archive and rival.encounters[4] == undated)
+    assert(rival.encounters[1] == legacyGroup and legacyGroup.outcome == "loss")
+    assert(rival.encounters[2] == manualWin and manualWin.time == nil)
+    assert(rival.encounters[3] == legacyDirect and legacyDirect.outcome == nil)
+    Score(length, 0)
+    assert(evaluations == length + 2 + length * i)
+end
+Ledger.Remove(archive, rogue)
+assert(Ledger.RivalContributionScore(archive, rogue) == 0)
+assert(evaluations == 3 * length + 3)
+assert(archive.skirmishes["archive:new"] == last and #last.events == 1 and last.enemies[1].id == rogue)
+Score(length, 0)
+Ledger.Clear(archive)
+Score(0, 0)
+assert(not next(archive.rivals) and not archive.skirmishes)
+assert(evaluations == 3 * length + 3)
+print("Character POV score index keeps 1,050 battles, updates affected records only, and rebuilds on reload")

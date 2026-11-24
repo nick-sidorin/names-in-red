@@ -1555,7 +1555,7 @@ battleground scoreboard cannot decide a local fight. The existing replay also
 cannot recover Gnomeregan's missing 20:21 card or assign the 14 historical
 unlinked honor. Verify ordinary border pursuit, a real ghost-run return, and
 true loading/respawn boundaries in Forever before activation/release. The
-native UI and rival scoring changes remain in later PRs.
+native UI and rival scoring changes are documented under PR C.
 
 ### Character POV PR B
 
@@ -1650,6 +1650,76 @@ Existing Duskwood, Gnomeregan and battleground fixtures still exercise the
 legacy and personal outcome paths. Verification used Forever-shaped mocks
 and the retained public API evidence above. Runtime event delivery on a fresh
 Forever client remains unverified for PR B.
+
+### Character POV PR C
+
+**Journal and compatibility.** The full card binds `Ledger.JournalOutcome`.
+PR A's active and awaiting states both produce In progress. Finalized
+Victory, Defeat, Draw and exceptional Unknown have distinct display states.
+A compact card reads the matching rival's wins and losses. Repeated credit
+uses a count and simultaneous directions use the shared inline counter art.
+A linked rival without credit stays visible. Historical side results remain
+labelled on cards and in profile/hover context. A timestamped old directional
+row can supply one direct credit when its rival resolves to a player ID.
+Manual entries, undated directional rows and group verdicts supply no new
+participation evidence. Existing manual labels, raw timeline, direct totals
+and reward fields remain available. The profile keeps HK and honor separate.
+The nameplate shows a labelled historical fallback when the rival lacks a
+verified score; the unit tooltip shows separate manual/legacy totals and
+literal finishing blows.
+
+**Index and invalidation.** The ledger lazily builds one in-memory projection
+per loaded database. Warm nameplate and tooltip queries look up the rival's
+totals without replaying the timeline. Save subtracts the previous numeric
+snapshot for that battle ID and applies its new projection even if the
+recorder edited the original table in place. Late meter/recap updates reach
+that same write path. Battle deletion subtracts the snapshot. Rival deletion
+removes the roster link and refreshes each affected projection while keeping
+the shared battle and timeline. Reset clears the maps. Reload invalidates
+them after the existing additive restore. The older flat list has a per-rival
+summary invalidated by its encounter writer. The recent-view cap is 100;
+a rival's permanent history and its index have no count or age cap. Tests
+exercise a cold build of 1,050 battles, 300 iterations of warm queries,
+one-battle recomputation after late evidence, deletion, reset and two reloads.
+
+**Native references.** [Forever 1.60.1 build 71037](https://github.com/Gethe/wow-ui-source/tree/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns)
+was inspected for this integration. The profile uses the existing
+`ProfessionsReagentSlotBaseTemplate` with the 50-pixel slot, 39-pixel button
+and authored name inset from `Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeReagentSlotBase.xml`.
+The journal retains the profession open/close sounds from
+`Blizzard_Professions/Blizzard_ProfessionsFrame.lua`. `EncounterCards.lua`
+shares the existing framed result component on full and compact cards
+with the same circle atlas, portraits and action buttons. Blizzard has no
+result widget for a personal contribution tally, so both directions use
+the same inline icon format as the profile's hover and nameplate displays.
+`Blizzard_NamePlates/Blizzard_NamePlateUnitFrame.lua` provides the name and
+health-bar anchors. The tooltip post-call uses the existing
+`GameTooltipDataMixin:RefreshDataNextUpdate` path in
+`Blizzard_GameTooltip/Mainline/GameTooltip.lua` after writes and deletion.
+Mocked layout, options and locale checks verify the wiring. In-client
+legibility, spacing across locales, audio, restrictions and event delivery
+remain to be checked.
+
+**Issue reports and replay.** The bounded JSONL adds personal lifecycle,
+coverage, reason, confirmed casualty counts and rival credit proof.
+The proof identifies the aliases for rival, actor, victim and any supported
+teammate, the death-event index and evidence type/category. Meter links carry
+their segment index and have no invented action time. Historical side
+resolution has its own scope. The existing alias rules, byte limits, paging
+and optional SavedVariables path still apply. Anonymous Duskwood, Gnomeregan
+and battleground replays remain green. Gnomeregan `world:4` displays Victory
+from the supported personal projection; `world:7`, `world:12` and
+`world:14` display Defeat. Duskwood remains Unknown with two confirmed
+enemy casualties and five honor. The replays and synthetic older archive
+exercise migration. An original private SavedVariables file and a fresh
+Forever client were unavailable for this PR.
+
+**Preview.** PR checks test the GitHub integration commit. The installable
+`NamesInRed/` artifact is staged from the exact feature head and validated
+against its manifest. The Actions summary identifies the source commit.
+In Forever, use a copy of an older save for compatibility checks and inspect
+full/compact cards and the profile, tooltip and nameplate before and after
+a qualifying repeat death. The PR B API restrictions above apply unchanged.
 
 ### Preview and release provenance
 
