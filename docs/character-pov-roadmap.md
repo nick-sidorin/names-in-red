@@ -1,9 +1,9 @@
 # Character POV — milestone roadmap
 
-**Status:** Proposed high-level work plan, 24 November 2026. The Character POV
-product direction is already owner-approved in [the product specification](skirmish-product-spec.md).
-This roadmap organizes implementation; it does not approve unresolved scoring
-rules, runtime changes, a release, or a final version number.
+**Status:** Approved to begin implementation, 24 November 2026. The Character POV
+contract is in [the product specification](skirmish-product-spec.md).
+Start with PR A. Review each dependent PR in turn. This roadmap is not release
+authorization or a final version-number decision.
 
 **Baseline:** GitHub v1.1.0, with permanent battle history, automatic diagnostics,
 in-game issue reporting, and the existing side-outcome scoring model. The
@@ -18,8 +18,9 @@ and migration evidence determine readiness.
 
 Deliver an end-to-end character-centered journal:
 
-- Primary skirmish result describes how the local character's participation
-  ended, independently of the group ending.
+- Primary skirmish result uses the approved observed-resolution / terminal-death
+  / casualty-balance priority order. Draw is a normal final result, Unknown
+  exceptional, In progress a separate lifecycle state.
 - Personal rival score credits demonstrated participation in defeating a
   particular rival, including damage, control, pets and meaningful linked
   healing/support. No last-hit requirement and no blanket roster-wide credit.
@@ -37,13 +38,13 @@ formal duels, ranks/achievements, general-history pagination, manual correction
 UI, unrelated interface redesign, or a replacement combat-log collector.
 See [future ideas](future-ideas.md).
 
-## Step 0 — product decisions and one remaining refinement
+## Step 0 — completed product decisions
 
 The owner approved all five proposed rival-score rules on 24 November:
 
 - One credit per rival per genuine death episode, per direction, including
   repeat deaths after revival. No double count from replay or overlapping signals.
-- Non-lethal retreats can determine the skirmish result, but do not give
+- Non-lethal endings use the approved outcome rules, but do not give
   rival credit in this milestone.
 - Preserve original historical outcomes; recompute only from supported evidence.
 - A confirmed death and linked contribution suffice even without a known finisher.
@@ -52,26 +53,20 @@ The owner approved all five proposed rival-score rules on 24 November:
   receive a rival loss, even though the skirmish has one final personal result.
 
 The owner also clarified settling/continuation, real return after revival,
-abandoning a lost group fight, crossing zone borders, unrelated later PvE
-and a distinct later revenge fight. These are now in the product spec.
+crossing zone borders, unrelated later PvE and a distinct later revenge fight. These are now in the product spec.
 Do not choose a timeout from the five-minute revenge example.
 
-The owner rejected survival alone as Victory, proposed casualty scoring and
-Draw, then identified counterexamples to a pure casualty tally. The current
-proposal in spec section 6 is an ordered hybrid: corroborated decisive
-elimination first; terminal personal death with lost observation and no known
-decisive ending second; confirmed casualty comparison for observed
-non-elimination endings third. Separate In progress from final outcomes.
+The owner approved proceeding with the hybrid contract in spec section 6:
+corroborated decisive elimination first (mutual elimination is Draw),
+terminal personal death with lost observation before a reliable ending
+second, and casualty comparison for observed non-elimination endings third.
 A dead solo player who killed two of three enemies still loses; a dead player
-who observes a surviving ally finish the whole opposing side can win. Ordinary
-0:0 or equal-loss endings are Draw; mere missing data is not a confirmed
-Draw. Keep evidence coverage separate and exceptional indeterminate cases
-explicit until final presentation is agreed.
-
-Confirm the priority order and edge cases with the owner before implementing
-the new evaluator; do not reopen the five approved rival-score rules. Exact
-time thresholds, technical evidence predicates and storage/UI choices remain
-implementation design. Keep original historical facts and legacy results.
+who observes surviving allies eliminate the opposition can win. Ordinary
+zero/equal-loss endings are Draw. Genuine insufficient evidence is exceptional
+Unknown, not a lifecycle state. Preserve reasons and coverage independently.
+No more product checkpoint is required before PR A. Discuss genuinely new
+edge cases as they emerge; exact timers, evidence predicates and storage/UI
+contracts are implementation design. Preserve original historical facts.
 
 Before runtime work, follow [engineering best practices](best-practices.md).
 Have the first fresh developer session (or the existing Codex session if
@@ -90,15 +85,14 @@ fixtures before deciding exact storage and function names.
 
 - Introduce a versioned, separate result/reason/coverage contract for personal
   participation. Retain old side results rather than overwrite them.
-- Handle terminal PvP death, return to the same battle, unrelated new fight,
-  forced withdrawal, local victory and genuine Unknown. Separate pending
-  continuation from finalization, test quiet intervals, late evidence, zone
-  borders, unrelated PvE and later revenge. Reuse or revise existing timers
-  based on evidence; document the chosen values. Confirm the proposed
-  decisive-resolution / terminal-death / casualty-count priority order and
-  Draw contract before changing outcome semantics.
-- Use corroborated evidence for observed defeat/retreat without demanding
-  a perfect site anchor or complete roster. Feign Death, token identity,
+- Implement the approved section 6 priority order, including Draw and
+  exceptional Unknown. Separate lifecycle, actual observation boundary and
+  final result. Handle death, spirit release, revival/return, quiet intervals,
+  late evidence, ordinary zone borders, unrelated PvE and later revenge.
+  Reuse or revise existing timers based on evidence; document chosen values.
+- Use corroborated evidence for decisive elimination and observed endings
+  without demanding a perfect site anchor or complete roster. Do not infer
+  territory control or forced retreat as outcomes. Feign Death, token identity,
   NPC-only deaths and missing fields remain meaningful safeguards.
 - Add focused tests for world:7 and world:14 terminal deaths, world:12,
   death/revival, world:4 and Duskwood evidence, non-lethal disengagement,
@@ -210,7 +204,6 @@ latest accepted main; avoid parallel changes to shared scoring/storage
 contracts. Independent fixture preparation may be parallelized only if
 it does not create conflicting changes.
 
-No release or runtime implementation is authorized by this proposed
-roadmap alone. Next: confirm the refined outcome priority order and
-Draw/indeterminate edge cases, then authorize the first implementation task. No need to re-approve the five
-settled scoring rules.
+Next: start PR A in a fresh Codex session from the accepted main. Preserve
+scope and review it before starting PR B. No public release until separately
+authorized. Do not reopen the settled scoring or outcome rules.
