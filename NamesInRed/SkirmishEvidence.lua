@@ -83,7 +83,9 @@ function Evidence:Link(category, actor, detail, accept, petSource)
     if type(detail.unitName) ~= "string" or detail.unitName == "" then return "target-name-missing" end
     if detail.isMob == true or detail.isPet == true then return "target-not-player" end
     if detail.isMob ~= false or detail.isPet ~= false then return "target-kind-unknown" end
-    if type(detail.amount) ~= "number" or detail.amount <= 0 then return "target-amount-missing-or-zero" end
+    if type(detail.amount) ~= "number" or not (detail.amount > 0 and detail.amount < math.huge) then
+        return "target-amount-missing-or-zero"
+    end
     if type(detail.unitClassFilename) ~= "string" or detail.unitClassFilename == "" then return "target-class-missing" end
     local other = self.names[detail.unitName .. "\0" .. detail.unitClassFilename]
     if other == false then return "target-contact-ambiguous" end

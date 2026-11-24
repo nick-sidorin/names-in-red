@@ -803,6 +803,8 @@ if not arg[1] or arg[1] == "rival-restricted-healer" then
     function issecretvalue(value) return rawequal(value, secret) end
     Link(2, me, friend, 87)
     sources[2][me][1].combatSpellDetails.unitName = secret
+    sources[2][me][2] = { combatSpellDetails = { unitName = friend.name, unitClassFilename = friend.class,
+        isPet = false, isMob = false, amount = math.huge } }
     Link(0, ally, first, 420)
     Update(0, 2, 7, 10)
     Advance(8)
