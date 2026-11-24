@@ -758,11 +758,13 @@ Group and pet context is sampled around combat and readable kill events.
 Group changes and damage-meter update IDs are recorded within the combat
 window. The post-combat read probes deaths, interrupts and dispels alongside
 the existing damage and healing categories when supported.
-Observations are bounded to 32 readable contacts and eight previous states per
-contact. Repeated flags are throttled. The first eight fully obscured kill
-events in a combat are stored individually, with the total retained at combat
-end. Protected fields remain unavailable. The collector is local and the
-additional event coverage needs a check in the Forever client.
+This preview saved up to 32 readable contact histories and eight previous
+states per contact. Repeated flags were throttled. It stored the first
+eight fully obscured kill events individually and retained the total at
+combat end. The shipped participant search walks all eligible observations.
+The earlier diagnostic sample size is not its roster limit. See
+[Damage Meter participant research](#damage-meter-participant-research-forever-70959)
+for current coverage and sample limits.
 
 The UI uses the Forever Blizzard PortraitFrameTemplate,
 UIPanelScrollFrameTemplate and UIPanelButtonTemplate, and a unit-only
@@ -829,6 +831,13 @@ It uses the ordinary reagent state from `SetModifyingRequired(false)`, the
 native `SetItemButtonTexture` path, and `SetSlotQuality(Common)` for the
 profession frame. The book supplies the icon asset and localized tooltip
 without binding the button to an item or crafting transaction.
+The reference places whole reagent rows and insets the visible artwork
+inside them. Check the heading-to-art gap and the step between rows
+separately. The schematic's optional-reagent section supplies the reference
+for the last-encounter heading and gap. The owner compared these areas
+side by side with tradeskill recipes.
+[Reagent layout](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_Professions.lua#L1394-L1415) ·
+[Schematic section](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeSchematicForm.xml#L66-L92)
 
 ## Skirmish cards and the world map
 
@@ -978,6 +987,16 @@ for both factions. Include the Eastern Plaguelands loss with honor and the
 incomplete Western Plaguelands fixture. Verify that a card rebind clears stale
 tooltips and that the map action remains available on mapped legacy cards.
 
+Treat badge alignment, icon crop and state reset as separate regression
+cases. For example, after a mirrored profile/card switch, a cached texture
+can keep its previous UVs unless the atlas application resets them before
+mirroring. Rebind the same tile from a dead or highlighted opponent to an
+alive participant and then to a class fallback. Check that the current
+portrait, rim, tooltip owner and level are restored together. The shared
+profile and card use the same geometry. [Shared portrait](../NamesInRed/Portraits.lua) ·
+[Earlier mirrored portrait fix](https://github.com/nick-sidorin/names-in-red/commit/9dc353b5534e2b70859e4037ffd7683ab06ef767) ·
+[Book tests](../tests/book.lua)
+
 Roster rows center independently on each side. One or two portraits use one
 row. Three or four use two rows. Larger groups use the fewest rows that fit
 three per row, with any extra portraits assigned to the upper rows. Verify
@@ -1042,6 +1061,36 @@ Check first open, reopen, Escape and the close button for one sound per
 visibility change. With DeModal and BlizzMove, overlap the book and
 Engineering, then click the visible part or header of each alternately.
 Check that both remain open and the clicked panel comes to the front.
+
+The journal's `MakeDraggable` attaches a left-button drag region to the
+title only. It excludes the portrait and close control, and a shared stop
+handler runs on drag stop and on window hide. `UIPanelCloseButton_OnClick`
+calls `onCloseCallback` before `HideUIPanel`. The journal hides its own
+frame in that callback and returns false. Its hide hook also clears search
+focus and the Delete confirmation. The profession sound pair is in the
+visibility hooks, so changing a view or refreshing a list leaves it silent.
+[Journal source](../NamesInRed/Book.lua) ·
+[Native close callback](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.lua#L152-L164) ·
+[Profession sounds](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_Professions/Blizzard_ProfessionsFrame.lua#L520-L542)
+
+The manual-entry dialog owns a separate mouse and wheel shield. Cancel,
+the native close button, hiding the parent or hiding the dialog release
+that shield and clear EditBox focus. The addon gives the
+`AutoCompleteEditBoxTemplate` handlers the first chance to consume Enter
+or Escape, and uses a plain input box when autocomplete is unavailable.
+This distinguishes choosing a suggestion from saving a fight and
+dismissing a suggestion from closing the modal. Verify these paths as well
+as hiding the parent mid-entry. [Manual dialog](../NamesInRed/ManualDialog.lua) ·
+[Native Enter handler](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_AutoComplete/AutoComplete.lua#L358-L384) ·
+[Native Escape handler](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_AutoComplete/AutoComplete.lua#L425-L436)
+
+The minimap shortcut converts cursor coordinates to minimap UI units with
+`GetEffectiveScale` before computing the persisted angle. It restores
+that angle against the current width and height after a minimap resize.
+`OnUpdate` is installed only during a drag. Drag stop and hide remove
+it, and the subsequent left-button release cannot open the journal.
+The frame keeps the tooltip local to its owner. Click, drag and resize
+are separate checks. [Minimap shortcut](../NamesInRed/Book.lua)
 
 ## AddOn settings and data reset
 
@@ -1134,6 +1183,14 @@ and Linen Cloth in both reagent slots at approximately the same relative
 positions. The inline captures support a visual comparison, with an estimated
 one-to-two-pixel uncertainty in locating the edges.
 
+The transparent defeat banner needed an asset encoding correction. Its
+TGA descriptor changed from `0x28` to `0x08`, with the scanline order
+reversed. Both decode to the same image. Check origin and scanline order
+together for future replacement art. The manifest checks uncompressed
+encoding, dimensions and alpha depth. Orientation and clearance are
+visual checks. [Banner change](https://github.com/nick-sidorin/names-in-red/commit/022ebfd2ebffcb5a6214345cc29cddcc33ff4763) ·
+[Manifest checker](../scripts/check_manifest.py)
+
 ### Public issue reports
 
 The journal header and each card use Blizzard's bug artwork from
@@ -1153,9 +1210,19 @@ entry window's rock background from Blizzard's
 The form link precedes the report so each can be copied in sequence. The native feedback
 submission flow is outside this feature.
 
-The dialog uses a 660-unit width for the SavedVariables path and a shorter
-report field. The footer buttons use the same native three-slice template
-as the header button.
+The owner's screenshots showed the older button art and a split filename
+in the 550-unit dialog. The footer now uses the 28-unit native height of
+`SharedButtonSmallTemplate` and refits the text on page changes. The
+660 × 410 window shows the path on a separate line with mid-word wrapping
+disabled. `InputScrollFrame_OnLoad` sizes the EditBox from the scroll
+frame width during initialization. The addon sets the EditBox width after
+placing the scroll frame. The shorter viewport holds the whole current
+part. Select-all highlights it and switching parts returns to the top.
+The tests exercise selection and paging. The final path fit and system
+clipboard behavior remain client checks.
+[InputScrollFrame source](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.lua#L82-L109) ·
+[PR #31](https://github.com/nick-sidorin/names-in-red/pull/31) ·
+[Report tests](../tests/issue-report.lua)
 
 The copy field contains a fenced JSON Lines report. Each line is an object
 with a `section`, beginning with format version 1 and ending with a list of
@@ -1249,6 +1316,17 @@ readability and field completeness during a live PvP session still vary.
 
 #### Automatic capture and retention
 
+The collector guards values in two stages. `Debug.lua` checks
+`issecretvalue` first and separately checks `canaccesstable` for returned
+tables. An accessible result still goes through per-field checks. This
+keeps false flags distinct from omitted or secret flags. The report and
+combat-diagnostics tests model secret values separately from a restricted
+table whose indexing raises an error. That catches incorrect access order.
+These mocks exercise rejection and redaction. They do not grant access to
+the underlying combat data. [Collector](../NamesInRed/Debug.lua) ·
+[Combat diagnostics tests](../tests/combat-diagnostics.lua) ·
+[Report tests](../tests/issue-report.lua)
+
 - Collection runs during normal play. A provisional local combat window keeps
   bounded streams before the card is confirmed. Only a confirmed card keeps
   its matched window. A separate pre-combat buffer would have no reliable
@@ -1313,6 +1391,16 @@ for its rival after diagnostic compaction, diagnostic removal and reload.
 The original outcome, roster, location, timeline, rewards and linked amounts
 are still available. The general event-buffer clear is exercised separately.
 
+`ClearDiagnostics` replaces the rolling rows and invalidates pending recap
+and meter state. `ResetData` is the separate confirmed character reset
+that also clears the ledger. A callback armed for old rows must fail its
+identity or generation check after reset or replacement. Test a queued
+read followed by clear and a fresh fight, and verify the fresh fight
+still records. Reload and diagnostic compaction also preserve already
+linked history when the raw report attachment disappears.
+[Reset path](../NamesInRed/Core.lua) · [Debug reset tests](../tests/debug.lua) ·
+[History retention tests](../tests/combat-diagnostics.lua)
+
 #### Public JSONL and optional SavedVariables
 
 The JSONL schema remains version 1. `primaryEvidence` contains
@@ -1356,3 +1444,35 @@ SavedVariables agree with the current evaluator.
 | --- | --- | --- |
 | `world:4`, 20:08 MSK | Unknown, `site-anchor-missing` | The second enemy's nameplate-removal contact at +28.043 s says dead, with no Feign Death value in the linked historical observation. A contact snapshot alone does not establish a durable confirmed death. Both allied terminal samples have readable positions and both allies are alive and out of combat. Without a combat anchor those observations do not qualify as holding the site. The existing site-free group elimination path can award Victory when both enemy deaths are corroborated and terminal survivors remain together. The current roster snapshot path already captures a matched corpse observation with a readable non-feign flag as an observed death without a killer. The historical second death is not reconstructed here. |
 | `world:7`, 20:11 MSK | Unknown, `area-changed` / `no-terminal-samples` | The local character died at +6.262 s. An enemy harmful aura was observed at +13.524 s and the ally died at +17.528 s. The comparable meter read advanced at +18.651 s while the local player was a ghost. Observation therefore continued after death and spirit release. The read offset does not establish the exact time of a hit, a final elimination, or whether either ally returned before the end. The area change interrupted coverage without terminal samples. Defeat is plausible and remains unconfirmed. |
+
+### Preview and release provenance
+
+The original #29 preview included the new combat diagnostics with the old
+report layout. Its branch started from a main that had not received the
+link-first dialog from #27. Bringing over that UI commit alone reconciled
+the two previews without moving the rest of the release branch. Check
+the artifact's exact head and relevant runtime files before diagnosing a
+visible rollback as a load-time problem.
+[Layout port](https://github.com/nick-sidorin/names-in-red/commit/4ea246e2b4e4a8bf03d67d473ba0ae3964fe708e)
+
+In the one-time 1.1.0 publisher, the missing-tag lookup could leave an
+API error response where the script expected an empty SHA. PR #33 used
+`git ls-remote --tags origin "refs/tags/$tag"` on the exact ref and verified
+the remote again after creation. A successful lookup with no matching ref
+means absent. An unsuccessful lookup is an error. Check the commit
+resolution when annotated tags are involved. The temporary workflow was
+removed after publication, so inspect current automation before using
+this as a procedure for a future release.
+[Tag check fix](https://github.com/nick-sidorin/names-in-red/pull/33) ·
+[Workflow cleanup](https://github.com/nick-sidorin/names-in-red/pull/34)
+
+For 1.1.0 the tag resolves to
+`e8bcee6a98c5fb95ebb5d62d4a6c1a82039fa588`. The GitHub release ZIP and
+CurseForge file `9782367` have different archive bytes. Their 29 runtime
+members each match the tagged paths and bytes, including TOC version
+1.1.0 and interface 16001. The public CurseForge entry is **Release** for
+**Forever 1.60.1** with one matching file ID. Check file type and game
+version on the published file, independently of the GitHub release and
+project listing copy. [GitHub publisher run](https://github.com/nick-sidorin/names-in-red/actions/runs/45284416748) ·
+[GitHub release](https://github.com/nick-sidorin/names-in-red/releases/tag/v1.1.0) ·
+[CurseForge file](https://www.curseforge.com/wow/addons/names-in-red/files/9782367)
