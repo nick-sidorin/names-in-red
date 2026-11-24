@@ -29,6 +29,20 @@ the shipped README and CurseForge copy describe 1.1.0 until new behavior ships.
   product/technical notes instead of relying on chat continuity. Do not restart
   the already shipped release or undo earlier regression fixes.
 
+### Continuous documentation
+
+The owner explicitly agreed on 24 November 2026 that decisions should be
+captured as they arise, rather than accumulated until a chat becomes too long.
+After a clear product decision, meaningful context change or sufficiently
+articulated future idea, immediately update the relevant document(s) in a
+small documentation-only PR, run Checks and squash-merge when green.
+No repeated permission is needed for this documentation workflow. Clarify
+ambiguous ideas through discussion first; record optional ideas as proposals,
+not implementation commitments. Reconcile superseded decisions in the spec,
+keep this handoff concise, and record technical evidence in the validation
+notes when applicable. See the standing rule in [AGENTS.md](AGENTS.md).
+Runtime changes and releases remain separately scoped.
+
 ## Released baseline: 1.1.0
 
 - Target WoW: Forever 1.60.1 (Camelot), interface 16001, Lua 5.1. Research initially

@@ -4,11 +4,45 @@ Use the pinned WoW Addon Standards as part of these repository instructions.
 At the start of a task involving development, documentation, packaging or
 releases, explicitly open and apply `docs/standards/AGENTS.md`. Read the
 relevant evidence in `docs/standards/FIELD_NOTES.md` and the local context in
-`README.md`, `docs/skirmish-product-spec.md` and `docs/forever-validation.md`
+`README.md`, `PROJECT_CONTEXT.md`, `docs/skirmish-product-spec.md` and `docs/forever-validation.md`
 before substantive work. Consult `docs/future-ideas.md` when discussing optional
 future features; those ideas are not committed product requirements.
 `docs/standards/standards.lock.json` identifies the reviewed upstream version.
 The owner conversation is in Russian. Repository contributions are in English.
+
+## Keep project documentation current during discussion
+
+Treat the repository as the durable source of truth, not the chat history.
+When a discussion produces a settled product decision, a meaningful change
+to the project context, or a sufficiently articulated future idea, record
+it immediately in the same working session. Do not accumulate decisions
+for a later documentation batch or wait for implementation to start.
+
+- `docs/skirmish-product-spec.md`: agreed target behavior and acceptance
+  criteria. Revise superseded or conflicting statements, not just append
+  a competing rule.
+- `PROJECT_CONTEXT.md`: durable context, rationale, important technical
+  decisions, current implementation/release status and the next steps.
+  Keep it compact and current rather than a conversation transcript.
+- `docs/future-ideas.md`: meaningful optional ideas, clearly identified as
+  exploratory and not approved implementation or a committed roadmap.
+- `docs/forever-validation.md`: verified technical findings and their
+  evidence/limitations, when relevant. Distinguish proposals from facts.
+
+A tentative or ambiguous thought is not automatically a product decision.
+Discuss and clarify it with the owner when necessary; an idea can be
+documented as an optional future idea without settling every design detail.
+Once it is sufficiently clear, update the relevant files without asking
+again just for permission to document it. Reconcile related documents and
+distinguish planned behavior from shipped behavior.
+
+The owner has standing authorization for narrowly scoped documentation-only
+PRs that capture these discussions: use a branch, create a PR, verify its
+Checks, and squash-merge it when green and conflict-free. Report the PR and
+actual merge/check status in the conversation. If blocked, report the blocker;
+do not bypass protections. If implementation is already in progress, avoid
+conflicting edits and coordinate with that work. This authorization does not
+extend to runtime changes, settings, infrastructure or publishing releases.
 
 Target WoW: Forever 1.60.1 (Camelot), TOC interface 16001, Lua 5.1 compatibility.
 Run `bash scripts/check.sh` before submitting changes. Use feature branches,
