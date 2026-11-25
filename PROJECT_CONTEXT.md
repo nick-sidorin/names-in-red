@@ -309,8 +309,10 @@ remains 1.1.0 until publication is verified.
    PR #50 also fixes Issue #49. A concordant outgoing pair can record a
    skirmish independently of a killing blow. The exact private replay
    recovers the assisted 2×1 Victory with one rival win and the same 1 HK /
-   4 honor moved to the fight. Verify the restored card alongside the compact
-   report in the final Forever preview. See
+   4 honor on the card and rival profile. The owner verified the restored
+   card and compact report on `6961d33`. The next preview checks the updated
+   rival profile after upgrading that card. Its old diagnostic window carries
+   no map position. The release gate checks deterministic ZIP output. See
    [Forever validation](docs/forever-validation.md#outgoing-only-aid-in-forever-71091).
 2. Preserve the earlier real-client acceptance of restored world:19–21,
    world:16 Defeat, rival scores and reload. The owner confirmed the two-fight

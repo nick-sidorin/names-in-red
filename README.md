@@ -137,12 +137,12 @@ group membership alone and unnamed meter totals do not establish participation.
 At death, visible nameplates can supply details when the target and mouseover
 are unavailable. For live records, `rosterComplete` still covers observed
 one-on-one kills and is recalculated at load and on each save.
-Rival-specific honor correlation uses a linked kill and a single increase in
-the session honorable kill count. An honor amount also requires one award
-message and a readable amount from that message or a matching honor currency
-update. A late-confirmed combat window can receive awards originally saved in
-the journal's internal totals when their window is unambiguous. Unmatched
-awards remain in saved accounting and diagnostics. The
+Rival-specific honor correlation uses a linked kill or an independently
+confirmed opponent death with a single increase in the session honorable kill
+count. For an actorless death, a unique readable honor award must match that
+death in the same combat window. A late-confirmed combat window can receive
+awards originally saved in the journal's internal totals when their window
+is unambiguous. Unmatched awards remain in saved accounting and diagnostics. The
 seeded preview exercises completed outcomes and attributed rewards.
 
 The pinned [WoW Addon Standards](docs/standards/AGENTS.md) are used for development

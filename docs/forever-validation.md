@@ -2121,25 +2121,41 @@ dead, and the absence of contradictory later PvP activity support Victory.
 An outgoing pair alone still creates a record when death is unobserved. It
 supplies neither a casualty nor a rival win in that case.
 
-The original SavedVariables replay on the repaired build produces a new
-`world:26` with a 2×1 Victory, one rival win, one actorless enemy death, zero
-direct killing blows, and 1 HK / 4 honor at skirmish scope. Total earned
-rewards are unchanged. The original duplicate native HK notifications reflect
-one session-counter increment. The single readable honor line, unique
-unmatched-award marker, and exact saved balance corroborate the transfer. A
-second claim or an ambiguous stored balance leaves the awards at journal scope.
-New capture can preserve an unmatched award durably before moving it once to
-the late-confirmed window. Recovery keys prevent replay after load or explicit
-record removal. Reopening without the debug buffer keeps the recovered
-permanent evidence and indexed score.
+The owner confirmed the 2×1 Victory, one rival win and 1 HK / 4 honor on the
+card in Forever on `6961d33`, with the rival profile still at 0 HK / 0 honor.
+The missing fight allocates `world:26` in the original SavedVariables and
+`world:27` in the owner's current history. The revised replay attributes the
+same 1 HK / 4 honor to the rival, retains the actorless death and zero direct
+killing blows, and preserves the total earned rewards. The duplicate native
+HK notifications reflect one session-counter increment. A single readable
+honor line and that increment occur within two seconds of the confirmed death.
+One unmatched-award marker and an exact saved balance identify the original
+transfer. A second claim or an ambiguous stored balance leaves those awards
+at journal scope.
+
+Live awards can arrive before or after window confirmation. The same scoped
+corpse and paired award times are required for rival attribution. Previously
+recovered cards can upgrade their existing fight-level awards in place while
+their exact diagnostic window is still available. Once attributed, rewards
+and the index survive reload without diagnostics. Recovery keys also prevent
+record removal from replaying the window. If the diagnostic window expired
+before that migration, the preserved awards stay on the skirmish card.
+
+The original window contains a zone but no saved position, so its restored
+card has no map action. New diagnostic start rows retain the same validated
+native `C_Map.GetBestMapForUnit` / `GetPlayerMapPosition` sample as an ordinary
+encounter when available. Historical recovery reads only the matched start
+row. Regressions cover a valid location, absent coordinates, malformed values
+and positions belonging to a different combat window.
 
 The anonymized fixture keeps the actual offsets, amounts, shape, and field
 statuses. Replays reject stale updates, mismatched totals, unidentified names,
 NPC sources, overlapping records, unverified allies, feign and contradictory
 life evidence. The UI tests verify the card, rival profile, compact card and
 tooltip, and check that unmatched awards are absent from the journal heading.
-The next live preview verifies the recovered card and single-copy report on
-the same installable build. Captures that no longer retain a uniquely scoped
+The owner also reported the single-copy report working on `6961d33`. The
+follow-up preview targets the corrected rival profile on the same recovered
+card. Captures that no longer retain a uniquely scoped
 readable pair cannot recover a missing fight. Unreadable game awards or
 ambiguous balances still limit historical award attribution.
 
@@ -2199,3 +2215,15 @@ The dry run identified `PROJECT_CONTEXT.md` as an extra member. The
 packager now excludes it. The release workflow relies on the existing
 CurseForge integration for delivery, and the public file needs separate
 verification after approval and release.
+
+The earlier ZIP builder used the current wall clock for member timestamps.
+Two builds of the same commit reproduced different SHA-256 digests despite
+identical runtime members. CI now assembles the exact source twice, past
+ZIP's two-second timestamp boundary, and checks byte equality. The builder
+sets a fixed DOS-compatible timestamp, Unix file metadata and a compression
+level. The publisher's downloaded-asset comparison and remote tag checks
+remain in place. The same workflow script was exercised against a local
+GitHub stub. An interruption after the first draft upload left one asset.
+The independent build verified that asset and published the existing draft
+once. A further retry accepted the published release. The script refused a
+modified asset and a moved tag. The simulation made no public tag or release.

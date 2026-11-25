@@ -207,12 +207,15 @@ After PR C, prepare one installable preview of the entire milestone.
   feature preview.
 - Issue #49's private save reproduces a missing fight on the previous
   release-preparation build. Replay on the repaired build restores a 2×1
-  Victory, one rival win, and 1 HK / 4 honor on the card. The indexed result
+  Victory, one rival win and 1 HK / 4 honor on both the card and rival profile.
+  Older preview cards reclassify verified awards in place. The indexed result
   survives repeat loads and removal prevents recovery from replaying it.
   [Outgoing-only recovery](forever-validation.md#outgoing-only-aid-in-forever-71091)
-- The restored card and the compact report's in-client layout and single
-  clipboard copy are the targeted final preview checks. Publication awaits
-  final review.
+- The owner verified the restored card and compact report in Forever on
+  `6961d33`. The final preview checks the corrected rival profile. The
+  original card has no captured map position. Checks establish that two
+  independent release builds from one commit produce identical ZIP bytes.
+  Publication awaits final review.
 
 ### Non-blocking live follow-ups
 

@@ -198,11 +198,18 @@ used by cards, profile, tooltip and nameplate.
   recorded opponent's confirmed death, with no contradictory later evidence.
 - Keep earned rewards durable while combat confirmation is pending. A
   live claim can transfer a previously counted award once to its exact
-  window and record. Historical recovery needs a unique unowned combat
-  window and at least the same live pair checks. Move historical awards
-  only with matching paired reward observations and an unambiguous saved
-  balance. Retain the recovery identity independently of the debug buffer
-  so a subsequent reload or record removal cannot replay the same window.
+  window and record. Attribute an actorless award to a rival only when the
+  native HK and honor observations match one confirmed opponent death in
+  the scoped window. Check directed evidence, timestamps and competing
+  episodes independently of roster size. Historical recovery needs a unique
+  unowned window, the same pair checks and an unambiguous saved balance.
+  Reclassify a previously recovered card in place only with the matching
+  raw award window and durable recovery key. Keep the key independently of
+  the debug buffer so reload or removal cannot replay the window.
+- Capture an available combat-start location through the shared encounter
+  location reader. Historical recovery uses the validated map ID and
+  normalized coordinates on the exact matched start row. Missing, invalid
+  or unrelated positions leave the waypoint unavailable.
 - Preserve witnessed action times on both sides of a life transition. Per-pair
   first/last/count summaries alone can drop the only action that links an
   earlier corpse to PvP. Reconcile confirmed death and revival from readable,
@@ -297,9 +304,11 @@ the PR head tree even when the workflow checks out GitHub's merge commit to
 test integration. Stamp the packaged TOC with the exact commit in
 `X-Preview-Revision` so a report can identify the installed build without a
 version bump. Verify the archive against the head and the expected stamp
-before supplying it. Before publishing,
-resolve the remote tag explicitly and verify the published asset against
-the tagged files. Compare the public CurseForge file independently and
+before supplying it. Build release ZIPs with fixed member times, file modes,
+platform metadata and an explicit compression level. Verify independent
+builds of the same source byte for byte. Before publishing, resolve the
+remote tag explicitly and verify any uploaded asset against that build.
+Compare the public CurseForge file independently and
 check pending automatic packaging before any manual upload. The
 [preview and release incidents](forever-validation.md#preview-and-release-provenance)
 record why these checks matter.
