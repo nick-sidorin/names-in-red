@@ -871,6 +871,7 @@ local function FindDeathRecap(window, timestamp)
 end
 
 function addon.RecordWorldEncounter(guid, name, direction, context)
+    if guid and guid == PlayerGUID() then return end
     local origin = Origin()
     local bound = context.worldWindow
     local recap = direction == "deathsToThem" and context.deathTimestamp
@@ -1386,6 +1387,19 @@ end
 Leave = function(reason, discardUnsaved)
     local window = open or tail
     if Valid(window) then
+        if window.record and Pending(window.record) then
+            local units = SampleEnding(window.record, nil, true, true).units
+            local battle = window.record.battle
+            for _, enemy in ipairs(battle.enemies) do
+                local observed = units[enemy.id]
+                local ally = observed and units[observed.targetID]
+                if ally and observed.dead == false and observed.combat == true
+                    and ally.dead == false and ally.combat == true and Present(battle.allies, observed.targetID) then
+                    window.segment.rosterCaptureInterrupted = true
+                    break
+                end
+            end
+        end
         Close(window, addon.EncounterContext(), reason)
         window.segment.observationStopped = reason
         if window.record and (window.record.id or not discardUnsaved) then

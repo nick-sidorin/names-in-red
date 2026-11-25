@@ -28,7 +28,8 @@ unconfirmed. Rivals and skirmishes stay saved indefinitely, including the
 core timeline and linked Damage Meter aggregates. Older battles remain
 available in each rival's history after diagnostic data is compacted.
 The map pin places a waypoint when the saved location supports one. Known
-rivals show the same score in the standard unit tooltip.
+rivals with a personal score show its icons and numbers in the standard unit
+tooltip.
 
 The interface follows the language selected in World of Warcraft. It supports
 English, German, Spanish, French, Italian, Korean, Brazilian Portuguese,
@@ -76,13 +77,20 @@ Version 2.0.0 introduces [Character POV](docs/skirmish-product-spec.md).
   **Unknown** preserves a fight whose ending could not be determined.
 - Rival wins and losses count credited participation in confirmed death
   episodes. Damage, relevant healing, shielding and control can count.
-  Activity from a pet can count when its owner is verified. Each enemy you
-  helped defeat adds a win against that rival, and each rival who helped
-  defeat you adds a loss to your score against them. A revival can make a later death count
-  separately. The nameplate, tooltip, compact card and profile show that score.
+  Activity from a pet can count when its owner is verified. You earn a win
+  each time you defeat the rival alone or with allies. The same rule applies
+  when the rival defeats you. A revival can make a later death count
+  separately. Explicit manual results also count once in the same profile,
+  nameplate and tooltip totals. Compact cards show the individual encounter.
 - Direct killing blows and deaths, **Honorable Kills** and **Honor Points**
   keep their own counters. Original historical and manual entries stay in the
   journal. Older side results carry their historical scope.
+
+When you save a manual result, the addon can reuse a matching current
+target, mouseover, visible nameplate or known rival profile. You can choose
+your own character as the current target for a manual entry. A provisional
+profile can be linked to a confirmed character later. The card keeps its
+manual label and the original recorded details.
 
 Deleting a rival clears their profile and its statistics. Shared battles
 remain in the journal with their recorded participants and timeline.
@@ -120,9 +128,9 @@ results keep their existing interpretation. New world records derive
 coverage are stored separately. A `kind = "revive"` event marks a later
 readable living state for the same character and preserves the killing
 blow. The skull marks a death during the fight. The portrait returns to
-color after an observed revival. Rival tooltips show the personal rival win/loss score based on confirmed
-contribution, not literal killing blows. Skirmish outcomes, direct-player
-kills/deaths and Blizzard rewards are distinct.
+color after an observed revival. The unit tooltip uses the same visible
+personal rival score as the profile and nameplate. Skirmish outcomes,
+direct-player kills and deaths, and Blizzard rewards use independent counters.
 Mark the local player `isSelf` and identify profile links with `rivalID`.
 Store `honorableKills` and `honor` under `rewards[opponent.id]`. Re-saving
 the same skirmish ID replaces the indexed result and rewards.
@@ -135,8 +143,10 @@ damage, healing, absorb, interrupt and dispel links when the meter supplies
 both identities. It can credit a pet with a confirmed owner. Nearby sightings,
 group membership alone and unnamed meter totals do not establish participation.
 At death, visible nameplates can supply details when the target and mouseover
-are unavailable. For live records, `rosterComplete` still covers observed
-one-on-one kills and is recalculated at load and on each save.
+are unavailable. The outcome evaluator recalculates `rosterComplete` for
+observed one-on-one kills at load and on each save. The history card's
+separate warning requires evidence of an unresolved participant or an
+interrupted capture of an ongoing PvP exchange.
 Rival-specific honor correlation uses a linked kill or an independently
 confirmed opponent death with a single increase in the session honorable kill
 count. For an actorless death, a unique readable honor award must match that

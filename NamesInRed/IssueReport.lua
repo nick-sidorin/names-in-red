@@ -595,7 +595,7 @@ local function BuildIssueReport(db, debugDB, battleID, legacy, budget)
     end
     each(observation.segments, function(segment, index)
         local fields = Fields(segment, "startReason endReason continuation confirmedBy observationStopped",
-            "startedAt endedAt duration offset", "localNpcDamage localNpcPressure outgoingLocalSurvivor")
+            "startedAt endedAt duration offset", "localNpcDamage localNpcPressure outgoingLocalSurvivor rosterCaptureInterrupted")
         fields.segment = index
         write("segment", fields)
         local engaged = Table(segment.engagedAlly)

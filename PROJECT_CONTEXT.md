@@ -1,13 +1,12 @@
 # Names in Red — Project context and conversation handoff
 
-**Snapshot: 25 November 2026.** Read this first when starting a fresh ChatGPT,
+**Snapshot: 26 November 2026.** Read this first when starting a fresh ChatGPT,
 Codex or other coding session. This is a compact record of decisions, evidence
 and status, not a raw chat transcript. Verify live repository and release state
 before acting. The authoritative target behavior is
-[the Character POV product specification](docs/skirmish-product-spec.md);
-the release branch README and CurseForge copy describe the 2.0.0 candidate.
-The published 1.1.0 listing remains current until release and listing updates
-are separately verified.
+[the Character POV product specification](docs/skirmish-product-spec.md).
+GitHub 2.0.0 is published. CurseForge availability and listing updates have
+separate verification status.
 
 ## Owner intent and workflow
 
@@ -67,7 +66,14 @@ potential Evercanon pattern, not a change to that separate repository.
 
 - [v2.0.0 — Character POV](https://github.com/nick-sidorin/names-in-red/releases/tag/v2.0.0) published 25 November 2026, 20:41:31 UTC. Tag `89ba7eb381ad0606fbfbe28045ff0cd56e80d624` has identical 34 runtime blobs, CHANGELOG and .pkgmeta to accepted #50 commit `a58fccad`. [ZIP](https://github.com/nick-sidorin/names-in-red/releases/download/v2.0.0/NamesInRed-2.0.0.zip) SHA-256 `b0af00385971984a4f4901c7b1b3b11abe41a03d91345a2033e97f8aa98a7334`; [publisher run](https://github.com/nick-sidorin/names-in-red/actions/runs/45697286233) succeeded. CurseForge availability and listing updates remain unverified.
 - Permanent owner-only publisher #54; request #55 failed with 403 before tag creation against an older workflow-changing commit. Request #56 succeeded using the checked runtime-identical target with current workflows. No additional credentials or permissions. Do not retag published versions; for future requests select a checked main commit with current workflow files. Manual owner dispatch is configured but not independently exercised. See [validation](docs/forever-validation.md#owner-only-release-entrypoint).
-- Next phase is the approved existing-product polish; no larger future features yet.
+- The post-2.0.0 polish branch reconciles standalone manual identities, uses
+  evidence-based roster warnings and refines the native card and tooltip
+  layout. The owner accepted the general appearance of preview `344f64b`.
+  The three follow-up fixes in PR #58 cover native tooltip wrapping, a
+  unified personal score with manual results, and manual-entry enrichment
+  including an explicit self-target. Use the
+  [Forever preview checklist](docs/forever-validation.md#live-preview-checklist)
+  for acceptance of the updated preview.
 
 ## Previous release: 1.1.0
 
@@ -207,8 +213,10 @@ features into an approved release. See product spec for all acceptance rules.
   samples; assess class-aware corroboration without blindly treating nil as false.
 - NamesInRed/RivalContributions.lua derives versioned per-rival credits from
   the shared PvP death episodes used by the personal outcome. The profile,
-  compact cards, nameplates and unit tooltip read the same indexed credit.
-  Scoped legacy and manual results remain available. Accepted meter pairs
+  compact cards read indexed per-fight credit. The profile, nameplates and
+  unit tooltip use the indexed personal score, including explicit manual
+  results with separate provenance. Scoped legacy results remain available.
+  Accepted meter pairs
   and scoped recap contributors survive diagnostic pruning. See the
   [PR B evidence](docs/forever-validation.md#character-pov-pr-b) and
   [PR C journal validation](docs/forever-validation.md#character-pov-pr-c).
@@ -310,10 +318,8 @@ Character POV and authorized publication of 2.0.0. PR #50 is squash-merged
 at `a58fccad02de7e50357e63546b1b3710cd1ea01f`; Issue #49 is closed. PR #46
 is superseded and closed without a second merge. GitHub 2.0.0 publication is verified; CurseForge is still unverified. See the current released baseline above.
 
-1. Prepare the 2.0.0 release PR and preview the single-copy issue report.
-   Complete final product and technical review before pushing a public
-   version tag. Follow the [integration gate](docs/character-pov-roadmap.md#integration-and-release-gate).
-   PR #50 also fixes Issue #49. A concordant outgoing pair can record a
+1. Release 2.0.0 included the single-copy issue report and the fix for
+   Issue #49 in PR #50. A concordant outgoing pair can record a
    skirmish independently of a killing blow. The exact private replay
    recovers the assisted 2×1 Victory with one rival win and the same 1 HK /
    4 honor on the card and rival profile. The owner verified the restored
@@ -332,11 +338,10 @@ is superseded and closed without a second merge. GitHub 2.0.0 publication is ver
    GitHub publication succeeded; verify CurseForge separately. Known data loss, crashes, core behavior defects, failing checks and
    package problems still block publication. Verify GitHub and CurseForge
    artifacts independently once the owner accepts the final release.
-4. After 2.0.0 publication, prioritize polishing the existing journal, not new
-   feature milestones. See the approved post-release polish requirements in
-   the product spec. A known manual-entry duplicate report needs investigation
-   and safe correction; visual and roster-warning refinements are also queued.
-   All larger ideas, including target menu and ally profiles, are deferred in
+4. Review the post-2.0.0 polish branch and run the
+   [Forever preview checklist](docs/forever-validation.md#live-preview-checklist).
+   The approved behavior is in [product spec section 10](docs/skirmish-product-spec.md#10-approved-post-200-polish).
+   Larger ideas, including target menu and ally profiles, stay deferred in
    docs/future-ideas.md.
 
 To resume in a new chat: provide the repository link and ask the assistant to

@@ -120,6 +120,8 @@ end
 local function CreateLevelBadge(parent, rim, rightSide)
     local badge = CreatePortraitBadge(parent, rim, rightSide, participantBadgeSize)
     local label = badge:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    local font, size, flags = label:GetFont()
+    label:SetFont(font, size - 1, flags)
     label:SetTextColor(1, 1, 1)
     label:SetAllPoints(badge)
     label:SetRoundLayoutToNearestPixel(true)

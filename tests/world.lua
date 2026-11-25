@@ -57,6 +57,19 @@ addon.db = addon.Ledger.Open(nil)
 Fire("PLAYER_ENTERING_WORLD")
 
 local fenrik, ghash, brother = units.target[1], units.mouseover[1], units.party1[1]
+do
+    local original = units.target
+    units.target = units.player
+    local self = assert(addon.ManualTarget())
+    assert(addon.AddManualEncounter(self.name, "killsAgainstThem", self) == self.guid)
+    assert(addon.Ledger.RivalScore(addon.db, self.guid) == 1)
+    assert(not addon.RecordWorldEncounter(self.guid, self.name, "killsAgainstThem", addon.EncounterContext("target")))
+    Fire("PARTY_KILL", brother, self.guid)
+    assert(not addon.db.skirmishes)
+    assert(addon.Ledger.PersonalCombatScore(addon.db, self.guid) == 0)
+    addon.ResetData()
+    units.target = original
+end
 local function GainHK()
     hk = hk + 1
     Fire("PLAYER_PVP_KILLS_CHANGED", "player")
@@ -1027,6 +1040,25 @@ do
         Fire("PLAYER_REGEN_ENABLED")
     end
     local function Battle(id) return assert(addon.db.skirmishes["world:" .. id]) end
+
+    for _, linkedTarget in ipairs({ "party1", "player", "unrelated" }) do
+        addon.ResetData()
+        ResetStates()
+        BeginFight()
+        fighting[ally], fighting[enemy] = true, true
+        units.unrelated = { "Player-unrelated", "Other Player", "Alliance" }
+        units.targettarget = units[linkedTarget]
+        Fire("PLAYER_LEAVING_WORLD")
+        units.targettarget, units.unrelated = nil, nil
+        local interrupted = Battle(1)
+        assert(interrupted.observation.visibilityGap and not interrupted.rosterComplete)
+        assert(addon.Ledger.HasRosterGap(interrupted) == (linkedTarget == "party1"))
+        local verdict = addon.Ledger.JournalOutcome(interrupted)
+        assert(addon.Ledger.Open(addon.db).skirmishes["world:1"] == interrupted)
+        assert(addon.Ledger.JournalOutcome(interrupted) == verdict)
+        assert(addon.Ledger.HasRosterGap(interrupted) == (linkedTarget == "party1"))
+    end
+    addon.ResetData()
 
     -- Continue while lying in the corpse. A late party kill joins the
     -- original battle and the visible ally, not the dead player, holds it.

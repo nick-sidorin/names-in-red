@@ -5,9 +5,9 @@ local onEvent
 local frame = {
     RegisterEvent = function(_, event)
         assert(event == "ADDON_LOADED" or event == "PLAYER_TARGET_CHANGED"
-            or event == "UPDATE_MOUSEOVER_UNIT" or event == "PLAYER_REGEN_ENABLED")
+            or event == "UPDATE_MOUSEOVER_UNIT" or event == "PLAYER_REGEN_ENABLED" or event == "PLAYER_LOGIN")
     end,
-    UnregisterEvent = function(_, event) assert(event == "ADDON_LOADED") end,
+    UnregisterEvent = function(_, event) assert(event == "ADDON_LOADED" or event == "PLAYER_LOGIN") end,
     SetScript = function(_, script, handler)
         assert(script == "OnEvent")
         onEvent = handler
@@ -21,12 +21,16 @@ end
 local function Load(saved)
     NamesInRedDB = saved
     local resolved = {}
-    local session = { Ledger = addon.Ledger, ResolveRivalName = function(unit) resolved[#resolved + 1] = unit end }
+    local reconciled
+    local session = { Ledger = addon.Ledger, ResolveRivalName = function(unit) resolved[#resolved + 1] = unit end,
+        ReconcileManualRivals = function(db) reconciled = db end }
     assert(loadfile("NamesInRed/Core.lua"))("NamesInRed", session)
     onEvent(frame, "ADDON_LOADED", "OtherAddon")
     assert(NamesInRedDB == saved and session.db == nil)
     onEvent(frame, "ADDON_LOADED", "NamesInRed")
     if session.db then
+        onEvent(frame, "PLAYER_LOGIN")
+        assert(reconciled == session.db)
         onEvent(frame, "PLAYER_TARGET_CHANGED")
         onEvent(frame, "UPDATE_MOUSEOVER_UNIT")
         onEvent(frame, "PLAYER_REGEN_ENABLED")

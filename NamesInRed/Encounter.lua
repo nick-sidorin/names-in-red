@@ -141,10 +141,120 @@ function addon.RivalAppearance(guid)
     return race, sex, class, addon.Readable(raceLabel), addon.Readable(classLabel)
 end
 
+local function NameKey(name)
+    -- Keep the provisional key stable even without the client's UTF-8 comparator.
+    return name:lower():gsub("Ё", "ё"):gsub("\208[\144-\175]", function(letter)
+        local index = letter:byte(2) - 144
+        if index < 16 then return string.char(208, 176 + index) end
+        return string.char(209, 128 + index - 16)
+    end)
+end
+
+local function SameFullName(a, b)
+    return addon.HasFullName(a) and addon.HasFullName(b)
+        and (NameKey(a) == NameKey(b) or (strcmputf8i and strcmputf8i(a, b) == 0))
+end
+
+local function GUIDRealm(guid)
+    return type(guid) == "string" and guid:match("^Player%-(%d+)%-[%x]+$")
+end
+
+local function NameScope()
+    if SafeRead(RegionalUniqueNamesEnabled) == true then return true end
+    -- A typed name without a realm can only identify a home-realm player
+    -- when the client does not confirm regional name uniqueness.
+    return GUIDRealm(SafeRead(UnitGUID, "player"))
+end
+
+local function InNameScope(guid, scope)
+    return guid:match("^Player%-.+") and (scope == true or (scope and GUIDRealm(guid) == scope))
+end
+
+local function MatchingRivals(db, name, scope)
+    local guid, manuals = nil, {}
+    for id, rival in pairs(db.rivals) do
+        local provisional = id:match("^manual:")
+        local confirmed = InNameScope(id, scope)
+        if (provisional or confirmed) and SameFullName(name, addon.ManualName(rival.displayName)) then
+            if provisional then
+                manuals[#manuals + 1] = id
+            elseif guid == nil then
+                guid = id
+            else
+                guid = false
+            end
+        end
+    end
+    return guid, manuals
+end
+
+local ScanManualUnits
+
+local function LinkManualRivals(db, guid, name, checkVisible)
+    local scope = NameScope()
+    if not InNameScope(guid, scope) then return end
+    local confirmed, manuals = MatchingRivals(db, name, scope)
+    if #manuals == 0 then return end
+    local ambiguous = confirmed ~= nil and confirmed ~= guid
+    if checkVisible and not ambiguous then
+        local observed, multiple = ScanManualUnits(name, scope)
+        ambiguous = multiple or (observed and observed.guid ~= guid)
+    end
+    if ambiguous then
+        for _, id in ipairs(manuals) do db.rivals[id].manualIdentityAmbiguous = true end
+        return
+    end
+    local rival
+    for _, id in ipairs(manuals) do
+        rival = addon.Ledger.MergeManualRival(db, id, guid) or rival
+    end
+    return rival
+end
+
+function addon.ReconcileManualRivals(db)
+    local scope = NameScope()
+    if not scope then return end
+    local manuals = {}
+    for id, rival in pairs(db.rivals) do
+        if id:match("^manual:") then manuals[id] = rival end
+    end
+    for id, rival in pairs(manuals) do
+        local name = addon.ManualName(rival.displayName)
+        if addon.HasFullName(name) then
+            local guid = MatchingRivals(db, name, scope)
+            if guid then addon.Ledger.MergeManualRival(db, id, guid) end
+            if guid == false then rival.manualIdentityAmbiguous = true end
+        end
+    end
+end
+
+local manualAppearanceFields = { "race", "raceLabel", "sex", "class", "classLabel", "faction", "factionLabel" }
+
+local function EnrichManualRival(rival, appearance)
+    if not appearance then return false end
+    local changed = false
+    for _, field in ipairs(manualAppearanceFields) do
+        if rival[field] == nil and appearance[field] ~= nil then
+            rival[field], changed = appearance[field], true
+        end
+    end
+    if appearance.level and rival.observedLevel ~= appearance.level
+        and (appearance.level ~= -1 or not rival.observedLevel) then
+        rival.observedLevel, changed = appearance.level, true
+    end
+    return changed
+end
+
 local function UpdateRival(guid, name, appearance, manual)
     name = addon.ManualName(name)
     local fullName = addon.HasFullName(name) and name or nil
     local rival = addon.Ledger.Find(addon.db, guid)
+    local linked
+    if not manual and fullName and (not rival or rival.displayName ~= fullName) then
+        if rival then rival.displayName = fullName end
+        linked = LinkManualRivals(addon.db, guid, fullName, true)
+        rival = linked or rival
+    end
     if not rival then
         rival = addon.Ledger.Add(addon.db, guid, fullName)
         if not rival then return end
@@ -167,6 +277,7 @@ local function UpdateRival(guid, name, appearance, manual)
     if class then rival.class = class end
     if type(raceLabel) == "string" and raceLabel ~= "" then rival.raceLabel = raceLabel end
     if type(classLabel) == "string" and classLabel ~= "" then rival.classLabel = classLabel end
+    if manual or linked then EnrichManualRival(rival, appearance) end
     return rival
 end
 
@@ -179,7 +290,8 @@ end
 function addon.RecordEncounter(guid, name, direction, context, appearance)
     local rival = UpdateRival(guid, name, appearance, context.manual)
     if not rival then return end
-    rival[direction] = rival[direction] + 1
+    if context.manualIdentityAmbiguous then rival.manualIdentityAmbiguous = true end
+    rival[direction] = (rival[direction] or 0) + 1
     rival.encounters = rival.encounters or {}
     context.direction = direction
     addon.db.encounterSequence = (addon.db.encounterSequence or 0) + 1
@@ -202,6 +314,7 @@ function addon.RecordSkirmish(id, battle)
 end
 
 function addon.ManualName(input)
+    input = addon.Readable(input)
     if type(input) ~= "string" or input:find("[%c|]") then
         return nil
     end
@@ -294,7 +407,9 @@ local function LegacySkirmish(db, entry, playerAppearance)
     }
     local attackers = encounter.attackers or {}
     local first = attackers[1]
-    local rival = LegacyOpponent(db, entry.id, first and first.guid == entry.id and first.name, encounter.rivalLevel)
+    local profile = db.rivals[entry.id]
+    local level = encounter.rivalLevel or (encounter.manual and profile and profile.observedLevel)
+    local rival = LegacyOpponent(db, entry.id, first and first.guid == entry.id and first.name, level)
     local opponents, seen = { rival }, { [rival.id] = true }
     for index, attacker in ipairs(attackers) do
         local id = attacker.guid or ("legacy:attacker:" .. index)
@@ -346,27 +461,17 @@ end
 function addon.FindVisibleRival(guid, unit)
     local rivals = addon.db.rivals
     local rival = type(guid) == "string" and rivals[guid]
-    if rival then
-        if addon.HasFullName(rival.displayName) then return rival, guid end
-        return
-    end
-    if type(unit) ~= "string" then return end
+    if rival and addon.HasFullName(rival.displayName) then return rival, guid end
+    if type(unit) ~= "string" or type(guid) ~= "string" then return end
+    local scope = NameScope()
+    if not InNameScope(guid, scope) then return end
 
     local name = addon.UnitPlayerName(unit)
     if not addon.HasFullName(name) then return end
-
-    -- Only an unambiguous full name can match an entry without a GUID.
-    local lower = strlower or string.lower
-    local key = lower(name)
-    local matched, matchedID
-    for id, entry in pairs(rivals) do
-        local stored = not id:match("^seed:") and addon.ManualName(entry.displayName)
-        if stored and (lower(stored) == key or (strcmputf8i and strcmputf8i(stored, name) == 0)) then
-            if matched or not id:match("^manual:") then return end
-            matched, matchedID = entry, id
-        end
+    local confirmed, manuals = MatchingRivals(addon.db, name, scope)
+    if confirmed == nil and #manuals == 1 and not rivals[manuals[1]].manualIdentityAmbiguous then
+        return rivals[manuals[1]], manuals[1]
     end
-    return matched, matchedID
 end
 
 local function CombineName(given, surname)
@@ -388,45 +493,118 @@ function addon.UnitPlayerName(unit)
     return name or unmodified
 end
 
-function addon.ResolveRivalName(unit)
+local function ManualUnit(unit, expectedName)
     local guid = SafeRead(UnitGUID, unit)
     if type(guid) ~= "string" or not guid:match("^Player%-.+") then return end
-    local rival = addon.Ledger.Find(addon.db, guid)
-    if not rival or addon.HasFullName(rival.displayName) then return end
-    local name = addon.UnitPlayerName(unit)
-    if addon.HasFullName(name) then
-        rival.displayName = name
-        RefreshRivals()
+    local source = unit == "target" and guid == SafeRead(UnitGUID, "player") and "player" or unit
+    local name = addon.UnitPlayerName(source)
+    if not addon.HasFullName(name) or (expectedName and not SameFullName(name, expectedName)) then return end
+    local snapshot = addon.UnitAppearance(source)
+    local faction, factionLabel = SafeRead(UnitFactionGroup, source)
+    if SafeRead(UnitGUID, unit) ~= guid then return end
+    if faction == "Alliance" or faction == "Horde" then
+        snapshot.faction = faction
+        snapshot.factionLabel = _G["FACTION_" .. faction:upper()]
     end
-end
-
-function addon.ManualTarget()
-    local name = addon.UnitPlayerName("target")
-    if not addon.HasFullName(name) then return end
-    local guid = SafeRead(UnitGUID, "target")
-    local playerGUID = SafeRead(UnitGUID, "player")
-    if type(guid) ~= "string" or not guid:match("^Player%-.+")
-        or type(playerGUID) ~= "string" or guid == playerGUID then
-        return
-    end
-    local snapshot = addon.UnitAppearance("target")
-    local _, factionLabel = SafeRead(UnitFactionGroup, "target")
+    if type(factionLabel) == "string" and factionLabel ~= "" then snapshot.factionLabel = factionLabel end
     snapshot.guid, snapshot.name = guid, name
-    snapshot.factionLabel = type(factionLabel) == "string" and factionLabel ~= "" and factionLabel or nil
     return snapshot
 end
 
-function addon.AddManualEncounter(input, direction, target)
+function addon.ManualTarget()
+    return ManualUnit("target")
+end
+
+ScanManualUnits = function(name, scope, selected)
+    local observed, ambiguous = selected, false
+    local self = SafeRead(UnitGUID, "player")
+    local function Observe(unit)
+        local snapshot = ManualUnit(unit, name)
+        if not snapshot or (snapshot.guid == self and not (selected and selected.guid == self))
+            or not (InNameScope(snapshot.guid, scope) or (selected and snapshot.guid == selected.guid)) then return end
+        if not observed then
+            observed = snapshot
+        elseif observed.guid ~= snapshot.guid then
+            ambiguous = true
+            return true
+        else
+            for _, field in ipairs(manualAppearanceFields) do
+                if observed[field] == nil then observed[field] = snapshot[field] end
+            end
+            if not observed.level or (observed.level == -1 and snapshot.level and snapshot.level > 0) then
+                observed.level = snapshot.level
+            end
+        end
+    end
+    if not selected then Observe("target") end
+    if not ambiguous and not Observe("mouseover") then addon.VisitVisibleNameplateUnits(Observe) end
+    return observed, ambiguous
+end
+
+function addon.ResolveRivalName(unit)
+    local guid = SafeRead(UnitGUID, unit)
+    if type(guid) ~= "string" or not guid:match("^Player%-.+") or guid == SafeRead(UnitGUID, "player") then return end
+    local rival = addon.Ledger.Find(addon.db, guid)
+    if rival and addon.HasFullName(rival.displayName) then
+        local wins, losses = addon.Ledger.RivalHistoryContext(addon.db, guid)
+        if wins + losses > 0 then
+            local observed = ManualUnit(unit, rival.displayName)
+            if observed and observed.guid == guid and EnrichManualRival(rival, observed) then RefreshRivals() end
+        end
+        return
+    end
+    local name = addon.UnitPlayerName(unit)
+    if not addon.HasFullName(name) or SafeRead(UnitGUID, unit) ~= guid then return end
+    if rival then rival.displayName = name end
+    local linked = LinkManualRivals(addon.db, guid, name, true)
+    if linked then
+        linked.displayName = name
+        local observed = ManualUnit(unit, name)
+        if observed and observed.guid == guid then EnrichManualRival(linked, observed) end
+    end
+    if rival or linked then RefreshRivals() end
+end
+
+function addon.AddManualEncounter(input, direction, openingTarget)
     local name = addon.ManualName(input)
     if not addon.HasFullName(name) or (direction ~= "killsAgainstThem" and direction ~= "deathsToThem") then
         return nil
     end
-    -- Bind only the name supplied by the target snapshot.
-    local snapshot = target and target.name == name and target
-    local id = snapshot and snapshot.guid
-        or ("manual:" .. (strlower or string.lower)(name))
-    addon.RecordEncounter(id, name, direction, {
+    local target = ManualUnit("target", name)
+    local scope = NameScope()
+    local known, manuals = MatchingRivals(addon.db, name, scope)
+    local observed, ambiguous = ScanManualUnits(name, scope, target)
+    -- The dialog's opening snapshot guards against silently switching between
+    -- namesakes. Only the current target can provide the explicit match.
+    local candidate = observed and observed.guid or known
+    local targetChanged = openingTarget and SameFullName(name, openingTarget.name)
+        and candidate and candidate ~= openingTarget.guid
+    ambiguous = ambiguous or known == false or (known and observed and known ~= observed.guid)
+    if ambiguous or targetChanged then
+        for _, id in ipairs(manuals) do addon.db.rivals[id].manualIdentityAmbiguous = true end
+    end
+    local snapshot = not targetChanged and (target or (not ambiguous and observed))
+    local id = snapshot and snapshot.guid or (not targetChanged and not ambiguous and known)
+    if id then
+        local profile = addon.db.rivals[id]
+        if not ambiguous then profile = LinkManualRivals(addon.db, id, name) or profile end
+        -- Reuse a previously observed level from this GUID for display only.
+        if profile and not profile.observedLevel and not (snapshot and snapshot.level) then
+            for _, encounter in ipairs(addon.RivalEncounters(addon.db, id)) do
+                if encounter.rivalLevel then
+                    profile.observedLevel = encounter.rivalLevel
+                    break
+                end
+            end
+        end
+    else
+        id = #manuals == 1 and manuals[1] or ("manual:" .. NameKey(name))
+    end
+    local rival = addon.db.rivals[id]
+    local displayName = snapshot and snapshot.name or (rival and rival.displayName) or name
+    addon.RecordEncounter(id, displayName, direction, {
         manual = true, outcome = direction == "killsAgainstThem" and "win" or "loss",
+        manualIdentityAmbiguous = id:match("^manual:") and (ambiguous or targetChanged) and true or nil,
         rivalLevel = snapshot and snapshot.level or nil,
     }, snapshot)
     return id

@@ -908,13 +908,12 @@ scrolling, search while scrolled, and the adjacent add and scrollbar alignment.
 Both skirmish card layouts use `CommonSquareIconButtonTemplate` from
 `Blizzard_SharedXML/Shared/Button/IconButtonTemplate.xml`, including native
 tooltips and click handling supplied by `UIButtonMixin`. Its icons come from
-`WaypointLocationPinTemplate` and `UIPanelInfoButton`. The button frames are
-32 units square with 16-unit icons. Center the icon at rest and restore that
-center after `SquareIconButtonMixin:OnMouseUp`. The
-header uses the square template's scaled four-unit inset to match the date-to-map
-and map-to-information gaps. Both map buttons share the same center anchor and
-pixel rounding. The compact information icon uses a half-unit upward
-adjustment. Verify the diamond at different UI scales, before and after clicking.
+`WaypointLocationPinTemplate`, `UIPanelInfoButton` and the PTR feedback
+assets. The button frames are 32 units square with 16-unit icons and a
+four-unit hit-rect inset. All card actions use a centered icon anchor
+without independent texel snapping. The hook restores the shared center
+after `SquareIconButtonMixin:OnMouseUp`. Mouse down retains the native
+pressed displacement. See the [polish asset measurements](#post-200-polish).
 All dividers use the factor from Blizzard's `PixelUtil.lua` divided by the
 texture's effective scale. The two-pixel height and lighter opacity keep the
 line subtle and give it coverage as scrolling lands between physical pixels.
@@ -922,13 +921,15 @@ The layout rounds to the pixel grid and the texture skips separate texel
 snapping. The full header, roster headings and timeline use the same dividers.
 Check their visibility while slowly scrolling at different UI scales.
 The profile and both card layouts use the same 64-unit portrait and 24-unit
-level badge. Card names wrap to two lines. Level and class badges share the
+level badge. Card names wrap to two lines. Each roster row centers the
+portrait and measured name together. Level and class badges share the
 same frame and anchor to opposite lower corners. Class icons use the game's `CLASS_ICON_TCOORDS`
 sheet as in `PVPCellClassMixin:Populate`, with a circular mask and a localized
 tooltip. The badge rounds its radius to a physical pixel using
 `PixelUtil.GetNearestPixelSize`. Its circle and label fill the same
 pixel-rounded bounds. The label uses horizontal center and vertical middle
-alignment with `GameFontHighlight` throughout the journal. The texture disables separate texel snapping, as in
+alignment with the locale's `GameFontHighlight` face and a one-unit size
+reduction throughout the journal. The texture disables separate texel snapping, as in
 `NineSliceUtil.DisableSharpening`.
 Check levels 54, 55 and 57 on both sides at different UI scales. The rim uses
 `Mode-Selection-Ring`
@@ -939,8 +940,10 @@ button's inherited `CircularGiantItemButtonTemplate` in
 selected rival keeps its rim glow via `LockHighlight`. Check that neither hover
 nor selection changes the image inside and that scrolling releases the glow
 when the tile is rebound.
-Both layouts share a 56-unit result badge and localized caption. Victory and defeat use captions
-alone. The unknown result and skulls retain their tooltips. The circle art
+Both layouts share a 56-unit result badge and localized caption. The compact
+card centers their combined height, with a centered tally for mixed credit.
+Victory and defeat use captions alone. The unknown result and skulls retain
+their tooltips. The circle art
 comes from `UI-HUD-UnitFrame-SmallCircle` in Camelot's
 `TargetFrameTemplates.xml`. The casualty marker uses a 20-unit circle in both layouts. Verify badge text, mirrored sides, and
 tooltips at several UI scales.
@@ -1029,10 +1032,9 @@ beside the timestamp. Check the common header centerline and the spacing in
 the finishing-blow list. Check that the Skirmish History scrollbar is centered
 in the gutter between the cards and the decorative frame. The roster count
 always shows the participants in the card. A passive `UIPanelInfoButton` from
-`SharedUIPanelTemplates.xml` shows
-the coverage tooltip when `rosterComplete` is false or absent. Seed fixtures
-set this flag explicitly. Converted one-death entries lack a complete roster
-confirmation, so their displayed counts show the known participants.
+`SharedUIPanelTemplates.xml` shows the coverage tooltip when
+`Ledger.HasRosterGap` finds concrete participant evidence or a documented
+interruption. `rosterComplete` continues to serve the outcome evaluators.
 For legacy cards the addon uses `C_Map.GetMapChildrenInfo` from
 `Blizzard_APIDocumentationGenerated/MapDocumentation.lua` to index Azeroth's
 zone maps by localized name. Check older Hillsbrad and Stranglethorn cards
@@ -1129,8 +1131,8 @@ The outer navigation follows `UI:Build` and `UI:Show` in Azeroth Fitness
 The two pages share the main book window. Clicking a known opponent in the
 journal opens their profile even with a previous search active. The journal
 uses the same two-sided battle card for all records. Older one-death entries
-show their recorded participants, finishing blow and map data with a partial
-roster tooltip. Their original saved data remains in the ledger.
+show their recorded participants, finishing blow and map data. The coverage
+tooltip follows the same evidence rule as for newer records.
 
 The journal displays at most 100 cards across the ledger. It preserves older
 saved entries and uses a bounded sorted list and a viewport-sized frame pool.
@@ -1678,14 +1680,15 @@ Victory, Defeat, Draw and exceptional Unknown have distinct display states.
 A compact card reads the matching rival's wins and losses. Repeated credit
 uses a count and simultaneous directions use the shared inline counter art.
 A linked rival without credit stays visible. Historical side results remain
-labelled on cards and in profile/hover context. A timestamped old directional
+labelled on cards and in the profile. A timestamped old directional
 row can supply one direct credit when its rival resolves to a player ID.
 Manual entries, undated directional rows and group verdicts supply no new
 participation evidence. Existing manual labels, raw timeline, direct totals
 and reward fields remain available. The profile keeps HK and honor separate.
 The nameplate shows a labelled historical fallback when the rival lacks a
-verified score; the unit tooltip shows separate manual/legacy totals and
-literal finishing blows.
+personal score. The polish unit tooltip shows personal score icons and
+numbers below the addon heading. Explicit manual results join that visible
+score while retaining their provenance.
 
 **Index and invalidation.** The ledger lazily builds one in-memory projection
 per loaded database. Warm nameplate and tooltip queries look up the rival's
@@ -2244,3 +2247,139 @@ The unit suite checks intent rejection and acceptance; actual publishing,
 including the existing CurseForge integration, needs separate verification.
 
 The first real request (#55, run [45696961734](https://github.com/nick-sidorin/names-in-red/actions/runs/45696961734)) passed the read-only build and owner gate but returned HTTP 403 before any tag was created. The original approved target had a different workflow tree from current main; historical ref creation may require Workflows write permission not available to GITHUB_TOKEN. Rather than change privileges, #56 requested the checked `89ba7eb` with current workflows and identical blob IDs for all 34 runtime files, CHANGELOG and .pkgmeta. [Run 45697286233](https://github.com/nick-sidorin/names-in-red/actions/runs/45697286233) completed both build and publish; tag `v2.0.0` resolves to that commit and public GitHub ZIP digest is `b0af00385971984a4f4901c7b1b3b11abe41a03d91345a2033e97f8aa98a7334`, identical to the prior accepted build. Both trigger actors were the owner. Seven intent tests passed in CI. No manual dispatch or actual non-owner run tested. No additional credentials or permissions added. CurseForge public file could not be independently read at handoff. For later releases, use a checked integrated main target with current workflow files; if a truly historical tag requires additional rights, stop and have the owner create it explicitly. Do not silently change target or move a tag.
+
+## Post-2.0.0 polish
+
+**Identity.** The previous typed-entry path always chose a `manual:` key
+unless the target snapshot matched the typed spelling byte for byte. The
+regression reproduced the duplicate against 2.0.0's code. The preview
+normalizes spaces, including non-breaking spaces, and compares full names
+case-insensitively, including Cyrillic and Ё/ё. Forever's Camelot
+`NameUtil.FormatUnitNameForDisplay` uses the first name and surname.
+`RegionalUniqueNamesEnabled()` determines when a name match can span the
+region. With regional uniqueness unavailable, the addon's name-only lookup
+uses the home-realm portion of the readable player GUID. A matching current
+target supplies the GUID regardless of name scope. The migration requires one
+confirmed match and a standalone manual history. It moves original rows with
+their order keys, explicit results and rewards. Conflicting sequence IDs or
+unexpected shared-battle links leave the provisional profile intact.
+Confirmed GUIDs are never merged. Target or mouseover identification and new
+combat records can promote a provisional profile. Reload tests exercise both
+history indexes and reward totals. [Camelot NameUtil](https://github.com/Gethe/wow-ui-source/blob/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_FrameXMLUtil/Camelot/NameUtil.lua) ·
+[Native regional names API](https://github.com/Gethe/wow-ui-source/blob/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitDocumentation.lua)
+
+**Coverage.** The previous card treated the negation of `ObservedDuel`
+as an incomplete roster. The preview checks missing participant identities
+referenced by the roster or durable linked evidence. It records a separate
+interruption flag when capture stops with a readable living opponent in
+combat targeting a living, in-combat participant on the other side. A
+subsequent observed segment can supersede the interruption. A restricted
+field, generic combat flag, missing finisher or `visibilityGap` alone
+cannot establish a roster gap. Historical interruptions may lack the
+pair observation. The anonymized World:27 replay keeps the 2×1 Victory, one
+rival win and 1 HK / 4 honor with `rosterComplete == false` and no warning.
+The world suite exercises an interruption with a linked target and the
+quiet/unrelated controls. Outcome evaluation uses its existing inputs.
+
+**Native artwork.** The 71091 and 71139 Forever XML and Lua used for the
+card buttons agree. In 71139's retail CDN data for product `wowf`,
+`UiTextureAtlasMember` places `Waypoint-MapPin-Untracked` in FileDataID
+3500068 at a 30×30 crop. Its alpha >16 bounds are (4, 4)–(26, 26), measured
+from the upper left with exclusive right/bottom edges.
+`InformationIcon.blp` (374216) measures 16×16 with bounds
+(1, 1)–(15, 15). `HelpIcon-Bug.blp` (605711) measures 64×64 with
+bounds (10, 12)–(52, 52), within a quarter UI unit of center at
+16×16. The native normal and pressed square atlases (3534438) also have
+centered alpha bounds. The common rest anchor removes the prior info/bug
+lift and the map-only rounding. The existing template supplies the button
+art, input, tooltip and pressed state. The portrait uses the existing
+localized font face at one unit smaller. Caption and name placement use the
+wrapped string height, within the existing row and two-line limits.
+[Native square buttons](https://github.com/Gethe/wow-ui-source/tree/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_SharedXML/Shared/Button) ·
+[Waypoint template](https://github.com/Gethe/wow-ui-source/blob/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_SharedMapDataProviders/WaypointLocationDataProvider.xml) ·
+[Info template](https://github.com/Gethe/wow-ui-source/blob/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml) ·
+[Bug asset](https://github.com/Gethe/wow-ui-source/blob/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_PTRFeedback/Blizzard_PTRFeedback.lua) ·
+[Font inheritance](https://github.com/Gethe/wow-ui-source/blob/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_Fonts_Shared/Shared/FontStyles.xml)
+
+### Live review follow-up
+
+The owner approved the general appearance of preview `344f64b` in Forever
+and requested three follow-up fixes. [Live review](https://github.com/nick-sidorin/names-in-red/pull/58#pullrequestreview-6065423782)
+
+**Native tooltip wrap.** In `Book.Stat`, `GameTooltip:SetText` previously
+used the default unwrapped mode. Forever's generated `FrameAPITooltip`
+declares argument six as `wrap`. The native Adventure Map quest tooltip
+passes it to `SetText`. Native item and spell data use
+`TooltipDataHandlerMixin:AddLineDataText` to forward the line's
+`wrapText` via `GameTooltip_AddColoredLine` to `AddLine`. The four
+profile stats now use the native wrap argument, and manual and legacy
+history lines use the same wrapping path. GameTooltip owns width and height.
+The original translations and punctuation are preserved. The sources for
+these calls agree in builds 71091 and 71139. UI mocks verify wrap flags and
+unaltered text. [Native SetText](https://github.com/Gethe/wow-ui-source/blob/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_APIDocumentationGenerated/FrameAPITooltipDocumentation.lua#L120-L133) ·
+[Native quest tooltip](https://github.com/Gethe/wow-ui-source/blob/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_AdventureMap/AM_QuestDialog.lua#L267-L279) ·
+[Item and spell line handler](https://github.com/Gethe/wow-ui-source/blob/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_SharedXMLGame/Tooltip/TooltipDataHandler.lua#L338-L349)
+
+**Visible score.** Preview `344f64b` read contribution-only scores for
+profiles and unit tooltips. The unit tooltip had dropped its separate
+history lines, so rivals with only manual results could disappear from it.
+`Ledger.RivalScore` now adds manual wins and losses once to the verified
+contribution totals used by the profile, unit tooltip and nameplate. The
+existing historical fallback on nameplates is labelled as such. A manual
+result keeps its label in the card and its provenance in the profile hover.
+The direct-player, award, and contribution-only counters remain independent.
+Tests cover manual-only and mixed profiles, unit tooltip and nameplate
+visibility, deletion, duplicate migration and repeated reload.
+
+**Manual observations.** Opening the form can prefill the selected unit's
+full name. Save matches the current target by exact normalized full name
+and verifies GUID stability around the appearance read. Mouseover and
+visible permitted nameplates may supplement the same GUID or supply a
+unique name-only match in scope. The ledger supplies previously retained
+identity and profile information. Contradictory name-only observations
+leave a provisional profile with a persisted ambiguity marker. A targeted
+namesake can receive a new, explicitly identified entry. A stored level
+from earlier history or learned later is profile evidence used when a
+manual card lacks a recorded level. The saved encounter retains its original
+level field. Later target or mouseover events and new verified PvP evidence
+can enrich a provisional match. Self-target uses the local unit's name and
+appearance for this explicit path. Automatic opponent capture rejects the
+local player GUID. Regressions cover stale selection, token reuse, secret
+fields, forbidden plates, visible conflicts and manual self-entry.
+
+### Live preview checklist
+
+Use the revision-stamped preview in Forever to validate rendering and
+interaction. The updated preview's three follow-up fixes remain pending
+live acceptance.
+
+1. Clear the target and add a result for an existing rival using the full name,
+   with different case or spacing. Look for one profile, the original and
+   new records, the manual result and the same earned rewards after `/reload`.
+   Add an opponent found through mouseover or a visible nameplate and verify
+   its appearance and level. Add a previously unrecorded rival by name and
+   then target or mouse over that character to check promotion. Select your
+   own character, add a manual result, and check its card and unit tooltip.
+   Open the migrated manual card's report.
+2. Open restored World:27. Expect 2×1, Victory, 1 HK / 4 honor and no roster
+   warning. Compare a normal group card and an interrupted or unresolved
+   capture with a genuine roster gap.
+3. At normal and reduced UI scale, compare the waypoint diamond and bug in
+   both layouts and the compact Details icon. Hover, press and release each.
+   Open the waypoint, linked skirmish and issue report.
+4. Check single- and double-digit levels in the profile and both cards.
+   Compare left and right badges, the skull for unknown-high level and
+   an unavailable level with no badge.
+5. Compare whitespace above and below the portraits with their names.
+   Check a multi-row group, a short roster opposite it, a long localized
+   name and a recycled card while scrolling.
+6. In the compact card, compare Victory, Defeat and No credit, including a
+   caption that wraps. Check the vertical center of the combined result.
+7. Hover wins and losses in Russian and English. Check native wrap with long
+   hints and manual or legacy history lines. Check the HK and honor slots.
+   Compare a solo finish and a win earned by supporting the finishing ally.
+8. Compare a manual-only rival and a mixed manual and automatic profile.
+   Check the same score in the profile, unit tooltip and nameplate with
+   independent display options. Verify the heading, icons and numbers in the
+   unit tooltip. Check attribution and rewards after reload and deletion
+   using an entry created for this test.

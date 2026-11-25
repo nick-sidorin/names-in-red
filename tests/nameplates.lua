@@ -94,7 +94,13 @@ local battle = { startedAt = 10, allies = { { id = "Player-self", isSelf = true 
     } }
 addon.RecordSkirmish("plate-fight", battle)
 assert(badge.text == addon.FormatRivalCounters(2, 1, true, 0))
+rival.encounters[3] = { manual = true, direction = "deathsToThem" }
+addon.RefreshNameplates()
+assert(badge.text == addon.FormatRivalCounters(2, 2, true, 0))
 addon.Ledger.RemoveSkirmish(addon.db, "plate-fight")
+addon.RefreshNameplates()
+assert(badge.text == addon.FormatRivalCounters(0, 1, true, 0))
+rival.encounters[3] = nil
 addon.RefreshNameplates()
 assert(badge.text:find(addon.L.legacyResult, 1, true))
 
@@ -133,6 +139,7 @@ plate.forbidden = false
 addon.db.rivals["Player-rival"] = nil
 addon.RefreshNameplates()
 assert(not badge.shown)
+function RegionalUniqueNamesEnabled() return true end
 addon.db.rivals["manual:cute rock"] = rival
 addon.RefreshNameplates()
 assert(badge.shown and badge.text:find("TooltipSkull.tga:14:14:0:0|t 1", 1, true))

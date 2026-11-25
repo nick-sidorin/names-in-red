@@ -255,6 +255,21 @@ used by cards, profile, tooltip and nameplate.
   intact. No real private captures, secrets or unnecessary personal data in
   Git. In anonymous fixtures, redact identity values and preserve status
   enums even when they use the same field names.
+- Use a readable player GUID as the durable rival identity. Resolve a typed
+  first name and surname only inside the client's confirmed name scope.
+  Re-read a selected unit and verify its GUID after sampling metadata. Read
+  mouseover and visible nameplates on manual save. Preserve observed
+  identity conflicts across reload. Keep newly observed profile metadata
+  separate from the level recorded at an encounter.
+  When migrating standalone manual entries, preserve their individual
+  sequences, results and rewards. Use the ledger's visible rival score for
+  profile, nameplate and unit tooltip while retaining manual provenance.
+  Treat the displayed roster warning as a projection of roster evidence
+  independent of the evaluator's duel-specific `rosterComplete` flag.
+
+- Let the native GameTooltip wrap and size authored stat text. Set its wrap
+  argument on the primary text and appended history lines. Preserve the
+  localized strings, including their punctuation.
 
 ## 5. Tests: behavior and regression, not implementation snapshots
 
