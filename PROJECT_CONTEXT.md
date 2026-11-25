@@ -299,9 +299,11 @@ See [the timing and replay notes](docs/forever-validation.md#character-pov-pr-a)
 for the 12-second settlement window, evidence rules and historical results.
 PR A (#43), PR B (#44), PR C (#45) and the control-gap fix (#48) are
 merged. Issue #47 is closed and the owner confirmed restored history in
-Forever on preview `218f1b1`. Integrated main is `9b6876b`. The owner
-accepted Character POV for the planned 2.0.0 release. The public baseline
-remains 1.1.0 until publication is verified.
+Forever on preview `218f1b1`. The pre-release integration baseline was `9b6876b`. The owner accepted
+Character POV and authorized publication of 2.0.0. PR #50 is squash-merged
+at `a58fccad02de7e50357e63546b1b3710cd1ea01f`; Issue #49 is closed. PR #46
+is superseded and closed without a second merge. Public availability remains
+unverified until the tag-driven publisher and CurseForge are checked.
 
 1. Prepare the 2.0.0 release PR and preview the single-copy issue report.
    Complete final product and technical review before pushing a public
@@ -310,8 +312,7 @@ remains 1.1.0 until publication is verified.
    skirmish independently of a killing blow. The exact private replay
    recovers the assisted 2×1 Victory with one rival win and the same 1 HK /
    4 honor on the card and rival profile. The owner verified the restored
-   card and compact report on `6961d33`. The next preview checks the updated
-   rival profile after upgrading that card. Its old diagnostic window carries
+   card and compact report on `6961d33`. The owner confirmed the corrected rival statistics in Forever on `b7870aa`. Its old diagnostic window carries
    no map position. The release gate checks deterministic ZIP output. See
    [Forever validation](docs/forever-validation.md#outgoing-only-aid-in-forever-71091).
 2. Preserve the earlier real-client acceptance of restored world:19–21,
@@ -323,11 +324,14 @@ remains 1.1.0 until publication is verified.
 3. Known data loss, crashes, core behavior defects, failing checks and
    package problems still block publication. Verify GitHub and CurseForge
    artifacts independently once the owner accepts the final release.
-4. Later ideas (not blockers): full timeline viewer, general history pagination,
-   optional consenting peer observations, formal duel history, target-frame
-   marker, ranks and achievements. See docs/future-ideas.md.
+4. After 2.0.0 publication, prioritize polishing the existing journal, not new
+   feature milestones. See the approved post-release polish requirements in
+   the product spec. A known manual-entry duplicate report needs investigation
+   and safe correction; visual and roster-warning refinements are also queued.
+   All larger ideas, including target menu and ally profiles, are deferred in
+   docs/future-ideas.md.
 
 To resume in a new chat: provide the repository link and ask the assistant to
 read this file and docs/skirmish-product-spec.md, verify main/PR/release state,
-and continue with the Character POV implementation design. No need to repeat
+and continue with the current release/polish scope. No need to repeat
 the entire conversation.

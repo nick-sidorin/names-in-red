@@ -99,3 +99,11 @@ explicit opt-in, provenance, duplicate/overlap handling and conflicts. This
 may improve coverage after one character loses sight of a fight, but must
 not be required to record or evaluate a solo character's story. No opponent
 installation requirement; no current implementation commitment.
+
+## Target portrait context menu
+
+Consider a native target portrait right-click menu section labeled **Names in Red**, with an **Open statistics** action when the currently targeted character has a known profile. Open the journal directly with that character selected. Initially this can use the existing rival database; later it could support ally profiles too. Research Forever's native unit menu extension and combat safety before design/implementation. Do not expose the action for an unidentified or unknown profile. This is a deferred idea, not part of the post-2.0.0 polish.
+
+## Ally history
+
+Consider remembering allied players as well as opposing rivals, with separate lists and profiles. Possible ally-specific statistics: shared skirmishes, shared victories and shared defeats; distinct iconography. Do not copy enemy-rival honor/HK counters or personal adversarial score into ally profiles. Decide exact participation, win/loss semantics, identity, storage, navigation and artwork later. This is exploratory and deferred until the existing product is polished.

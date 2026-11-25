@@ -75,7 +75,7 @@ For a fight joined in progress, a hostile player's consistent focus on an indepe
 - Retain all identifiable actual participants supported by what the character could observe.
 - Show names, faction, class, race, and level when known. A known participant can remain in the report even when some details are missing.
 - Do not assume that an unseen player was absent from the fight.
-- Display team sizes as **observed participants**, not guaranteed complete numbers. An incomplete roster is a coverage limitation, **not** a reason by itself to label the personal outcome Unknown. Distinguish a participant from a rival whom the local character actually helped defeat.
+- Display team sizes as **observed participants**, not guaranteed complete numbers. An incomplete roster is a coverage limitation, **not** a reason by itself to label the personal outcome Unknown. Distinguish a participant from a rival whom the local character actually helped defeat. After 2.0.0, show a roster warning only for a concrete observed gap or unresolved participant evidence, not merely because a battle is not a direct 1×1 kill. Absence of a warning is not a claim of omniscient coverage; keep internal outcome evidence separate from the UI indicator.
 - If a player was fighting before we arrived and there is evidence linking them to this clash, include them even if they stopped before our first attack.
 
 ## 5. How the character's participation ends
@@ -323,3 +323,17 @@ The original capture was 1 vs 2, later reconstructed as 2 vs 3 with two enemy de
 ---
 
 **Guiding principle:** Tell my character's story. Remember who I fought and helped defeat, what happened to me, and what I could know about the fight. Give healers and teammates fair credit without inventing last hits. Preserve history indefinitely. Use Draw for established equal-loss endings, and reserve Unknown for genuinely unresolved observation, not unavailable global knowledge.
+
+## 10. Approved post-2.0.0 polish
+
+The owner accepted release 2.0.0 and explicitly deferred these corrections until after publication. Polish the current product before starting any larger future feature. These are target requirements, not shipped behavior.
+
+- **Coverage UX:** replace the blanket non-1×1 warning with evidence-based warnings about actual unresolved participants or concrete capture gaps. A normally observed 2×1 fight must not be presented as suspect solely due to roster size. Preserve uncertainty in internal evidence and do not set rosterComplete=true merely to hide a warning; it is used by outcome evaluation. World:27 is the acceptance example. Check unknown identities, restricted data, genuine incomplete captures, group fights and direct duels.
+- **Manual rival identity:** adding a manual skirmish by an existing rival's unique full character name must reuse the known profile even if no GUID is supplied in the form. Resolve normalized full names within the relevant identity scope; use known GUIDs where available and avoid merging ambiguous names or distinct identities. Investigate the reported duplicate and provide safe reconciliation of existing duplicates when uniquely matched, preserving explicit manual outcomes, history, rewards and indexes; no double counting. Test existing automatic rival, manual-only rival, later identification, ambiguous matches and reload.
+- **Shared card action buttons:** visually center the native waypoint diamond, details/info and issue-report bug artwork in both compact and full cards. The compact diamond currently sits lower than the full card diamond; compact info/bug look slightly high. Inspect the native template/atlas and actual artwork bounds, use shared component geometry, not independent one-off offsets. Preserve size, behavior, tooltips and hit area.
+- **Portrait and result layout:** slightly reduce the level-number font size while keeping it centered in its circular badge. Vertically center the entire portrait + name group within its available content area in both card variants, balancing whitespace above and below. Lower/recenter the compact outcome icon and caption as one group. Preserve alignment for multiple participants, different levels and localized names. Review at native client scale.
+- **Natural score language:** rewrite win/loss explanatory tooltips in natural Russian and English, then update other supported locales consistently. Wins include defeating the rival oneself or materially participating in their defeat; do not imply the player merely helped. Losses include the rival's confirmed role in defeating the player. Keep the wording brief and player-facing; do not alter score semantics.
+- **Unit tooltip:** retain the Names in Red icon counters and numbers only; remove redundant text restating wins/losses. Preserve existing native tooltip content and visibility options.
+- **Out of scope:** leave honor/currency number and icon alignment as it is (owner withdrew this request after comparing the native bag presentation). No formal duels, ally profiles, target menu, progression, new timeline features, or other future-idea implementation in this polish phase.
+
+Use focused tests and preview acceptance for the actual fixes; avoid changing the accepted Character POV scoring or old records merely for visual polish.
