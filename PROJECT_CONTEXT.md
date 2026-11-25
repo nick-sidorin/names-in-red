@@ -300,6 +300,12 @@ remains 1.1.0 until publication is verified.
 1. Prepare the 2.0.0 release PR and preview the single-copy issue report.
    Complete final product and technical review before pushing a public
    version tag. Follow the [integration gate](docs/character-pov-roadmap.md#integration-and-release-gate).
+   PR #50 also fixes Issue #49. A concordant outgoing pair can record a
+   skirmish independently of a killing blow. The exact private replay
+   recovers the assisted 2×1 Victory with one rival win and the same 1 HK /
+   4 honor moved to the fight. Verify the restored card alongside the compact
+   report in the final Forever preview. See
+   [Forever validation](docs/forever-validation.md#outgoing-only-aid-in-forever-71091).
 2. Preserve the earlier real-client acceptance of restored world:19–21,
    world:16 Defeat, rival scores and reload. The owner confirmed the two-fight
    recovery from #48 after that check. Unobserved rare group and hostile

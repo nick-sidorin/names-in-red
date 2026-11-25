@@ -2095,6 +2095,54 @@ reopening without the debug log, view and index consistency, and the
 live recorder tests exercise the captured intervals and native recap.
 Fresh in-client capture on the fix preview remains to be checked.
 
+### Outgoing-only aid in Forever 71091
+
+[Issue #49](https://github.com/nick-sidorin/names-in-red/issues/49) records
+a real joined open-world fight. On the previous release-preparation build
+the fight was absent, with 1 HK and 4 honor left at journal scope. The
+original save contained the exact unowned start and end of the 11.828-second
+local window, one 13-second current Damage Meter selection, two timely
+category updates, and complete readable views. GUID-keyed `DamageDone`
+reports 630 for the local player, including native pet damage. The druid's
+`EnemyDamageTaken` reports the same 630 in a no-spell row naming the local
+player. Its detail amount is zero and the class string is empty. The existing
+complete matrix check can establish this outgoing direction before a skirmish
+exists. Shared, late, and mismatched selections still require the earlier
+independent evidence or are rejected.
+
+The druid was observed alive and in combat at entry and non-feigning and dead
+5.839 seconds into the window. Both samples show the same target GUID. A
+readable nameplate identified that GUID as a friendly paladin in PvP combat
+2.082 seconds after the corpse observation. The addon can retain that
+corroborated roster connection outside the party. The capture contains no
+action or PARTY_KILL that assigns the killing blow. A local alive and
+out-of-combat sample at the end of the window, all recorded enemies confirmed
+dead, and the absence of contradictory later PvP activity support Victory.
+An outgoing pair alone still creates a record when death is unobserved. It
+supplies neither a casualty nor a rival win in that case.
+
+The original SavedVariables replay on the repaired build produces a new
+`world:26` with a 2×1 Victory, one rival win, one actorless enemy death, zero
+direct killing blows, and 1 HK / 4 honor at skirmish scope. Total earned
+rewards are unchanged. The original duplicate native HK notifications reflect
+one session-counter increment. The single readable honor line, unique
+unmatched-award marker, and exact saved balance corroborate the transfer. A
+second claim or an ambiguous stored balance leaves the awards at journal scope.
+New capture can preserve an unmatched award durably before moving it once to
+the late-confirmed window. Recovery keys prevent replay after load or explicit
+record removal. Reopening without the debug buffer keeps the recovered
+permanent evidence and indexed score.
+
+The anonymized fixture keeps the actual offsets, amounts, shape, and field
+statuses. Replays reject stale updates, mismatched totals, unidentified names,
+NPC sources, overlapping records, unverified allies, feign and contradictory
+life evidence. The UI tests verify the card, rival profile, compact card and
+tooltip, and check that unmatched awards are absent from the journal heading.
+The next live preview verifies the recovered card and single-copy report on
+the same installable build. Captures that no longer retain a uniquely scoped
+readable pair cannot recover a missing fight. Unreadable game awards or
+ambiguous balances still limit historical award attribution.
+
 ### Preview and release provenance
 
 The original #29 preview included the new combat diagnostics with the old

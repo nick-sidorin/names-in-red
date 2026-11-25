@@ -58,7 +58,7 @@ Both are enabled by default and have separate switches under the addon settings.
 
 Names in Red observes **open-world PvP and battleground skirmishes** using information the Forever client makes available to addons. It groups related activity into skirmishes, including fights without a killing blow. The saved record can include confirmed deaths and revivals, earned rewards, and linked Damage Meter samples for damage, healing and absorbs. Battleground cards identify the local fight and its outcome. Matches can contain several independent skirmishes.
 
-Not every encounter exposes a complete team or a certain result. Those records remain in the journal with an incomplete roster or unknown outcome instead of guessing. Rewards appear on the most specific confirmed record. If the addon cannot associate an award with a fight, the journal shows it in **Rewards without a skirmish**. An unidentified player may appear as **Unknown rival** until their full name is available.
+When you join someone else's fight, your confirmed damage can establish the skirmish and count toward a victory when the enemy's death is observed. Some encounters have an incomplete roster or an unknown outcome. Rewards appear on the fight or rival record when their attribution is confirmed. An unidentified player may appear as **Unknown rival** until their full name is available.
 
 A brief retreat or return after resurrection can continue the same fight. An independent rematch gets its own record. Forever can restrict identities, pet ownership and event timing, so some participants, revivals, repeat kills or rewards may be unavailable. The upgrade preserves recorded fights, manual entries and rewards.
 

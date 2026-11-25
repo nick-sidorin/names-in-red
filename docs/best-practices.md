@@ -181,13 +181,28 @@ used by cards, profile, tooltip and nameplate.
 - Treat a native `EnemyDamageTaken` no-spell row as a player-pair
   aggregate only when the readable complete source totals reconcile
   against same-selection GUID-keyed `DamageDone` and the full names are
-  unique. Keep the proof on the literal window of the separately
-  confirmed target. A shared session can cover another opposing player
-  or predate local combat. For a longer session with late updates,
+  unique. A normally scoped and concordant pair can bootstrap a skirmish
+  without an existing record, death, or damage in the reverse direction.
+  A shared session can cover another opposing player or predate local
+  combat. Require the existing independent target anchor for such a
+  session. For a longer session with late updates,
   require an isolated selection and independently observed combat and
   reciprocal damage for the joined pair. Keep this proof out of the
   passive strict-detail baseline. A brief generic ally combat flag
   alone cannot override a witnessed elimination.
+- Keep a corroborated opponent-to-ally target observation separate from
+  the directed damage or support used for credit. Cross-check GUID,
+  flag readability and same-window combat. An observed, non-feigning corpse
+  supported by the directed PvP pair can supply an actorless death event.
+  A verified local combat exit supports elimination only after every
+  recorded opponent's confirmed death, with no contradictory later evidence.
+- Keep earned rewards durable while combat confirmation is pending. A
+  live claim can transfer a previously counted award once to its exact
+  window and record. Historical recovery needs a unique unowned combat
+  window and at least the same live pair checks. Move historical awards
+  only with matching paired reward observations and an unambiguous saved
+  balance. Retain the recovery identity independently of the debug buffer
+  so a subsequent reload or record removal cannot replay the same window.
 - Preserve witnessed action times on both sides of a life transition. Per-pair
   first/last/count summaries alone can drop the only action that links an
   earlier corpse to PvP. Reconcile confirmed death and revival from readable,

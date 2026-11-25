@@ -8,7 +8,9 @@
 - Your score against each rival now counts participation in confirmed defeats and deaths. Damage, relevant healing, protection, control and activity by a pet with an identified owner can count without a last hit. A fight can add more than one win or loss against the same rival after genuine revivals.
 - See the same rival score in profiles, compact cards, nameplates and tooltips. Direct killing blows and deaths, Honorable Kills, and Honor Points keep their own counters.
 - Related fighting can continue across a brief trap, retreat, or return after resurrection. A later rematch has its own card.
+- Confirmed damage can create a skirmish when you join someone else's fight, even if nobody dies. If you help defeat an opponent and the finishing player is unknown, your contribution can still count as a win.
 - Keep older fights, manual entries and rewards. The journal uses retained evidence to recover supported results and labels older side results separately.
+- Skirmish cards show the HK and honor that can be linked to the fight. The journal header no longer shows unmatched rewards.
 - Copy one privacy-filtered diagnostic report from the smaller **Report an issue** window. **Select Report** highlights the entire report.
 
 Forever can restrict player identities, pet ownership and combat details. Incomplete records show the evidence the client made available.

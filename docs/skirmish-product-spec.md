@@ -36,6 +36,7 @@ A skirmish is a **continuous, connected hostile confrontation** between the two 
 
 - Engaging an enemy can begin before the first damage is dealt: an offensive ability, crowd control, or commanding a pet to attack may be the first action.
 - An attempted attack that never connects or contributes to any real PvP confrontation should not create a completed fight by itself.
+- Confirmed directed damage from the local character to an opposing player can establish a skirmish even when nobody dies and no incoming damage is available. A Damage Meter pair must identify both players and belong to the observed combat window.
 - Targeting a hostile player, being in range, seeing a nameplate, or being in a group **does not by itself** establish participation.
 - **Visible nameplates are not required.** Ranged attacks, spells, controlled pets, and observations of an ongoing fight can precede nameplate visibility.
 - The local character may arrive **mid-fight**. Observed participants and events from the earlier phase of the same connected confrontation should be retained when available, rather than starting the story at the first personal killing blow.
@@ -66,6 +67,8 @@ Qualifying involvement can include:
 The support case matters: **a priest who only heals a fighting ally is still a participant**, even with no recorded damage or killing blow.
 
 A player does **not** become a participant solely by being in the party, appearing on a nameplate, being selected as a target, standing nearby, or fighting an unrelated NPC. Actions must connect them to this confrontation. Conversely, a character need not be in our party/raid to be an ally.
+
+For a fight joined in progress, a hostile player's consistent focus on an independently identified friendly player in the same confrontation can corroborate involvement when that friendly player is also observed alive, PvP-flagged, and fighting around the hostile player's confirmed death. Record the roster evidence separately from any damage, support, or finishing-blow attribution.
 
 ### The limits of observation
 
@@ -201,7 +204,7 @@ No new requirement for global synchronization or exhaustive observation.
 - **Primary outcome:** Victory, Defeat or Draw from section 6; exceptional Unknown for genuinely unresolved endings. Show In progress separately for ongoing/settling encounters.
 - **Observed sides and roster:** identify actual Alliance and Horde participants, including meaningful support; keep known class, race, name and level. Use Blizzard's skull only for an explicitly observed skull-level value; hide an unavailable level.
 - **Casualties and timeline:** confirmed deaths, finishing blows and revivals, plus meaningful actions and available permanent aggregates. A pet finishing blow shows its verified player owner as the actor. When ownership is unresolved, show an unknown player and retain the actual source as technical evidence. Do not mark disappearance as death or fabricate a killer or individual hit from an aggregate.
-- **Rewards:** distinguish game-awarded Honorable Kills and Honor Points from both personal and rival outcomes. Preserve earned rewards at the most specific confirmed scope (rival, skirmish, or journal); no invented attribution.
+- **Rewards:** distinguish game-awarded Honorable Kills and Honor Points from both personal and rival outcomes. Preserve earned rewards at the most specific confirmed scope. Show rival- and skirmish-scoped awards in their respective views. Keep journal-wide unmatched awards in internal accounting and diagnostics. A late confirmation may move a previously unmatched award to its positively identified skirmish window once.
 - **When/where, origin and coverage:** date, zone, map waypoint if available, observed rather than guaranteed full roster. Both compact and full battleground cards retain the localized Battleground label beside the location.
 - **Group context:** optional and explicitly labeled. It does not replace the character's primary outcome.
 

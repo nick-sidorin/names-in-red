@@ -128,8 +128,8 @@ Store `honorableKills` and `honor` under `rewards[opponent.id]`. Re-saving
 the same skirmish ID replaces the indexed result and rewards.
 
 Live open-world capture can record a skirmish with zero kills or rewards
-when a readable harmful effect or post-combat link establishes that the
-player was involved. Observed local combat windows can join one record
+when a readable harmful effect or a confirmed directed damage pair establishes
+that the player was involved. Observed local combat windows can join one record
 if a corroborating hostile action links them. The preview checks specific
 damage, healing, absorb, interrupt and dispel links when the meter supplies
 both identities. It can credit a pet with a confirmed owner. Nearby sightings,
@@ -137,11 +137,12 @@ group membership alone and unnamed meter totals do not establish participation.
 At death, visible nameplates can supply details when the target and mouseover
 are unavailable. For live records, `rosterComplete` still covers observed
 one-on-one kills and is recalculated at load and on each save.
-Honor correlation uses one readable
-opponent death and a single increase in the session honorable kill count.
-An honor amount also requires one award message and a readable amount from
-that message or a matching honor currency update. Ambiguous broadcasts
-remain in diagnostics. Rewards are collected for new observations. The
+Rival-specific honor correlation uses a linked kill and a single increase in
+the session honorable kill count. An honor amount also requires one award
+message and a readable amount from that message or a matching honor currency
+update. A late-confirmed combat window can receive awards originally saved in
+the journal's internal totals when their window is unambiguous. Unmatched
+awards remain in saved accounting and diagnostics. The
 seeded preview exercises completed outcomes and attributed rewards.
 
 The pinned [WoW Addon Standards](docs/standards/AGENTS.md) are used for development
