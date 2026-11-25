@@ -248,6 +248,11 @@ meaningful tests for changed behavior, unless a concrete reason is stated
   changes smoke test relevant live behavior if feasible; do not make the
   owner repeat dozens of historical encounters. Preserve meaningful gaps as
   explicit limitations and release blockers when warranted.
+  Owner decision (25 November 2026): do not block an otherwise accepted
+  milestone solely on waiting for uncommon live scenarios. Record untested
+  scenarios as follow-ups; investigate newly reported defects promptly and
+  ship focused fixes. This does not waive known data loss/corruption, crashes,
+  taint, reproducible core-behavior defects, failing checks or package integrity.
 - Run the full existing checks locally before submitting when a checkout is
   available. CI must pass on the exact final PR head. If local execution is
   unavailable, state that and use actual CI evidence; do not claim local tests.
