@@ -2349,9 +2349,11 @@ fields, forbidden plates, visible conflicts and manual self-entry.
 
 ### Live preview checklist
 
-Use the revision-stamped preview in Forever to validate rendering and
-interaction. The updated preview's three follow-up fixes remain pending
-live acceptance.
+The owner confirmed the follow-up fixes work in live Forever on preview
+`46740ff`, following general visual acceptance of `344f64b`. Individual
+checklist permutations were not separately reported. Both exact-head Checks
+passed; [review](https://github.com/nick-sidorin/names-in-red/pull/58#pullrequestreview-6065753205),
+squash merge `1d56d584`. Keep this checklist for subsequent regression checks.
 
 1. Clear the target and add a result for an existing rival using the full name,
    with different case or spacing. Look for one profile, the original and
