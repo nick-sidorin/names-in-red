@@ -1,15 +1,15 @@
 # Character POV — milestone roadmap
 
-**Status:** Character POV is accepted. PRs #43, #44, #45 and #48 are merged
-in main `9b6876b`. Issue #47 is closed. The planned release is 2.0.0.
-Final release review remains separate from milestone acceptance.
+**Status:** Character POV is accepted; 2.0.0 publication authorized. Release
+PR #50 squash-merged at `a58fccad02de7e50357e63546b1b3710cd1ea01f`.
+Issues #47 and #49 are closed. Verify the tag-driven publisher and public
+availability separately before calling the release published.
 
 **Baseline:** GitHub v1.1.0, with permanent battle history, automatic diagnostics,
 in-game issue reporting, and the existing side-outcome scoring model. The
 new milestone is a semantic redesign, not a rewrite of the whole addon.
 
-**Working title:** Character POV. Consider 2.0.0 because the meaning of rival
-wins/losses changes in 2.0.0.
+**Release:** 2.0.0 — Character POV, reflecting the new rival score semantics.
 No deadline is committed. A fast iteration is desirable, but client restrictions
 and migration evidence determine readiness.
 
@@ -212,10 +212,11 @@ After PR C, prepare one installable preview of the entire milestone.
   survives repeat loads and removal prevents recovery from replaying it.
   [Outgoing-only recovery](forever-validation.md#outgoing-only-aid-in-forever-71091)
 - The owner verified the restored card and compact report in Forever on
-  `6961d33`. The final preview checks the corrected rival profile. The
-  original card has no captured map position. Checks establish that two
-  independent release builds from one commit produce identical ZIP bytes.
-  Publication awaits final review.
+  `6961d33`. The owner confirmed the corrected rival profile on `b7870aa`.
+  The original card has no captured map position. Both exact-head Checks
+  passed, including independent byte-identical ZIP builds. The owner authorized
+  publication; separate reload of the final preview was not explicitly reported.
+  Post-release polish is tracked in the product spec; larger ideas are deferred.
 
 ### Non-blocking live follow-ups
 
