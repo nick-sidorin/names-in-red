@@ -2,6 +2,7 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location("release_intent", Path(__file__).resolve().parents[1] / "scripts/release_intent.py")
 module = importlib.util.module_from_spec(spec)
@@ -43,6 +44,13 @@ class ReleaseIntentTests(unittest.TestCase):
             ("workflow_dispatch", "refs/tags/v2.0.0", {"inputs": REQUEST})):
             with self.subTest(event=event, ref=ref), self.assertRaises(ValueError):
                 self.call(event, ref, payload)
+
+    def test_request_only_commit(self):
+        with patch.object(module, "git", side_effect=[module.REQUEST, '{"version":"2.0.0","commit":"' + SHA + '"}']):
+            self.assertEqual(module.load_request(), REQUEST)
+        for changed in ("", "README.md", module.REQUEST + "\nNamesInRed/Core.lua"):
+            with patch.object(module, "git", return_value=changed), self.assertRaises(ValueError):
+                module.load_request()
 
     def test_bad_request(self):
         for request in (None, {}, {"version": "2.0", "commit": SHA},
