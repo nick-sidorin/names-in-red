@@ -1488,6 +1488,8 @@ previous one is awaiting continuation. The 12-second window still allows
 the corpse or spirit to observe allies.
 A scoped meter can corroborate participants or enrich its owning window.
 Receipt of a meter delta or delayed recap does not extend the deadline.
+A separately observed pursuit can hold the original quiet callback while
+one successor window awaits qualification. See the [control-gap replay](#control-gap-replay-world2324).
 A deadline is private session time; only server times and offsets from the
 saved skirmish persist. Logout/loading finalizes with available observations,
 and reload closes any saved unfinished state if normal cleanup was missed.
@@ -2023,6 +2025,58 @@ participant. The Lua tests exercise the stored replays, the live capture
 callbacks with recorded rows, the journal and per-rival views, and
 reload with the log removed. Fresh capture and presentation on the new
 preview still need a client check.
+
+### Control-gap replay, world:23–24
+
+The private Forever 1.60.1 build 71091 capture was recorded on preview
+`22fada7`. The original SavedVariables replayed on main `805c242` as
+world:22 Victory, world:23 Unknown and world:24 Defeat. In the second
+encounter, the owner used Freezing Trap, moved away and resumed. The
+retained aura payload is secret. The cast and timing alone establish no
+target or continuation. [Issue #47](https://github.com/nick-sidorin/names-in-red/issues/47)
+
+| Evidence | First window | Successor window |
+| --- | --- | --- |
+| Native scope | Debug session 66, sequence 27 | Same session, sequence 28 |
+| Local uptime | 7029.684–7038.017 | 7041.196–7052.471 |
+| Independently qualified incoming damage | 330 | 1,135 |
+| Observed opponent | Alive, in combat and targeting the local player at exit | Same readable GUID, alive and targeting the local player at entry |
+
+The gap was 3.179 s. The first record had only one persisted assessment
+sample and no settled ending. Its 12 s quiet callback ran during the
+second window, before the native death and kill arrived. The old
+`Confirm` exit-contact path applied only to a readable harmful aura.
+The meter-created predecessor also missed the close-contact capture
+when its record was created after the combat-end event.
+
+The recorder now keeps the qualified predecessor's captured exit and
+checks the same living opponent targeting the local character at the
+start of the next local window, within the existing 5 s bridge. A pending
+record with that evidence can wait at its original quiet deadline for
+one successor to qualify. The successor needs a scoped directed damage
+pair or another verified local hostile action, such as the native lethal
+recap. The action must belong to the first 12 s of that successor. Existing
+late reads get no more than 2.5 s of grace, measured from the earlier of
+its close or that cap. An unrelated or superseding window and explicit
+scope changes drop the hold. The predecessor's terminal samples cannot
+be supplemented from a different window. Genuine paired disengagement
+or a prior unresolved death of either endpoint prevents an exit-contact merge.
+
+Historical reconciliation is narrower. It looks for adjacent, uniquely
+owned native windows in the same session with exact timestamps, matching
+solo sides and scope, direct links in both windows, readable exit and
+entry contacts, a quiet-timeout inside the successor and a later verified
+native lethal recap. It keeps the earlier journal ID and preserves its
+ending samples as recovery evidence. Battle-relative times use the native
+start-to-start difference of 11.512 s. Segment-relative aggregates and
+combat diagnostics, original death timestamps and awards remain intact.
+The original replay now has world:22 Victory and world:23 Defeat with
+both segments. The rival ledger records 1:1, one direct kill and one direct
+death, one HK and six honor. A missing, conflicting or ambiguous witness
+leaves the stored records separate. The exact anonymized fixture covers
+reopening without the debug log, view and index consistency, and the
+live recorder tests exercise the captured intervals and native recap.
+Fresh in-client capture on the fix preview remains to be checked.
 
 ### Preview and release provenance
 

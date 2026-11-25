@@ -197,6 +197,14 @@ used by cards, profile, tooltip and nameplate.
   scope and matched evidence across ordinary map/zone borders, and test those
   borders separately from loading, instance or match abandonment. Preserve
   old regressions and test reload and life-episode deduplication when relevant.
+- Hold quiet finalization only for one already opened successor with a
+  verified pursuit across the gap. Resolve it with hostility tied to the
+  same pair and successor window. Bound the hold from capture and stop
+  sampling the predecessor once the successor takes over observation.
+  Recover split history only from uniquely matching captured windows
+  and a documented premature boundary. Rebase battle-relative offsets
+  from the original monotonic clocks and keep segment-relative data,
+  native timestamps, death attribution and earned rewards intact.
 - Preserve per-character history, old facts, explicit manual entries and
   earned rewards through additive, idempotent migrations. Age, count and
   byte budgets apply to temporary evidence. The recent-view limit applies

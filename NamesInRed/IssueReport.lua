@@ -398,6 +398,9 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
     local scope = qualifier or (next(personal) and not Flag(battle.manual) and "personal") or "unavailable"
     local record = Fields(battle, nil, "sequence time startedAt recordedAt mapID x y instanceMapID", "rosterComplete manual")
     record.captureRevision = Token(battle.captureRevision)
+    local recovery = Table(battle.recoveredContinuation)
+    record.recoveredContinuationFrom = type(recovery.id) == "string" and recovery.id:match("^world:%d+$") or nil
+    record.recoveredCombatGap = Number(recovery.gap)
     record.id = type(battleID) == "string" and battleID:match("^[%a]+:%d+$") and battleID or nil
     record.origin = addon.Readable(battle.origin) == "battleground" and "Battleground" or "Open World"
     record.zone, record.outcome, record.outcomeScope = Zone(battle.zone), Token(outcome) or "unknown", scope

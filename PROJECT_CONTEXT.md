@@ -289,23 +289,27 @@ technical evidence predicates remain implementation choices.
 PR A implements the independent personal result and participation lifecycle.
 See [the timing and replay notes](docs/forever-validation.md#character-pov-pr-a)
 for the 12-second settlement window, evidence rules and historical results.
-PR A (#43), PR B (#44) and PR C (#45) are merged. Owner acceptance of exact
-preview `22fada7` passed all five historical/UI/reload checks. Fresh group
-encounters were unavailable; live pet-owner API attribution is not verified.
-The owner authorizes release of the completed feature milestone and accepts
-rare-scenario live checks as non-blocking follow-ups. The published baseline
-remains 1.1.0 until a new public artifact is verified.
+PR A (#43), PR B (#44), PR C (#45) and the control-gap fix (#48) are
+merged. Issue #47 is closed and the owner confirmed restored history in
+Forever on preview `218f1b1`. Integrated main is `9b6876b`. The owner
+accepted Character POV for the planned 2.0.0 release. The public baseline
+remains 1.1.0 until publication is verified.
 
-1. Verify integrated main (`805c242ce2ab88fd7ab2822d23cf51dc00fb2bc5`),
-   finish the [integration gate](docs/character-pov-roadmap.md#integration-and-release-gate)
-   and record the actual remaining limitations. See [acceptance review](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6060358381).
-2. Agree the release version, update public documentation and changelog, restore
-   a verified tag-driven publisher via PR, and verify GitHub and CurseForge
-   distribution independently. Do not block release solely on unobserved rare
-   live scenarios when relevant automated evidence and client smoke tests pass.
-3. Later ideas (not blockers): full timeline viewer, general history pagination,
+1. Prepare the 2.0.0 release PR and preview the single-copy issue report.
+   Complete final product and technical review before pushing a public
+   version tag. Follow the [integration gate](docs/character-pov-roadmap.md#integration-and-release-gate).
+2. Preserve the earlier real-client acceptance of restored world:19–21,
+   world:16 Defeat, rival scores and reload. The owner confirmed the two-fight
+   recovery from #48 after that check. Unobserved rare group and hostile
+   pet-owner scenarios stay as follow-ups under the accepted release policy.
+   [PR C acceptance](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6060358381) ·
+   [Control-gap validation](docs/forever-validation.md#control-gap-replay-world2324)
+3. Known data loss, crashes, core behavior defects, failing checks and
+   package problems still block publication. Verify GitHub and CurseForge
+   artifacts independently once the owner accepts the final release.
+4. Later ideas (not blockers): full timeline viewer, general history pagination,
    optional consenting peer observations, formal duel history, target-frame
-   marker, ranks/achievements. See docs/future-ideas.md.
+   marker, ranks and achievements. See docs/future-ideas.md.
 
 To resume in a new chat: provide the repository link and ask the assistant to
 read this file and docs/skirmish-product-spec.md, verify main/PR/release state,

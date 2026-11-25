@@ -1,17 +1,15 @@
 # Character POV — milestone roadmap
 
-**Status:** Feature implementation and owner acceptance complete, 25 November 2026.
-The Character POV contract is in [the product specification](skirmish-product-spec.md).
-PR A (#43), PR B (#44) and PR C (#45) are merged. The owner approved proceeding
-with a public release; integrated-main checks and packaging/publishing remain.
-The final version number is not yet agreed.
+**Status:** Character POV is accepted. PRs #43, #44, #45 and #48 are merged
+in main `9b6876b`. Issue #47 is closed. The planned release is 2.0.0.
+Final release review remains separate from milestone acceptance.
 
 **Baseline:** GitHub v1.1.0, with permanent battle history, automatic diagnostics,
 in-game issue reporting, and the existing side-outcome scoring model. The
 new milestone is a semantic redesign, not a rewrite of the whole addon.
 
 **Working title:** Character POV. Consider 2.0.0 because the meaning of rival
-wins/losses changes; decide the release number with the owner before publishing.
+wins/losses changes in 2.0.0.
 No deadline is committed. A fast iteration is desirable, but client restrictions
 and migration evidence determine readiness.
 
@@ -211,11 +209,13 @@ latest accepted main; avoid parallel changes to shared scoring/storage
 contracts. Independent fixture preparation may be parallelized only if
 it does not create conflicting changes.
 
-Owner acceptance of exact preview `22fada7` passed the five historical/UI/reload
-checks: restored world:19–21 rosters and victories, rival scores, world:16
-Defeat and persistence after reload. Fresh group encounters were not available;
-live pet-owner attribution remains unverified. The owner accepts these as
-non-blocking follow-ups, not as passed tests. See [acceptance review](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6060358381).
-PR C was squash-merged as `805c242ce2ab88fd7ab2822d23cf51dc00fb2bc5`.
-Next: verify integrated main, prepare the release and publisher, and verify
-public artifacts. Do not claim release until publication is confirmed.
+Owner acceptance of preview `22fada7` covered the restored world:19–21
+rosters and victories, rival scores, world:16 Defeat and persistence after
+reload. The owner also confirmed the world:22–24 recovery in the Forever
+preview `218f1b1`. Fresh group encounters and live pet-owner attribution
+remain useful follow-ups. The owner accepts shipping a completed milestone
+while uncommon live scenarios are still unobserved. Data integrity,
+stability, core behavior, CI and installable-package checks stay part of the
+release gate.
+[PR C acceptance](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6060358381) ·
+[Control-gap validation](forever-validation.md#control-gap-replay-world2324)

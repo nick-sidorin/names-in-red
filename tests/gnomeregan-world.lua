@@ -122,7 +122,7 @@ local function HK()
 end
 
 for _, file in ipairs({ "Locale", "Ledger", "SkirmishOutcomes", "SkirmishDeathEvidence", "PersonalSkirmishOutcomes", "RivalContributions", "Encounter", "Core", "SkirmishEvidence", "MeterSourceTotals", "CombatDiagnostics",
-    "WorldSkirmishes", "Honor", "Kills", "Deaths", "IssueReport", "Debug" }) do
+    "WorldSkirmishes", "SkirmishGapHistory", "Honor", "Kills", "Deaths", "IssueReport", "Debug" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
 Fire("ADDON_LOADED", "NamesInRed")
@@ -1775,4 +1775,201 @@ if not arg[1] or arg[1] == "world-join-capture" then
         Fire("NAME_PLATE_UNIT_REMOVED", "nameplate2")
     end
     print("Native Damage Meter API replay records the ally through the live window and retry")
+end
+
+-- Replay the captured combat timings and native recap through the event
+-- handlers. Negative cases vary the signal that would qualify the join.
+if not arg[1] or arg[1] == "control-gap" then
+    local journal, log = dofile("tests/fixtures/world22-24-anonymized.lua")
+    local before = journal.skirmishes["world:23"].observation.segments[1]
+    local after = journal.skirmishes["world:24"].observation.segments[1]
+    local nativeEnd, nativeStart, capturedRecap
+    for _, row in ipairs(log.rows) do
+        if row.combatSequence == 27 and row.kind == "COMBAT_END" then nativeEnd = row.uptime end
+        if row.combatSequence == 28 and row.kind == "COMBAT_START" then nativeStart = row.uptime end
+        if row.combatSequence == 28 and row.kind == "RECAP" and row.delay == 0 and not capturedRecap then
+            capturedRecap = row.events
+        end
+    end
+    for _, scenario in ipairs({ "recap", "recap-retry", "meter", "idle", "settled", "other", "other-while-held",
+        "pve", "expired", "revenge" }) do
+        Reset()
+        units.party1, units.target, units.targettarget = nil, first, localPlayer
+        first.active = nil
+        local damageTaken = Enum.DamageMeterType.DamageTaken
+        duration = before.duration
+        Begin()
+        if scenario == "revenge" then
+            Advance(4)
+            Kill(me, first)
+            Advance(before.duration - 4)
+        else
+            Advance(8)
+            Link(damageTaken, me, first, 330)
+            Update(damageTaken)
+            Advance(before.duration - 8)
+        end
+        first.active = scenario ~= "idle" and scenario ~= "revenge" or nil
+        End()
+        first.active = nil
+        Advance(1.6)
+        local original = assert(addon.db.skirmishes["world:1"])
+        if scenario == "settled" then
+            -- This time both independent disengagement samples fit before
+            -- the next combat entry.
+            Advance(0.5)
+        elseif scenario ~= "revenge" then
+            units.target = nil
+        end
+        Advance(nativeStart - nativeEnd - 1.6)
+        if scenario == "revenge" then first.dead = false end
+        local target = (scenario == "other" or scenario == "other-while-held") and second or first
+        units.target, units.targettarget = target, localPlayer
+        if scenario == "other-while-held" then units.mouseover, units.mouseovertarget = first, localPlayer end
+        sources = {}
+        Begin()
+        if scenario == "pve" then
+            units.mouseover = { id = "Creature-unrelated", faction = "Horde" }
+            Aura("mouseover", "player")
+        end
+        Advance(scenario == "expired" and 15 or after.duration)
+        local continued = scenario == "recap" or scenario == "recap-retry"
+        assert(original.personalOutcome.lifecycle == ((continued or scenario == "meter" or scenario == "pve"
+            or scenario == "other-while-held")
+            and "awaiting" or "finalized"), scenario .. " predecessor at successor qualification")
+        if scenario == "pve" then
+            End()
+            Advance(15)
+            assert(original.personalOutcome.lifecycle == "finalized" and not addon.db.skirmishes["world:2"])
+        elseif scenario == "meter" then
+            Link(damageTaken, me, target, 1135)
+            Update(damageTaken)
+            duration = after.duration
+            End()
+            Advance(15)
+            assert(not addon.db.skirmishes["world:2"] and #original.observation.segments == 2)
+        else
+            localPlayer.dead = true
+            recap = SavedCopy(capturedRecap)
+            local shift = GetServerTime() - math.floor(recap[1].timestamp)
+            for _, hit in ipairs(recap) do
+                hit.sourceGUID, hit.sourceName = target.id, target.name
+                if hit.timestamp then hit.timestamp = hit.timestamp + shift end
+            end
+            local lateRecap
+            if scenario == "recap-retry" then lateRecap, recap = recap, nil end
+            Fire("PLAYER_DEAD")
+            End()
+            if lateRecap then recap = lateRecap end
+            Advance(15)
+            local death = continued and original or addon.db.skirmishes["world:2"]
+            assert(death and #death.observation.segments == (continued and 2 or 1), scenario .. " segment count")
+            assert(death.personalOutcome.outcome == "loss" and #death.events == 1, scenario .. " death")
+            if continued then assert(not addon.db.skirmishes["world:2"]) end
+            if scenario == "revenge" then
+                assert(original.personalOutcome.outcome == "win")
+                local wins, losses = addon.Ledger.RivalContributionScore(addon.db, first.id)
+                assert(wins == 1 and losses == 1)
+            end
+        end
+        units.targettarget, units.mouseovertarget, first.active = nil, nil, nil
+    end
+end
+
+if not arg[1] or arg[1] == "control-gap-history" then
+    local function Fixture()
+        return dofile("tests/fixtures/world22-24-anonymized.lua")
+    end
+    local function Row(log, sequence, kind)
+        for index, row in ipairs(log.rows) do
+            if row.combatSequence == sequence and row.kind == kind then return row, index end
+        end
+    end
+    local ledger = addon.Ledger
+    local saved, log = Fixture()
+    local win, before, after = saved.skirmishes["world:22"], saved.skirmishes["world:23"], saved.skirmishes["world:24"]
+    local rival, me = win.enemies[1].id, win.allies[1].id
+    local nativeStart = assert(Row(log, 28, "COMBAT_START"))
+    local nativeClose = assert(Row(log, 27, "COMBAT_END"))
+    local seconds = nativeStart.uptime - nativeClose.uptime
+    local shift = nativeStart.uptime - assert(Row(log, 27, "COMBAT_START")).uptime
+    assert(math.abs(seconds - 3.179) < 0.0001)
+    assert(before.personalOutcome.outcome == "unknown" and win.personalOutcome.outcome == "win")
+    assert(after.personalOutcome.outcome == "loss" and #ledger.RivalSkirmishes(saved, rival) == 3)
+    local earlier, later = before.observation.segments[1], after.observation.segments[1]
+    local oldEnding, oldParticipation = before.observation.assessment, before.observation.participation
+    local originalDeath = after.events[1]
+    local nativeOffset, stamp = originalDeath.offset, originalDeath.recapTimestamp
+    local nativeWitness = later.localDeathWitnesses[rival]
+    local beforeCounts = { #before.combatDiagnostics.windows, #after.combatDiagnostics.windows, #after.combatDiagnostics.recaps }
+    ledger.Open(saved, log)
+    assert(saved.skirmishes["world:22"] == win and not saved.skirmishes["world:24"])
+    assert(saved.skirmishes["world:23"] == before and #before.events == 1 and before.events[1] == originalDeath)
+    assert(before.observation.segments[1] == earlier and before.observation.segments[2] == later)
+    assert(before.recoveredContinuation.assessment == oldEnding and before.recoveredContinuation.participation == oldParticipation)
+    assert(later.offset == shift and later.continuation == "recovered-combat-gap")
+    assert(originalDeath.offset == shift + nativeOffset and originalDeath.segmentIndex == 2 and originalDeath.recapTimestamp == stamp)
+    if nativeWitness then assert(later.localDeathWitnesses[rival] == nativeWitness + shift) end
+    assert(#before.combatDiagnostics.windows == beforeCounts[1] + beforeCounts[2]
+        and #before.combatDiagnostics.recaps == beforeCounts[3])
+    assert(before.combatDiagnostics.windows[1].index == 1 and before.combatDiagnostics.windows[2].index == 2)
+    assert(before.observation.life[1].offset == originalDeath.offset and before.observation.life[2].state == "ghost")
+    assert(before.personalOutcome.casualties.friendly == 1 and before.personalOutcome.casualties.enemy == 0)
+    for _, db in ipairs({ saved, ledger.Open(SavedCopy(saved), log), ledger.Open(SavedCopy(saved)) }) do
+        local outcomes = ledger.RivalSkirmishes(db, rival)
+        assert(#outcomes == 2 and not db.skirmishes["world:24"])
+        assert(ledger.JournalOutcome(db.skirmishes["world:22"]) == "win"
+            and ledger.JournalOutcome(db.skirmishes["world:23"]) == "loss")
+        local wins, losses = ledger.RivalContributionScore(db, rival)
+        local kills, deaths = ledger.PersonalCombatScore(db, rival)
+        local hk, honor = ledger.RivalRewards(db, rival)
+        assert(wins == 1 and losses == 1 and kills == 1 and deaths == 1)
+        assert(hk == 1 and honor == 6)
+        assert(#db.skirmishes["world:23"].observation.segments == 2)
+    end
+    local text = addon.BuildIssueReport(saved, nil, "world:23")
+    assert(text:find('"recoveredContinuationFrom": "world:24"', 1, true))
+    assert(not text:find(before.enemies[1].name, 1, true) and not text:find(before.allies[1].name, 1, true))
+
+    local extra, extraLog = Fixture()
+    extra.skirmishes["world:23"].rewards = { [rival] = { honorableKills = 1, honor = 2 } }
+    extra.skirmishes["world:24"].rewards = { [rival] = { honorableKills = 2, honor = 3 } }
+    extra.skirmishes["world:24"].unassignedRewards = { honorableKills = 1, honor = 1 }
+    local originalTotals = ledger.JournalRewards(extra)
+    ledger.Open(extra, extraLog)
+    local totals = ledger.JournalRewards(extra)
+    assert(totals.honorableKills == originalTotals.honorableKills and totals.honor == originalTotals.honor)
+    local kept = extra.skirmishes["world:23"]
+    assert(kept.rewards[rival].honorableKills == 3 and kept.rewards[rival].honor == 5)
+    assert(kept.unassignedRewards.honorableKills == 1 and kept.unassignedRewards.honor == 1)
+
+    for _, mutate in ipairs({
+        function(b) b.skirmishes["world:23"].observation.participation.boundary = "independent-engagement" end,
+        function(b) b.skirmishes["world:23"].observation.participation.closedAt = b.skirmishes["world:24"].startedAt - 1 end,
+        function(b)
+            local state = b.skirmishes["world:23"].observation.assessment
+            state.last = SavedCopy(state.first)
+            state.last.offset = state.last.offset + 1
+        end,
+        function(b) b.skirmishes["world:24"].enemies[1].id = "Player-another" end,
+        function(b) b.skirmishes["world:23"].observation.segments[1].localNpcPressure = true end,
+        function(b) b.skirmishes["world:24"].observation.segments[1].contributionLinks = {} end,
+        function(b) b.skirmishes["world:299"] = SavedCopy(b.skirmishes["world:24"]) end,
+        function(_, rows) Row(rows, 28, "COMBAT_END").contacts[rival].initial.status.targetGUID = "secret" end,
+        function(_, rows) Row(rows, 27, "COMBAT_END").contacts[rival].latest.targetGUID = "Player-another" end,
+        function(_, rows) Row(rows, 28, "COMBAT_START").session = 100 end,
+        function(_, rows) rows.rows[#rows.rows + 1] = SavedCopy((Row(rows, 27, "COMBAT_END"))) end,
+        function(_, rows)
+            for _, row in ipairs(rows.rows) do
+                if row.kind == "RECAP" then row.events[1].timestamp = row.events[1].timestamp - 1 end
+            end
+        end,
+        function(_, rows) rows.rows = {} end,
+    }) do
+        local db, debugLog = Fixture()
+        mutate(db, debugLog)
+        ledger.Open(db, debugLog)
+        assert(db.skirmishes["world:23"] and db.skirmishes["world:24"] and #db.skirmishes["world:23"].observation.segments == 1)
+    end
+    print("Original world:22–24 replay preserves two fights, both combat segments, recorded deaths, rewards and 1:1 credit")
 end
