@@ -3,7 +3,7 @@
 **Status:** Character POV is accepted and [2.0.0 is published on GitHub](https://github.com/nick-sidorin/names-in-red/releases/tag/v2.0.0).
 PR #50 squash-merged at `a58fccad`; published tag `89ba7eb` has the identical
 runtime and current owner-only workflow. Issues #47 and #49 are closed.
-CurseForge public availability remains unverified. Next: existing-product polish.
+Existing-product polish and journal opening improvements are accepted and [2.0.1 is published on GitHub](https://github.com/nick-sidorin/names-in-red/releases/tag/v2.0.1). CurseForge public availability remains unverified; further features remain deferred pending owner direction.
 
 **Baseline:** GitHub v1.1.0, with permanent battle history, automatic diagnostics,
 in-game issue reporting, and the existing side-outcome scoring model. The
