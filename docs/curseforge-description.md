@@ -2,7 +2,7 @@
 
 **Remember who got you. Plan your revenge.**
 
-Your personal PvP journal for **World of Warcraft: Forever**. Every rival has a story. Remember your encounters, keep track of your rivalries, and see how the score changes the next time your paths cross.
+Your personal PvP journal for **World of Warcraft: Forever**. Every rival has a story.
 
 ## ✨ Features at a Glance
 
@@ -15,7 +15,7 @@ Your personal PvP journal for **World of Warcraft: Forever**. Every rival has a 
 - 📍 **Remember where it happened** — Revisit encounter locations with map waypoints when available.
 - ✍️ **Fill in the gaps** — Add a skirmish manually if the game couldn't provide enough information.
 
-## ⚔️ New in 2.0.0 — Character POV
+## ⚔️ How Your Personal Score Works
 
 Names in Red is not a battleground scoreboard. It's the story of your character's PvP adventures, told from your character's perspective.
 
@@ -44,7 +44,7 @@ Names in Red uses the information the Forever client makes available to addons. 
 
 A brief retreat or a return after resurrection can be part of the same skirmish. A separate rematch gets its own entry. Battleground encounters represent local fights, not the entire match.
 
-Some identities, participants, pet owners, actions or outcomes may be unavailable. When the evidence is incomplete, the journal keeps what it can reliably establish rather than inventing details. The journal distinguishes **Victory**, **Defeat**, **Draw**, **In progress**, and **Unknown** when the ending cannot be established. Rewards are recorded at the most specific scope that can be established. Older detailed diagnostics may be compacted without removing recorded fights and their core history. Upgrading preserves recorded encounters, manual entries and rewards.
+Some identities, participants, pet owners, actions or outcomes may be unavailable. When the evidence is incomplete, the journal keeps what it can reliably establish rather than inventing details. Completed skirmishes can show **Victory**, **Defeat**, or **Draw**. Ongoing fights show **In progress**; unresolved endings show **Unknown**. Rewards are recorded at the most specific scope that can be established. Older detailed diagnostics may be compacted without removing recorded fights and their core history.
 
 ## ⚙️ Getting Started
 
