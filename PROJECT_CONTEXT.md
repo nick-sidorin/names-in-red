@@ -1,18 +1,22 @@
 # Names in Red — Project context and conversation handoff
 
-**Snapshot: 24 November 2026.** Read this first when starting a fresh ChatGPT,
+**Snapshot: 25 November 2026.** Read this first when starting a fresh ChatGPT,
 Codex or other coding session. This is a compact record of decisions, evidence
 and status, not a raw chat transcript. Verify live repository and release state
 before acting. The authoritative target behavior is
 [the Character POV product specification](docs/skirmish-product-spec.md);
-the shipped README and CurseForge copy describe 1.1.0 until new behavior ships.
+the release branch README and CurseForge copy describe the 2.0.0 candidate.
+The published 1.1.0 listing remains current until release and listing updates
+are separately verified.
 
 ## Owner intent and workflow
 
 - Repository: https://github.com/nick-sidorin/names-in-red
 - Project: a Warcraft-native personal PvP rival journal, "Remember who got you.
   Plan your revenge." Immersive gameplay and the personal story matter more than
-  an esport scoreboard. The owner plays a night elf hunter in Forever with a
+  an esport scoreboard. Public listing copy emphasizes personal rivalries and
+  the revenge theme; the short summary naturally includes vendetta and revenge
+  alongside PvP and rival statistics. The owner plays a night elf hunter in Forever with a
   brother (druid in Gnomeregan); also consider pure healer and solo play.
 - Talk to the owner in Russian; repository docs/code/PRs in English. Read root
   [AGENTS.md](AGENTS.md), pinned [standards](docs/standards/AGENTS.md),
