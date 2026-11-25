@@ -50,7 +50,7 @@ local function Advance(seconds)
 end
 
 Constants = { CurrencyConsts = { CLASSIC_HONOR_CURRENCY_ID = 1901 } }
-for _, file in ipairs({ "Ledger", "SkirmishOutcomes", "SkirmishDeathEvidence", "PersonalSkirmishOutcomes", "Encounter", "Core", "SkirmishEvidence", "CombatDiagnostics", "WorldSkirmishes", "Honor", "Kills" }) do
+for _, file in ipairs({ "Ledger", "SkirmishOutcomes", "SkirmishDeathEvidence", "PersonalSkirmishOutcomes", "Encounter", "Core", "SkirmishEvidence", "MeterSourceTotals", "CombatDiagnostics", "WorldSkirmishes", "Honor", "Kills" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
 addon.db = addon.Ledger.Open(nil)
@@ -965,7 +965,8 @@ do
     function GetRealZoneText() return "Elwynn Forest" end
     Fire("PLAYER_LEAVING_WORLD")
     local oldFight = Battle(11)
-    assert(#oldFight.events == 0 and oldFight.observation.visibilityGap)
+    assert(#oldFight.events == 1 and oldFight.events[1].kind == "death"
+        and not oldFight.events[1].actorID and oldFight.observation.visibilityGap)
     Begin()
     Aura("player", "mouseover", 682)
     recap = { { sourceGUID = fenrik, sourceName = "First Enemy", sourceFlags = 0x440,

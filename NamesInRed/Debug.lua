@@ -565,28 +565,60 @@ local function CaptureMeter(row, window, evidence, finalAttempt, enemies, factio
         retry = retry or retrySource
         if eligible then linked[name] = actors end
     end
+    local sourceTotals
+    if canQualify and window.context and window.context.record then
+        local done, taken = types.DamageDone, types.EnemyDamageTaken
+        local prefix = (id or 0) .. ":"
+        if done and taken then
+            local context = window.context
+            local victims = addon.MeterSegmentVictims(context.record.battle, context.segment)
+            sourceTotals = addon.MatchMeterSourceTotals(evidence, row, victims, window.startedUptime, window.previousEnd,
+                window.meterUpdates[prefix .. done], window.meterUpdates[prefix .. taken])
+            evidence:ApplySourceTotalLinks(sourceTotals)
+        end
+    end
     row.status.meter = "sampled"
-    return evidence and not finalAttempt and retry, linked
+    return evidence and not finalAttempt and retry, linked, sourceTotals
 end
 
 local handlers = {}
 
-local function RememberOwner(pet, owner)
+local function RememberOwner(window, pet, owner)
     if type(pet) ~= "string" or not pet:match("^Pet%-.+") then return end
-    local owners = combat.petOwners[pet]
+    local owners = window.petOwners[pet]
     if not owners then
         owners = {}
-        combat.petOwners[pet] = owners
-        combat.petCount = combat.petCount + 1
-        if combat.petCount <= 32 then combat.petSamples[pet] = owners end
+        window.petOwners[pet] = owners
+        window.petCount = window.petCount + 1
+        if window.petCount <= 32 then window.petSamples[pet] = owners end
     end
     owners[owner] = true
+end
+
+local function ReadIdentity(fn, ...)
+    if type(fn) ~= "function" then return nil, "unavailable" end
+    local ok, value = pcall(fn, ...)
+    if not ok then return nil, "error" end
+    return Value(value)
+end
+
+local function ReadPetOwner(unit, pet, probe)
+    local before, beforeStatus = ReadIdentity(UnitGUID, unit)
+    probe.petBefore = before and (before == pet and "matched" or "mismatch") or beforeStatus
+    if before ~= pet then return end
+    local owner, status = ReadIdentity(UnitOwnerGUID, unit)
+    probe.ownerGUID = status
+    local after, afterStatus = ReadIdentity(UnitGUID, unit)
+    probe.petAfter = after and (after == pet and "matched" or "mismatch") or afterStatus
+    if after ~= pet then return end
+    if type(owner) == "string" and owner:match("^Player%-.+") then return owner end
+    if owner then probe.ownerGUID = "non-player-or-invalid" end
 end
 
 local function CheckOwner(ownerUnit, owner, petUnit, pet)
     local owners = combat.petOwners[pet]
     if (owners and owners[owner]) or type(UnitIsOwnerOrControllerOfUnit) ~= "function" then return end
-    if Value(UnitGUID(ownerUnit)) ~= owner or Value(UnitGUID(petUnit)) ~= pet then return end
+    if ReadIdentity(UnitGUID, ownerUnit) ~= owner or ReadIdentity(UnitGUID, petUnit) ~= pet then return end
     combat.petChecks = combat.petChecks + 1
     local ok, controls = pcall(UnitIsOwnerOrControllerOfUnit, ownerUnit, petUnit)
     if not ok then
@@ -594,20 +626,26 @@ local function CheckOwner(ownerUnit, owner, petUnit, pet)
     else
         local verdict, status = Value(controls)
         Count(combat.petSignals, status)
-        if verdict == true then RememberOwner(pet, owner) end
+        if verdict == true and ReadIdentity(UnitGUID, ownerUnit) == owner and ReadIdentity(UnitGUID, petUnit) == pet then
+            RememberOwner(combat, pet, owner)
+        end
     end
 end
 
 local function Observe(unit, reason)
     if not combat or type(unit) ~= "string" then return end
-    local isPlayer = Value(UnitIsPlayer and UnitIsPlayer(unit))
-    local guid, status = Value(UnitGUID and UnitGUID(unit))
+    local isPlayer = ReadIdentity(UnitIsPlayer, unit)
+    local guid, status = ReadIdentity(UnitGUID, unit)
     local oldPlayer, oldPet = combat.playerTokens[unit], combat.petTokens[unit]
     combat.playerTokens[unit], combat.petTokens[unit] = nil, nil
     if isPlayer == false then
         if type(guid) == "string" and guid:match("^Pet%-.+") then
             combat.petTokens[unit] = guid
             if oldPet ~= guid then
+                local probe = {}
+                local owner = ReadPetOwner(unit, guid, probe)
+                if owner then RememberOwner(combat, guid, owner) end
+                Count(combat.petSignals, "unit-owner-" .. (probe.ownerGUID or probe.petBefore))
                 for ownerUnit, owner in pairs(combat.playerTokens) do CheckOwner(ownerUnit, owner, unit, guid) end
             end
         end
@@ -652,7 +690,7 @@ local function Observe(unit, reason)
     local pet = PetToken(unit)
     if pet then
         Call(unitState, "petGUID", UnitGUID, pet)
-        RememberOwner(unitState.petGUID, guid)
+        RememberOwner(combat, unitState.petGUID, guid)
     end
     Call(unitState, "inCombat", UnitAffectingCombat, unit)
     Call(unitState, "dead", UnitIsDeadOrGhost, unit)
@@ -670,6 +708,7 @@ local function Observe(unit, reason)
     Call(unitState, "sex", UnitSex, unit)
 
     local previous = contact.latest
+    contact.initial = contact.initial or unitState
     contact.latest = unitState
     if combat.primary and not combat.areaChanged and (not previous or previous.dead ~= unitState.dead
         or previous.inCombat ~= unitState.inCombat or previous.feign ~= unitState.feign
@@ -889,7 +928,7 @@ function handlers.PLAYER_REGEN_ENABLED()
     row.pvpReasons = finished.reasons
     row.contacts, row.unresolvedContacts = {}, finished.unresolved
     for guid, contact in pairs(finished.contactSamples) do
-        row.contacts[guid] = { firstSeen = contact.firstSeen, lastSeen = contact.lastSeen, latest = contact.latest,
+        row.contacts[guid] = { firstSeen = contact.firstSeen, lastSeen = contact.lastSeen, latest = contact.latest, initial = contact.initial,
             changes = contact.changes, changeOverflow = contact.changeOverflow, signals = contact.signals }
     end
     row.contactCount, row.contactOverflow = finished.contactCount, math.max(0, finished.contactCount - 32)
@@ -950,12 +989,12 @@ function handlers.PLAYER_REGEN_ENABLED()
         end
         finished.context = context
         if not context and not row.status.meterWindow then row.status.meterWindow = "no-eligible-world-record" end
-        local evidence = context and addon.NewMeterParticipantEvidence(finished.contacts, finished.petOwners, faction)
+        local evidence = context and addon.NewMeterParticipantEvidence(finished.contacts, finished.petOwners, faction, context.self)
         local early = context and not context.record
         local probe = finished.primary and evidence and addon.NewCombatMeterProbe()
-        local retry, linked = CaptureMeter(row, finished, evidence, finalAttempt, enemies, faction, early, probe)
+        local retry, linked, sourceTotals = CaptureMeter(row, finished, evidence, finalAttempt, enemies, faction, early, probe)
         local additions, reached, links
-        if evidence and linked and next(linked) then
+        if evidence and linked and (next(linked) or (sourceTotals and #sourceTotals > 0)) then
             additions, reached = evidence:Connected(anchors)
             links = evidence:HostileLinks(reached)
         end
@@ -987,7 +1026,7 @@ function handlers.PLAYER_REGEN_ENABLED()
                 end
             end
             addon.ApplyWorldMeterEvidence(context, additions, faction, row, links, finished.contacts, probe,
-                evidence:ContributionLinks(reached))
+                evidence:ContributionLinks(reached), evidence.localNpcDamage, sourceTotals)
             addon.SnapshotWorldContacts(context, finished.contacts)
             BeginPassiveMeter(context, row, finished, evidence, reached)
         end
@@ -1075,7 +1114,10 @@ function handlers.UNIT_AURA(unit, update)
         aura.uptime = Value(GetTime())
         aura.token = unit
         Call(aura, "targetGUID", UnitGUID, unit)
-        if type(aura.sourceUnit) == "string" then Call(aura, "sourceGUID", UnitGUID, aura.sourceUnit) end
+        if type(aura.sourceUnit) == "string" then
+            Call(aura, "sourceGUID", UnitGUID, aura.sourceUnit)
+            if type(aura.sourceGUID) == "string" and aura.sourceGUID:match("^Pet%-.+") then Observe(aura.sourceUnit, "aura-source") end
+        end
         rows[#rows + 1] = aura
     end
 end
@@ -1259,6 +1301,56 @@ function addon.ActiveCombatContacts()
         end
     end
     return result
+end
+
+function addon.CombatRecapPetOwner(worldWindow, pet, probe)
+    if not addon.WorldCanResolveRecapPet(worldWindow) then
+        probe.decision = "scope-unavailable"
+        return
+    end
+    local window = CurrentContactWindow()
+    if window and (window.worldWindow or addon.WorldCombatWindow(window.startedUptime)) ~= worldWindow then window = nil end
+    local scoped = window and addon.UniqueCombatPetOwner(window.petOwners[pet])
+    local token, tokenStatus = ReadIdentity(UnitTokenFromGUID, pet)
+    probe.petToken = tokenStatus
+    probe.tokenSource = type(token) == "string" and token ~= "" and "guid-lookup" or nil
+    if not probe.tokenSource and window then
+        for unit, observed in pairs(window.petTokens) do
+            if observed == pet and ReadIdentity(UnitGUID, unit) == pet then
+                token, probe.tokenSource = unit, "window-observation"
+                break
+            end
+        end
+    end
+    local direct
+    if type(token) == "string" and token ~= "" then
+        direct = ReadPetOwner(token, pet, probe)
+    end
+    if window and direct then RememberOwner(window, pet, direct) end
+    if scoped == false or (scoped and direct and scoped ~= direct) then
+        probe.decision = "ambiguous-owner"
+        return
+    end
+    local owner = direct or scoped
+    if not owner then
+        probe.decision = "unresolved-owner"
+        return
+    end
+    local contact = window and window.contacts[owner]
+    local player = contact and contact.latest
+    if not player and direct then
+        local ownerToken, status = ReadIdentity(UnitTokenFromGUID, owner)
+        probe.ownerToken = status
+        if type(ownerToken) == "string" and ownerToken ~= "" then
+            player = Unit(ownerToken)
+            if ReadIdentity(UnitGUID, ownerToken) ~= owner then player = nil end
+        end
+    end
+    if player and player.guid == owner and player.isPlayer == true and player.opponent == true then
+        probe.decision = direct and "unit-owner-guid" or "scoped-observation"
+        return owner, player
+    end
+    probe.decision = "unverified-opponent"
 end
 
 function addon.NotePvPDiagnostic(reason)

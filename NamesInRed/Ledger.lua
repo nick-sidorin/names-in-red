@@ -2,6 +2,8 @@ local _, addon = ...
 local Ledger = {}
 addon.Ledger = Ledger
 local skirmishIndexes = setmetatable({}, { __mode = "k" })
+local legacyIndexes = setmetatable({}, { __mode = "k" })
+local UpdateIndex
 
 local recapDamageEvents = { SWING_DAMAGE = true, RANGE_DAMAGE = true, SPELL_DAMAGE = true, SPELL_PERIODIC_DAMAGE = true }
 
@@ -101,23 +103,28 @@ local function RestoreMeterAggregates(battle)
     end
 end
 
-function Ledger.Open(saved)
+function Ledger.Open(saved, diagnostics)
     if saved == nil then
         return { version = 1, rivals = {} }
     end
     if type(saved) == "table" and saved.version == 1 and type(saved.rivals) == "table" then
         if type(saved.skirmishes) == "table" then
+            local changed = addon.RestoreLegacyPetRecaps and addon.RestoreLegacyPetRecaps(saved.skirmishes, diagnostics)
+            local meterWindows = addon.IndexMeterSourceTotalWindows and addon.IndexMeterSourceTotalWindows(diagnostics, saved.skirmishes)
             for id, battle in pairs(saved.skirmishes) do
                 if IsSkirmish(battle) then
-                    UpdateWorldRoster(id, battle)
                     RestoreMeterAggregates(battle)
+                    local meterChanged = meterWindows and addon.RestoreMeterSourceTotals(battle, meterWindows)
+                    UpdateWorldRoster(id, battle)
                     if addon.RestoreRivalContributionEvidence then addon.RestoreRivalContributionEvidence(battle) end
-                    if addon.RefreshPersonalSkirmish then addon.RefreshPersonalSkirmish(battle, true) end
+                    if addon.RefreshPersonalSkirmish then
+                        addon.RefreshPersonalSkirmish(battle, true, meterChanged or (changed and changed[battle]))
+                    end
                 end
             end
         end
         if addon.RestoreCombatDiagnostics then addon.RestoreCombatDiagnostics(saved) end
-        skirmishIndexes[saved] = nil
+        skirmishIndexes[saved], legacyIndexes[saved] = nil, nil
         return saved
     end
 end
@@ -129,7 +136,7 @@ function Ledger.Clear(db)
     db.lastDeathTimestamp = nil
     db.unassignedRewards = nil
     if addon.RestoreCombatDiagnostics then addon.RestoreCombatDiagnostics(db) end
-    skirmishIndexes[db] = nil
+    skirmishIndexes[db], legacyIndexes[db] = nil, nil
 end
 
 -- The caller resolves a stable identifier before writing to the ledger.
@@ -150,16 +157,27 @@ function Ledger.Add(db, id, displayName)
     return db.rivals[id]
 end
 
+function Ledger.InvalidateRivalHistory(db, id)
+    local index = legacyIndexes[db]
+    if index then index[id] = nil end
+end
+
 function Ledger.Remove(db, id)
-    if type(id) == "string" then
-        db.rivals[id] = nil
-        -- Keep the shared battle and its timeline when removing a rival's history.
-        for _, battle in pairs(db.skirmishes or {}) do
-            for _, opponent in ipairs(battle.enemies) do
-                if opponent.rivalID == id then opponent.rivalID = nil end
+    if type(id) ~= "string" then return end
+    db.rivals[id] = nil
+    Ledger.InvalidateRivalHistory(db, id)
+    -- Keep the shared battle and its timeline when removing a rival's history.
+    local index = skirmishIndexes[db]
+    for battleID, battle in pairs(db.skirmishes or {}) do
+        local changed
+        for _, opponent in ipairs(battle.enemies) do
+            if opponent.rivalID == id then
+                opponent.rivalID = nil
+                changed = true
             end
         end
-        skirmishIndexes[db] = nil
+        local cached = index and index.battles[battleID]
+        if index and (changed or (cached and cached.summaries[id])) then UpdateIndex(index, battleID, battle) end
     end
 end
 
@@ -171,7 +189,7 @@ function Ledger.SaveSkirmish(db, id, skirmish)
     if addon.RefreshPersonalSkirmish then addon.RefreshPersonalSkirmish(skirmish) end
     db.skirmishes = db.skirmishes or {}
     db.skirmishes[id] = skirmish
-    skirmishIndexes[db] = nil
+    if skirmishIndexes[db] then UpdateIndex(skirmishIndexes[db], id, skirmish) end
     return skirmish
 end
 
@@ -179,7 +197,7 @@ function Ledger.RemoveSkirmish(db, id)
     if db.skirmishes then
         if addon.ForgetCombatDiagnostics then addon.ForgetCombatDiagnostics(db, db.skirmishes[id]) end
         db.skirmishes[id] = nil
-        skirmishIndexes[db] = nil
+        if skirmishIndexes[db] then UpdateIndex(skirmishIndexes[db], id) end
     end
 end
 
@@ -319,13 +337,81 @@ function Ledger.JournalRewards(db)
     return total
 end
 
-local function IndexSkirmish(index, id, battle)
+-- UI and reports distinguish a retained side/manual verdict from a POV result.
+function Ledger.JournalOutcome(battle)
+    local personal = battle.personalOutcome
+    if not battle.manual and type(personal) == "table" then
+        if personal.lifecycle == "active" or personal.lifecycle == "awaiting" then return "ongoing" end
+        local outcome = personal.outcome
+        if outcome == "win" or outcome == "loss" or outcome == "draw" then return outcome end
+        return "unknown"
+    end
+    local outcome = Ledger.EncounterOutcome(battle) or Ledger.SkirmishOutcome(battle)
+    if battle.manual then return outcome or "unknown", "manual" end
+    if outcome or battle.outcome or battle.resolution then return outcome or "unknown", "legacy" end
+    return "unknown"
+end
+
+function Ledger.LegacyContribution(encounter, id)
+    -- A timestamped old directional record with a resolved opponent is a
+    -- literal encounter, independent of later side-outcome summaries.
+    if encounter.manual or encounter.outcome or type(encounter.time) ~= "number"
+        or not (encounter.time > 0 and encounter.time < math.huge)
+        or type(id) ~= "string" or not id:match("^Player%-.+") then return end
+    if encounter.direction == "killsAgainstThem" then return "win" end
+    if encounter.direction == "deathsToThem" then return "loss" end
+end
+
+local function LegacyStats(db, id)
+    local index = legacyIndexes[db]
+    if not index then index = {}; legacyIndexes[db] = index end
+    local rival = db.rivals[id]
+    local entries = rival and rival.encounters
+    local count = entries and #entries or 0
+    local stats = index[id]
+    if stats and stats.entries == entries and stats.count == count then return stats end
+    stats = { entries = entries, count = count, wins = 0, losses = 0, manualWins = 0, manualLosses = 0,
+        legacyWins = 0, legacyLosses = 0, kills = 0, deaths = 0, honorableKills = 0, honor = 0 }
+    for _, encounter in ipairs(entries or {}) do
+        local outcome = Ledger.EncounterOutcome(encounter)
+        if outcome then
+            local field = (encounter.manual and "manual" or "legacy") .. (outcome == "win" and "Wins" or "Losses")
+            stats[field] = stats[field] + 1
+        elseif not encounter.manual and not encounter.outcome then
+            if encounter.direction == "killsAgainstThem" then stats.kills = stats.kills + 1
+            elseif encounter.direction == "deathsToThem" then stats.deaths = stats.deaths + 1 end
+            local credit = Ledger.LegacyContribution(encounter, id)
+            if credit == "win" then stats.wins = stats.wins + 1
+            elseif credit == "loss" then stats.losses = stats.losses + 1 end
+        end
+        stats.honorableKills = stats.honorableKills + (encounter.honorableKills or 0)
+        stats.honor = stats.honor + (encounter.honor or 0)
+    end
+    index[id] = stats
+    return stats
+end
+
+local indexedStats = { "wins", "losses", "personalKills", "personalDeaths", "honorableKills", "honor",
+    "contributionWins", "contributionLosses", "legacyWins", "legacyLosses" }
+
+local function ContributionEvidence(battle)
+    if addon.EvaluateRivalContributions then return addon.EvaluateRivalContributions(battle) end
+end
+
+local function SummarizeSkirmish(id, battle)
     local outcome, player = Ledger.SkirmishOutcome(battle)
-    local firstDeath = Ledger.FirstDeaths(battle)
-    local life = Ledger.ParticipantLife(battle)
-    local kills, deaths = {}, {}
+    local firstDeath, life = Ledger.FirstDeaths(battle), Ledger.ParticipantLife(battle)
+    local kills, deaths, credits, summaries = {}, {}, {}, {}
+    local projection = ContributionEvidence(battle)
+    for _, credit in ipairs(projection and projection.credits or {}) do
+        local totals = credits[credit.rivalID] or { win = 0, loss = 0 }
+        totals[credit.direction] = totals[credit.direction] + 1
+        credits[credit.rivalID] = totals
+    end
     if player then
         for _, event in ipairs(battle.events) do
+            -- A verified owner can be displayed for a pet finisher on a death event.
+            -- These counters use only literal player kill events.
             if event.kind == "kill" and event.actorID and event.targetID then
                 if event.actorID == player.id then
                     kills[event.targetID] = (kills[event.targetID] or 0) + 1
@@ -335,95 +421,103 @@ local function IndexSkirmish(index, id, battle)
             end
         end
     end
-    local counted = {}
     for _, opponent in ipairs(battle.enemies) do
         local rivalID = opponent.rivalID
-        if rivalID and opponent.id and not counted[rivalID] then
-            counted[rivalID] = true
-            local rival = index[rivalID]
-            if not rival then
-                rival = { wins = 0, losses = 0, personalKills = 0, personalDeaths = 0,
-                    honorableKills = 0, honor = 0, encounters = {} }
-                index[rivalID] = rival
-            end
+        if rivalID and opponent.id and not summaries[rivalID] then
             local reward = battle.rewards and battle.rewards[opponent.id]
-            local honorableKills, honor = reward and reward.honorableKills or 0, reward and reward.honor or 0
-            local summary = {
+            local tally = credits[rivalID]
+            local legacy = not battle.manual and not battle.personalOutcome and not tally
+            summaries[rivalID] = {
                 skirmishID = id, time = battle.time or battle.startedAt, sequence = battle.sequence,
-                zone = battle.zone, mapID = battle.mapID, x = battle.x, y = battle.y,
+                zone = battle.zone, mapID = battle.mapID, x = battle.x, y = battle.y, origin = battle.origin,
                 playerLevel = player and player.level, rivalLevel = opponent.level,
-                player = player, opponent = opponent, outcome = outcome,
+                player = player, opponent = opponent, outcome = outcome, manual = battle.manual,
                 playerDeathIndex = player and firstDeath[player.id], opponentDeathIndex = firstDeath[opponent.id],
                 playerRevived = player and life[player.id] and life[player.id].kind == "revive",
                 opponentRevived = life[opponent.id] and life[opponent.id].kind == "revive",
-                honorableKills = honorableKills, honor = honor,
+                honorableKills = reward and reward.honorableKills or 0, honor = reward and reward.honor or 0,
+                wins = outcome == "win" and 1 or 0, losses = outcome == "loss" and 1 or 0,
+                personalKills = kills[opponent.id] or 0, personalDeaths = deaths[opponent.id] or 0,
+                contributionWins = tally and tally.win or 0, contributionLosses = tally and tally.loss or 0,
+                legacyWins = legacy and outcome == "win" and 1 or 0, legacyLosses = legacy and outcome == "loss" and 1 or 0,
+                legacyResult = legacy and outcome or nil,
             }
-            if outcome == "win" then rival.wins = rival.wins + 1 end
-            if outcome == "loss" then rival.losses = rival.losses + 1 end
-            rival.personalKills = rival.personalKills + (kills[opponent.id] or 0)
-            rival.personalDeaths = rival.personalDeaths + (deaths[opponent.id] or 0)
-            rival.honorableKills = rival.honorableKills + honorableKills
-            rival.honor = rival.honor + honor
-            rival.encounters[#rival.encounters + 1] = summary
         end
     end
+    return { summaries = summaries, projection = projection }
+end
+
+-- Keep numeric snapshots by battle ID so an in-place evidence edit can
+-- subtract the previous projection before adding the replacement.
+local function ApplySummaries(index, battleID, record, sign)
+    for id, summary in pairs(record.summaries) do
+        local rival = index.rivals[id]
+        if not rival then rival = { encounters = {} }; index.rivals[id] = rival end
+        for _, field in ipairs(indexedStats) do
+            rival[field] = (rival[field] or 0) + sign * summary[field]
+        end
+        rival.encounters[battleID] = sign == 1 and summary or nil
+        if not next(rival.encounters) then index.rivals[id] = nil end
+    end
+end
+
+UpdateIndex = function(index, id, battle)
+    local previous = index.battles[id]
+    if previous then ApplySummaries(index, id, previous, -1) end
+    local record = IsSkirmish(battle) and SummarizeSkirmish(id, battle) or nil
+    index.battles[id] = record
+    if record then ApplySummaries(index, id, record, 1) end
 end
 
 local function RivalSkirmishIndex(db, id)
     local index = skirmishIndexes[db]
     if not index then
-        index = {}
-        for battleID, battle in pairs(db.skirmishes or {}) do
-            IndexSkirmish(index, battleID, battle)
-        end
+        index = { battles = {}, rivals = {} }
+        for battleID, battle in pairs(db.skirmishes or {}) do UpdateIndex(index, battleID, battle) end
         skirmishIndexes[db] = index
     end
-    return index[id]
+    return index.rivals[id]
+end
+
+function Ledger.SkirmishContributionEvidence(db, id, battle)
+    local index = skirmishIndexes[db]
+    local record = index and index.battles[id]
+    if record then return record.projection end
+    if IsSkirmish(battle) then return ContributionEvidence(battle) end
 end
 
 function Ledger.PersonalScore(db, id)
-    local rival = db.rivals[id]
+    local old = LegacyStats(db, id)
     local battles = RivalSkirmishIndex(db, id)
-    local wins, losses = battles and battles.wins or 0, battles and battles.losses or 0
-    for _, encounter in ipairs(rival and rival.encounters or {}) do
-        local outcome = Ledger.EncounterOutcome(encounter)
-        if outcome == "win" then wins = wins + 1 end
-        if outcome == "loss" then losses = losses + 1 end
-    end
-    return wins, losses, battles and battles.honorableKills or 0, battles and battles.honor or 0
+    return (battles and battles.wins or 0) + old.manualWins + old.legacyWins,
+        (battles and battles.losses or 0) + old.manualLosses + old.legacyLosses,
+        battles and battles.honorableKills or 0, battles and battles.honor or 0
 end
 
 function Ledger.RivalSkirmishes(db, id)
     local battles = RivalSkirmishIndex(db, id)
-    return battles and battles.encounters or {}
+    local entries = {}
+    for _, encounter in pairs(battles and battles.encounters or {}) do entries[#entries + 1] = encounter end
+    return entries
 end
 
--- Direct finishing blows are independent of the side's outcome and rewards.
--- Old directional combat rows remain usable; manual outcomes have no actor.
 function Ledger.PersonalCombatScore(db, id)
-    local scored = RivalSkirmishIndex(db, id)
-    local kills, deaths = scored and scored.personalKills or 0, scored and scored.personalDeaths or 0
-    local rival = db.rivals[id]
-    for _, encounter in ipairs(rival and rival.encounters or {}) do
-        if not encounter.manual and not encounter.outcome then
-            if encounter.direction == "killsAgainstThem" then kills = kills + 1
-            elseif encounter.direction == "deathsToThem" then deaths = deaths + 1 end
-        end
-    end
-    return kills, deaths
+    local old, battles = LegacyStats(db, id), RivalSkirmishIndex(db, id)
+    return old.kills + (battles and battles.personalKills or 0), old.deaths + (battles and battles.personalDeaths or 0)
 end
 
-
--- Keep the death-linked projection independent of the existing UI and rewards.
 function Ledger.RivalContributionScore(db, id)
-    local wins, losses = 0, 0
-    for _, encounter in ipairs(Ledger.RivalSkirmishes(db, id)) do
-        local battle = db.skirmishes[encounter.skirmishID]
-        for _, credit in ipairs(addon.EvaluateRivalContributions(battle).credits) do
-            if credit.rivalID == id then
-                if credit.direction == "win" then wins = wins + 1 else losses = losses + 1 end
-            end
-        end
-    end
-    return wins, losses
+    local old, battles = LegacyStats(db, id), RivalSkirmishIndex(db, id)
+    return old.wins + (battles and battles.contributionWins or 0), old.losses + (battles and battles.contributionLosses or 0)
+end
+
+function Ledger.RivalRewards(db, id)
+    local old, battles = LegacyStats(db, id), RivalSkirmishIndex(db, id)
+    return old.honorableKills + (battles and battles.honorableKills or 0), old.honor + (battles and battles.honor or 0)
+end
+
+function Ledger.RivalHistoryContext(db, id)
+    local old, battles = LegacyStats(db, id), RivalSkirmishIndex(db, id)
+    return old.manualWins, old.manualLosses, old.legacyWins + (battles and battles.legacyWins or 0),
+        old.legacyLosses + (battles and battles.legacyLosses or 0)
 end

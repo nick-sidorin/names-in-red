@@ -84,7 +84,7 @@ frame:SetScript("OnEvent", function(self, event, loadedName)
     end
     self:UnregisterEvent("ADDON_LOADED")
 
-    local db = addon.Ledger.Open(NamesInRedDB)
+    local db = addon.Ledger.Open(NamesInRedDB, NamesInRedDebugDB)
     if db then
         if addon.RestoreDeathLevels then addon.RestoreDeathLevels(db, NamesInRedDebugDB) end
         NamesInRedDB = db

@@ -8,7 +8,7 @@ local meterSupport = { HealingDone = true, Absorbs = true, Dispels = true }
 -- Recap timestamps remain in native server seconds, attached to one lethal
 -- event. They cannot be converted to exact offsets on the local action clock.
 local function RecapInEpisode(battle, episode, time)
-    local kill, after = episode.kill or episode.event, episode.after
+    local kill, after = episode.recap or episode.kill or episode.event, episode.after
     if not kill or not Number(kill.recapTimestamp) or not Number(time) or not Number(battle.startedAt)
         or time < battle.startedAt or time > kill.recapTimestamp or kill.recapTimestamp - time > episodeAge then return end
     -- A coarse clock cannot decide whether an earlier row and a revival in
@@ -114,8 +114,13 @@ local function AddWindowEvidence(battle, analysis, phase, episode, deathAt, dire
         Put(qualifying, actor, proof)
         Put(direct, actor, proof)
     end
-    local recap = episode.kill or episode.event
+    local recap = episode.recap or episode.kill or episode.event
     if recap then
+        local owner = recap.petFinisher and recap.petFinisher.ownerID
+        if Opponents(sides, owner, targetID) then
+            Note(owner, targetID)
+            Put(qualifying, owner, direct[owner])
+        end
         for actor, time in pairs(recap.recapDamage or {}) do
             if Opponents(sides, actor, targetID) and RecapInEpisode(battle, episode, time)
                 and Number(phase.evidence.startedAt) and time >= phase.evidence.startedAt then
@@ -169,7 +174,11 @@ function addon.EvaluateRivalContributions(battle)
             if episode.kill then
                 Put(direct, episode.kill.actorID, { kind = "finishing-blow", eventIndex = episode.killIndex })
             end
-            local recap = episode.kill or death
+            local recap = episode.recap or episode.kill or death
+            local owner = recap.petFinisher and recap.petFinisher.ownerID
+            if Opponents(sides, owner, victim) then
+                Put(direct, owner, { kind = "pet-finishing-blow", eventIndex = episode.index, petEndpoint = "actor" })
+            end
             for actor, time in pairs(recap.recapDamage or {}) do
                 if Opponents(sides, actor, victim) and RecapInEpisode(battle, episode, time) then
                     Put(direct, actor, { kind = "recap-damage", eventTime = time, eventIndex = episode.killIndex or episode.index })

@@ -128,11 +128,44 @@ local function Pending(record)
     return record and Participation(record).state ~= "finalized"
 end
 
+-- Ownership can still be contradicted by a repeat recap in this fight.
+-- Keep a pet-only claimant out of the roster and ledger until capture closes.
+local function StageRecapPetOwner(record, event, owner)
+    local pet = event.petFinisher
+    if not pet or not Pending(record) then return end
+    local claims, stamp = record.recapPetOwners, event.recapTimestamp
+    local prior = claims and claims[stamp]
+    if prior and owner and prior.guid ~= owner.guid then pet.ownerAmbiguous = true end
+    if pet.ownerAmbiguous then
+        if claims then claims[stamp] = nil end
+    elseif owner then
+        claims = claims or {}
+        claims[stamp] = prior or owner
+        record.recapPetOwners = claims
+    end
+end
+
+local function AdmitRecapPetOwners(record)
+    local claims = record.recapPetOwners
+    if not claims or not next(claims) then return end
+    for _, event in ipairs(record.battle.events) do
+        local owner = claims[event.recapTimestamp]
+        local pet = event.petFinisher
+        if owner and pet and not pet.ownerAmbiguous then
+            pet.ownerID, pet.ownerEvidence = owner.guid, owner.evidence
+            Participant(record.battle.enemies, owner.guid, owner.name, owner.appearance.level,
+                owner.guid, nil, owner.appearance)
+        end
+    end
+    record.recapPetOwners = nil
+end
+
 local function SetParticipationState(record, state)
     local participation = Participation(record)
     if participation.state == state then return end
     participation.state = state
     addon.RefreshPersonalSkirmish(record.battle)
+    if record.id and addon.RefreshBook then addon.RefreshBook() end
 end
 
 local function ClearParticipationSamples(record)
@@ -151,7 +184,7 @@ local function RecentHostility(record)
     return (action or meter) and GetTime() - record.began - math.max(action or 0, meter or 0) <= terminalSignalAge
 end
 
-local function ObserveDeath(record, id, stamp, source)
+local function ObserveDeath(record, id, stamp, source, segmentIndex)
     local life = Ledger.LatestParticipantLife(record.battle, id, stamp)
     if Ledger.IndicatesDeath(life) then
         life.observedDead = true
@@ -164,8 +197,37 @@ local function ObserveDeath(record, id, stamp, source)
         latest.observedDead = true
         return
     end
-    InsertEvent(record.battle, { kind = "death", targetID = id, time = stamp.time, offset = stamp.offset, source = source })
+    InsertEvent(record.battle, { kind = "death", targetID = id, time = stamp.time, offset = stamp.offset,
+        source = source, segmentIndex = segmentIndex })
     return true
+end
+
+local function ApplyLocalRecap(window)
+    local recap, event = window.localRecap, window.localDeathEvent
+    if not recap or not event or not window.localDeathAt or math.abs(recap.at - window.localDeathAt) > 0.1 then return end
+    if event.recapStatus == recap.status and event.nonPvPLethal == recap.cause then return end
+    event.recapStatus, event.nonPvPLethal = recap.status, recap.cause
+    return true
+end
+
+local function RecordLocalCorpse(record, window, stamp)
+    ObserveDeath(record, window.self, stamp, "player-dead", window.segmentIndex)
+    local event = Ledger.LatestParticipantLife(record.battle, window.self, stamp)
+    if event and event.kind == "death" and not event.recapTimestamp then
+        window.localDeathEvent = event
+        ApplyLocalRecap(window)
+    end
+end
+
+function addon.NoteWorldDeathRecap(window, at, status, cause)
+    if not Valid(window) then return end
+    -- The two PLAYER_DEAD handlers can run in either order. A retry may
+    -- only refine the signal it was originally bound to.
+    if window.localDeathAt and math.abs(at - window.localDeathAt) > 0.1 and GetTime() - at > 0.1 then return end
+    local previous = window.localRecap
+    if previous and math.abs(at - previous.at) <= 0.1 and previous.cause then return end
+    window.localRecap = { at = at, status = status, cause = cause }
+    if ApplyLocalRecap(window) and window.record and window.record.id then Save(window.record) end
 end
 
 local function CorroborateCorpse(record, id, unit, stamp)
@@ -187,6 +249,21 @@ local function SampleEnding(record, pressure, lifeOnly)
     end
     return { offset = GetTime() - record.began, at = addon.EncounterContext().time,
         units = addon.ReadWorldOutcomeUnits(ids, pressure, lifeOnly) }
+end
+
+local function RememberLocalDeathWitnesses(window, sample)
+    local at = window.localDeathAt
+    local localUnit = sample.units[window.self]
+    if not at or GetTime() - at > lateEvent or not localUnit or localUnit.dead ~= true then return end
+    local witnesses = window.segment.localDeathWitnesses
+    for _, opponent in ipairs(window.record.battle.enemies) do
+        local unit = sample.units[opponent.id]
+        if unit and unit.dead == false and unit.combat == true then
+            witnesses = witnesses or {}
+            witnesses[opponent.id] = witnesses[opponent.id] or sample.offset
+        end
+    end
+    window.segment.localDeathWitnesses = witnesses
 end
 
 -- Reconcile in capture order. A kill can arrive between the two reads.
@@ -214,6 +291,7 @@ end
 
 local function Finalize(record, reason, discardUnsaved)
     if not Pending(record) or not Valid(record.lastWindow) then return end
+    AdmitRecapPetOwners(record)
     local participation = Participation(record)
     participation.state, participation.boundary = "finalized", reason
     participation.closedAt = addon.EncounterContext().time
@@ -237,6 +315,7 @@ local function WatchParticipation(window)
         if not Current() or (open and open ~= window) or not Origin()
             or not SameScope(window.place, addon.EncounterContext()) then return end
         local sample = SampleEnding(record, nil, true)
+        RememberLocalDeathWitnesses(window, sample)
         ReconcileLifeSample(window, sample)
         return sample
     end
@@ -281,6 +360,7 @@ local function WatchEnding(window)
         local place = addon.EncounterContext()
         if not Origin() or not SameScope(window.place, place) then return end
         local sample = SampleEnding(record, state.pressure)
+        RememberLocalDeathWitnesses(window, sample)
         ReconcileLifeSample(window, sample)
         return sample
     end
@@ -367,6 +447,7 @@ local function Confirm(window, opponents, basis)
         record = { began = window.began, lastWindow = window, battle = {
             startedAt = place.time, time = place.time, zone = place.zone, mapID = place.mapID, x = place.x, y = place.y,
             origin = place.origin or "world", instanceMapID = place.instanceMapID, rosterComplete = false, allies = {}, enemies = {}, events = {},
+            captureRevision = addon.PreviewRevision(),
             observation = { segments = {}, life = {}, coverage = "local", assessment = { checkStatus = "watching" },
                 participation = { state = "active" } },
         } }
@@ -387,7 +468,9 @@ local function Confirm(window, opponents, basis)
         local offset = event.offset + window.began - record.began
         observation.life[#observation.life + 1] = { at = event.at, offset = offset, state = event.state, source = event.source }
         observation.playerState = event.state
-        if event.state == "alive" then
+        if event.state == "dead" then
+            RecordLocalCorpse(record, window, { time = event.at, offset = offset })
+        elseif event.state == "alive" then
             RecordAlive(record, window.self, { time = event.at, offset = offset }, event.source)
         end
     end
@@ -524,6 +607,12 @@ function addon.WorldDeathWindow(place)
     return window
 end
 
+function addon.WorldCanResolveRecapPet(window)
+    if not Valid(window) or window.area ~= area or not Origin() or not SameScope(window.place, addon.EncounterContext()) then return end
+    if window.record and not Pending(window.record) then return end
+    return open == window or (not open and tail == window and window.ended and GetTime() - window.ended <= lateEvent)
+end
+
 function addon.WorldCanObserveMeter(window)
     return Origin() and Valid(window) and window.area == area and not open and window.ended and Pending(window.record)
         and lastRecord == window.record and lastRecord.lastWindow == window
@@ -584,7 +673,17 @@ function addon.WorldMeterContext(window, row)
     return window, anchors, faction, enemies
 end
 
-function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, contacts, probe, contributionLinks)
+function addon.RecordWorldMeterParticipant(battle, entry, faction)
+    local player = entry.player
+    local friendly = player.faction == faction
+    Participant(friendly and battle.allies or battle.enemies, entry.guid, entry.name, player.level,
+        not friendly and entry.guid or nil, nil, {
+            race = player.race and player.race:lower(), raceLabel = player.raceName,
+            sex = player.sex, class = player.class, classLabel = player.className,
+        })
+end
+
+function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, contacts, probe, contributionLinks, localNpcDamage, sourceTotals)
     if not Valid(window) or window.area ~= area then return end
     local enemies = {}
     for _, entry in ipairs(additions) do
@@ -603,17 +702,13 @@ function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, c
     segment.meter = { scope = "aggregate", selection = row.meterSelection, hostileLinks = links }
     if row.meterSessionID then segment.meter.sessionID = row.meterSessionID end
     segment.contributionLinks = contributionLinks
+    segment.localNpcDamage = localNpcDamage
     battle.time = math.max(battle.time, row.time or battle.time)
     for _, entry in ipairs(additions) do
-        local player = entry.player
-        local friendly = player.faction == faction
-        Participant(friendly and battle.allies or battle.enemies, entry.guid, entry.name, player.level,
-            not friendly and entry.guid or nil, nil, {
-                race = player.race and player.race:lower(), raceLabel = player.raceName,
-                sex = player.sex, class = player.class, classLabel = player.className,
-            })
+        addon.RecordWorldMeterParticipant(battle, entry, faction)
     end
     Ledger.RecordMeterAggregates(battle, segment, probe)
+    addon.RecordMeterSourceTotals(segment, sourceTotals)
     addon.ResolveStagedWorldKills(window, contacts)
     local state = Assessment(record)
     if not state.first and not state.last then WatchEnding(window) end
@@ -708,11 +803,14 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
     local previousRecap, recapIndex = FindDeathRecap(bound, recap)
     if context.repeatRecap and not previousRecap then return end
     if previousRecap and previousRecap.kind == "kill" then return nil, nil, "duplicate" end
+    if previousRecap and previousRecap.petFinisher and guid then return nil, nil, "conflicting-finisher" end
 
     local record
     if unknownFinisher then
-        if not bound or not bound.record then return end
+        if not bound then return end
         record = bound.record
+        if not record and context.petFinisher then record = Confirm(bound, {}, "pet-death-recap") end
+        if not record then return end
     else
         record = Confirm(window, { [guid] = true }, "kill")
     end
@@ -722,10 +820,31 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
     local event = { kind = unknownFinisher and "death" or "kill", actorID = actorID, targetID = targetID, time = context.time,
         offset = (context.killUptime or GetTime()) - record.began,
         source = outgoing and "party-kill" or "death-recap", recapTimestamp = context.deathTimestamp,
-        recapDamage = context.recapDamage, segmentIndex = window.segmentIndex, pvpLinked = unknownFinisher or nil }
+        recapDamage = context.recapDamage, segmentIndex = window.segmentIndex, pvpLinked = unknownFinisher or nil,
+        petFinisher = context.petFinisher }
     if previousRecap then
         local hits, changed = event.recapDamage or {}, false
         local previousHits = previousRecap.recapDamage or {}
+        local oldPet, pet = previousRecap.petFinisher, event.petFinisher
+        if oldPet and pet and pet.sourceID == oldPet.sourceID then
+            local attempts = oldPet.ownerAttempts or {}
+            for _, attempt in ipairs(pet.ownerAttempts or {}) do
+                if #attempts == 4 then break end
+                attempts[#attempts + 1] = attempt
+            end
+            -- Diagnostic reads belong to the saved death even on a duplicate
+            -- whose combat evidence does not justify a replacement or reindex.
+            oldPet.ownerAttempts, pet.ownerAttempts = attempts, attempts
+            pet.sourceName = oldPet.sourceName or pet.sourceName
+            pet.ownerID, pet.ownerEvidence = oldPet.ownerID, oldPet.ownerEvidence
+            pet.ownerAmbiguous = oldPet.ownerAmbiguous or pet.ownerAmbiguous
+            StageRecapPetOwner(record, event, context.petOwner)
+            changed = pet.ownerAmbiguous ~= oldPet.ownerAmbiguous or pet.sourceName ~= oldPet.sourceName
+        elseif oldPet then
+            event.petFinisher = oldPet
+        elseif pet then
+            changed = true
+        end
         for id, time in pairs(hits) do
             if time > (previousHits[id] or 0) then changed = true end
         end
@@ -765,6 +884,7 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
     end
     if recapIndex then
         battle.events[recapIndex] = event
+        if not previousRecap.petFinisher then StageRecapPetOwner(record, event, context.petOwner) end
     else
         -- Attach an attributed kill to a sampled corpse. An independently
         -- validated native recap already identifies its own death.
@@ -778,6 +898,7 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
             end
         end
         InsertEvent(battle, event)
+        StageRecapPetOwner(record, event, context.petOwner)
     end
     if not outgoing then
         -- A bounded recap retry can report the old death after the local
@@ -859,14 +980,16 @@ end
 
 local function NoteUnrelatedPvE(self, actor, target, sourceUnit, targetUnit)
     local window = open
-    local previous = window and window.previous
-    if not Pending(previous) or window.record or window.pveBoundary or not previous.lastWindow.ended then return end
+    if not Valid(window) then return end
     local npc
     if actor == self then npc = targetUnit elseif target == self then npc = sourceUnit end
     if not npc then return end
     local guid = Readable(UnitGUID(npc))
     if type(guid) ~= "string" or not guid:match("^Creature%-") or Readable(UnitIsPlayer(npc)) ~= false
         or Readable(UnitCanAttack("player", npc)) ~= true or Readable(UnitGUID(npc)) ~= guid then return end
+    if target == self then window.segment.localNpcPressure = true end
+    local previous = window.previous
+    if not Pending(previous) or window.record or window.pveBoundary or not previous.lastWindow.ended then return end
     local atClose = previous.endingContact and previous.endingContact[self]
     if window.began - previous.lastWindow.ended < bridgeAge then
         local current = addon.ReadWorldOutcomeUnits({ [self] = true })[self]
@@ -1086,13 +1209,17 @@ local function Life(kind, source)
     local record = window.record
     local life = record and record.battle.observation.life or window.life or {}
     if life[#life] and life[#life].state == kind then return end
-    local offset = GetTime() - (record and record.began or window.began)
+    local now = GetTime()
+    local offset = now - (record and record.began or window.began)
     life[#life + 1] = { state = kind, at = place.time, offset = offset, source = source }
+    if kind == "dead" then window.localDeathAt, window.localDeathEvent = now, nil end
     if record then
         record.battle.observation.playerState = kind
         if record.battle.resolution then record.battle.resolution.localLife = kind end
         if kind == "dead" then
-            Await(window, GetTime())
+            RecordLocalCorpse(record, window, { time = place.time, offset = offset })
+            Await(window, now)
+            if record.id then Save(record) else window.dirty = true end
         end
         if kind == "alive" and Pending(record) and RecordAlive(record, window.self, { time = place.time, offset = offset }, source) then
             local resolved = record.battle.resolution and record.battle.resolution.ending == "observed"

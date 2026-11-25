@@ -60,7 +60,7 @@ Qualifying involvement can include:
 - Attacking, attempting a relevant hostile ability, damaging, or controlling an opponent.
 - Being attacked or otherwise directly affected by an opposing participant.
 - Healing, shielding, buffing, dispelling, protecting, crowd-controlling, or otherwise materially supporting a participant **in this same fight**.
-- Fighting via a pet or other controlled unit; credit that involvement to the owning player, rather than counting the pet as another player on the roster.
+- Fighting via a pet or other controlled unit. This activity belongs to its verified player owner. Roster slots and rival histories are for players.
 - Joining later, retreating, dying, reviving, or leaving early, after having participated.
 
 The support case matters: **a priest who only heals a fighting ally is still a participant**, even with no recorded damage or killing blow.
@@ -199,7 +199,7 @@ No new requirement for global synchronization or exhaustive observation.
 
 - **Primary outcome:** Victory, Defeat or Draw from section 6; exceptional Unknown for genuinely unresolved endings. Show In progress separately for ongoing/settling encounters.
 - **Observed sides and roster:** identify actual Alliance and Horde participants, including meaningful support; keep known class, race, name and level. Use Blizzard's skull only for an explicitly observed skull-level value; hide an unavailable level.
-- **Casualties and timeline:** confirmed deaths, finishing blows and revivals, plus meaningful actions and available permanent aggregates. Do not mark disappearance as death or fabricate a killer or individual hit from an aggregate.
+- **Casualties and timeline:** confirmed deaths, finishing blows and revivals, plus meaningful actions and available permanent aggregates. A pet finishing blow shows its verified player owner as the actor. When ownership is unresolved, show an unknown player and retain the actual source as technical evidence. Do not mark disappearance as death or fabricate a killer or individual hit from an aggregate.
 - **Rewards:** distinguish game-awarded Honorable Kills and Honor Points from both personal and rival outcomes. Preserve earned rewards at the most specific confirmed scope (rival, skirmish, or journal); no invented attribution.
 - **When/where, origin and coverage:** date, zone, map waypoint if available, observed rather than guaranteed full roster. Both compact and full battleground cards retain the localized Battleground label beside the location.
 - **Group context:** optional and explicitly labeled. It does not replace the character's primary outcome.
@@ -220,7 +220,9 @@ A personal victory over a rival is credited when the rival is defeated in the co
 
 For a rival loss, apply the analogous attribution principle to the local character's confirmed PvP death: a direct hostile finisher qualifies, and every other rival with reliably linked material participation in that death qualifies (including damage or relevant support/control). If three enemies damaged the character in the same lethal episode, all three receive a rival-specific loss credit, regardless of who finished the character. This is one friendly death episode, not three; the single skirmish result follows section 6. Do not give a loss against every enemy merely because our character or side lost. Do not presume a healer on the other side was supporting the killer without evidence. An NPC-only death cannot create rival losses.
 
-**Keep the score and literal combat statistics distinct.** Rival wins/losses represent credited participation in defeats/deaths, while personal killing blows and deaths directly caused by that rival are separately observable facts. HKs and honor remain the game's awards. A shared kill is not a personal finishing blow; neither statistic should be silently relabeled as the other.
+**Keep the score, direct-player counters and Finishing blows distinct.** Rival wins and losses represent credited participation in defeats and deaths. The personal killing blow and death counters use literal direct-player kill events. Finishing blows can display a verified player owner for a pet's lethal hit. The underlying death keeps the pet as its physical source, and the owner attribution can support rival credit without incrementing a direct-player counter. HKs and honor remain the game's awards.
+
+Joining an ally's fight can qualify both characters on evidence tied to the same confirmed opponent. A party roster, a longer shared meter session, or combat against another target does not establish that link. A later generic combat flag from an ally does not reopen a witnessed elimination on its own. A linked renewed PvP action or an observed returning opponent can invalidate the earlier ending.
 
 Examples:
 - I damage a mage, my brother finishes the mage: victory against the mage; zero personal finishing blows.

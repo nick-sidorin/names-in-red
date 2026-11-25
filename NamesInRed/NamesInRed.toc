@@ -24,6 +24,7 @@ RivalContributions.lua
 Encounter.lua
 Core.lua
 SkirmishEvidence.lua
+MeterSourceTotals.lua
 CombatDiagnostics.lua
 WorldSkirmishes.lua
 Honor.lua

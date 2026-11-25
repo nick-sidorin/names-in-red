@@ -40,7 +40,14 @@ function UnitPosition(unit)
 end
 
 C_DeathRecap = { GetRecapEvents = function() return recap end }
-bit = { band = function(flags) return flags == 0x440 and flags or 0 end }
+bit = { band = function(left, right)
+    local value, weight = 0, 1
+    while left > 0 and right > 0 do
+        if left % 2 == 1 and right % 2 == 1 then value = value + weight end
+        left, right, weight = math.floor(left / 2), math.floor(right / 2), weight * 2
+    end
+    return value
+end }
 Enum = { DamageMeterType = { DamageDone = 0, DamageTaken = 7, EnemyDamageTaken = 10, HealingDone = 2 },
     DamageMeterSessionType = { Current = 0 } }
 local sources = {}
@@ -114,7 +121,7 @@ local function HK()
     Fire("PLAYER_PVP_KILLS_CHANGED", "player")
 end
 
-for _, file in ipairs({ "Locale", "Ledger", "SkirmishOutcomes", "SkirmishDeathEvidence", "PersonalSkirmishOutcomes", "RivalContributions", "Encounter", "Core", "SkirmishEvidence", "CombatDiagnostics",
+for _, file in ipairs({ "Locale", "Ledger", "SkirmishOutcomes", "SkirmishDeathEvidence", "PersonalSkirmishOutcomes", "RivalContributions", "Encounter", "Core", "SkirmishEvidence", "MeterSourceTotals", "CombatDiagnostics",
     "WorldSkirmishes", "Honor", "Kills", "Deaths", "IssueReport", "Debug" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
@@ -985,4 +992,787 @@ if not arg[1] or arg[1] == "rival-pet-control" then
     units.pet = nil
 end
 
+-- world:16-shaped Forever capture, with variants that change a single
+-- piece of the incoming evidence or the lethal recap.
+local revision = ("ab"):rep(20)
+C_AddOns = { GetAddOnMetadata = function(_, key)
+    if key == "X-Preview-Revision" then return revision end
+    if key == "Version" then return "1.1.0" end
+end }
+
+local function World16(scenario)
+    Reset()
+    units.target, units.party1 = first, nil
+    first.class, first.active = "WARLOCK", true
+    duration = 25.002
+    addon.db.encounterSequence = 15
+    local pet = { id = "Pet-fixture-warlock", name = "Mock Demon", faction = "Horde" }
+    if scenario.pet then
+        units.nameplate1 = pet
+        function UnitIsOwnerOrControllerOfUnit(owner, controlled)
+            return scenario.verifiedPet and owner == "target" and controlled == "nameplate1"
+        end
+    end
+    if scenario.npcAura then
+        units.mouseover = { id = "Creature-fixture-mob", name = "Mock Creature", faction = "Horde" }
+    end
+    Begin()
+    if scenario.pet then Fire("NAME_PLATE_UNIT_ADDED", "nameplate1") end
+    Advance(23.829)
+    Fire("UNIT_COMBAT", "player", "WOUND")
+    Advance(0.407)
+    Fire("UNIT_COMBAT", "player", "WOUND")
+    if scenario.npcAura then Aura("mouseover", "player") end
+    if scenario.pet then
+        Link(0, pet.id, localPlayer, 716)
+        Link(2, me, localPlayer, 15)
+        -- Keep a card via outgoing damage; this cannot qualify our death.
+        Link(10, one, localPlayer, 100)
+    else
+        Link(7, me, first, 716)
+    end
+    if scenario.mixed then
+        local taken = sources[7][me][1].combatSpellDetails
+        sources[7][me][1].combatSpellDetails = { taken, {
+            unitName = "Mock Creature", isMob = true, isPet = false, amount = 50,
+        } }
+    end
+    Update(0, 7, 10, 2)
+    Advance(0.766)
+    localPlayer.dead = true
+    local stamp = GetServerTime()
+    if scenario.staleNPC then addon.db.lastDeathTimestamp = stamp end
+    if not scenario.lateNPC then
+        recap = { { sourceGUID = (scenario.npc or scenario.staleNPC) and "Creature-private" or nil,
+            timestamp = stamp, overkill = 1, event = scenario.environment and "ENVIRONMENTAL_DAMAGE" or "SPELL_DAMAGE" } }
+    end
+    Fire("PLAYER_DEAD")
+    End()
+    Advance(1.3)
+    local fight = assert(addon.db.skirmishes["world:16"])
+    local segment = fight.observation.segments[1]
+    assert(fight.personalOutcome.lifecycle == "awaiting" and fight.captureRevision == revision)
+    addon.Ledger.RivalContributionScore(addon.db, one) -- warm the index before settlement
+    if scenario.lateNPC then
+        addon.RecordSkirmish("world:16", fight)
+        local _, provisional = addon.Ledger.RivalContributionScore(addon.db, one)
+        assert(provisional == 1)
+        recap = { { sourceGUID = "Creature-private", timestamp = stamp, overkill = 1, event = "SPELL_DAMAGE" } }
+        Advance(0.8)
+        local _, corrected = addon.Ledger.RivalContributionScore(addon.db, one)
+        assert(corrected == 0)
+    end
+    units.target, units.nameplate1 = nil, nil
+    Advance(2)
+    local outside = IsInInstance
+    function IsInInstance() return true, "party" end
+    Fire("ZONE_CHANGED_NEW_AREA")
+    IsInInstance = outside
+    local expected = scenario.loss and 1 or 0
+    assert(fight.personalOutcome.outcome == (scenario.loss and "loss" or "unknown"))
+    assert(fight.personalOutcome.casualties.friendly == expected and fight.personalOutcome.casualties.enemy == 0)
+    assert(fight.personalOutcome.finalizedBy == "area-changed")
+    assert(#fight.events == 1 and fight.events[1].kind == "death" and not fight.events[1].actorID)
+    assert(not fight.rosterComplete)
+    local wins, losses = addon.Ledger.RivalContributionScore(addon.db, one)
+    assert(wins == 0 and losses == expected)
+    local summary = addon.Ledger.RivalSkirmishes(addon.db, one)[1]
+    assert(summary.contributionWins == 0 and summary.contributionLosses == expected)
+    local kills, direct = addon.Ledger.PersonalCombatScore(addon.db, one)
+    assert(kills == 0 and direct == 0)
+    if not scenario.pet then
+        local link = assert(segment.contributionLinks[1])
+        assert(link.category == "DamageTaken" and link.actorID == one and link.targetID == me)
+    elseif scenario.loss then
+        local credit = addon.Ledger.SkirmishContributionEvidence(addon.db, "world:16", fight).credits[1]
+        assert(credit.evidence.petEndpoint == "actor" and credit.evidence.category == "DamageDone")
+    end
+    if scenario.mixed then assert(segment.localNpcDamage == true) end
+    if scenario.npcAura then assert(segment.localNpcPressure == true) end
+    local report = addon.BuildIssueReport(addon.db, nil, "world:16")
+    for _, key in ipairs({ "previewRevision", "captureRevision", "participation", "contributionLink", "deathEpisode" }) do
+        assert(report:find('"' .. key .. '"', 1, true), key)
+    end
+    assert(report:find(revision, 1, true) and not report:find(one, 1, true) and not report:find("Creature-private", 1, true))
+    assert(report:find('"' .. scenario.qualification .. '"', 1, true))
+    if scenario.loss then
+        assert(report:find('"deathIndex": 1', 1, true) and report:find('"localDeathWitness"', 1, true))
+    end
+
+    -- The opponent's later death is outside our finalized observation.
+    Kill(ally, first)
+    ghost = true
+    Fire("PLAYER_ALIVE")
+    Advance(1)
+    ghost, localPlayer.dead = false, false
+    Fire("PLAYER_UNGHOST")
+    assert(#fight.events == 1 and not addon.db.skirmishes["world:17"])
+    first.class, first.active, first.dead = "MAGE", nil, nil
+    UnitIsOwnerOrControllerOfUnit = nil
+end
+
+if not arg[1] or arg[1] == "world16" then
+    World16({ loss = true, qualification = "terminal-incoming-damage" })
+    World16({ npc = true, qualification = "non-pvp-lethal" })
+    World16({ lateNPC = true, qualification = "non-pvp-lethal" })
+    World16({ environment = true, qualification = "non-pvp-lethal" })
+    World16({ mixed = true, qualification = "mixed-incoming-damage" })
+    World16({ npcAura = true, qualification = "mixed-incoming-damage" })
+    World16({ staleNPC = true, loss = true, qualification = "terminal-incoming-damage" })
+    World16({ pet = true, verifiedPet = true, loss = true, qualification = "terminal-incoming-damage" })
+    World16({ pet = true, qualification = "no-qualified-incoming-damage" })
+end
+
+local function SavedCopy(value)
+    if type(value) ~= "table" then return value end
+    local copy = {}
+    for key, field in pairs(value) do copy[key] = SavedCopy(field) end
+    return copy
+end
+
+if not arg[1] or arg[1] == "pet-recap" then
+    for _, scenario in ipairs({
+        { expected = true }, { expected = true, owner = true }, { expected = true, onlyPet = true },
+        { expected = false, flags = 0x1248 }, { expected = false, flags = 0x1118 },
+        { expected = false, flags = 0x1188 }, { expected = false, npc = true },
+        { expected = false, environment = true },
+    }) do
+        Reset()
+        units.party1, units.target = nil, first
+        local pet = { id = "Pet-fixture-recap", name = "Mock Demon", faction = "Horde" }
+        units.nameplate1, units.mouseover = pet, second
+        function UnitIsOwnerOrControllerOfUnit(owner, controlled)
+            return scenario.owner and owner == "mouseover" and controlled == "nameplate1"
+        end
+        Begin()
+        Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
+        -- Keep a PvP record in the negative cases so a rejected recap
+        -- cannot silently become a rival loss via the tracked opponent.
+        if not scenario.expected then Aura("player", "target") end
+        Advance(5)
+        localPlayer.dead = true
+        local stamp = GetServerTime()
+        recap = {
+            { sourceGUID = scenario.npc and "Creature-fixture" or pet.id, sourceFlags = scenario.flags or 0x1148,
+                timestamp = stamp, currentHP = 12, amount = 56, overkill = 44,
+                event = scenario.environment and "ENVIRONMENTAL_DAMAGE" or "SWING_DAMAGE" },
+        }
+        if not scenario.onlyPet then
+            recap[2] = { sourceGUID = one, sourceFlags = 0x10548, timestamp = stamp - 0.75,
+                event = "SPELL_PERIODIC_DAMAGE", amount = 80 }
+        end
+        Fire("PLAYER_DEAD")
+        Fire("PLAYER_DEAD")
+        End()
+        Advance(13)
+        local fight = assert(addon.db.skirmishes["world:1"])
+        local death = assert(fight.events[1])
+        assert(#fight.events == 1 and death.kind == "death" and not death.actorID)
+        if scenario.expected then
+            assert(fight.personalOutcome.outcome == "loss" and fight.personalOutcome.casualties.friendly == 1)
+            assert(death.petFinisher.sourceID == pet.id and death.petFinisher.overkill == 44)
+            assert(death.petFinisher.ownerID == (scenario.owner and two or nil))
+            local attempts = death.petFinisher.ownerAttempts
+            assert(#attempts == 4 and attempts[1].petToken == "unavailable")
+            assert(attempts[1].delay == 0 and attempts[2].delay == 0)
+            assert(math.abs(attempts[3].delay - 0.3) < 0.001 and math.abs(attempts[4].delay - 1) < 0.001)
+            local report = addon.BuildIssueReport(addon.db, nil, "world:1")
+            assert(report:find('"finisher": "pet"', 1, true) and not report:find(pet.id, 1, true))
+            local attribution = scenario.owner and "verified-player-owner" or "unknown-player"
+            assert(report:find('"finisherAttribution": "' .. attribution .. '"', 1, true))
+            assert(report:find('"personalCombatScope": "direct-player"', 1, true))
+            assert(not report:find('"section": "personal"', 1, true))
+            if not scenario.onlyPet then
+                assert(death.recapDamage[one] == stamp - 0.75)
+                local wins, losses = addon.Ledger.RivalContributionScore(addon.db, one)
+                assert(wins == 0 and losses == 1)
+            end
+            local _, ownerLosses = addon.Ledger.RivalContributionScore(addon.db, two)
+            assert(ownerLosses == (scenario.owner and 1 or 0))
+            local _, ownerDirect = addon.Ledger.PersonalCombatScore(addon.db, two)
+            assert(ownerDirect == 0)
+            addon.ClearDiagnostics()
+            local reloaded = addon.Ledger.Open(SavedCopy(addon.db))
+            local saved = reloaded.skirmishes["world:1"]
+            assert(saved.personalOutcome.outcome == "loss" and #saved.events == 1)
+            local savedPet = assert(saved.events[1].petFinisher)
+            assert(savedPet.ownerID == death.petFinisher.ownerID and #savedPet.ownerAttempts == 4)
+            for index, attempt in ipairs(attempts) do
+                assert(savedPet.ownerAttempts[index].delay == attempt.delay)
+                assert(savedPet.ownerAttempts[index].decision == attempt.decision)
+            end
+        else
+            assert(not death.petFinisher and fight.personalOutcome.casualties.friendly == 0)
+            local _, losses = addon.Ledger.RivalContributionScore(addon.db, one)
+            assert(losses == 0)
+        end
+        UnitIsOwnerOrControllerOfUnit = nil
+    end
+end
+
+if not arg[1] or arg[1] == "pet-recap" then
+    Reset()
+    units.party1, units.target = nil, first
+    Begin()
+    Advance(5)
+    for life = 1, 2 do
+        localPlayer.dead = true
+        local stamp = GetServerTime()
+        recap = {
+            { sourceGUID = "Pet-repeat-fixture", sourceFlags = 0x1148, timestamp = stamp,
+                currentHP = 12, amount = 56, overkill = 44, event = "SWING_DAMAGE" },
+            { sourceGUID = one, sourceFlags = 0x10548, timestamp = stamp - 0.75,
+                event = "SPELL_PERIODIC_DAMAGE", amount = 80 },
+        }
+        Fire("PLAYER_DEAD")
+        if life == 1 then
+            Advance(2)
+            localPlayer.dead = false
+            Fire("PLAYER_UNGHOST")
+            Advance(3)
+        end
+    end
+    End()
+    Advance(13)
+    local fight = assert(addon.db.skirmishes["world:1"])
+    assert(#fight.events == 3 and fight.events[2].kind == "revive")
+    assert(fight.events[1].petFinisher and fight.events[3].petFinisher)
+    assert(fight.personalOutcome.casualties.friendly == 2)
+    local wins, losses = addon.Ledger.RivalContributionScore(addon.db, one)
+    assert(wins == 0 and losses == 2)
+end
+
+-- The 71037 GUID-to-token and token-to-owner API contract. Mocked values
+-- stand in for the readable, absent and restricted client responses.
+if not arg[1] or arg[1] == "pet-owner-api" then
+    for _, scenario in ipairs({
+        { mode = "direct", owner = two },
+        { mode = "logout", owner = two },
+        { mode = "post-combat", owner = two },
+        { mode = "aura-observation", owner = two },
+        { mode = "secret-token" }, { mode = "reused-token" }, { mode = "error" },
+        { mode = "conflict" }, { mode = "conflict-observed", noDamage = true },
+        { mode = "conflict-history", pastRival = true }, { mode = "conflict-damage", independentOwner = true },
+        { mode = "out-of-scope" }, { mode = "unknown-opponent" },
+    }) do
+        Reset()
+        units.party1, units.target, units.mouseover = nil, first, second
+        local secret = {}
+        function issecretvalue(value) return rawequal(value, secret) end
+        local pet = { id = "Pet-owner-api-fixture", name = "Private Pet Label", faction = "Horde" }
+        local mode = scenario.mode
+        local conflict = mode:match("^conflict") ~= nil
+        local manual, pastRival, pastBattle
+        if scenario.pastRival then
+            manual = { manual = true, time = GetServerTime() - 120 }
+            addon.RecordEncounter(two, second.name, "deathsToThem", manual)
+            pastRival = assert(addon.db.rivals[two])
+            pastBattle = { time = GetServerTime() - 60, origin = "world",
+                allies = { { id = me, isSelf = true } }, enemies = { { id = two, rivalID = two, name = second.name } },
+                events = { { kind = "kill", actorID = me, targetID = two } } }
+            addon.RecordSkirmish("world:8000", pastBattle)
+        end
+        local fightID = "world:" .. ((addon.db.encounterSequence or 0) + 1)
+        local ownerReads = 0
+        local function GuidForToken(id)
+            if id == two then return "mouseover" end
+            if id == one then return "target" end
+            if id ~= pet.id or mode == "aura-observation" then return end
+            if mode == "secret-token" then return secret end
+            return "focus"
+        end
+        UnitTokenFromGUID = GuidForToken
+        function UnitOwnerGUID(token)
+            assert(token == "focus")
+            ownerReads = ownerReads + 1
+            if mode == "error" then error("Private native error") end
+            if mode == "reused-token" then units.focus = first; return two end
+            if mode == "unknown-opponent" then return me end
+            if (mode == "post-combat" or mode == "out-of-scope") and inCombat then return secret end
+            if conflict and not inCombat then return one end
+            return two
+        end
+        Begin()
+        units.focus = pet -- a token the nameplate enumerator does not see
+        if mode == "aura-observation" then
+            Aura("focus", "player")
+            units.focus = nil
+        end
+        Advance(5)
+        local stamp = GetServerTime()
+        localPlayer.dead = true
+        recap = {
+            { sourceGUID = pet.id, sourceFlags = 0x1148, timestamp = stamp, currentHP = 12, amount = 56,
+                overkill = 44, event = "SWING_DAMAGE", sourceName = mode == "secret-token" and secret
+                    or (mode ~= "error" and pet.name or nil) },
+            { sourceGUID = one, sourceFlags = 0x10548, timestamp = stamp - 0.75,
+                amount = 80, event = "SPELL_PERIODIC_DAMAGE" },
+        }
+        if scenario.noDamage then recap[2] = nil end
+        if scenario.independentOwner then
+            recap[3] = { sourceGUID = two, sourceFlags = 0x10548, timestamp = stamp - 0.5,
+                amount = 31, event = "SPELL_PERIODIC_DAMAGE" }
+        end
+        Fire("PLAYER_DEAD")
+        if conflict then
+            local pending = assert(addon.db.skirmishes[fightID])
+            assert(not pending.events[1].petFinisher.ownerID)
+            for _, enemy in ipairs(pending.enemies) do
+                assert(enemy.id ~= two or scenario.independentOwner)
+            end
+            if not scenario.independentOwner then assert(addon.db.rivals[two] == pastRival) end
+        end
+        End()
+        if mode == "out-of-scope" then Fire("PLAYER_LEAVING_WORLD") end
+        if mode == "logout" then
+            Advance(0.5)
+            Fire("PLAYER_LOGOUT")
+            local reloaded = addon.Ledger.Open(SavedCopy(addon.db))
+            local savedFight = reloaded.skirmishes[fightID]
+            local savedPet = savedFight.events[1].petFinisher
+            assert(savedFight.observation.participation.state == "finalized")
+            assert(savedPet.ownerID == two and #savedPet.ownerAttempts == 2)
+            local _, savedLosses = addon.Ledger.RivalContributionScore(reloaded, two)
+            assert(savedLosses == 1)
+        end
+        local readsAtEnd = ownerReads
+        Advance(13)
+        local fight = assert(addon.db.skirmishes[fightID])
+        local evidence = assert(fight.events[1].petFinisher)
+        local attempts = evidence.ownerAttempts
+        assert(#attempts > 0 and #attempts <= 4 and evidence.ownerID == scenario.owner, mode)
+        assert(fight.personalOutcome.outcome == "loss" and #fight.events == 1 and not fight.events[1].actorID)
+        for _, enemy in ipairs(fight.enemies) do assert(enemy.id:match("^Player%-")) end
+        assert(not addon.db.rivals[pet.id])
+        local _, ownerLosses = addon.Ledger.RivalContributionScore(addon.db, two)
+        assert(ownerLosses == ((scenario.owner or scenario.independentOwner) and 1 or 0))
+        local _, standaloneLosses = addon.Ledger.RivalContributionScore(addon.db, one)
+        assert(standaloneLosses == (scenario.noDamage and 0 or 1))
+        if mode == "post-combat" then
+            assert(attempts[1].ownerGUID == "secret" and attempts[2].phase == "post-combat"
+                and attempts[2].decision == "unit-owner-guid")
+            assert(evidence.ownerEvidence == "unit-owner-guid")
+        elseif mode == "secret-token" then
+            assert(attempts[1].petToken == "secret" and not evidence.sourceName and ownerReads == 0)
+        elseif mode == "reused-token" then
+            assert(attempts[1].petAfter == "mismatch")
+        elseif mode == "error" then
+            assert(attempts[1].ownerGUID == "error" and not evidence.sourceName)
+        elseif mode == "aura-observation" then
+            assert(evidence.ownerEvidence == "scoped-observation")
+        elseif conflict then
+            assert(evidence.ownerAmbiguous and attempts[2].decision == "ambiguous-owner")
+            local reloaded = addon.Ledger.Open(SavedCopy(addon.db))
+            local savedPet = reloaded.skirmishes[fightID].events[1].petFinisher
+            assert(savedPet.ownerAmbiguous and not savedPet.ownerID and #savedPet.ownerAttempts == 4)
+            assert(savedPet.ownerAttempts[1].decision == "unit-owner-guid"
+                and savedPet.ownerAttempts[2].decision == "ambiguous-owner")
+            local _, savedLosses = addon.Ledger.RivalContributionScore(reloaded, two)
+            assert(savedLosses == (scenario.independentOwner and 1 or 0))
+            local rivalCount = scenario.noDamage and 0 or (scenario.independentOwner and 2 or 1)
+            assert(#fight.enemies == rivalCount, mode .. " left an unsupported rival on the roster")
+            if pastRival then
+                assert(addon.db.rivals[two] == pastRival and pastRival.encounters[1] == manual)
+                assert(addon.db.skirmishes["world:8000"] == pastBattle)
+                local wins = addon.Ledger.RivalContributionScore(addon.db, two)
+                assert(wins == 1)
+                local history = addon.RivalEncounters(addon.db, two)
+                assert(#history == 2 and history[1].skirmishID == "world:8000" and history[2] == manual)
+            elseif not scenario.independentOwner then
+                assert(not addon.db.rivals[two])
+            end
+        elseif mode == "out-of-scope" then
+            assert(ownerReads == readsAtEnd and attempts[2].decision == "scope-unavailable")
+        elseif mode == "direct" then
+            assert(evidence.sourceName == pet.name and evidence.ownerEvidence == "unit-owner-guid")
+            assert(#attempts == 4 and attempts[1].phase == "combat" and attempts[4].phase == "post-combat")
+        end
+        local report = addon.BuildIssueReport(addon.db, nil, fightID)
+        assert(report:find('"section": "petOwnerProbe"', 1, true))
+        for _, private in ipairs({ pet.id, pet.name, "Private native error", '"focus"', two }) do
+            assert(not report:find(private, 1, true), private)
+        end
+        UnitTokenFromGUID, UnitOwnerGUID, issecretvalue, units.focus = nil, nil, nil, nil
+    end
+end
+
+-- Synthetic store tests for raw diagnostic matching. These exercise
+-- migration gates independently of the owner-provided encounter data.
+if not arg[1] or arg[1] == "legacy-pet-recap" then
+    local terminalLocalDeath = dofile("tests/fixtures/terminal-local-death.lua")
+    local function LegacyRecap()
+        local battle, segment, death = terminalLocalDeath(me, one)
+        local journal = addon.Ledger.Open()
+        addon.Ledger.Add(journal, one, "Mock Warlock")
+        addon.Ledger.Add(journal, two, "Mock Rogue")
+        battle.enemies[2] = { id = two, rivalID = two }
+        journal.skirmishes = { ["world:508"] = battle }
+        battle.zone, death.source = "Fixture Grove", "player-dead"
+        segment.reportMeter = { session = 8, combatSequence = 4, time = 125, uptime = 542.502 }
+        segment.combatAggregates = nil -- this suite isolates native recap recovery
+        local source = "Pet-fixture-legacy"
+        local signal = { kind = "PLAYER_DEAD", session = 8, combatSequence = 4, deathSequence = 3,
+            time = 125, uptime = 542.502, instanceType = "none", zone = battle.zone,
+            player = { guid = me, dead = true } }
+        local function Read(delay)
+            return { kind = "RECAP", session = 8, combatSequence = 4, deathSequence = 3, delay = delay,
+                time = 125, uptime = 542.502 + delay, instanceType = "none", zone = battle.zone,
+                status = { events = "readable" }, events = {
+                    { sourceGUID = source, sourceFlags = 0x1148, timestamp = 125.75, overkill = 40, amount = 50,
+                        currentHP = 10, event = "SWING_DAMAGE", status = { row = "readable" } },
+                    { sourceGUID = one, sourceFlags = 0x10548, timestamp = 125.25, amount = 80,
+                        event = "SPELL_PERIODIC_DAMAGE", status = { row = "readable" } },
+                } }
+        end
+        local combatEnd = { kind = "COMBAT_END", session = 8, combatSequence = 4, time = 125,
+            uptime = 542.502, instanceType = "none", zone = battle.zone,
+            petOwners = { [source] = { [two] = true } },
+            contacts = { [two] = { latest = { guid = two, isPlayer = true, opponent = true } } } }
+        return journal, battle, { version = 1, rows = { signal, Read(0), Read(0.3), combatEnd } }, death
+    end
+
+    local journal, fight, log, rawDeath = LegacyRecap()
+    assert(fight.personalOutcome.version == 3)
+    addon.Ledger.Open(journal) -- migration can first see an archive without its diagnostics
+    assert(fight.personalOutcome.version == 5 and addon.Ledger.JournalOutcome(fight) == "unknown")
+    local function Losses(rival)
+        local wins, losses = addon.Ledger.RivalContributionScore(journal, rival)
+        assert(wins == 0)
+        return losses
+    end
+    assert(Losses(one) == 0)
+    for _ = 1, 2 do
+        assert(addon.Ledger.Open(journal, log) == journal)
+        local proof = assert(fight.recoveredDeathRecaps[1])
+        assert(#fight.events == 1 and fight.events[1] == rawDeath and not rawDeath.recapTimestamp)
+        assert(proof.petFinisher.ownerID == two and proof.recapDamage[one] == 125.25)
+        assert(addon.Ledger.JournalOutcome(fight) == "loss" and Losses(one) == 1 and Losses(two) == 1)
+        assert(addon.Ledger.PersonalCombatScore(journal, one) == 0)
+    end
+    addon.Ledger.Open(journal)
+    assert(Losses(one) == 1)
+
+    for _, change in ipairs({
+        function(_, log) log.rows[1].player.guid = ally end,
+        function(_, log) log.rows[1].session = 9 end,
+        function(_, log) log.rows[1].combatSequence = 5 end,
+        function(_, log) log.rows[1].uptime = 550 end,
+        function(_, log) log.rows[2].deathSequence, log.rows[3].deathSequence = 2, 2 end,
+        function(_, log) log.rows[3].events[1].timestamp = 125.875 end,
+        function(_, log) log.rows[3].events[1].sourceGUID = "Creature-fixture" end,
+        function(battle) battle.observation.segments[2] = battle.observation.segments[1] end,
+        function(_, _, journal) journal.skirmishes["world:509"] = journal.skirmishes["world:508"] end,
+    }) do
+        journal, fight, log = LegacyRecap()
+        change(fight, log, journal)
+        addon.Ledger.Open(journal, log)
+        assert(not fight.recoveredDeathRecaps and addon.Ledger.JournalOutcome(fight) == "unknown" and Losses(one) == 0)
+    end
+    journal, fight, log = LegacyRecap()
+    log.rows[4].petOwners["Pet-fixture-legacy"][one] = true
+    addon.Ledger.Open(journal, log)
+    assert(fight.recoveredDeathRecaps[1].petFinisher.ownerID == nil)
+    assert(Losses(one) == 1 and Losses(two) == 0)
+    journal, fight, log = LegacyRecap()
+    log.rows[2].events[1].sourceName = "Restricted Local Name"
+    log.rows[2].events[1].status.sourceName = "secret"
+    addon.Ledger.Open(journal, log)
+    assert(not fight.recoveredDeathRecaps[1].petFinisher.sourceName and Losses(one) == 1)
+end
+
+-- The owner's original pre-offset record and its retained native reads.
+if not arg[1] or arg[1] == "world16-original" then
+    local journal, log = dofile("tests/fixtures/world16-anonymized.lua")
+    for _, row in ipairs(log.rows) do
+        if row.player then
+            assert(row.player.status.name == "readable" and row.player.status.surname == "readable")
+        end
+        for _, hit in ipairs(row.events or {}) do assert(hit.status.sourceName == "readable") end
+    end
+    local ledger = addon.Ledger
+    local id = "world:16"
+    local battle = journal.skirmishes[id]
+    local rivalID = battle.enemies[1].rivalID
+    local event = battle.events[1]
+    local segment = battle.observation.segments[1]
+    local old = battle.personalOutcome
+    assert(old.version == 3 and old.outcome == "unknown" and event.source == "PLAYER_DEAD")
+    assert(not segment.offset and not segment.contributionLinks and not battle.observation.participation)
+    assert(not battle.rewards and #segment.combatAggregates == 6)
+
+    assert(ledger.Open(journal) == journal)
+    assert(battle.personalOutcome ~= old and battle.personalOutcome.version == 5)
+    assert(ledger.JournalOutcome(battle) == "loss")
+    local warm = ledger.SkirmishContributionEvidence(journal, id, battle)
+    assert(warm.credits[1].evidence.kind == "meter")
+
+    local proof
+    for _ = 1, 2 do
+        assert(ledger.Open(journal, log) == journal)
+        assert(ledger.JournalOutcome(battle) == "loss")
+        assert(battle.personalOutcome.casualties.friendly == 1 and battle.personalOutcome.casualties.enemy == 0)
+        assert(#battle.events == 1 and battle.events[1] == event and not event.actorID and not event.recapTimestamp)
+        assert(not segment.offset and not battle.rewards)
+        proof = proof or battle.recoveredDeathRecaps[1]
+        assert(battle.recoveredDeathRecaps[1] == proof and not battle.recoveredDeathRecaps[2])
+        local pet = proof.petFinisher
+        assert(pet.sourceID == "Pet-1" and pet.flags == 4424 and pet.effect == "SWING_DAMAGE")
+        assert(pet.sourceName == "Fixture Pet")
+        assert(pet.timestamp == 1795547079.822 and pet.amount == 56 and pet.currentHP == 12 and pet.overkill == 44)
+        assert(not pet.ownerID and proof.recapDamage[rivalID] == 1795547079.056)
+        local wins, losses = ledger.RivalContributionScore(journal, rivalID)
+        assert(wins == 0 and losses == 1)
+        local projection = ledger.SkirmishContributionEvidence(journal, id, battle)
+        assert(projection ~= warm and #projection.credits == 1 and projection.credits[1].evidence.kind == "recap-damage")
+        local kills, directDeaths = ledger.PersonalCombatScore(journal, rivalID)
+        assert(kills == 0 and directDeaths == 0)
+    end
+    ledger.Open(journal)
+    assert(battle.recoveredDeathRecaps[1] == proof and ledger.JournalOutcome(battle) == "loss")
+    local cards, refs = addon.RecentSkirmishes(journal, 100)
+    assert(cards[1] == battle and refs[battle] == id)
+    print("Original world:16 replay recovered one pet lethal and one rival loss across reloads")
+end
+
 print("Anonymized Gnomeregan event replays passed")
+
+if not arg[1] or arg[1] == "world-join-history" then
+    local function Fixture()
+        return dofile("tests/fixtures/world19-21-anonymized.lua")
+    end
+    local function CombatEnd(log, sequence)
+        for _, row in ipairs(log.rows) do
+            if row.kind == "COMBAT_END" and row.combatSequence == sequence then return row end
+        end
+    end
+    local ledger = addon.Ledger
+    local saved, log = Fixture()
+    local retained = {}
+    local participant = saved.skirmishes["world:19"].allies[2]
+    for number = 19, 21 do
+        local fight = saved.skirmishes["world:" .. number]
+        local segment = fight.observation.segments[1]
+        assert(fight.personalOutcome.version == 3 and #fight.allies == (number == 19 and 2 or 1))
+        assert(#fight.enemies == 1 and #fight.events == 1)
+        retained[number] = { fight.events[1], fight.rewards }
+        local row = assert(CombatEnd(log, segment.reportMeter.combatSequence))
+        local spell = row.meter.EnemyDamageTaken.sources[1].spells[1]
+        assert(spell.spellID == 0 and spell.totalAmount > 0 and spell.target.amount == 0)
+        assert(spell.target.unitClassFilename == "" and spell.target.status.unitClassFilename == "readable")
+        local wins = ledger.RivalContributionScore(saved, fight.enemies[1].rivalID)
+        assert(wins == (number == 19 and 0 or 1))
+    end
+
+    ledger.Open(saved, log)
+    local expected = { [19] = { 704, 462 }, [20] = { 171, 132 }, [21] = { 317, 234 } }
+    local function Verify(db, number, fromOriginal)
+        local key = "world:" .. number
+        local fight = db.skirmishes[key]
+        assert(#fight.allies == 2 and #fight.enemies == 1 and #fight.events == 1, key .. " roster")
+        assert(fight.allies[2].id == participant.id and fight.allies[2].name == participant.name)
+        assert(ledger.JournalOutcome(fight) == "win" and fight.personalOutcome.reason == "enemy-elimination", key .. " outcome")
+        local rival = fight.enemies[1].rivalID
+        local wins, losses = ledger.RivalContributionScore(db, rival)
+        assert(wins == 1 and losses == 0 and addon.RivalEncounters(db, rival)[1].skirmishID == key, key .. " score")
+        local kills, deaths = ledger.PersonalCombatScore(db, rival)
+        assert(kills == (number == 19 and 0 or 1) and deaths == 0, key .. " direct combat")
+        local totals = {}
+        for _, aggregate in ipairs(fight.observation.segments[1].combatAggregates) do
+            if aggregate.amountBasis == "source-total-matched" then
+                assert(aggregate.targetID == fight.enemies[1].id and not aggregate.spellID and not aggregate.offset)
+                assert(not totals[aggregate.actorID], key .. " duplicate amount")
+                totals[aggregate.actorID] = aggregate.amount
+            end
+        end
+        assert(totals[fight.allies[1].id] == expected[number][1] and totals[participant.id] == expected[number][2])
+        if fromOriginal then
+            assert(fight.events[1] == retained[number][1] and fight.rewards == retained[number][2])
+            assert(fight.personalOutcome.version == 5)
+        end
+    end
+    for number = 19, 21 do Verify(saved, number, true) end
+    ledger.Open(saved, log)
+    for number = 19, 21 do Verify(saved, number, true) end
+    local noDebug = ledger.Open(SavedCopy(saved))
+    for number = 19, 21 do Verify(noDebug, number) end
+    local report = addon.BuildIssueReport(noDebug, nil, "world:20")
+    assert(report:find('"amountBasis": "source-total-matched"', 1, true))
+
+    for _, corrupt in ipairs({
+        function(row) row.meter.DamageDone.sources[1].totalAmount = 1234 end,
+        function(row) row.meter.EnemyDamageTaken.sources[1].spells[1].target.status.unitName = "secret" end,
+        function(row) row.meter.EnemyDamageTaken.sources[1].spells[1].target.isMob = true end,
+        function(row) row.meter.EnemyDamageTaken.sources[1].spellCount = 20 end,
+        function(row) row.meter.EnemyDamageTaken.sources[1].sourceGUID = "Creature-1" end,
+        function(row) row.meterUpdates["0:10"].firstUptime = row.meterUpdates["0:10"].firstUptime - 1 end,
+        function(row) row.meterUpdates["0:10"].uptime = row.uptime + 2 end,
+        function(row) row.meter.DamageTaken.sources = {} end,
+        function(row) row.newMeterSessionIDs[1] = 7 end,
+        function(row) row.areaChanged = true end,
+        function(row) row.meterReset = true end,
+        function(row)
+            local duplicate = SavedCopy(row.contacts[participant.id])
+            local replacement = "Player-duplicate"
+            duplicate.latest.guid, duplicate.latest.class = replacement, "MAGE"
+            row.contacts[replacement] = duplicate
+        end,
+        function(row, rows) CombatEnd(rows, 40).uptime = row.uptime - 8 end,
+        function(row, rows) rows.rows[#rows.rows + 1] = SavedCopy(row) end,
+        function(row) row.session = row.session + 1 end,
+        function(row)
+            for _, contact in pairs(row.contacts) do
+                local function Unlink(unit) if unit.targetGUID == participant.id then unit.targetGUID = nil end end
+                Unlink(contact.latest)
+                for _, previous in ipairs(contact.changes or {}) do Unlink(previous) end
+            end
+        end,
+    }) do
+        local broken, diagnostics = Fixture()
+        local row = assert(CombatEnd(diagnostics, 41))
+        corrupt(row, diagnostics)
+        ledger.Open(broken, diagnostics)
+        local fight = broken.skirmishes["world:20"]
+        assert(#fight.allies == 1 and #fight.enemies == 1 and ledger.JournalOutcome(fight) == "win")
+        local wins, losses = ledger.RivalContributionScore(broken, fight.enemies[1].rivalID)
+        assert(wins == 1 and losses == 0)
+    end
+    local copied, sharedLog = Fixture()
+    copied.skirmishes["world:200"] = SavedCopy(copied.skirmishes["world:20"])
+    ledger.Open(copied, sharedLog)
+    assert(#copied.skirmishes["world:20"].allies == 1 and #copied.skirmishes["world:200"].allies == 1)
+
+    -- The actual late ally combat is insufficient to reopen an elimination.
+    -- A linked action after the early samples invalidates that same ending.
+    local linked = Fixture()
+    local fight = linked.skirmishes["world:19"]
+    fight.observation.assessment.lastAction = { actorID = fight.allies[2].id, targetID = fight.enemies[1].id, offset = 22 }
+    ledger.Open(linked)
+    assert(ledger.JournalOutcome(fight) == "unknown")
+    linked = Fixture()
+    fight = linked.skirmishes["world:19"]
+    local state = fight.observation.assessment
+    state.lastMeterActivity = 22
+    state.meterPair = { actorID = fight.allies[2].id, targetID = fight.enemies[1].id }
+    ledger.Open(linked)
+    assert(ledger.JournalOutcome(fight) == "unknown")
+    linked = Fixture()
+    fight = linked.skirmishes["world:19"]
+    local other = "Player-active"
+    fight.enemies[2] = { id = other }
+    fight.observation.participation.lateFirst.units[other] = { dead = false, combat = true }
+    ledger.Open(linked)
+    assert(ledger.JournalOutcome(fight) == "unknown")
+    linked = Fixture()
+    fight = linked.skirmishes["world:19"]
+    fight.observation.participation.lateFirst.units[fight.enemies[1].id] = { dead = false, combat = true }
+    ledger.Open(linked)
+    assert(ledger.JournalOutcome(fight) == "unknown")
+    print("Original world:19–21 replay restores three 2v1 victories and preserves scoped credit across reload")
+end
+
+if not arg[1] or arg[1] == "world-join-capture" then
+    local saved, log = dofile("tests/fixtures/world19-21-anonymized.lua")
+    local member = saved.skirmishes["world:19"].allies[2].id
+    local function Player(unit)
+        local name = unit.name .. (unit.surname ~= "" and (" " .. unit.surname) or "")
+        return { id = unit.guid, name = name, class = unit.class, faction = unit.faction, active = unit.inCombat }
+    end
+    for number = 20, 21 do
+        Reset()
+        -- Establish a preceding, closed local window before replaying the
+        -- raw meter values through the live API and its settling callbacks.
+        Begin()
+        Advance(3)
+        End()
+        Advance(20)
+
+        local original = saved.skirmishes["world:" .. number]
+        local initial = original.observation.segments[1]
+        local window
+        for _, row in ipairs(log.rows) do
+            if row.kind == "COMBAT_END" and row.combatSequence == initial.reportMeter.combatSequence then window = row end
+        end
+        local selfID, enemyID = original.allies[1].id, original.enemies[1].id
+        units.player, units.party1 = Player(window.contacts[selfID].latest), Player(window.contacts[member].latest)
+        units.target = Player(window.contacts[enemyID].latest)
+        units.targettarget, units.playertarget = units.party1, units.target
+        units.party1.active = true
+        if number == 20 then
+            for id, contact in pairs(window.contacts) do
+                if contact.latest.opponent and id ~= enemyID then
+                    units.nameplate2 = Player(contact.latest)
+                    Fire("NAME_PLATE_UNIT_ADDED", "nameplate2")
+                end
+            end
+        end
+
+        local oldAPI = C_DamageMeter
+        local categories = {}
+        for name, key in pairs(Enum.DamageMeterType) do categories[key] = window.meter[name] end
+        C_DamageMeter = {
+            GetAvailableCombatSessions = oldAPI.GetAvailableCombatSessions,
+            GetCombatSessionFromType = function(_, category)
+                local group = categories[category]
+                return { combatSources = group and group.sources or {}, durationSeconds = window.meterCurrentDuration,
+                    totalAmount = group and group.totalAmount or 0 }
+            end,
+            GetCombatSessionSourceFromType = function(_, category, guid)
+                for _, source in ipairs(categories[category].sources) do
+                    if source.sourceGUID == guid then
+                        local spells = {}
+                        for _, spell in ipairs(source.spells) do
+                            local native = SavedCopy(spell)
+                            native.combatSpellDetails = spell.target
+                            spells[#spells + 1] = native
+                        end
+                        return { combatSpells = spells }
+                    end
+                end
+            end,
+        }
+        local done, enemyTaken = Enum.DamageMeterType.DamageDone, Enum.DamageMeterType.EnemyDamageTaken
+        local updates = window.meterUpdates["0:" .. done]
+        local beginOffset = window.uptime - initial.duration
+        local killAt, firstUpdate = original.events[1].offset, updates.firstUptime - beginOffset
+        Begin()
+        if firstUpdate <= killAt then
+            Advance(firstUpdate)
+            Update(done, enemyTaken)
+            Advance(killAt - firstUpdate)
+        else
+            Advance(killAt)
+        end
+        Kill(selfID, units.target)
+        if firstUpdate > killAt then
+            Advance(firstUpdate - killAt)
+            Update(done, enemyTaken)
+        end
+        local lastUpdate = updates.uptime - beginOffset
+        if lastUpdate < initial.duration then
+            Advance(lastUpdate - math.max(killAt, firstUpdate))
+            Update(done, enemyTaken)
+            Advance(initial.duration - lastUpdate)
+            End()
+        else
+            Advance(initial.duration - math.max(killAt, firstUpdate))
+            End()
+            Advance(lastUpdate - initial.duration)
+            Update(done, enemyTaken)
+        end
+        units.party1.active = nil
+        Advance(13)
+        local db = addon.Ledger.Open(SavedCopy(addon.db))
+        local fight = assert(db.skirmishes["world:1"])
+        assert(#fight.allies == 2 and #fight.enemies == 1 and #fight.events == 1, "live capture " .. number)
+        assert(fight.allies[2].id == member and fight.enemies[1].id == enemyID)
+        assert(addon.Ledger.JournalOutcome(fight) == "win")
+        local wins, losses = addon.Ledger.RivalContributionScore(db, enemyID)
+        assert(wins == 1 and losses == 0)
+        assert(#fight.observation.segments[1].combatAggregates == 2)
+        C_DamageMeter = oldAPI
+        units.player, units.party1 = localPlayer, friend
+        units.targettarget, units.playertarget, units.nameplate2 = nil, nil, nil
+        Fire("NAME_PLATE_UNIT_REMOVED", "nameplate2")
+    end
+    print("Native Damage Meter API replay records the ally through the live window and retry")
+end

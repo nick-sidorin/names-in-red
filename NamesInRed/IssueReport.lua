@@ -181,6 +181,7 @@ local function LegacyBattle(db, ref)
     encounter = Table(encounter)
     local opponent = Fields(rival, "class race", "sex")
     opponent.id, opponent.level = ref.rivalID, Number(encounter.rivalLevel)
+    if Read(addon.Ledger.LegacyContribution, encounter, ref.rivalID) then opponent.rivalID = ref.rivalID end
     local manual, direction = Flag(encounter.manual), Token(encounter.direction)
     local outgoing = direction == "killsAgainstThem"
     local outcome = Token(encounter.outcome)
@@ -335,6 +336,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
     local requested = battleID ~= nil or legacy ~= nil
     write("report", { schema = "names-in-red-issue", version = 1, scope = requested and "skirmish" or "general",
         addonVersion = Token(Read(metadata, addonName, "Version")), clientVersion = Token(version),
+        previewRevision = addon.PreviewRevision(),
         build = Token(build) or Number(build), interface = Number(interface), locale = Token(Read(GetLocale)),
         damageMeterAPI = type(C_DamageMeter) == "table" })
     local _, instance = Read(IsInInstance)
@@ -365,7 +367,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
     end
 
     local aliases, roster, selfID, aliasCount = {}, {}, nil, 0
-    local rosterAliases = {}
+    local rosterAliases, rivalAliases = {}, {}
     local function Alias(value)
         value = addon.Readable(value)
         if type(value) ~= "string" or value == "" then return end
@@ -390,24 +392,24 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
     end
 
     local resolution = Table(battle.resolution)
-    local outcome = Token(battle.outcome) or Token(resolution.outcome)
-    local reason = Token(resolution.reason)
-    if not outcome and Flag(battle.rosterComplete) == true and not next(Table(battle.observation))
-        and not next(resolution) then
-        -- Ledger can infer a result on older, complete rosters. Invalid historical
-        -- data must not prevent the rest of the sanitized report from opening.
-        local ok, inferred = pcall(addon.Ledger.SkirmishOutcome, battle)
-        if ok then outcome = Token(inferred) end
-    end
-    if outcome ~= "win" and outcome ~= "loss" then outcome = "unknown" end
+    local personal = Table(battle.personalOutcome)
+    local outcome, qualifier = Read(addon.Ledger.JournalOutcome, battle)
+    local oldOutcome = Read(addon.Ledger.EncounterOutcome, battle) or Read(addon.Ledger.SkirmishOutcome, battle)
+    local scope = qualifier or (next(personal) and not Flag(battle.manual) and "personal") or "unavailable"
     local record = Fields(battle, nil, "sequence time startedAt recordedAt mapID x y instanceMapID", "rosterComplete manual")
+    record.captureRevision = Token(battle.captureRevision)
     record.id = type(battleID) == "string" and battleID:match("^[%a]+:%d+$") and battleID or nil
     record.origin = addon.Readable(battle.origin) == "battleground" and "Battleground" or "Open World"
-    record.zone, record.outcome = Zone(battle.zone), outcome
+    record.zone, record.outcome, record.outcomeScope = Zone(battle.zone), Token(outcome) or "unknown", scope
+    record.personalCombatScope = "direct-player"
     record.dateUTC = record.time and record.time >= 0 and record.time <= 4102444800
         and Read(date, "!%Y-%m-%dT%H:%M:%SZ", record.time) or nil
-    record.reason = reason or (record.manual and "manual-outcome")
-        or (outcome ~= "unknown" and "legacy-recorded-or-elimination") or "unavailable"
+    record.reason = scope == "personal" and Token(personal.reason)
+        or (scope == "manual" and "manual-outcome") or (scope == "legacy" and
+            (Token(resolution.reason) or "legacy-recorded-or-elimination")) or (outcome == "ongoing" and "pending") or "unavailable"
+    if scope ~= "manual" then
+        record.legacyOutcome = Token(oldOutcome) or ((battle.outcome or next(resolution)) and "unknown") or nil
+    end
     write("record", record)
 
     for _, side in ipairs({ "allies", "enemies" }) do
@@ -418,6 +420,8 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
             if fields.player then
                 roster[#roster + 1] = id
                 rosterAliases[id] = fields.player
+                local rivalID = addon.Readable(player.rivalID)
+                if side == "enemies" and type(rivalID) == "string" then rivalAliases[rivalID] = fields.player end
             end
             if fields.isSelf then selfID = id end
             write("participant", fields)
@@ -426,17 +430,73 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
         counts.side, counts.observed = side, #Table(battle[side])
         write("side", counts)
     end
+    local pov = Fields(personal, "lifecycle outcome reason coverage boundary finalizedBy", "version")
+    pov.availability = scope
+    local casualties = Table(personal.casualties)
+    pov.friendlyDeaths, pov.enemyDeaths = Number(casualties.friendly), Number(casualties.enemy)
+    write("personalOutcome", pov)
+
+    local analysis = Table(Read(addon.AnalyzeSkirmishLives, battle))
+    each("deathEpisode", analysis.episodes, 128, function(episode)
+        local target = rosterAliases[addon.Readable(episode.targetID)]
+        if not target or not episode.index then return end
+        write("deathEpisode", { target = target, deathIndex = Number(episode.index), confirmed = episode.pvpDeath ~= nil,
+            qualification = Token(episode.qualification), meterRejection = Token(episode.meterRejection),
+            segment = Number(Table(episode.meterPhase).index) or Number(episode.rejectedSegment),
+            nonPvPLethal = Token(episode.nonPvPLethal) })
+    end)
+
+    local contribution = Table(Read(addon.Ledger.SkirmishContributionEvidence, journal, battleID, battle))
+    local credits = Table(contribution.credits)
+    local count = #credits
+    write("rivalContribution", { version = Number(contribution.version), credits = count,
+        availability = scope == "manual" and "manual" or count > 0 and "confirmed-links-only"
+            or (scope == "personal" and "no-confirmed-credit" or "legacy-or-unavailable") })
+    each("rivalCredit", credits, 128, function(credit)
+        local rival = rivalAliases[addon.Readable(credit.rivalID)]
+        local actor = rosterAliases[addon.Readable(credit.actorID)]
+        local victim = rosterAliases[addon.Readable(credit.victimID)]
+        if not rival or not actor or not victim then return end
+        local proof = Table(credit.evidence)
+        local via = Table(proof.viaEvidence)
+        local fields = Fields(proof, "kind category petEndpoint", "segmentIndex offset eventTime eventIndex")
+        fields.rival, fields.actor, fields.target = rival, actor, victim
+        fields.direction, fields.deathIndex = Token(credit.direction), Number(credit.deathIndex)
+        fields.supported = rosterAliases[addon.Readable(proof.viaID)]
+        fields.supportedEvidence = Token(via.kind)
+        fields.supportedEventIndex, fields.supportedEventTime = Number(via.eventIndex), Number(via.eventTime)
+        fields.supportedOffset, fields.supportedCategory = Number(via.offset), Token(via.category)
+        write("rivalCredit", fields)
+    end)
+
     local result = Fields(resolution, "ending reason interrupted coverage meter localLife favorsVictory favorsDefeat",
         "unitsRead positionsUnavailable statesUnavailable")
-    result.evidence = "derived"
+    result.evidence, result.scope = "derived", "legacy-side"
     write("resolution", result)
     local capture = Table(battle.combatDiagnostics)
     local captured = CombatCoverage(capture, write)
     local kills, deaths = {}, {}
-    each("event", battle.events, 128, function(event)
-        local fields = Fields(event, "kind source", "time offset spellID", "observedDead")
+    each("event", battle.events, 128, function(event, index)
+        local fields = Fields(event, "kind source recapStatus nonPvPLethal", "time offset spellID segmentIndex", "observedDead pvpLinked")
+        fields.index = index
+        local evidence = addon.SkirmishDeathEvidence
+        local recap = Table(evidence and Read(evidence.EventRecap, battle, event, index))
+        local pet = Table(recap.petFinisher)
+        if next(pet) then
+            fields.finisher, fields.finisherOwner, fields.finisherEffect = "pet", rosterAliases[addon.Readable(pet.ownerID)], Token(pet.effect)
+            fields.finisherAttribution = fields.finisherOwner and "verified-player-owner" or "unknown-player"
+            fields.finisherTime, fields.finisherAmount = Number(pet.timestamp), Number(pet.amount)
+            fields.finisherRecovered = recap ~= event
+            fields.finisherOwnerEvidence = Token(pet.ownerEvidence)
+            fields.finisherOwnerAmbiguous = Flag(pet.ownerAmbiguous)
+        end
         fields.evidence = "derived"
         Actor("event", fields, event)
+        each("petOwnerProbe", pet.ownerAttempts, 4, function(attempt)
+            local detail = Fields(attempt, "phase petToken tokenSource petBefore petAfter ownerGUID ownerToken decision", "delay")
+            detail.deathIndex = index
+            write("petOwnerProbe", detail)
+        end)
         if fields.kind ~= "kill" or not selfID then return end
         local actor, target = Alias(event.actorID), Alias(event.targetID)
         if actor == aliases[selfID] and target then kills[target] = (kills[target] or 0) + 1 end
@@ -464,10 +524,14 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
 
     local observation = Table(battle.observation)
     local assessment = Table(observation.assessment)
+    local participation = Table(observation.participation)
     local observationFields = Fields(observation, "coverage playerState", nil, "visibilityGap")
     observationFields.available = next(observation) ~= nil
     write("observation", observationFields)
     write("assessment", Fields(assessment, "checkStatus interrupted meterStatus", "lastMeterActivity"))
+    local participationFields = Fields(participation, "state boundary", "closedAt returnedAt lifeChangedAt")
+    participationFields.available = next(participation) ~= nil
+    write("participation", participationFields)
     Actor("lastHostileAction", Fields(Table(assessment.lastAction), "kind", "offset"), Table(assessment.lastAction))
     Actor("lastMeterPair", {}, Table(assessment.meterPair))
     each("localLife", observation.life, 32, function(life)
@@ -478,19 +542,24 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
         write("pressure", { target = player, actor = Alias(pressure.actorID), offset = Number(pressure.offset),
             spellID = Number(range.spell), upperBound = Number(range.upper), distanceBased = Flag(range.distance) })
     end)
-    for _, key in ipairs({ "first", "last" }) do
-        local sample = Table(assessment[key])
-        if next(sample) then
-            local timing = Fields(sample, nil, "at offset")
-            timing.sample = key
-            write("terminalSample", timing)
-            ForKnown(sample.units, function(unit, player)
-                local fields = Fields(unit, nil, nil, "dead combat")
-                fields.sample, fields.player = key, player
-                fields.positionAvailable = next(Table(unit.position)) ~= nil
-                fields.rangeExit = Flag(unit.rangeExit)
-                write("terminalUnit", fields)
-            end)
+    local function TerminalSample(source, key, sample)
+        sample = Table(sample)
+        if not next(sample) then return end
+        local timing = Fields(sample, nil, "at offset")
+        timing.source, timing.sample = source, key
+        write("terminalSample", timing)
+        ForKnown(sample.units, function(unit, player)
+            local fields = Fields(unit, nil, nil, "dead combat")
+            fields.source, fields.sample, fields.player = source, key, player
+            fields.positionAvailable = next(Table(unit.position)) ~= nil
+            fields.rangeExit = Flag(unit.rangeExit)
+            write("terminalUnit", fields)
+        end)
+    end
+    for _, key in ipairs({ "first", "last", "lateFirst", "lateLast" }) do
+        TerminalSample("participation", key, participation[key])
+        if key == "first" or key == "last" then
+            TerminalSample("assessment", key, assessment[key])
         end
     end
 
@@ -518,7 +587,8 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
         end
     end
     each("segment", observation.segments, 24, function(segment, index)
-        local fields = Fields(segment, "startReason endReason continuation confirmedBy observationStopped", "startedAt endedAt duration")
+        local fields = Fields(segment, "startReason endReason continuation confirmedBy observationStopped",
+            "startedAt endedAt duration offset", "localNpcDamage localNpcPressure")
         fields.segment = index
         write("segment", fields)
         local decisions = Reasons(segment.rejectedKills)
@@ -537,10 +607,22 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
             Actor("action", item, action)
         end)
         each("combatAggregate", segment.combatAggregates, 32, function(aggregate)
-            local item = Fields(aggregate, "category petEndpoint", "spellID amount")
+            local item = Fields(aggregate, "category petEndpoint amountBasis", "spellID amount")
             item.segment, item.evidence, item.api = index, "aggregate", "C_DamageMeter"
             Actor("combatAggregate", item, aggregate)
         end)
+        each("contributionLink", segment.contributionLinks, 32, function(link)
+            local item = Fields(link, "category petEndpoint amountBasis", nil, "corroborated")
+            item.segment, item.evidence = index, "aggregate"
+            Actor("contributionLink", item, link)
+        end)
+        local witnesses = Table(segment.localDeathWitnesses)
+        for _, id in ipairs(roster) do
+            local offset = Number(witnesses[id])
+            if offset then
+                write("localDeathWitness", { segment = index, player = rosterAliases[id], offset = offset })
+            end
+        end
         local meter = Table(segment.meter)
         if next(meter) then
             local item = Fields(meter, "scope selection", "sessionID")

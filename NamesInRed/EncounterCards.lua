@@ -201,10 +201,16 @@ local function FullCardHeight(rosterBottom, blowCount, expanded)
     return -rosterBottom + SkirmishDetailsHeight(blowCount, expanded)
 end
 
+local function PetFinisher(battle, event, index)
+    local evidence = addon.SkirmishDeathEvidence
+    local recap = evidence and evidence.EventRecap(battle, event, index)
+    return recap and recap.petFinisher
+end
+
 function addon.SkirmishCardHeight(battle, expanded)
     local count = 0
-    for _, event in ipairs(battle.events) do
-        if event.kind == "kill" then count = count + 1 end
+    for index, event in ipairs(battle.events) do
+        if event.kind == "kill" or PetFinisher(battle, event, index) then count = count + 1 end
     end
     return FullCardHeight(RosterBottom(RosterHeight(battle)), count, expanded)
 end
@@ -313,31 +319,79 @@ local function CreateSkirmishResult(card)
         win = addon.CreateFramedMarker(center, size, addon.swordsIconPath),
         loss = addon.CreateFramedMarker(center, size, addon.defeatBannerPath),
         unknown = addon.CreateFramedMarker(center, size, nil, L.unknownOutcome),
+        draw = addon.CreateFramedMarker(center, size, nil, nil, "="),
+        ongoing = addon.CreateFramedMarker(center, size, nil, nil, "…"),
+        noCredit = addon.CreateFramedMarker(center, size, nil, L.noRivalCreditHint, "–"),
     }
     for _, marker in pairs(markers) do
         marker:SetPoint("TOP", center)
         marker:Hide()
     end
+    local labels = { win = L.winTooltip, loss = L.lossTooltip, unknown = L.shortUnknownOutcome,
+        draw = L.drawOutcome, ongoing = L.ongoingOutcome, noCredit = L.noRivalCredit }
     local caption = Label(center, "GameFontNormalSmall", "TOP", 0, -size - 4, resultWidth)
     caption:SetJustifyH("CENTER")
     caption:SetWordWrap(true)
     caption:SetMaxLines(2)
-    return function(outcome, changed, top)
-        if changed then HideTooltip(markers.unknown) end
+    local tally = Label(center, "GameFontHighlightSmall", "CENTER", 0, 6, resultWidth)
+    tally:SetJustifyH("CENTER")
+    tally:SetWordWrap(true)
+    local previous
+    return function(outcome, changed, top, qualifier, wins, losses)
+        if changed or outcome ~= previous then
+            for _, marker in pairs(markers) do HideTooltip(marker) end
+        end
+        previous = outcome
         for result, marker in pairs(markers) do marker:SetShown(outcome == result) end
+        tally:SetShown(outcome == "mixed")
+        caption:SetShown(outcome ~= "mixed")
         center:SetShown(outcome ~= nil)
         if not outcome then return end
         center:SetPoint("CENTER", card, "TOP", 0, top)
-        caption:SetText(outcome == "win" and L.winTooltip
-            or outcome == "loss" and L.lossTooltip or L.shortUnknownOutcome)
+        if outcome == "mixed" then
+            tally:SetText(addon.FormatRivalCounters(wins, losses, false, 0))
+            return
+        end
+        local label = labels[outcome]
+        local count = outcome == "win" and wins or outcome == "loss" and losses
+        if count and count > 1 then label = L.resultCount:format(label, count) end
+        local marker = markers[outcome]
+        if qualifier == "legacy" then
+            addon.SetFramedMarkerTooltip(marker, L.qualifiedOutcome:format(L.legacyResult, label) .. "\n" .. L.legacyResultHint)
+            label = L.legacyResult
+        elseif qualifier == "manual" then
+            addon.SetFramedMarkerTooltip(marker, nil)
+            label = L.qualifiedOutcome:format(L.manual, label)
+        elseif outcome == "win" or outcome == "loss" or outcome == "unknown" then
+            addon.SetFramedMarkerTooltip(marker, outcome == "unknown" and L.unknownOutcome or nil)
+        end
+        caption:SetText(label)
         if outcome == "loss" then
             caption:SetTextColor(1, 0.72, 0.62)
-        elseif outcome == "unknown" then
+        elseif outcome ~= "win" then
             caption:SetTextColor(unpack(neutralColor))
         else
             caption:SetTextColor(1, 0.82, 0.50)
         end
     end
+end
+
+local function CompactResult(encounter, rivalID)
+    if not encounter then return end
+    local legacy = addon.Ledger.EncounterOutcome(encounter)
+    if encounter.manual and legacy then return legacy, "manual" end
+    local wins, losses = encounter.contributionWins or 0, encounter.contributionLosses or 0
+    if not encounter.skirmishID then
+        local direction = addon.Ledger.LegacyContribution(encounter, rivalID)
+        if direction == "win" then wins = 1 elseif direction == "loss" then losses = 1 end
+    end
+    if wins > 0 and losses > 0 then return "mixed", nil, wins, losses end
+    if wins > 0 then return "win", nil, wins end
+    if losses > 0 then return "loss", nil, nil, losses end
+    if encounter.legacyResult or (not encounter.skirmishID and legacy) then
+        return encounter.legacyResult or legacy, "legacy"
+    end
+    return "noCredit"
 end
 
 local function CreateParticipantTile(parent, isOpponent, openRival, compact)
@@ -475,8 +529,8 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         self.reportRef = encounter and (encounter.skirmishID
             or (addon.LegacyReportRef and addon.LegacyReportRef(rivalID, encounter)))
         self:SetShown(encounter ~= nil)
-        setResult(encounter and (addon.Ledger.EncounterOutcome(encounter) or "unknown"), changed,
-            compactRosterTop - rosterRowHeight / 2)
+        local result, qualifier, wins, losses = CompactResult(encounter, rivalID)
+        setResult(result, changed, compactRosterTop - rosterRowHeight / 2, qualifier, wins, losses)
         if not encounter then return end
 
         local skirmishes = addon.db and addon.db.skirmishes
@@ -624,7 +678,8 @@ local function CreateSkirmishDetails(card, width, toggleTimeline)
         local visible = expanded and #blows or 0
         local columnWidth = math.floor(width / 2) - cardInset
         for i = 1, math.max(visible, #rows) do
-            local event = i <= visible and blows[i]
+            local blow = i <= visible and blows[i]
+            local event = blow and blow.event
             local row = rows[i]
             if not row then
                 local y = -skirmishSummaryHeight - (i - 1) * finishingBlowStep
@@ -651,11 +706,12 @@ local function CreateSkirmishDetails(card, width, toggleTimeline)
             end
             for _, region in ipairs(row) do region:SetShown(event and true or false) end
             if event then
-                local actor, target = players[event.actorID], players[event.targetID]
+                local actorID = blow.pet and blow.pet.ownerID or event.actorID
+                local actor, target = players[actorID], players[event.targetID]
                 local elapsed = event.time and battle.startedAt and math.max(0, event.time - battle.startedAt)
                 row[1]:SetText(elapsed and ("%d:%02d"):format(math.floor(elapsed / 60), elapsed % 60) or "")
                 row[2]:SetText(actor and actor.name or L.unknownPlayer)
-                row[2]:SetTextColor(unpack(colors[event.actorID] or neutralColor))
+                row[2]:SetTextColor(unpack(colors[actorID] or neutralColor))
                 row[4]:SetText(target and target.name or L.unknownPlayer)
                 row[4]:SetTextColor(unpack(colors[event.targetID] or neutralColor))
             end
@@ -715,7 +771,8 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
         local height = RosterHeight(battle)
         local bottom = RosterBottom(height)
         local middle = rosterTop - height / 2
-        setResult(addon.Ledger.SkirmishOutcome(battle) or "unknown", changed, middle)
+        local result, qualifier = addon.Ledger.JournalOutcome(battle)
+        setResult(result, changed, middle, qualifier)
         zone:SetText(LocationLabel(battle))
         score:SetText(("%d × %d"):format(#battle.allies, #battle.enemies))
         coverage:SetShown(battle.rosterComplete ~= true)
@@ -730,9 +787,10 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
         local allyColor, enemyColor, alliesHorde = SideColors(battle.demoFaction)
         for _, player in ipairs(battle.allies) do players[player.id], colors[player.id] = player, allyColor end
         for _, player in ipairs(battle.enemies) do players[player.id], colors[player.id] = player, enemyColor end
-        for _, event in ipairs(battle.events) do
-            if event.kind == "kill" then
-                blows[#blows + 1] = event
+        for index, event in ipairs(battle.events) do
+            local pet = PetFinisher(battle, event, index)
+            if event.kind == "kill" or pet then
+                blows[#blows + 1] = { event = event, pet = pet }
             end
         end
         local casualties = addon.Ledger.FirstDeaths(battle)

@@ -88,7 +88,7 @@ local function Aura(source, target)
     Fire("UNIT_AURA", target, { addedAuras = { { sourceUnit = source, isHarmful = true, spellId = 55 } } })
 end
 
-for _, file in ipairs({ "Locale", "Ledger", "SkirmishOutcomes", "SkirmishDeathEvidence", "PersonalSkirmishOutcomes", "Encounter", "Core", "SkirmishEvidence",
+for _, file in ipairs({ "Locale", "Ledger", "SkirmishOutcomes", "SkirmishDeathEvidence", "PersonalSkirmishOutcomes", "Encounter", "Core", "SkirmishEvidence", "MeterSourceTotals",
     "WorldSkirmishes", "Honor", "Kills", "Deaths", "IssueReport", "Debug" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end

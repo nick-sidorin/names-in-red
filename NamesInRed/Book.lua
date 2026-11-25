@@ -1,6 +1,5 @@
 local _, addon = ...
 local L, Readable, HideTooltip = addon.L, addon.Readable, addon.HideOwnedTooltip
-local swordsStart, swordsEnd = addon.smallSwordsInset, 128 - addon.smallSwordsInset
 local window, names, details, heading, profilePortrait, summary, wins, losses, status, selected, empty
 local search, tabBar, latestCard, latestEmpty, historyEmpty
 local honorableKills, honor
@@ -35,20 +34,22 @@ local function SetStatIconCrop(icon, texture)
     icon:SetTexCoord(inset + shift, 1 - inset + shift, inset, 1 - inset)
 end
 
+local function HistoryLines(id)
+    local manualWins, manualLosses, legacyWins, legacyLosses = addon.Ledger.RivalHistoryContext(addon.db, id)
+    local manual = (manualWins > 0 or manualLosses > 0) and L.historyPair:format(L.manual, manualWins, manualLosses)
+    local legacy = (legacyWins > 0 or legacyLosses > 0) and L.historyPair:format(L.legacyResult, legacyWins, legacyLosses)
+    return manual, legacy
+end
+
 function addon.RivalCounters(id, hideZero, iconOffsetY)
-    local winCount, lossCount = addon.Ledger.PersonalScore(addon.db, id)
-    if winCount == 0 and lossCount == 0 then return end
-    iconOffsetY = iconOffsetY or 1
-    local wins, losses
-    if not hideZero or winCount > 0 then
-        wins = ("|T%s:14:14:0:%d:128:128:%d:%d:%d:%d|t %d"):format(
-            addon.swordsIconPath, iconOffsetY, swordsStart, swordsEnd, swordsStart, swordsEnd, winCount)
-    end
-    if not hideZero or lossCount > 0 then
-        losses = ("|T%s:14:14:0:%d|t %d"):format(addon.smallSkullIconPath, iconOffsetY, lossCount)
-    end
-    if wins and losses then return wins .. "   " .. losses end
-    return wins or losses
+    local wins, losses = addon.Ledger.RivalContributionScore(addon.db, id)
+    local counters = addon.FormatRivalCounters(wins, losses, hideZero, iconOffsetY)
+    if counters or not hideZero then return counters end
+    local manualWins, manualLosses, legacyWins, legacyLosses = addon.Ledger.RivalHistoryContext(addon.db, id)
+    local manual = addon.FormatRivalCounters(manualWins, manualLosses, true, iconOffsetY)
+    if manual then return L.qualifiedOutcome:format(L.manual, manual) end
+    local legacy = addon.FormatRivalCounters(legacyWins, legacyLosses, true, iconOffsetY)
+    if legacy then return L.qualifiedOutcome:format(L.legacyResult, legacy) end
 end
 
 local function Scroll(parent, x, y, width, height)
@@ -77,7 +78,7 @@ local function SectionHeading(parent, y, width, text)
     return label
 end
 
-local function Stat(parent, section, x, y, width, texture, tooltipText)
+local function Stat(parent, section, x, y, width, texture, tooltipText, showHistory)
     local holder, slot, icon, label
     if ProfessionsReagentSlotButtonMixin then
         local ok, reagent = pcall(CreateFrame, "Frame", nil, parent, "ProfessionsReagentSlotBaseTemplate")
@@ -119,6 +120,11 @@ local function Stat(parent, section, x, y, width, texture, tooltipText)
     slot:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(tooltipText)
+        if showHistory and selected then
+            local manual, legacy = HistoryLines(selected)
+            if manual then GameTooltip:AddLine(manual) end
+            if legacy then GameTooltip:AddLine(legacy) end
+        end
         GameTooltip:Show()
     end)
     slot:SetScript("OnLeave", HideTooltip)
@@ -203,7 +209,8 @@ local function ShowDetails()
             profile = profile ~= "" and profile .. "\n" .. L.manual or L.manual
         end
         status:SetText(profile)
-        local winCount, lossCount, honorableKillCount, honorTotal = addon.Ledger.PersonalScore(addon.db, selected)
+        local winCount, lossCount = addon.Ledger.RivalContributionScore(addon.db, selected)
+        local honorableKillCount, honorTotal = addon.Ledger.RivalRewards(addon.db, selected)
         wins:SetText(L.statValue:format(L.wins, winCount))
         losses:SetText(L.statValue:format(L.losses, lossCount))
         honorableKills:SetText(L.statValue:format(L.honorableKills, honorableKillCount))
@@ -595,8 +602,8 @@ local function ToggleBook()
         local columnGap = 12
         local columnWidth = (cardWidth - columnGap) / 2
         local rewardColumn = columnWidth + columnGap
-        wins = Stat(summary, statsHeading, 0, 0, columnWidth, addon.swordsIconPath, L.winsDescription)
-        losses = Stat(summary, statsHeading, 0, secondRow, columnWidth, addon.defeatStatIconPath, L.lossesDescription)
+        wins = Stat(summary, statsHeading, 0, 0, columnWidth, addon.swordsIconPath, L.rivalWinsHint, true)
+        losses = Stat(summary, statsHeading, 0, secondRow, columnWidth, addon.defeatStatIconPath, L.rivalLossesHint, true)
         local faction = addon.PlayerFaction()
         honorableKills = Stat(summary, statsHeading, rewardColumn, 0, columnWidth,
             addon.honorableKillIconPath, L.honorableKills)
@@ -666,6 +673,7 @@ local function ToggleBook()
                 addon.Ledger.Remove(addon.db, id)
                 addon.RefreshBook()
                 if addon.RefreshNameplates then addon.RefreshNameplates() end
+                if addon.RefreshUnitTooltip then addon.RefreshUnitTooltip() end
             end,
         }
         local remove = CreateFrame("Button", nil, summary)
@@ -876,10 +884,13 @@ if TooltipDataProcessor and unitTooltipType then
         if not rival then return end
         local counters = addon.RivalCounters(id)
         local kills, deaths = addon.Ledger.PersonalCombatScore(addon.db, id)
-        if counters or kills > 0 or deaths > 0 then
+        local manual, legacy = HistoryLines(id)
+        if counters or manual or legacy or kills > 0 or deaths > 0 then
             tooltip:AddLine(" ")
             tooltip:AddLine(addon.title, 1, 0.82, 0)
             if counters then tooltip:AddLine(counters, 1, 1, 1) end
+            if manual then tooltip:AddLine(manual, 1, 1, 1) end
+            if legacy then tooltip:AddLine(legacy, 1, 1, 1) end
             if kills > 0 or deaths > 0 then tooltip:AddLine(L.personalFinishingBlows:format(kills, deaths), 1, 1, 1) end
         end
     end)

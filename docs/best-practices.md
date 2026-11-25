@@ -150,6 +150,36 @@ used by cards, profile, tooltip and nameplate.
   episodes independently of participant credits. Reconcile a partial native
   lethal recap by exact timestamp and owning record. A later validated native
   timestamp belongs to another episode even when revival was unobserved.
+  For aggregate-only local deaths, require independent terminal evidence
+  within the scoped life. Preserve positive NPC and environmental vetoes
+  across retries and reload. A failed recap supplies no lethal attribution.
+  Keep the terminal read in its owning combat segment when later samples
+  replace skirmish-level assessment.
+  Validate the derived timing bounds using the resolved offset. Retain an
+  absent runtime field in an anonymized regression from a real save. Keep
+  the literal pet finisher, verified owner and other recap attackers
+  separate. Use only verified players as journal actors. Recheck a
+  GUID-resolved pet token before and after reading ownership. Limit
+  late attempts to the originating window and keep secret or absent API
+  results distinct from contradictory owner claims. Defer owner-only
+  roster admission until the skirmish closes so a revoked claim cannot
+  create a rival. Keep independent participant evidence on its ordinary
+  path. Append bounded probe statuses to the durable death even when a
+  duplicate needs no outcome or score recalculation. Spell aggregates
+  preserve participation evidence without assigning ownership.
+  Recover diagnostic evidence only when a unique session, local
+  death and combat window match. Attach it without rewriting the original
+  timeline or requiring the diagnostic log on later loads.
+- Treat a native `EnemyDamageTaken` no-spell row as a player-pair
+  aggregate only when the readable complete source totals reconcile
+  against same-selection GUID-keyed `DamageDone` and the full names are
+  unique. Keep the proof on the literal window of the separately
+  confirmed target. A shared session can cover another opposing player
+  or predate local combat. For a longer session with late updates,
+  require an isolated selection and independently observed combat and
+  reciprocal damage for the joined pair. Keep this proof out of the
+  passive strict-detail baseline. A brief generic ally combat flag
+  alone cannot override a witnessed elimination.
 - Preserve witnessed action times on both sides of a life transition. Per-pair
   first/last/count summaries alone can drop the only action that links an
   earlier corpse to PvP. Reconcile confirmed death and revival from readable,
@@ -176,9 +206,17 @@ used by cards, profile, tooltip and nameplate.
   reset and stale callback invalidation separate. See the
   [retention and reset checks](forever-validation.md#permanent-battle-history).
   Preserve historical scores when BG recording is disabled.
+- Put history-derived data queried by nameplates and tooltips behind one
+  shared ledger index. Cache numeric per-battle deltas independently of the
+  live record table so late in-place edits can replace an old contribution
+  exactly once. Validate the number of computations in a long-history
+  test after writes, deletes and rebuilds. Keep presentation and diagnostic
+  limits out of permanent storage. See
+  [Character POV PR C](forever-validation.md#character-pov-pr-c).
 - Keep JSONL aliases, bounded exports and optional SavedVariables report path
   intact. No real private captures, secrets or unnecessary personal data in
-  Git. Add focused anonymous fixtures instead.
+  Git. In anonymous fixtures, redact identity values and preserve status
+  enums even when they use the same field names.
 
 ## 5. Tests: behavior and regression, not implementation snapshots
 
@@ -218,8 +256,12 @@ meaningful tests for changed behavior, unless a concrete reason is stated
 ### Preview and release provenance
 
 For a visual retest, link the GitHub Actions artifact from the exact head
-that includes the approved UI changes. Verify the affected files in the
-archive when parallel branches touch the same dialog. Before publishing,
+that includes the approved UI changes. Stage the install folder from
+the PR head tree even when the workflow checks out GitHub's merge commit to
+test integration. Stamp the packaged TOC with the exact commit in
+`X-Preview-Revision` so a report can identify the installed build without a
+version bump. Verify the archive against the head and the expected stamp
+before supplying it. Before publishing,
 resolve the remote tag explicitly and verify the published asset against
 the tagged files. Compare the public CurseForge file independently and
 check pending automatic packaging before any manual upload. The

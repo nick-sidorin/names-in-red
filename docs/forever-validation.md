@@ -319,8 +319,8 @@ distinguish those fights.
   ID, pet name, ambiguous ownership or a second-unit pet name cannot identify
   an owner. Observed claims survive changes of target, token reuse and
   temporary visibility loss throughout one local window. An independent
-  conflicting claim invalidates attribution. Pet evidence adds a
-  participant rather than a killing blow.
+  conflicting claim invalidates attribution. A qualifying pet action adds
+  evidence about its verified player owner.
 - The restricted combat log is not a supported alternative. The
   `UNIT_SPELLCAST_SUCCEEDED` payload identifies the casting unit and spell,
   but gives no recipient or applied effect. `UNIT_SPELLCAST_SENT` can include
@@ -1555,7 +1555,7 @@ battleground scoreboard cannot decide a local fight. The existing replay also
 cannot recover Gnomeregan's missing 20:21 card or assign the 14 historical
 unlinked honor. Verify ordinary border pursuit, a real ghost-run return, and
 true loading/respawn boundaries in Forever before activation/release. The
-native UI and rival scoring changes remain in later PRs.
+native UI and rival scoring changes are documented under PR C.
 
 ### Character POV PR B
 
@@ -1650,6 +1650,379 @@ Existing Duskwood, Gnomeregan and battleground fixtures still exercise the
 legacy and personal outcome paths. Verification used Forever-shaped mocks
 and the retained public API evidence above. Runtime event delivery on a fresh
 Forever client remains unverified for PR B.
+
+### Character POV PR C
+
+**Journal and compatibility.** The full card binds `Ledger.JournalOutcome`.
+PR A's active and awaiting states both produce In progress. Finalized
+Victory, Defeat, Draw and exceptional Unknown have distinct display states.
+A compact card reads the matching rival's wins and losses. Repeated credit
+uses a count and simultaneous directions use the shared inline counter art.
+A linked rival without credit stays visible. Historical side results remain
+labelled on cards and in profile/hover context. A timestamped old directional
+row can supply one direct credit when its rival resolves to a player ID.
+Manual entries, undated directional rows and group verdicts supply no new
+participation evidence. Existing manual labels, raw timeline, direct totals
+and reward fields remain available. The profile keeps HK and honor separate.
+The nameplate shows a labelled historical fallback when the rival lacks a
+verified score; the unit tooltip shows separate manual/legacy totals and
+literal finishing blows.
+
+**Index and invalidation.** The ledger lazily builds one in-memory projection
+per loaded database. Warm nameplate and tooltip queries look up the rival's
+totals without replaying the timeline. Save subtracts the previous numeric
+snapshot for that battle ID and applies its new projection even if the
+recorder edited the original table in place. Late meter/recap updates reach
+that same write path. Battle deletion subtracts the snapshot. Rival deletion
+removes the roster link and refreshes each affected projection while keeping
+the shared battle and timeline. Reset clears the maps. Reload invalidates
+them after the existing additive restore. The older flat list has a per-rival
+summary invalidated by its encounter writer. The recent-view cap is 100;
+a rival's permanent history and its index have no count or age cap. Tests
+exercise a cold build of 1,050 battles, 300 iterations of warm queries,
+one-battle recomputation after late evidence, deletion, reset and two reloads.
+
+**Native references.** [Forever 1.60.1 build 71037](https://github.com/Gethe/wow-ui-source/tree/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns)
+was inspected for this integration. The profile uses the existing
+`ProfessionsReagentSlotBaseTemplate` with the 50-pixel slot, 39-pixel button
+and authored name inset from `Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeReagentSlotBase.xml`.
+The journal retains the profession open/close sounds from
+`Blizzard_Professions/Blizzard_ProfessionsFrame.lua`. `EncounterCards.lua`
+shares the existing framed result component on full and compact cards
+with the same circle atlas, portraits and action buttons. Blizzard has no
+result widget for a personal contribution tally, so both directions use
+the same inline icon format as the profile's hover and nameplate displays.
+`Blizzard_NamePlates/Blizzard_NamePlateUnitFrame.lua` provides the name and
+health-bar anchors. The tooltip post-call uses the existing
+`GameTooltipDataMixin:RefreshDataNextUpdate` path in
+`Blizzard_GameTooltip/Mainline/GameTooltip.lua` after writes and deletion.
+Mocked layout, options and locale checks verify the wiring. In-client
+legibility, spacing across locales, audio, restrictions and event delivery
+remain to be checked.
+
+**Issue reports and replay.** The bounded JSONL adds personal lifecycle,
+coverage, reason, confirmed casualty counts and rival credit proof.
+The proof identifies the aliases for rival, actor, victim and any supported
+teammate, the death-event index and evidence type/category. Meter links carry
+their segment index and have no invented action time. Historical side
+resolution has its own scope. The existing alias rules, byte limits, paging
+and optional SavedVariables path still apply. Anonymous Duskwood, Gnomeregan
+and battleground replays remain green. Gnomeregan `world:4` displays Victory
+from the supported personal projection; `world:7`, `world:12` and
+`world:14` display Defeat. Duskwood remains Unknown with two confirmed
+enemy casualties and five honor. The replays and synthetic older archive
+exercise migration. An original private SavedVariables file and a fresh
+Forever client were unavailable for this PR.
+
+**Preview.** PR checks test the GitHub integration commit. The installable
+`NamesInRed/` artifact is staged from the exact feature head, stamped with
+`X-Preview-Revision` in the packaged TOC, and validated against its manifest.
+The public TOC version stays unchanged. The Actions summary identifies the
+source commit.
+In Forever, use a copy of an older save for compatibility checks and inspect
+full/compact cards and the profile, tooltip and nameplate before and after
+a qualifying repeat death. The PR B API restrictions above apply unchanged.
+
+#### Live preview follow-up: world:16
+
+The owner tested the first PR #45 preview on Forever 1.60.1 build 71037.
+A solo fight ended with the character's death. The warlock died later
+outside the character's observed fight. The saved report showed Unknown
+and no rival credit. It retained a local death at +25.002 s, positive
+`DamageTaken` rows directed from the warlock to the character, and a
+terminal read at +26.274 s showing the local corpse and the living
+warlock in combat. The next read had lost the warlock. Two `UNIT_COMBAT`
+wounds exposed the recipient alone. The recap could establish no lethal
+attacker. These are facts from the sanitized report, whose TOC version
+alone could not identify the running preview.
+[Review and retained evidence](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6045725460)
+
+The local `PLAYER_DEAD` signal now writes a durable corpse without a
+finisher, including when the meter qualifies the window after death.
+The shared episode analysis accepts a local death from the combination
+of that signal, a positive directed damage link in the matched single-life
+combat window and a terminal read of the same corpse with a linked
+opponent still alive and fighting. Both the signal and the read must be
+within the existing 2.5-second tolerances, measured from combat end and
+the death respectively. A prior aggregate, a pet recipient, control alone,
+an ineligible or ambiguous meter read, and multiple lives in a window
+cannot establish the fallback. A verified pet source can qualify through
+its previously verified player owner. The segment retains the earliest
+joint read per witnessed opponent so a linked return and new samples do
+not erase evidence for the prior life. The aggregate retains its segment
+scope. The result preserves the distinction between one PvP casualty,
+one opponent loss and zero attributed finishing blows in this fixture.
+
+A fresh lethal NPC/environment recap vetoes the fallback, even if it
+arrives on a bounded retry after the meter read. The recorder binds this
+status to the original local death. Stale and duplicate native times carry
+no veto into another death. Readable incoming NPC damage or hostile NPC
+aura pressure in the same window blocks aggregate-only confirmation.
+A legacy incoming category containing unresolved non-player targets also
+leaves the fallback ambiguous. A missing or restricted recap alone has
+no veto. When the client conceals all evidence of unrelated PvE, even a
+scoped aggregate cannot identify the lethal hit.
+
+The first preview could produce `finalizedBy=historical` when the saved
+record had no participation object, or when a finalized object had no
+boundary and the Lua fallback selected `historical`. The fresh capture
+replay creates participation on first confirmation and finalizes it with
+`area-changed`. The retained fixture without participation still reports
+`historical`. A finalized object without a boundary now reports
+`boundary-unavailable`. The report alone cannot distinguish which branch
+produced the owner's old result. The new JSONL includes the running preview
+revision, a capture revision on newly created skirmishes, participation
+state and sampled boundaries, scoped contribution links, and per-death
+qualification and recap status. All IDs use existing aliases and the
+existing report limits apply.
+
+Version 3 recomputes the personal outcome on load from retained evidence.
+The shared rival index invalidates on load and rebuilds from the same
+episodes. The anonymous live-shaped and retained fixtures produce Defeat
+and one loss for the warlock, including a repeat reload and checks through
+the full card, profile, compact card, tooltip and nameplate. They retain
+the raw events and separately recorded rewards. Negative cases cover an
+NPC or environmental finisher, positive mixed PvE evidence, stale recap,
+out-of-scope and multi-life aggregates, missing terminal corroboration,
+and a pet without a verified owner. A linked return preserves the prior
+credit while the later ending can change the personal result. The fix
+has been replayed with client-shaped mocks. Retesting in Forever remains
+necessary for the new preview.
+
+#### Original world:16 findings and second follow-up
+
+The owner's investigation of the original SavedVariables identified two
+failures in preview `d6f7bcc`. The saved segment has no `offset`. Its
+`startedAt` matches the battle's start, `duration` is 25.00200000000041,
+and the six directed incoming Damage Meter aggregates were eligible.
+The evaluator found a segment start of zero, then gated the finish
+calculation on the absent raw offset. The previous test fixture explicitly
+supplied an offset. Outcome v4 uses the resolved start for both bounds and
+shares that resolver with timed hostility. A missing server anchor,
+unbounded timing or overlapping unbound windows still prevent a match.
+[Review of the original SavedVariables](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6046251024)
+
+The original debug store contains seven reads of the same pet lethal
+across two `PLAYER_DEAD` notifications. Three of those reads are retained
+in the anonymized fixture.
+The reviewed values are a `Pet-` GUID, flags `0x1148`, `SWING_DAMAGE`,
+56 damage, 12 HP and 44 overkill. A readable hostile player dealt periodic
+damage immediately beforehand. The player-only recap reader discarded
+both. The recorder now checks the hostile reaction, player control and
+pet type flags, and preserves the lethal pet GUID, native timestamp and hit
+fields alongside the earlier player damage. The owner's GUID is a separate
+optional field and requires a verified ownership mapping for that window.
+A verified hostile pet death can settle a personal Defeat without a known
+owner. The full timeline shows the verified owner or an unknown player.
+The literal source remains available as technical evidence, and direct
+player finishing-blow counters remain independent.
+
+Load-time recovery can attach retained pet-recapping evidence beside an
+original local death. It requires the segment's diagnostic session and
+combat sequence, an unambiguous local `PLAYER_DEAD` with the same victim,
+scope, server second and compatible uptime, and readable recap rows with
+the same death sequence. The exact saved event uses the legacy uppercase
+`PLAYER_DEAD` source. The first diagnostic notification matches its server
+second and combat uptime. The next notification has a later clock and
+recaps with the same native lethal timestamp. Exact repeated reads of the
+pet and native stamp combine for the matched death. Conflicting verified lethals, multiple candidate windows or
+competing claims on the same native stamp are rejected. A historical owner
+can be recovered only from the uniquely matched combat-end row's verified
+ownership and hostile-player contact. The original event is unchanged.
+Once attached, the proof survives diagnostic eviction. Outcome v4 and the
+rival index re-evaluate from the resulting evidence on load.
+
+A local Lua replay used the privately supplied original SavedVariables
+with the full journal and all retained debug rows. Preview `d6f7bcc`
+produced Unknown, 0:0 against the warlock and no finisher. The revised
+code produced Defeat, 0:1 and one literal pet finisher without an owner.
+It recovered the `SWING_DAMAGE` row and the independent prior hostile
+periodic-damage timestamp `1795547079.056`. Direct player kills and deaths
+stayed 0:0, and the original event table and rewards were preserved.
+Repeated loads produced the same score and proof.
+
+`tests/fixtures/world16-anonymized.lua` contains the original battle,
+rival and relevant diagnostic rows with anonymized identities. It omits
+unrelated diagnostic probes and preserves the absent offset and rewards.
+The exact fixture exercises stale v3 migration, a warm index before recap
+recovery, and the full card, compact card, profile, tooltip and nameplate.
+Separate controlled tests exercise contradictory rows, owner ambiguity,
+NPC and environmental deaths, resurrection and diagnostic eviction.
+For the new preview, live Forever verification remains pending.
+
+#### Pet ownership in Forever 71037
+
+The generated unit API at the exact Forever 1.60.1 build declares
+`UnitTokenFromGUID(guid)` with a possibly absent token, `UnitOwnerGUID(unit)`
+with an owner GUID, and `UnitIsOwnerOrControllerOfUnit(owner, controlled)`
+with a Boolean verdict. All three and `UnitGUID` are marked
+`SecretWhenUnitIdentityRestricted`. `UnitGUID` and `UnitOwnerGUID` take
+`UnitTokenPvPRestrictedForAddOns`. The token lookup has
+`SecretArguments = AllowedWhenTainted`; the other three declare
+`AllowedWhenUntainted`. These are API capabilities and restrictions
+from generated source. They do not establish which hostile tokens an
+addon can read in a live world fight or after death.
+[Forever UnitDocumentation.lua](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitDocumentation.lua)
+
+The existing recorder checks the local `pet`, `partypetN` and `raidpetN`
+tokens and compares simultaneous readable player/pet tokens. Visible
+nameplates and current target or mouseover can provide other tokens
+while their GUIDs remain readable. The aura handler can inspect
+`addedAuras[].sourceUnit` only when its table and field are readable.
+A source token points to the caster, with ownership established separately.
+`UNIT_AURA` is marked `SecretWhenAurasRestricted`. The existing bounded
+world-aura sample now observes a source only when its readable GUID is
+a pet. The sample may omit later or restricted transitions. Identity
+absence may also reflect an unseen unit or a recycled token.
+[Forever UnitAuraDocumentation.lua](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitAuraDocumentation.lua)
+· [Forever NamePlateDocumentation.lua](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/NamePlateDocumentation.lua)
+
+The original `world:16` combat-end row recorded zero paired owner
+checks and just the local pet mapping. The lethal hostile pet GUID
+appears only in raw recap sources. This is an observation gap.
+`UnitTokenFromGUID` and `UnitOwnerGUID` were uncollected in that preview,
+so the old record cannot tell whether either would have returned
+a readable value. No ownership for this pet was recovered on reload.
+
+The private save shows native owner aggregation for the player's own
+pet. The local player's DamageDone entry contains pet-labelled
+`creatureName` rows for spells 6603 and 17256, with totals 1,374 and
+151. The incoming meter links 324 damage for spell 1293697 to the
+warlock. The same hostile pet that later landed the lethal swing dealt
+54 and 52 with spell 1293697 in the native recap. This corroborates
+involvement, but the spell aggregate has neither the physical pet GUID
+nor the timestamp of an individual hit. Amounts, spell IDs, names, class
+and the number of observed enemies cannot establish ownership.
+`DamageMeterCombatSource` carries a conditionally secret source GUID.
+The per-spell aggregate exposes `creatureName`, while the second-unit
+details expose name, class, type flags and amount. Technical diagnostic
+samples can omit rows, and the permanent aggregate intentionally keeps
+only qualified linked evidence. The Deaths row identified the local
+victim and native `deathRecapID=56`. Blizzard passes that ID to
+`OpenDeathRecapUI`, which reads `GetRecapEvents(recapID)`. It identifies
+the death selected in the meter. Neither that relationship nor the
+documented recap API supplies a pet-owner join. The generated
+`DeathRecapEventInfo` structure declares no fields; the saved recap
+demonstrates readable source and hit fields, with no recorded owner.
+[Forever DamageMeter schema](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/DamageMeterDocumentation.lua)
+· [Native meter recap action](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_DamageMeter/DamageMeterSessionWindow.lua#L968)
+· [Forever DeathRecap schema](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/DeathRecapDocumentation.lua)
+· [Native recap reader](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_DeathRecap/Mainline/Blizzard_DeathRecap.lua#L315)
+
+The recorder now looks up the owner directly for an observed pet and
+tries the recap GUID-to-token path at the initial read and existing
+0.3, 1 and 2 second retries. It verifies the pet token against the
+same GUID before and after reading the owner, verifies the owning
+opponent from the scoped contact or another identity-checked token,
+and rejects conflicting ownership. The lookup obeys the owning active
+combat window or its existing 2.5-second post-combat tail, before any
+scope change or newer combat. An unavailable API or lost token can
+leave the attribution unknown. A prior verified scoped observation
+can survive lost visibility. Existing retry and death deduplication
+also apply when ownership is first discovered after combat. The
+literal name, when readable, stays in private technical evidence.
+The displayed actor is the verified player or an unknown player.
+
+Per-death diagnostics retain at most four attempts. They report phase,
+delay, token lookup, identity checks, owner result and verification
+decision as statuses. They contain no raw token, GUID, name or native
+error text. In a future ordinary PvP death involving a hostile pet,
+inspect whether the initial combat read or a post-combat retry gets
+a stable pet token and confirmed owner. Check an off-nameplate pet
+and compare secret, absent and error outcomes. There is no need
+to recreate `world:16`. The live API and native rendering still need
+verification. Lua tests cover success, delayed readability, aura
+observation, absent and secret results, token reuse, native errors,
+conflicting owners, non-opponents, and window invalidation. The
+original save still replays as Defeat, one warlock loss, and an
+unknown player actor with the pet lethal retained privately.
+
+The PR #45 follow-up reproduced a stale rival on `278e9f8`: the first
+owner result added the player to the roster, and a conflicting retry
+revoked attribution while leaving that roster entry behind. A recap-only
+claim now stays provisional until the existing skirmish finalization
+boundary. A conflicting retry discards the claim. Independently linked
+participation still enters the roster immediately, and earlier rival
+history and manual entries remain intact. Older persisted rosters have
+no provenance for this admission, so historical entries are preserved.
+
+Duplicate reads of the same native death and pet source append probe
+statuses to the saved episode even when the outcome and score stay the
+same. Lua replay checks the four-attempt cap, ordinary logout, and
+reopening a copy of SavedVariables with the debug log cleared. The issue
+report labels the direct-player counter scope and distinguishes a verified
+player owner from an unknown player actor on a pet finishing blow. The
+literal pet death leaves the direct-player counters unchanged.
+[PR #45 review](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6047563563)
+
+#### Joined ally combat and late generic activity in world:19–21
+
+Live testing reported no UI errors and confirmed that historical world:16
+displayed Defeat. The supplied on-disk world:19–21 rows carry capture revision
+`d6f7bcc` and saved outcome version 3. They are evidence of the capture listed
+in SavedVariables. Replay against PR head `979fa14` yielded 2×1 Unknown and
+0:0 for world:19, and 1×1 Victory with 1:0 for each of world:20 and world:21.
+The owner confirmed an ally participated in all three fights and started the
+last two. The original file stayed private. The regression extract retains
+the original clocks, timeline rows, zero amounts, empty classes and read
+statuses for the three fights. [Live review](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6058796963)
+
+The Forever Source window creates one display entry for each native
+`combatSpells` row. `DamageMeterSpellEntryMixin:Init` reads the named second
+unit from `combatSpellDetails` and delegates the bar value to
+`DamageMeterEntryMixin:Init`, which uses `source.totalAmount`. The generated
+API declares the spell total and detail amount as separate fields. The
+three captures show a scoped `EnemyDamageTaken` shape with spell ID 0, a
+readable named player, readable false mob and pet flags, an empty detail
+class, and zero detail amount despite a positive spell total. The native
+Lua does not define the producer's grouping contract for every category.
+The addon accepts this particular shape only when a complete source
+matrix reconciles to the per-GUID `DamageDone` amounts from the same
+selection and refresh overlap. It requires unique full identities and an
+independently confirmed enemy death with a local player share in that
+segment. Names and amounts establish no hit timestamp or pet ownership.
+[Native source provider](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_DamageMeter/DamageMeterSourceWindow.lua#L176) ·
+[Native entry](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_DamageMeter/DamageMeterEntry.lua#L481) ·
+[Generated schema](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/DamageMeterDocumentation.lua#L215)
+
+In world:20, the native session lasted 11 s and the local window 5.318 s.
+Both damage-category signals started at local combat start and their last
+updates arrived about 1.085 s after local combat ended, inside the existing
+1.5 s read retry. The ally was already in combat at local start and the
+confirmed enemy targeted the ally. A readable reciprocal `DamageTaken` row
+showed 161 incoming damage for that same pair. With the two qualified
+category signals and an isolated selection, this corroborates the join.
+The incoming category had no own matching update, so its data supplies
+corroboration only. The enemy who was finished received 171 from the local
+player and 132 from the ally. The ally's other 171 belonged to a different
+enemy. Those 171 reconcile the session's totals, but create no participant,
+casualty or credit in this fight. An earlier-window overlap, no prior
+Current boundary for this extended path, an incomplete matrix or competing
+names leave the join unqualified. The ordinary duration rule is unchanged.
+
+In world:19, the confirmed enemy died at +8.454 s and both allies were
+alive and out of combat at +14.108 and +16.093 s. A generic ally combat
+flag appeared at +23.347 s and was clear again at +25.353 s. Outcome v5
+keeps the independently observed elimination when the opponent has no
+evidence of a return and later allied activity has no confirmed link to
+the confrontation. A linked action, a qualifying linked increase in that
+case, a returned enemy or an active additional opponent can still block
+reuse of those older samples.
+
+The exact original replay now yields 2×1 Victory and a personal score of
+1:0 in all three fights. World:19 retains the ally's finishing blow, so
+the local literal direct-player killing blow count is zero there and one
+in each of world:20 and world:21. Recovery requires a unique combination
+of combat sequence, debug session, owning segment, local identity,
+scope, timestamps and meter selection. It appends durable directed
+aggregate proof and uses the existing index on subsequent loads. It
+keeps raw life events and rewards intact. With no suitable retained
+diagnostic rows, older records can still receive the outcome correction
+from their existing terminal samples. They cannot gain an unevidenced
+participant. The Lua tests exercise the stored replays, the live capture
+callbacks with recorded rows, the journal and per-rival views, and
+reload with the log removed. Fresh capture and presentation on the new
+preview still need a client check.
 
 ### Preview and release provenance
 

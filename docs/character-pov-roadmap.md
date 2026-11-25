@@ -2,8 +2,8 @@
 
 **Status:** Approved to begin implementation, 24 November 2026. The Character POV
 contract is in [the product specification](skirmish-product-spec.md).
-PR A is merged. PR B implements the independently queryable rival projection
-and awaits review. Review each dependent PR in turn. This roadmap is not release
+PR A (#43) and PR B (#44) are merged. PR C implements journal integration
+and is ready for review and a Forever preview. This roadmap is not release
 authorization or a final version-number decision.
 
 **Baseline:** GitHub v1.1.0, with permanent battle history, automatic diagnostics,
@@ -142,10 +142,11 @@ manufacture perfect coverage.
 - Update Ledger indexes and the rival profile/compact cards, full journal
   cards, nameplates, tooltips and shared counters consistently.
 - Put rival contribution behind a shared ledger index or invalidated cache
-  before using it on nameplate and tooltip update paths. The PR B query
-  replays a rival's linked history on each call. Verify warm lookups on long
-  histories and invalidation after save, deletion, reset and reload. Preserve
-  permanent history and its existing presentation limit.
+  before using it on nameplate and tooltip update paths. The shared index
+  builds once per loaded ledger, replaces the affected battle on save,
+  and serves per-rival totals for warm queries. Tests verify late evidence,
+  deletion, reset and repeat reload on 1,050 battles. Permanent history
+  and the latest-100 presentation limit retain their separate scopes.
 - Full card: primary personal outcome. Rival card: rival-specific credit,
   including both directions if applicable; no misleading blanket group
   badge. Optional observed group outcome is secondary. Do not require a new
@@ -210,7 +211,10 @@ latest accepted main; avoid parallel changes to shared scoring/storage
 contracts. Independent fixture preparation may be parallelized only if
 it does not create conflicting changes.
 
-Next: review PR B before starting PR C from the accepted main. See
-[the PR B evidence and timing notes](forever-validation.md#character-pov-pr-b).
-No public release until separately authorized. Do not reopen the settled
-scoring or outcome rules.
+Live PR C testing passed the UI smoke check and confirmed historical
+world:16 Defeat. The next preview should verify fresh joined fights and
+review the original world:19–21 replays, which now give three 2×1 victories
+with one rival win per fight. Live pet-owner API statuses remain a
+separate check. See [joined ally validation](forever-validation.md#joined-ally-combat-and-late-generic-activity-in-world1921)
+and [world:16 validation](forever-validation.md#original-world16-findings-and-second-follow-up).
+A public release still requires separate owner authorization.

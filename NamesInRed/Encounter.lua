@@ -1,4 +1,4 @@
-local _, addon = ...
+local addonName, addon = ...
 
 function addon.Readable(value)
     if not issecretvalue or not issecretvalue(value) then
@@ -13,6 +13,11 @@ local function SafeRead(fn, ...)
             return addon.Readable(first), addon.Readable(second)
         end
     end
+end
+
+function addon.PreviewRevision()
+    local revision = SafeRead(C_AddOns and C_AddOns.GetAddOnMetadata, addonName, "X-Preview-Revision")
+    if type(revision) == "string" and #revision == 40 and revision:match("^[0-9a-f]+$") then return revision end
 end
 
 function addon.IsBattlegroundTrackingEnabled()
@@ -163,6 +168,7 @@ end
 local function RefreshRivals()
     if addon.RefreshBook then addon.RefreshBook() end
     if addon.RefreshNameplates then addon.RefreshNameplates() end
+    if addon.RefreshUnitTooltip then addon.RefreshUnitTooltip() end
 end
 
 function addon.RecordEncounter(guid, name, direction, context, appearance)
@@ -175,6 +181,7 @@ function addon.RecordEncounter(guid, name, direction, context, appearance)
     context.sequence = addon.db.encounterSequence
     if not context.time then context.recordedAt = SafeRead(GetServerTime) end
     table.insert(rival.encounters, 1, context)
+    addon.Ledger.InvalidateRivalHistory(addon.db, guid)
     RefreshRivals()
 end
 
@@ -292,9 +299,9 @@ local function LegacySkirmish(db, entry, playerAppearance)
         end
     end
     local events = {}
-    if not encounter.outcome and encounter.direction == "killsAgainstThem" then
+    if not encounter.manual and not encounter.outcome and encounter.direction == "killsAgainstThem" then
         events[1] = { kind = "kill", actorID = player.id, targetID = rival.id, time = encounter.time }
-    elseif not encounter.outcome and encounter.direction == "deathsToThem" then
+    elseif not encounter.manual and not encounter.outcome and encounter.direction == "deathsToThem" then
         events[1] = { kind = "kill", actorID = rival.id, targetID = player.id, time = encounter.time }
     end
     local rewards
