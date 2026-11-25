@@ -304,6 +304,16 @@ check pending automatic packaging before any manual upload. The
 [preview and release incidents](forever-validation.md#preview-and-release-provenance)
 record why these checks matter.
 
+### Public listing copy
+
+Keep the CurseForge description evergreen and benefits-first: a short tagline,
+compact feature bullets, then optional topical explanations, setup, compatibility
+and support. Describe the addon as a product, not a release announcement. Do not
+include addon version headings, "New in" sections, release histories or changelog
+entries in the permanent listing. Keep release-specific changes in CHANGELOG.md
+and release notes. Client-version compatibility may remain in its own section.
+Update public feature claims only when the corresponding behavior is available.
+
 ## 6. Living technical memory: learn from every durable correction
 
 The owner does not want each fresh Codex agent to relearn the same lessons.

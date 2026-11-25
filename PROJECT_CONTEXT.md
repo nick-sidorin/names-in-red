@@ -16,7 +16,9 @@ are separately verified.
   Plan your revenge." Immersive gameplay and the personal story matter more than
   an esport scoreboard. Public listing copy emphasizes personal rivalries and
   the revenge theme; the short summary naturally includes vendetta and revenge
-  alongside PvP and rival statistics. The owner plays a night elf hunter in Forever with a
+  alongside PvP and rival statistics. Keep the permanent listing evergreen:
+  feature bullets first, then topical details, no addon release numbers or
+  changelog sections. The owner plays a night elf hunter in Forever with a
   brother (druid in Gnomeregan); also consider pure healer and solo play.
 - Talk to the owner in Russian; repository docs/code/PRs in English. Read root
   [AGENTS.md](AGENTS.md), pinned [standards](docs/standards/AGENTS.md),
