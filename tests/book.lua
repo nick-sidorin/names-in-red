@@ -1105,7 +1105,7 @@ do
     callback(GameTooltip, { guid = archiveRival })
     assert(tooltipLines[#tooltipLines] == addon.FormatRivalCounters(0, 1, false))
 
-    for _, file in ipairs({ "SkirmishOutcomes", "SkirmishEvidence", "MeterSourceTotals", "WorldSkirmishes" }) do
+    for _, file in ipairs({ "SkirmishOutcomes", "SkirmishEvidence", "MeterSourceTotals", "WorldSkirmishes", "SkirmishGapHistory" }) do
         assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
     end
     local joined, meterLog = dofile("tests/fixtures/world19-21-anonymized.lua")
@@ -1126,6 +1126,29 @@ do
         callback(GameTooltip, { guid = opponent })
         assert(tooltipLines[beforeTooltip + 3] == addon.FormatRivalCounters(1, 0, false))
     end
+
+    local previous = addon.db
+    local split, splitLog = dofile("tests/fixtures/world22-24-anonymized.lua")
+    addon.db = addon.Ledger.Open(split, splitLog)
+    local recovered = addon.db.skirmishes["world:23"]
+    local opponent = recovered.enemies[1].rivalID
+    local encounters = addon.RivalEncounters(addon.db, opponent)
+    assert(#encounters == 2 and encounters[1].skirmishID == "world:23" and encounters[2].skirmishID == "world:22")
+    card:SetSkirmish(recovered, opponent, true)
+    assert(FindText(card, addon.L.lossTooltip) and not FindText(card, addon.L.shortUnknownOutcome))
+    card:SetSkirmish(addon.db.skirmishes["world:22"], opponent, true)
+    assert(FindText(card, addon.L.winTooltip))
+    openProfile(opponent)
+    ProfileStat(addon.L.wins, 1)
+    ProfileStat(addon.L.losses, 1)
+    ProfileStat(addon.L.honorableKills, 1)
+    ProfileStat(addon.L.honor, 6)
+    compact:SetEncounter(encounters[1], addon.db.rivals[opponent], opponent)
+    assert(CenterMarker(banner) and FindText(compact, addon.L.lossTooltip))
+    callback(GameTooltip, { guid = opponent })
+    assert(tooltipLines[#tooltipLines - 1] == addon.FormatRivalCounters(1, 1, false))
+    assert(tooltipLines[#tooltipLines] == addon.L.personalFinishingBlows:format(1, 1))
+    addon.db = previous
     openProfile(duelGUID)
 
     local before = refreshes
