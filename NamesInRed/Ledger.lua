@@ -108,10 +108,14 @@ function Ledger.Open(saved, diagnostics)
         return { version = 1, rivals = {} }
     end
     if type(saved) == "table" and saved.version == 1 and type(saved.rivals) == "table" then
+        local changed
         if type(saved.skirmishes) == "table" then
-            local changed = addon.RestoreLegacyPetRecaps and addon.RestoreLegacyPetRecaps(saved.skirmishes, diagnostics)
+            changed = addon.RestoreLegacyPetRecaps and addon.RestoreLegacyPetRecaps(saved.skirmishes, diagnostics)
             if addon.RestoreSplitSkirmishes then addon.RestoreSplitSkirmishes(saved.skirmishes, diagnostics) end
-            local meterWindows = addon.IndexMeterSourceTotalWindows and addon.IndexMeterSourceTotalWindows(diagnostics, saved.skirmishes)
+        end
+        local meterWindows = addon.IndexMeterSourceTotalWindows and addon.IndexMeterSourceTotalWindows(diagnostics, saved.skirmishes or {})
+        if meterWindows and addon.RestoreMissingOutgoingSkirmishes then addon.RestoreMissingOutgoingSkirmishes(saved, meterWindows) end
+        if type(saved.skirmishes) == "table" then
             for id, battle in pairs(saved.skirmishes) do
                 if IsSkirmish(battle) then
                     RestoreMeterAggregates(battle)
@@ -136,6 +140,7 @@ function Ledger.Clear(db)
     db.encounterSequence = nil
     db.lastDeathTimestamp = nil
     db.unassignedRewards = nil
+    db.recoveredMeterWindows = nil
     if addon.RestoreCombatDiagnostics then addon.RestoreCombatDiagnostics(db) end
     skirmishIndexes[db], legacyIndexes[db] = nil, nil
 end
@@ -307,6 +312,14 @@ function Ledger.AddRewards(owner, key, honorableKills, honor)
     rewards.honorableKills = (rewards.honorableKills or 0) + honorableKills
     rewards.honor = (rewards.honor or 0) + honor
     owner[key] = rewards
+end
+
+function Ledger.MoveUnassignedRewards(db, battle, hk, honor)
+    local rewards = db.unassignedRewards
+    if not rewards or (rewards.honorableKills or 0) < hk or (rewards.honor or 0) < honor then return end
+    Ledger.AddRewards(db, "unassignedRewards", -hk, -honor)
+    Ledger.AddRewards(battle, "unassignedRewards", hk, honor)
+    return true
 end
 
 function Ledger.SkirmishRewards(battle)

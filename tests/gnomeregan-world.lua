@@ -1973,3 +1973,193 @@ if not arg[1] or arg[1] == "control-gap-history" then
     end
     print("Original world:22–24 replay preserves two fights, both combat segments, recorded deaths, rewards and 1:1 credit")
 end
+
+local function OutgoingFixture()
+    local saved, log = dofile("tests/fixtures/outgoing-only-anonymized.lua")
+    local start, finish = log.rows[1], log.rows[#log.rows]
+    local me, enemy = start.player.guid, start.target.guid
+    local ally = finish.contacts[enemy].initial.targetGUID
+    return saved, log, start, finish, me, enemy, ally
+end
+
+if not arg[1] or arg[1] == "outgoing-history" then
+    local saved, log, start, finish, me, enemy, ally = OutgoingFixture()
+    local ledger = addon.Ledger
+    assert(finish.status.meterWindow == "no-linked-pvp" and not next(saved.skirmishes))
+    assert(saved.unassignedRewards.honorableKills == 1 and saved.unassignedRewards.honor == 4)
+    local before = ledger.JournalRewards(saved)
+    local function Verify(db)
+        local b = assert(db.skirmishes["world:26"])
+        assert(#b.allies == 2 and #b.enemies == 1 and #b.events == 1)
+        assert(b.allies[1].id == me and b.allies[1].isSelf and b.allies[2].id == ally)
+        assert(b.enemies[1].id == enemy and ledger.JournalOutcome(b) == "win")
+        assert(b.events[1].kind == "death" and b.events[1].targetID == enemy and b.events[1].actorID == nil)
+        assert(math.abs(b.events[1].offset - 5.839) < 0.0001 and not b.events[1].time)
+        local segment = b.observation.segments[1]
+        assert(segment.engagedAlly.allyID == ally and segment.engagedAlly.opponentID == enemy)
+        assert(#segment.combatAggregates == 1 and segment.combatAggregates[1].amount == 630)
+        assert(segment.combatAggregates[1].actorID == me and not segment.combatAggregates[1].offset)
+        local wins, losses = ledger.RivalContributionScore(db, enemy)
+        local kills, deaths = ledger.PersonalCombatScore(db, enemy)
+        local hks, honor = ledger.SkirmishRewards(b)
+        assert(wins == 1 and losses == 0 and kills == 0 and deaths == 0)
+        assert(hks == 1 and honor == 4 and not b.rewards)
+        local totals = ledger.JournalRewards(db)
+        assert(totals.honorableKills == before.honorableKills and totals.honor == before.honor
+            and totals.unassignedHK == 0 and totals.unassignedHonor == 0)
+        return b
+    end
+    assert(Verify(ledger.Open(saved, log)) == Verify(ledger.Open(saved, log)))
+    Verify(ledger.Open(SavedCopy(saved)))
+    local report = addon.BuildIssueReport(saved, log, "world:26")
+    assert(report:find('"evidence": "corroborated-targeting"', 1, true))
+    assert(not report:find(finish.contacts[ally].initial.name, 1, true))
+    ledger.RemoveSkirmish(saved, "world:26")
+    ledger.Open(saved, log)
+    assert(not next(saved.skirmishes))
+
+    for _, alter in ipairs({
+        function(_, _, _, row) row.meter.DamageDone.sources[1].totalAmount = 629 end,
+        function(_, _, _, row) row.meter.EnemyDamageTaken.sources[1].spells[1].target.status.unitName = "secret" end,
+        function(_, _, _, row) row.meter.EnemyDamageTaken.sources[1].sourceGUID = "Creature-unrelated" end,
+        function(_, _, _, row) row.meterEvidence.EnemyDamageTaken = "duration-mismatch" end,
+        function(_, _, first, row) row.meterUpdates["0:10"].firstUptime = first.uptime - 0.1 end,
+        function(_, rows) rows.rows[#rows.rows + 1] = SavedCopy(rows.rows[1]) end,
+        function(_, _, first, row) row.player.guid = "Player-unrelated" end,
+        function(_, _, _, row)
+            local other = SavedCopy(row.contacts[me])
+            other.latest.guid = "Player-ambiguous"
+            row.contacts[other.latest.guid] = other
+        end,
+        function(db, _, first, row)
+            db.skirmishes["world:1"] = { startedAt = first.time, time = row.time, allies = {}, enemies = {}, events = {} }
+        end,
+    }) do
+        local db, rows, first, row = OutgoingFixture()
+        alter(db, rows, first, row)
+        ledger.Open(db, rows)
+        assert(not db.skirmishes["world:26"] and db.unassignedRewards.honorableKills == 1)
+    end
+
+    for _, alter in ipairs({
+        function(row) row.contacts[ally].initial.status.targetGUID = "secret" end,
+        function(row) row.contacts[ally].initial.status.faction = "secret" end,
+        function(row) row.contacts[ally].initial.inCombat = false end,
+        function(row) row.contacts[ally].initial.uptime = row.uptime end,
+        function(row) row.contacts[enemy].initial.targetGUID = "Player-bystander" end,
+    }) do
+        local db, rows, _, row = OutgoingFixture()
+        alter(row)
+        local b = ledger.Open(db, rows).skirmishes["world:26"]
+        assert(#b.allies == 1 and #b.enemies == 1 and ledger.JournalOutcome(b) == "win")
+    end
+
+    local db, rows, _, row = OutgoingFixture()
+    for _, unit in ipairs(row.contacts[enemy].changes) do if unit.dead then unit.feign = true end end
+    row.contacts[enemy].latest.feign = true
+    local b = ledger.Open(db, rows).skirmishes["world:26"]
+    assert(b and #b.events == 0 and #b.allies == 1 and ledger.JournalOutcome(b) == "unknown")
+    assert(db.unassignedRewards.honorableKills == 1 and db.unassignedRewards.honor == 4)
+
+    db, rows, _, row = OutgoingFixture()
+    local observed = row.contacts[enemy]
+    local revived = SavedCopy(observed.initial)
+    revived.uptime = row.uptime - 0.1
+    observed.changes[#observed.changes + 1] = revived
+    b = ledger.Open(db, rows).skirmishes["world:26"]
+    assert(b and #b.events == 0 and ledger.JournalOutcome(b) == "unknown")
+
+    db, rows = OutgoingFixture()
+    db.unassignedRewards.honor = 9
+    b = ledger.Open(db, rows).skirmishes["world:26"]
+    assert(b and ledger.SkirmishRewards(b) == 0 and db.unassignedRewards.honor == 9)
+
+    db, rows, _, row = OutgoingFixture()
+    local unrelated = SavedCopy(row)
+    unrelated.session, unrelated.status.meterWindow = row.session + 1, "other-window"
+    rows.rows[#rows.rows + 1] = unrelated
+    b = ledger.Open(db, rows).skirmishes["world:26"]
+    assert(b and ledger.SkirmishRewards(b) == 0 and db.unassignedRewards.honor == 4)
+    print("Original outgoing-only fight recovered as 2x1 Victory with one credit and exactly 1 HK / 4 honor")
+end
+
+if not arg[1] or arg[1] == "outgoing-capture" then
+    local _, _, start, finish, selfID, enemyID, allyID = OutgoingFixture()
+    local function Player(unit)
+        local suffix = unit.surname and unit.surname ~= "" and (" " .. unit.surname) or ""
+        return { id = unit.guid, name = unit.name .. suffix, faction = unit.faction, class = unit.class }
+    end
+    for _, death in ipairs({ true, false }) do
+        Reset()
+        units.player = Player(finish.contacts[selfID].initial)
+        units.target = Player(finish.contacts[enemyID].initial)
+        units.targettarget = Player(finish.contacts[allyID].initial)
+        units.party1 = nil
+        local oldAPI = C_DamageMeter
+        local categories = {}
+        for name, key in pairs(Enum.DamageMeterType) do categories[key] = finish.meter[name] end
+        C_DamageMeter = {
+            GetAvailableCombatSessions = oldAPI.GetAvailableCombatSessions,
+            GetCombatSessionFromType = function(_, category)
+                local group = categories[category]
+                return { combatSources = group and group.sources or {}, durationSeconds = finish.meterCurrentDuration,
+                    totalAmount = group and group.totalAmount or 0 }
+            end,
+            GetCombatSessionSourceFromType = function(_, category, guid)
+                for _, source in ipairs(categories[category].sources) do
+                    if source.sourceGUID == guid then
+                        local spells = {}
+                        for _, spell in ipairs(source.spells) do
+                            local native = SavedCopy(spell)
+                            native.combatSpellDetails = spell.target
+                            spells[#spells + 1] = native
+                        end
+                        return { combatSpells = spells }
+                    end
+                end
+            end,
+        }
+        Begin()
+        local done, taken = Enum.DamageMeterType.DamageDone, Enum.DamageMeterType.EnemyDamageTaken
+        local updates = finish.meterUpdates["0:" .. done]
+        Advance(updates.firstUptime - start.uptime)
+        Update(done, taken)
+        Advance(updates.uptime - updates.firstUptime)
+        Update(done, taken)
+        if death then
+            Advance(11385.849 - updates.uptime)
+            HK()
+            Fire("PLAYER_PVP_KILLS_CHANGED", "player")
+            Advance(11386.002 - 11385.849)
+            units.target.dead = true
+            Fire("UNIT_FLAGS", "target")
+            Advance(11386.748 - 11386.002)
+            Chat(4, 49001)
+            Advance(11388.084 - 11386.748)
+            units.mouseover = units.targettarget
+            units.mouseover.active = true
+            Fire("UPDATE_MOUSEOVER_UNIT")
+            Advance(finish.uptime - 11388.084)
+            assert(addon.db.unassignedRewards.honorableKills == 1 and not addon.db.skirmishes)
+        else
+            Advance(finish.uptime - updates.uptime)
+        end
+        End()
+        if death then units.mouseover = nil end
+        Advance(14)
+        local b = assert(addon.db.skirmishes["world:1"])
+        assert(#b.enemies == 1 and b.enemies[1].id == enemyID and #b.allies == (death and 2 or 1))
+        local wins, losses = addon.Ledger.RivalContributionScore(addon.db, enemyID)
+        assert(wins == (death and 1 or 0) and losses == 0)
+        if death then
+            assert(addon.Ledger.JournalOutcome(b) == "win" and b.events[1].kind == "death" and not b.events[1].actorID)
+            local hks, honor = addon.Ledger.SkirmishRewards(b)
+            assert(#b.events == 1 and hks == 1 and honor == 4 and addon.db.unassignedRewards.honor == 0)
+        else
+            assert(#b.events == 0 and addon.Ledger.SkirmishRewards(b) == 0)
+        end
+        C_DamageMeter = oldAPI
+        units.player, units.targettarget = localPlayer, nil
+    end
+    print("Live outgoing-only capture starts a battle with or without a corpse and moves the same-window award once")
+end

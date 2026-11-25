@@ -13,6 +13,14 @@ function addon.ResetHonorTracking()
     pending, lastHK = nil, SessionHK()
 end
 
+function addon.ReconcileHonorWindow(window, battle)
+    local claim = window and window.honorClaim
+    if claim and addon.db == claim.db and window.record and window.record.battle == battle
+        and addon.Ledger.MoveUnassignedRewards(claim.db, battle, claim.honorableKills, claim.honor) then
+        window.honorClaim = nil
+    end
+end
+
 local function Save(batch)
     if pending ~= batch then return end
     pending = nil
@@ -28,6 +36,13 @@ local function Save(batch)
     if not battle and batch.kills == 0 and record then id, battle = record.id, record.battle end
     if batch.conflict or batch.unlinkedKill or batch.unscopedReward or not battle or not db.skirmishes or db.skirmishes[id] ~= battle then
         ledger.AddRewards(db, "unassignedRewards", hk, honor)
+        -- Keep a live claim on this exact window while the total is safely
+        -- counted in the journal. A later confirmation moves it once.
+        if batch.window and not battle and not batch.conflict and not batch.unlinkedKill and not batch.unscopedReward
+            and not batch.hkUncertain and batch.kills == 0 then
+            ledger.AddRewards(batch.window, "honorClaim", hk, honor)
+            batch.window.honorClaim.db = db
+        end
         if addon.RefreshBook then addon.RefreshBook() end
         if addon.NotePvPDiagnostic then addon.NotePvPDiagnostic("reward-unassigned-skirmish") end
         return
@@ -92,7 +107,7 @@ function addon.ObserveHonorKill(id, battle, targetID)
     end
 end
 
-local function HonorFromChat(message)
+function addon.HonorFromChat(message)
     if type(message) ~= "string" then return end
     -- The actual ruRU Forever message contains a Blizzard plural marker.
     return tonumber((message:match("^Вы получили (%d+) |4очко чести:очка чести:очков чести;%.$")
@@ -135,7 +150,7 @@ function handlers.CHAT_MSG_COMBAT_HONOR_GAIN(message, _, _, _, _, _, _, _, _, _,
     local batch = CurrentBatch()
     batch.messages = batch.messages + 1
     if not batch.currentWindow and not batch.battle then batch.unscopedReward = true end
-    batch.chatHonor = batch.chatHonor + (HonorFromChat(Readable(message)) or 0)
+    batch.chatHonor = batch.chatHonor + (addon.HonorFromChat(Readable(message)) or 0)
 end
 
 function handlers.CURRENCY_DISPLAY_UPDATE(currencyID, _, change)

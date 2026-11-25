@@ -595,9 +595,16 @@ local function BuildIssueReport(db, debugDB, battleID, legacy, budget)
     end
     each(observation.segments, function(segment, index)
         local fields = Fields(segment, "startReason endReason continuation confirmedBy observationStopped",
-            "startedAt endedAt duration offset", "localNpcDamage localNpcPressure")
+            "startedAt endedAt duration offset", "localNpcDamage localNpcPressure outgoingLocalSurvivor")
         fields.segment = index
         write("segment", fields)
+        local engaged = Table(segment.engagedAlly)
+        if next(engaged) then
+            local witness = Fields(engaged, nil, "targetOffset corpseOffset allyOffset")
+            witness.ally, witness.opponent, witness.segment = Alias(engaged.allyID), Alias(engaged.opponentID), index
+            witness.evidence = "corroborated-targeting"
+            write("engagedAlly", witness)
+        end
         local decisions = Reasons(segment.rejectedKills)
         if next(decisions) then
             decisions.segment = index
