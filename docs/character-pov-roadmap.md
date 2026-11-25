@@ -1,10 +1,10 @@
 # Character POV — milestone roadmap
 
-**Status:** Approved to begin implementation, 24 November 2026. The Character POV
-contract is in [the product specification](skirmish-product-spec.md).
-PR A (#43) and PR B (#44) are merged. PR C implements journal integration
-and is ready for review and a Forever preview. This roadmap is not release
-authorization or a final version-number decision.
+**Status:** Feature implementation and owner acceptance complete, 25 November 2026.
+The Character POV contract is in [the product specification](skirmish-product-spec.md).
+PR A (#43), PR B (#44) and PR C (#45) are merged. The owner approved proceeding
+with a public release; integrated-main checks and packaging/publishing remain.
+The final version number is not yet agreed.
 
 **Baseline:** GitHub v1.1.0, with permanent battle history, automatic diagnostics,
 in-game issue reporting, and the existing side-outcome scoring model. The
@@ -211,10 +211,11 @@ latest accepted main; avoid parallel changes to shared scoring/storage
 contracts. Independent fixture preparation may be parallelized only if
 it does not create conflicting changes.
 
-Live PR C testing passed the UI smoke check and confirmed historical
-world:16 Defeat. The next preview should verify fresh joined fights and
-review the original world:19–21 replays, which now give three 2×1 victories
-with one rival win per fight. Live pet-owner API statuses remain a
-separate check. See [joined ally validation](forever-validation.md#joined-ally-combat-and-late-generic-activity-in-world1921)
-and [world:16 validation](forever-validation.md#original-world16-findings-and-second-follow-up).
-A public release still requires separate owner authorization.
+Owner acceptance of exact preview `22fada7` passed the five historical/UI/reload
+checks: restored world:19–21 rosters and victories, rival scores, world:16
+Defeat and persistence after reload. Fresh group encounters were not available;
+live pet-owner attribution remains unverified. The owner accepts these as
+non-blocking follow-ups, not as passed tests. See [acceptance review](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6060358381).
+PR C was squash-merged as `805c242ce2ab88fd7ab2822d23cf51dc00fb2bc5`.
+Next: verify integrated main, prepare the release and publisher, and verify
+public artifacts. Do not claim release until publication is confirmed.
