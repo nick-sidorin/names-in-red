@@ -72,8 +72,11 @@ pull requests and squash merges. Require the Checks job before merging
 implementation and verify behavior in the real Forever client before release.
 
 Before making release changes, read the shared release section and inspect this
-repository's current publishing workflow. The owner's release entry point is
-the version tag. Use the configured tag-driven publisher and verify its output.
+repository's current publishing workflow. The owner can run the permanent
+Publish release workflow on main with an exact checked commit and version, or
+authorize a request-only PR changing .github/release-request.json. A stable
+version tag pushed by the owner remains supported. Use the single configured
+publisher and verify GitHub and CurseForge independently.
 If tag-driven publishing is missing, report the gap before creating a manual
 GitHub Release or a separate package branch.
 

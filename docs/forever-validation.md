@@ -2227,3 +2227,18 @@ GitHub stub. An interruption after the first draft upload left one asset.
 The independent build verified that asset and published the existing draft
 once. A further retry accepted the published release. The script refused a
 modified asset and a moved tag. The simulation made no public tag or release.
+
+
+#### Owner-only release entrypoint
+
+The tag-only publisher could not be initiated through the connected GitHub
+interface, which can merge PRs but has no create-tag action. GitHub recorded
+the accepted #50 merge and its main CI run as the repository owner. The
+permanent publisher now accepts an isolated owner-authored main request
+commit or manual main dispatch as well as stable tag pushes. It validates
+both original and retry actor, repository, branch, exact version and SHA.
+The package and exact main CI are checked before the publish job can create
+a missing tag. Tag creation and publication are in the same run because
+GITHUB_TOKEN-generated push events do not start a second Actions run.
+The unit suite checks intent rejection and acceptance; actual publishing,
+including the existing CurseForge integration, needs separate verification.
