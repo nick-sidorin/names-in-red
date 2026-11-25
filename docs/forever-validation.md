@@ -1101,6 +1101,40 @@ it, and the subsequent left-button release cannot open the journal.
 The frame keeps the tooltip local to its owner. Click, drag and resize
 are separate checks. [Minimap shortcut](../NamesInRed/Book.lua)
 
+### First-open selection and slash command
+
+The journal uses the same encounter ordering as the cross-rival history.
+It chooses the latest record with an available profile, then uses the exact
+shared battle's contribution projection to prefer an opponent with a personal
+win or loss in that battle. Equal candidates use stable rival-ID order.
+The alphabetical data provider is installed before revealing the row.
+Forever's `ProfessionsRecipeListMixin:SelectRecipe` uses
+`ScrollToElementData` to reveal its selected recipe. The journal uses
+`ScrollToElementDataByPredicate` with `AlignNearest` and no interpolation on
+its existing linear ScrollBox. That keeps an already visible row in place.
+[Profession selection](https://github.com/Gethe/wow-ui-source/blob/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeList.lua#L170-L181) ·
+[Native scroll and visibility](https://github.com/Gethe/wow-ui-source/blob/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_SharedXML/Shared/Scroll/ScrollBox.lua#L821-L888)
+
+`/nir` registers through `SLASH_NAMESINREDOPEN1` and `SlashCmdList`.
+In Forever 71091 and 71139 the chat code imports aliases with
+`ImportAllListsToHash` and dispatches by the full command token.
+`/nirreset` and `/nirdebug` have distinct aliases and handlers. The
+matching Blizzard source has no `/nir` alias. The command uses the same
+lazy open path as the minimap. Its visible-window guard returns before
+refresh, sound or selection changes. Minimap clicks retain the existing
+toggle and settings paths. [Native command import](https://github.com/Gethe/wow-ui-source/blob/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_ChatFrameBase/Shared/ChatFrameUtil.lua#L809-L834) ·
+[Native command dispatch](https://github.com/Gethe/wow-ui-source/blob/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_ChatFrameBase/Shared/ChatFrameEditBox.lua#L224-L274)
+
+For the live preview, open with a long alphabetical roster after login or
+`/reload`. Check that the latest eligible rival is selected and in view, and
+include a recent manual result and a shared fight with personal credit.
+Close and reopen with an active search, an alternate tab, a scrolled history
+and an open skirmish. Check that a newly recorded fight leaves the current
+selection in place. Run `/nir` in chat and from an action-bar macro, both with
+the book closed and with it already open. Check the minimap toggle and
+right-click settings. Lua regressions exercise the opening and retained view
+state. Client rendering and macro execution remain to be checked in Forever.
+
 ## AddOn settings and data reset
 
 Use `Settings.RegisterVerticalLayoutCategory`, `RegisterProxySetting` and
