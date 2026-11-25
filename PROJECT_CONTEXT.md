@@ -5,7 +5,7 @@ Codex or other coding session. This is a compact record of decisions, evidence
 and status, not a raw chat transcript. Verify live repository and release state
 before acting. The authoritative target behavior is
 [the Character POV product specification](docs/skirmish-product-spec.md).
-GitHub 2.0.0 is published. CurseForge availability and listing updates have
+GitHub 2.0.1 is published. CurseForge availability and listing updates have
 separate verification status.
 
 ## Owner intent and workflow
@@ -62,7 +62,11 @@ repository history for missing reusable lessons; mark unverified details
 rather than invent them. Generic continuous engineering learning is also a
 potential Evercanon pattern, not a change to that separate repository.
 
-## Released baseline: 2.0.0 (GitHub)
+## Released baseline: 2.0.1 (GitHub)
+
+- [v2.0.1](https://github.com/nick-sidorin/names-in-red/releases/tag/v2.0.1) published 25 November 2026, 22:46:13 UTC. Includes accepted polish #58 and journal opening #61. Tag `8976c3d27b4adf9f5147a5a6a8d184d6fd84bdf7` differs from accepted preview `df86350` within the 34 runtime files only in TOC version. [Publisher run](https://github.com/nick-sidorin/names-in-red/actions/runs/45715961344) succeeded on the first attempt; ZIP SHA-256 `3eb0bdd1f77c047e3ba657908363b7c8210e87b109f3bfff7fec375a4d2d29c9` matches both independent CI builds. No Codex handoff or publisher changes were needed. CurseForge public availability and manual listing updates remain unverified.
+
+## Previous release: 2.0.0
 
 - [v2.0.0 — Character POV](https://github.com/nick-sidorin/names-in-red/releases/tag/v2.0.0) published 25 November 2026, 20:41:31 UTC. Tag `89ba7eb381ad0606fbfbe28045ff0cd56e80d624` has identical 34 runtime blobs, CHANGELOG and .pkgmeta to accepted #50 commit `a58fccad`. [ZIP](https://github.com/nick-sidorin/names-in-red/releases/download/v2.0.0/NamesInRed-2.0.0.zip) SHA-256 `b0af00385971984a4f4901c7b1b3b11abe41a03d91345a2033e97f8aa98a7334`; [publisher run](https://github.com/nick-sidorin/names-in-red/actions/runs/45697286233) succeeded. CurseForge availability and listing updates remain unverified.
 - Permanent owner-only publisher #54; request #55 failed with 403 before tag creation against an older workflow-changing commit. Request #56 succeeded using the checked runtime-identical target with current workflows. No additional credentials or permissions. Do not retag published versions; for future requests select a checked main commit with current workflow files. Manual owner dispatch is configured but not independently exercised. See [validation](docs/forever-validation.md#owner-only-release-entrypoint).
@@ -340,9 +344,9 @@ is superseded and closed without a second merge. GitHub 2.0.0 publication is ver
    GitHub publication succeeded; verify CurseForge separately. Known data loss, crashes, core behavior defects, failing checks and
    package problems still block publication. Verify GitHub and CurseForge
    artifacts independently once the owner accepts the final release.
-4. Post-2.0.0 polish and the journal-opening follow-up are accepted and
-   integrated. Prepare and publish the authorized 2.0.1 patch via the existing
-   publisher after exact main CI; public baseline remains 2.0.0 until verified.
+4. Post-2.0.0 polish and journal-opening follow-up shipped in 2.0.1 on
+   GitHub. Verify CurseForge separately. No next feature implementation is
+   authorized; continue with owner-directed polish or planning.
    The approved behavior is in [product spec section 10](docs/skirmish-product-spec.md#10-approved-post-200-polish).
    Larger ideas, including target menu and ally profiles, stay deferred in
    docs/future-ideas.md.

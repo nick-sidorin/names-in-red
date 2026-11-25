@@ -2422,3 +2422,8 @@ squash merge `1d56d584`. Keep this checklist for subsequent regression checks.
    independent display options. Verify the heading, icons and numbers in the
    unit tooltip. Check attribution and rewards after reload and deletion
    using an entry created for this test.
+
+
+### Patch release 2.0.1
+
+Owner accepted previews `46740ff` and `df86350` in live Forever. PRs #58 and #61 were squash-integrated, #62 prepared metadata and #63 supplied the isolated release request. All relevant Checks passed. The 34 runtime files at tag `8976c3d27b4adf9f5147a5a6a8d184d6fd84bdf7` differ from the accepted preview only in the TOC version. [Integrated CI](https://github.com/nick-sidorin/names-in-red/actions/runs/45715777972) built two byte-identical ZIPs, SHA-256 `3eb0bdd1f77c047e3ba657908363b7c8210e87b109f3bfff7fec375a4d2d29c9`. [Owner-only publisher](https://github.com/nick-sidorin/names-in-red/actions/runs/45715961344) completed both jobs on the first attempt; the public GitHub asset digest and exact tag match. No additional Codex work or permission change. Individual live checklist permutations were not separately reported. Public CurseForge file list could not be independently retrieved; no manual duplicate upload attempted.
