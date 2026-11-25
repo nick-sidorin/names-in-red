@@ -2002,8 +2002,9 @@ if not arg[1] or arg[1] == "outgoing-history" then
         local wins, losses = ledger.RivalContributionScore(db, enemy)
         local kills, deaths = ledger.PersonalCombatScore(db, enemy)
         local hks, honor = ledger.SkirmishRewards(b)
+        local rivalHK, rivalHonor = ledger.RivalRewards(db, enemy)
         assert(wins == 1 and losses == 0 and kills == 0 and deaths == 0)
-        assert(hks == 1 and honor == 4 and not b.rewards)
+        assert(hks == 1 and honor == 4 and rivalHK == 1 and rivalHonor == 4 and not b.unassignedRewards)
         local totals = ledger.JournalRewards(db)
         assert(totals.honorableKills == before.honorableKills and totals.honor == before.honor
             and totals.unassignedHK == 0 and totals.unassignedHonor == 0)
@@ -2013,10 +2014,68 @@ if not arg[1] or arg[1] == "outgoing-history" then
     Verify(ledger.Open(SavedCopy(saved)))
     local report = addon.BuildIssueReport(saved, log, "world:26")
     assert(report:find('"evidence": "corroborated-targeting"', 1, true))
+    assert(not report:find('"section": "rewardUnassignedOpponent"', 1, true))
     assert(not report:find(finish.contacts[ally].initial.name, 1, true))
     ledger.RemoveSkirmish(saved, "world:26")
     ledger.Open(saved, log)
     assert(not next(saved.skirmishes))
+
+    for _, attempt in ipairs({ "verified", "outside-death-time", "second-opponent", "missing-tombstone" }) do
+        local db, rows = OutgoingFixture()
+        db.encounterSequence = 26
+        local battle = ledger.Open(db, rows).skirmishes["world:27"]
+        -- The earlier preview had these exact awards on the battle, with no
+        -- opponent in its reward bucket. Keep its original identity and proof.
+        battle.unassignedRewards, battle.rewards = battle.rewards[enemy], nil
+        if attempt == "outside-death-time" then
+            for _, reward in ipairs(rows.rows) do
+                if reward.kind == "CHAT_MSG_COMBAT_HONOR_GAIN" then reward.uptime = reward.uptime + 3 end
+            end
+        elseif attempt == "second-opponent" then
+            battle.enemies[2] = { id = "Player-unrelated", name = "Other Player" }
+        elseif attempt == "missing-tombstone" then
+            db.recoveredMeterWindows = nil
+        end
+        assert(ledger.RivalRewards(ledger.Open(db), enemy) == 0)
+        ledger.Open(db, rows)
+        ledger.Open(db, rows)
+        ledger.Open(db)
+        local hk, honor = ledger.RivalRewards(db, enemy)
+        assert(hk == (attempt == "verified" and 1 or 0) and honor == (attempt == "verified" and 4 or 0))
+        local total = ledger.JournalRewards(db)
+        assert(total.honorableKills == 1 and total.honor == 4 and next(db.skirmishes) == "world:27"
+            and not next(db.skirmishes, "world:27") and db.skirmishes["world:27"] == battle and db.encounterSequence == 27)
+        assert(ledger.PersonalCombatScore(db, enemy) == 0 and battle.mapID == nil and battle.x == nil and battle.y == nil)
+        if attempt == "verified" then
+            ledger.RemoveSkirmish(db, "world:27")
+            assert(not next(ledger.Open(db, rows).skirmishes))
+        end
+    end
+
+    for _, location in ipairs({ "valid", "absent", "out-of-range", "invalid-map", "origin", "wrong-window" }) do
+        local db, rows, first = OutgoingFixture()
+        if location == "valid" then
+            first.mapID, first.x, first.y = 1431, 0.45, 0.67
+        elseif location == "out-of-range" then
+            first.mapID, first.x, first.y = 1431, 1.45, 0.67
+        elseif location == "invalid-map" then
+            first.mapID, first.x, first.y = 0, 0.45, 0.67
+        elseif location == "origin" then
+            first.mapID, first.x, first.y = 1431, 0, 0
+        elseif location == "wrong-window" then
+            local other = SavedCopy(first)
+            other.combatSequence, other.mapID, other.x, other.y = first.combatSequence + 1, 1431, 0.45, 0.67
+            rows.rows[#rows.rows + 1] = other
+        end
+        local b = ledger.Open(db, rows).skirmishes["world:26"]
+        if location == "valid" then
+            assert(b.mapID == 1431 and b.x == 0.45 and b.y == 0.67)
+            local reloaded = ledger.Open(SavedCopy(db)).skirmishes["world:26"]
+            assert(reloaded.mapID == b.mapID and reloaded.x == b.x and reloaded.y == b.y)
+        else
+            assert(b.mapID == nil and b.x == nil and b.y == nil)
+        end
+    end
 
     for _, alter in ipairs({
         function(_, _, _, row) row.meter.DamageDone.sources[1].totalAmount = 629 end,
@@ -2089,7 +2148,8 @@ if not arg[1] or arg[1] == "outgoing-capture" then
         local suffix = unit.surname and unit.surname ~= "" and (" " .. unit.surname) or ""
         return { id = unit.guid, name = unit.name .. suffix, faction = unit.faction, class = unit.class }
     end
-    for _, death in ipairs({ true, false }) do
+    for case, scenario in ipairs({ "confirmed-later", "award-after-confirmation", "outside-death-time", "no-corpse" }) do
+        local death = scenario ~= "no-corpse"
         Reset()
         units.player = Player(finish.contacts[selfID].initial)
         units.target = Player(finish.contacts[enemyID].initial)
@@ -2119,14 +2179,22 @@ if not arg[1] or arg[1] == "outgoing-capture" then
                 end
             end,
         }
+        C_Map = { GetBestMapForUnit = function() return 1431 end,
+            GetPlayerMapPosition = function()
+                return { GetXY = function() return 0.45, 0.67 end }
+            end }
         Begin()
+        local combatStart = NamesInRedDebugDB.rows[#NamesInRedDebugDB.rows]
+        assert(combatStart.kind == "COMBAT_START" and combatStart.mapID == 1431
+            and combatStart.x == 0.45 and combatStart.y == 0.67)
+        C_Map = nil
         local done, taken = Enum.DamageMeterType.DamageDone, Enum.DamageMeterType.EnemyDamageTaken
         local updates = finish.meterUpdates["0:" .. done]
         Advance(updates.firstUptime - start.uptime)
         Update(done, taken)
         Advance(updates.uptime - updates.firstUptime)
         Update(done, taken)
-        if death then
+        if death and scenario ~= "award-after-confirmation" then
             Advance(11385.849 - updates.uptime)
             HK()
             Fire("PLAYER_PVP_KILLS_CHANGED", "player")
@@ -2134,27 +2202,49 @@ if not arg[1] or arg[1] == "outgoing-capture" then
             units.target.dead = true
             Fire("UNIT_FLAGS", "target")
             Advance(11386.748 - 11386.002)
-            Chat(4, 49001)
+            if scenario ~= "outside-death-time" then Chat(4, 49000 + case) end
             Advance(11388.084 - 11386.748)
             units.mouseover = units.targettarget
             units.mouseover.active = true
             Fire("UPDATE_MOUSEOVER_UNIT")
-            Advance(finish.uptime - 11388.084)
+            if scenario == "outside-death-time" then
+                Advance(0.3)
+                Chat(4, 49000 + case)
+                Advance(finish.uptime - 11388.384)
+            else
+                Advance(finish.uptime - 11388.084)
+            end
             assert(addon.db.unassignedRewards.honorableKills == 1 and not addon.db.skirmishes)
+        elseif death then
+            Advance(finish.uptime - updates.uptime - 0.1)
+            units.target.dead = true
+            Fire("UNIT_FLAGS", "target")
+            Advance(0.1)
         else
             Advance(finish.uptime - updates.uptime)
         end
         End()
         if death then units.mouseover = nil end
+        if scenario == "award-after-confirmation" then
+            Advance(0.75)
+            assert(addon.db.skirmishes["world:1"])
+            HK()
+            Chat(4, 49000 + case)
+        end
         Advance(14)
         local b = assert(addon.db.skirmishes["world:1"])
-        assert(#b.enemies == 1 and b.enemies[1].id == enemyID and #b.allies == (death and 2 or 1))
+        assert(#b.enemies == 1 and b.enemies[1].id == enemyID)
+        local allyExpected = death and scenario ~= "award-after-confirmation"
+        assert(#b.allies == (allyExpected and 2 or 1))
         local wins, losses = addon.Ledger.RivalContributionScore(addon.db, enemyID)
         assert(wins == (death and 1 or 0) and losses == 0)
         if death then
             assert(addon.Ledger.JournalOutcome(b) == "win" and b.events[1].kind == "death" and not b.events[1].actorID)
             local hks, honor = addon.Ledger.SkirmishRewards(b)
-            assert(#b.events == 1 and hks == 1 and honor == 4 and addon.db.unassignedRewards.honor == 0)
+            assert(#b.events == 1 and hks == 1 and honor == 4 and addon.Ledger.PersonalCombatScore(addon.db, enemyID) == 0)
+            local rivalHK, rivalHonor = addon.Ledger.RivalRewards(addon.db, enemyID)
+            local attributable = scenario ~= "outside-death-time"
+            assert(rivalHK == (attributable and 1 or 0) and rivalHonor == (attributable and 4 or 0))
         else
             assert(#b.events == 0 and addon.Ledger.SkirmishRewards(b) == 0)
         end

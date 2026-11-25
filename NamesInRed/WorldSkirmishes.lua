@@ -827,6 +827,7 @@ function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, c
     Ledger.RecordMeterAggregates(battle, segment, probe)
     addon.RecordMeterSourceTotals(segment, sourceTotals)
     addon.RecordOutgoingWindowContext(battle, segment, window.segmentIndex, outgoing, faction)
+    window.rewardCorpse = row.restrictedPartyKills == 0 and outgoing and outgoing.rewardCorpse
     addon.ResolveStagedWorldKills(window, contacts)
     local state = Assessment(record)
     if not state.first and not state.last then WatchEnding(window) end

@@ -751,6 +751,12 @@ function handlers.PLAYER_REGEN_DISABLED()
     local row = Add("COMBAT_START")
     Sample(row)
     CopyGroup(row)
+    local world = addon.WorldCombatWindow and addon.WorldCombatWindow(row.uptime)
+    local place = world and world.began == world.localStart and world.place
+        or (addon.RecordingPvPOrigin() and addon.EncounterContext())
+    if place and place.zone == row.zone then
+        row.mapID, row.x, row.y = place.mapID, place.x, place.y
+    end
     local baseline = C_DamageMeter and SessionIDs(row, C_DamageMeter)
     combat = {
         baseline = baseline, contacts = {}, contactSamples = {}, unresolved = {}, previousPending = previousPending,
@@ -763,7 +769,6 @@ function handlers.PLAYER_REGEN_DISABLED()
     }
     if addon.NewCombatDiagnostics and addon.RecordingPvPOrigin() then
         combat.primary = addon.NewCombatDiagnostics(row.uptime, row.time, diagnosticBuild, diagnosticRegistration)
-        local world = addon.WorldCombatWindow and addon.WorldCombatWindow(row.uptime)
         if world then addon.BindCombatDiagnostics(world, combat.primary) end
     end
     ObserveCurrent(row, "combat-start")

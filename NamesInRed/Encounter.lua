@@ -93,6 +93,12 @@ function addon.VisitVisibleNameplateUnits(visit)
     end
 end
 
+function addon.ValidMapPosition(mapID, x, y)
+    return type(mapID) == "number" and mapID > 0 and mapID < math.huge and mapID % 1 == 0
+        and type(x) == "number" and type(y) == "number" and x >= 0 and x <= 1
+        and y >= 0 and y <= 1 and (x ~= 0 or y ~= 0)
+end
+
 function addon.EncounterContext(unit)
     local result = {
         time = SafeRead(GetServerTime),
@@ -111,8 +117,7 @@ function addon.EncounterContext(unit)
                     return position:GetXY()
                 end
             end)
-            if type(x) == "number" and type(y) == "number" and x >= 0 and x <= 1
-                and y >= 0 and y <= 1 and (x ~= 0 or y ~= 0) then
+            if addon.ValidMapPosition(mapID, x, y) then
                 result.mapID, result.x, result.y = mapID, x, y
             end
         end

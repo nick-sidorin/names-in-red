@@ -15,9 +15,36 @@ end
 
 function addon.ReconcileHonorWindow(window, battle)
     local claim = window and window.honorClaim
-    if claim and addon.db == claim.db and window.record and window.record.battle == battle
-        and addon.Ledger.MoveUnassignedRewards(claim.db, battle, claim.honorableKills, claim.honor) then
-        window.honorClaim = nil
+    if not claim or addon.db ~= claim.db or not window.record or window.record.battle ~= battle then return end
+    local target = claim.hkAt and not window.rewardAttributed and addon.OutgoingRewardOpponent
+        and addon.OutgoingRewardOpponent(battle, window.segment, window.rewardCorpse,
+            claim.hkAt - window.began, claim.honorAt - window.began)
+    if addon.Ledger.MoveUnassignedRewards(claim.owner, battle, claim.honorableKills, claim.honor, target) then
+        claim.owner = battle
+        if target then
+            window.rewardAttributed, window.honorClaim = true, nil
+            return true
+        end
+    end
+    if claim.owner == battle and not claim.hkAt then window.honorClaim = nil end
+end
+
+local function RememberWindowAward(batch, owner, hk, honor)
+    local window = batch.window
+    if not window or batch.conflict or batch.unlinkedKill or batch.unscopedReward or batch.hkUncertain or batch.kills ~= 0 then return end
+    local claim = window.honorClaim
+    if not claim then
+        claim = { db = batch.db, owner = owner, honorableKills = hk, honor = honor }
+        window.honorClaim = claim
+        if hk == 1 and honor > 0 and batch.messages == 1 and batch.honorAt
+            and (batch.currencyUpdates == 0 or (batch.currencyUpdates == 1 and batch.currencyHonor == honor)) then
+            claim.hkAt, claim.honorAt = batch.hkAt, batch.honorAt
+        end
+    elseif claim.owner == owner then
+        claim.honorableKills, claim.honor = claim.honorableKills + hk, claim.honor + honor
+        claim.hkAt, claim.honorAt = nil, nil
+    else
+        claim.hkAt, claim.honorAt = nil, nil
     end
 end
 
@@ -38,11 +65,7 @@ local function Save(batch)
         ledger.AddRewards(db, "unassignedRewards", hk, honor)
         -- Keep a live claim on this exact window while the total is safely
         -- counted in the journal. A later confirmation moves it once.
-        if batch.window and not battle and not batch.conflict and not batch.unlinkedKill and not batch.unscopedReward
-            and not batch.hkUncertain and batch.kills == 0 then
-            ledger.AddRewards(batch.window, "honorClaim", hk, honor)
-            batch.window.honorClaim.db = db
-        end
+        if not battle then RememberWindowAward(batch, db, hk, honor) end
         if addon.RefreshBook then addon.RefreshBook() end
         if addon.NotePvPDiagnostic then addon.NotePvPDiagnostic("reward-unassigned-skirmish") end
         return
@@ -52,13 +75,15 @@ local function Save(batch)
         if batch.messages == 1 and (batch.currencyUpdates ~= 1 or batch.currencyHonor == honor) then
             targetHonor = honor
         end
-        battle.rewards = battle.rewards or {}
-        ledger.AddRewards(battle.rewards, batch.targetID, hk, targetHonor)
+        ledger.AddSkirmishRewards(battle, batch.targetID, hk, targetHonor)
         hk, honor = 0, honor - targetHonor
     end
-    ledger.AddRewards(battle, "unassignedRewards", hk, honor)
-    if (hk > 0 or honor > 0) and addon.NotePvPDiagnostic then
-        addon.NotePvPDiagnostic("reward-unassigned-opponent")
+    if hk > 0 or honor > 0 then
+        ledger.AddSkirmishRewards(battle, nil, hk, honor)
+        RememberWindowAward(batch, battle, hk, honor)
+        if not addon.ReconcileHonorWindow(batch.window, battle) and addon.NotePvPDiagnostic then
+            addon.NotePvPDiagnostic("reward-unassigned-opponent")
+        end
     end
     addon.RecordSkirmish(id, battle)
 end
@@ -131,6 +156,7 @@ function handlers.PLAYER_PVP_KILLS_CHANGED(unit)
     if count and lastHK and count > lastHK then
         local batch = CurrentBatch()
         batch.hk = batch.hk + count - lastHK
+        batch.hkAt = GetTime()
         if not batch.currentWindow and not batch.battle then batch.unscopedReward = true end
     elseif (not count or (lastHK and count < lastHK)) and pending then
         pending.hkUncertain = true
@@ -150,7 +176,9 @@ function handlers.CHAT_MSG_COMBAT_HONOR_GAIN(message, _, _, _, _, _, _, _, _, _,
     local batch = CurrentBatch()
     batch.messages = batch.messages + 1
     if not batch.currentWindow and not batch.battle then batch.unscopedReward = true end
-    batch.chatHonor = batch.chatHonor + (addon.HonorFromChat(Readable(message)) or 0)
+    local amount = addon.HonorFromChat(Readable(message))
+    batch.chatHonor = batch.chatHonor + (amount or 0)
+    if amount and amount > 0 and type(lineID) == "number" and lineID > 0 then batch.honorAt = GetTime() end
 end
 
 function handlers.CURRENCY_DISPLAY_UPDATE(currencyID, _, change)

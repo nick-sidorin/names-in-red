@@ -119,7 +119,7 @@ function Ledger.Open(saved, diagnostics)
             for id, battle in pairs(saved.skirmishes) do
                 if IsSkirmish(battle) then
                     RestoreMeterAggregates(battle)
-                    local meterChanged = meterWindows and addon.RestoreMeterSourceTotals(battle, meterWindows)
+                    local meterChanged = meterWindows and addon.RestoreMeterSourceTotals(battle, meterWindows, saved.recoveredMeterWindows)
                     UpdateWorldRoster(id, battle)
                     if addon.RestoreRivalContributionEvidence then addon.RestoreRivalContributionEvidence(battle) end
                     if addon.RefreshPersonalSkirmish then
@@ -314,11 +314,22 @@ function Ledger.AddRewards(owner, key, honorableKills, honor)
     owner[key] = rewards
 end
 
-function Ledger.MoveUnassignedRewards(db, battle, hk, honor)
-    local rewards = db.unassignedRewards
+function Ledger.AddSkirmishRewards(battle, opponentID, hk, honor)
+    if opponentID then
+        battle.rewards = battle.rewards or {}
+        Ledger.AddRewards(battle.rewards, opponentID, hk, honor)
+    else
+        Ledger.AddRewards(battle, "unassignedRewards", hk, honor)
+    end
+end
+
+function Ledger.MoveUnassignedRewards(owner, battle, hk, honor, opponentID)
+    local rewards = owner.unassignedRewards
     if not rewards or (rewards.honorableKills or 0) < hk or (rewards.honor or 0) < honor then return end
-    Ledger.AddRewards(db, "unassignedRewards", -hk, -honor)
-    Ledger.AddRewards(battle, "unassignedRewards", hk, honor)
+    if owner == battle and not opponentID then return end
+    Ledger.AddRewards(owner, "unassignedRewards", -hk, -honor)
+    if owner == battle and rewards.honorableKills == 0 and rewards.honor == 0 then owner.unassignedRewards = nil end
+    Ledger.AddSkirmishRewards(battle, opponentID, hk, honor)
     return true
 end
 

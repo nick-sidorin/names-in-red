@@ -1176,16 +1176,24 @@ do
     local druid = assisted.enemies[1].rivalID
     card:SetSkirmish(assisted, druid, true)
     assert(FindText(card, addon.L.winTooltip) and FindText(card, assisted.allies[2].name))
+    assert(not FindRegion(card, "atlas", "Waypoint-MapPin-Untracked"))
     CheckRewards(card, "1", "4", 463450)
     openProfile(druid)
     ProfileStat(addon.L.wins, 1)
     ProfileStat(addon.L.losses, 0)
-    ProfileStat(addon.L.honorableKills, 0)
-    ProfileStat(addon.L.honor, 0)
+    ProfileStat(addon.L.honorableKills, 1)
+    ProfileStat(addon.L.honor, 4)
     compact:SetEncounter(addon.RivalEncounters(addon.db, druid)[1], addon.db.rivals[druid], druid)
     assert(CenterMarker(swords) and FindText(compact, addon.L.winTooltip))
     callback(GameTooltip, { guid = druid })
     assert(tooltipLines[#tooltipLines] == addon.FormatRivalCounters(1, 0, false))
+
+    local mapped, mappedLog = dofile("tests/fixtures/outgoing-only-anonymized.lua")
+    local start = mappedLog.rows[1]
+    start.mapID, start.x, start.y = 1431, 0.45, 0.67
+    addon.db = addon.Ledger.Open(mapped, mappedLog)
+    card:SetSkirmish(addon.db.skirmishes["world:26"], druid, true)
+    assert(FindRegion(card, "atlas", "Waypoint-MapPin-Untracked"))
     addon.db = previous
     openProfile(duelGUID)
 

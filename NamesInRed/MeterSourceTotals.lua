@@ -166,7 +166,7 @@ local function TargetedAlly(evidence, enemy, corpse, finish)
     end
 end
 
-local function ObserveOutgoingWindow(evidence, links, row, start, first)
+local function ObserveOutgoingWindow(evidence, links, row, start, first, onlyVictim)
     local exits, victims = {}, {}
     local me = evidence.localID
     local localUnit = evidence.contacts[me] and evidence.contacts[me].latest
@@ -192,7 +192,10 @@ local function ObserveOutgoingWindow(evidence, links, row, start, first)
             exits[#exits + 1] = item
         end
     end
-    if #exits > 0 then return { corpses = exits, localSurvivor = survived or nil } end
+    if #exits > 0 then
+        return { corpses = exits, localSurvivor = survived or nil,
+            rewardCorpse = #exits == 1 and exits[1].opponentID == onlyVictim and exits[1] or nil }
+    end
 end
 
 function addon.MatchMeterSourceTotals(evidence, row, victims, start, previousEnd, doneUpdate, takenUpdate)
@@ -240,7 +243,35 @@ function addon.MatchMeterSourceTotals(evidence, row, victims, start, previousEnd
         if a.victim.guid == b.victim.guid then return a.attacker.guid < b.attacker.guid end
         return a.victim.guid < b.victim.guid
     end)
-    return links, not long and ObserveOutgoingWindow(evidence, links, row, start, first) or nil
+    local onlyVictim = next(byVictim)
+    if onlyVictim and next(byVictim, onlyVictim) then onlyVictim = nil end
+    return links, not long and ObserveOutgoingWindow(evidence, links, row, start, first, onlyVictim) or nil
+end
+
+local function NearCorpse(deathAt, hkAt, honorAt)
+    return Number(hkAt) and Number(honorAt)
+        and math.max(hkAt, honorAt, deathAt) - math.min(hkAt, honorAt, deathAt) <= 2
+end
+
+-- The native batch and the directed pair each cover this exact window. Use
+-- the shared life analysis before assigning the batch to its unique corpse.
+function addon.OutgoingRewardOpponent(battle, segment, corpse, hkAt, honorAt)
+    if not corpse or #battle.enemies ~= 1 or battle.enemies[1].id ~= corpse.opponentID
+        or not NearCorpse(corpse.deathOffset, hkAt, honorAt) or not Number(segment.duration)
+        or hkAt < 0 or honorAt < 0 then return end
+    local start = addon.SkirmishDeathEvidence.SegmentStart(battle, segment)
+    local match
+    for _, episode in ipairs(addon.AnalyzeSkirmishLives(battle).episodes) do
+        if episode.targetID == corpse.opponentID then
+            local offset = episode.first.offset
+            if Number(offset) and offset >= start and offset <= start + segment.duration then
+                if match or not episode.pvpDeath or not episode.meterPhase or episode.meterPhase.evidence ~= segment
+                    or math.abs(offset - (start + corpse.deathOffset)) > 0.05 then return end
+                match = true
+            end
+        end
+    end
+    return match and corpse.opponentID or nil
 end
 
 function addon.RecordOutgoingWindowContext(battle, segment, index, context, faction)
@@ -395,9 +426,9 @@ local function RecoveredWindow(window, battles, me)
     return start, finish, before
 end
 
-local function HistoricalRewards(db, window, start, finish, context)
-    local root, signals = db.unassignedRewards, finish.pvpReasons
-    if not root or root.honorableKills ~= 1 or not Positive(root.honor) or not signals
+local function HistoricalRewards(pool, window, start, finish, context)
+    local signals = finish.pvpReasons
+    if not pool or pool.honorableKills ~= 1 or not Positive(pool.honor) or not signals
         or signals["reward-unassigned-skirmish"] ~= 1 or window.hadKill or finish.restrictedPartyKills ~= 0
         or not context or #context.corpses ~= 1 or not addon.HonorFromChat
         or not ReadableFields(start, "sessionHK") or not ReadableFields(finish, "sessionHK")
@@ -418,9 +449,13 @@ local function HistoricalRewards(db, window, start, finish, context)
             amount, honorAt, lineID = parsed, row.uptime, row.lineID
         end
     end
-    if not hkAt or not honorAt or amount ~= root.honor then return end
+    if amount ~= pool.honor then return end
     local deathAt = start.uptime + context.corpses[1].deathOffset
-    if math.max(hkAt, honorAt, deathAt) - math.min(hkAt, honorAt, deathAt) <= 2 then return amount end
+    if NearCorpse(deathAt, hkAt, honorAt) then return amount, hkAt - start.uptime, honorAt - start.uptime end
+end
+
+local function RecoveryKey(start)
+    return table.concat({ start.session, start.combatSequence, start.uptime, start.time }, ":")
 end
 
 local function BuildRecoveredBattle(db, start, finish, evidence, links, context)
@@ -432,6 +467,9 @@ local function BuildRecoveredBattle(db, start, finish, evidence, links, context)
         allies = {}, enemies = {}, events = {}, observation = { coverage = "local", segments = { segment },
             playerState = context and context.localSurvivor and "alive" or nil,
             participation = { state = "finalized", boundary = "recovered-meter-window" }, assessment = {} } }
+    if addon.ValidMapPosition(start.mapID, start.x, start.y) then
+        battle.mapID, battle.x, battle.y = start.mapID, start.x, start.y
+    end
     addon.RecordWorldMeterParticipant(battle, evidence.player[evidence.localID], evidence.faction)
     battle.allies[1].isSelf = true
     for _, link in ipairs(links) do
@@ -449,8 +487,8 @@ function addon.RestoreMissingOutgoingSkirmishes(db, windows)
     if not windows then return end
     local battles = db.skirmishes or {}
     local candidates, unmatchedWindows = {}, 0
-    for sessionID, session in pairs(windows) do
-        for sequence, window in pairs(session) do
+    for _, session in pairs(windows) do
+        for _, window in pairs(session) do
             local finish = window.finish
             local reasons = finish and finish.pvpReasons
             if reasons and reasons["reward-unassigned-skirmish"] then unmatchedWindows = unmatchedWindows + 1 end
@@ -458,7 +496,7 @@ function addon.RestoreMissingOutgoingSkirmishes(db, windows)
             local me, faction = localUnit and localUnit.guid, localUnit and localUnit.faction
             if type(me) == "string" and me:match("^Player%-.+") and (faction == "Alliance" or faction == "Horde") then
                 local start, finish, before = RecoveredWindow(window, battles, me)
-                local key = finish and table.concat({ sessionID, sequence, start.uptime, start.time }, ":")
+                local key = finish and RecoveryKey(start)
                 if key and not (db.recoveredMeterWindows and db.recoveredMeterWindows[key]) then
                     local evidence = addon.NewMeterParticipantEvidence(finish.contacts, finish.petOwners or {}, faction, me)
                     local prefix = (finish.meterSessionID or 0) .. ":"
@@ -485,9 +523,14 @@ function addon.RestoreMissingOutgoingSkirmishes(db, windows)
             db.recoveredMeterWindows = db.recoveredMeterWindows or {}
             db.recoveredMeterWindows[item.key] = true
             -- Only one candidate may claim the whole previously unmatched pool.
-            local honor = #candidates == 1 and unmatchedWindows == 1
-                and HistoricalRewards(db, item.window, item.start, item.finish, item.context)
-            if honor then addon.Ledger.MoveUnassignedRewards(db, battle, 1, honor) end
+            if #candidates == 1 and unmatchedWindows == 1 then
+                local honor, hkAt, honorAt = HistoricalRewards(db.unassignedRewards, item.window, item.start, item.finish, item.context)
+                if honor then
+                    local target = addon.OutgoingRewardOpponent(battle, battle.observation.segments[1],
+                        item.context.rewardCorpse, hkAt, honorAt)
+                    addon.Ledger.MoveUnassignedRewards(db, battle, 1, honor, target)
+                end
+            end
         end
     end
 end
@@ -523,10 +566,10 @@ local function MatchLegacyMeterWindow(battle, segment, phase, windows, me)
         and session[previous.combatSequence].finish == previous and previous.instanceType == instance
         and previous.instanceMapID == row.instanceMapID and previous.zone == row.zone and previous.player
         and previous.player.guid == me and previous.uptime
-    return row, start.uptime, before
+    return row, start.uptime, before, window
 end
 
-function addon.RestoreMeterSourceTotals(battle, windows)
+function addon.RestoreMeterSourceTotals(battle, windows, recovered)
     if not windows or battle.manual then return end
     local me
     for _, player in ipairs(battle.allies) do if player.isSelf then me = player.id; break end end
@@ -534,12 +577,12 @@ function addon.RestoreMeterSourceTotals(battle, windows)
     local changed
     for _, phase in ipairs(addon.SkirmishDeathEvidence.Segments(battle)) do
         local segment = phase.evidence
-        local row, start, previousEnd = MatchLegacyMeterWindow(battle, segment, phase, windows, me)
+        local row, start, previousEnd, window = MatchLegacyMeterWindow(battle, segment, phase, windows, me)
         local faction = row and row.player.faction
         if faction == "Alliance" or faction == "Horde" then
             local evidence = addon.NewMeterParticipantEvidence(row.contacts, row.petOwners or {}, faction, me)
             local prefix = (row.meterSessionID or 0) .. ":"
-            local links = addon.MatchMeterSourceTotals(evidence, row, addon.MeterSegmentVictims(battle, segment), start, previousEnd,
+            local links, context = addon.MatchMeterSourceTotals(evidence, row, addon.MeterSegmentVictims(battle, segment), start, previousEnd,
                 row.meterUpdates[prefix .. savedDamageDone], row.meterUpdates[prefix .. savedEnemyTaken])
             if links and #links > 0 then
                 segment.meter = segment.meter or { scope = "aggregate", selection = row.meterSelection, sessionID = row.meterSessionID }
@@ -554,6 +597,23 @@ function addon.RestoreMeterSourceTotals(battle, windows)
                         end
                     end
                     changed = true
+                end
+                -- Older builds already moved this exact award from the journal
+                -- onto the recovered battle. Reclassify that bucket in place.
+                local participation = battle.observation.participation
+                if recovered and recovered[RecoveryKey(window.start)] == true and #battle.observation.segments == 1
+                    and row.status.meterWindow == "no-linked-pvp"
+                    and participation and participation.boundary == "recovered-meter-window" then
+                    local place = window.start
+                    if battle.mapID == nil and battle.x == nil and battle.y == nil
+                        and addon.ValidMapPosition(place.mapID, place.x, place.y) then
+                        battle.mapID, battle.x, battle.y = place.mapID, place.x, place.y
+                    end
+                    local honor, hkAt, honorAt = HistoricalRewards(battle.unassignedRewards, window, window.start, row, context)
+                    if honor then
+                        local target = addon.OutgoingRewardOpponent(battle, segment, context.rewardCorpse, hkAt, honorAt)
+                        if target then addon.Ledger.MoveUnassignedRewards(battle, battle, 1, honor, target) end
+                    end
                 end
             end
         end
