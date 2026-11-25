@@ -2047,6 +2047,8 @@ if not arg[1] or arg[1] == "outgoing-history" then
             and not next(db.skirmishes, "world:27") and db.skirmishes["world:27"] == battle and db.encounterSequence == 27)
         assert(ledger.PersonalCombatScore(db, enemy) == 0 and battle.mapID == nil and battle.x == nil and battle.y == nil)
         if attempt == "verified" then
+            assert(#battle.allies == 2 and #battle.enemies == 1 and not battle.rosterComplete)
+            assert(not ledger.HasRosterGap(battle) and ledger.JournalOutcome(battle) == "win")
             ledger.RemoveSkirmish(db, "world:27")
             assert(not next(ledger.Open(db, rows).skirmishes))
         end

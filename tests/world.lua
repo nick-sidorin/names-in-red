@@ -1028,6 +1028,25 @@ do
     end
     local function Battle(id) return assert(addon.db.skirmishes["world:" .. id]) end
 
+    for _, linkedTarget in ipairs({ "party1", "player", "unrelated" }) do
+        addon.ResetData()
+        ResetStates()
+        BeginFight()
+        fighting[ally], fighting[enemy] = true, true
+        units.unrelated = { "Player-unrelated", "Other Player", "Alliance" }
+        units.targettarget = units[linkedTarget]
+        Fire("PLAYER_LEAVING_WORLD")
+        units.targettarget, units.unrelated = nil, nil
+        local interrupted = Battle(1)
+        assert(interrupted.observation.visibilityGap and not interrupted.rosterComplete)
+        assert(addon.Ledger.HasRosterGap(interrupted) == (linkedTarget == "party1"))
+        local verdict = addon.Ledger.JournalOutcome(interrupted)
+        assert(addon.Ledger.Open(addon.db).skirmishes["world:1"] == interrupted)
+        assert(addon.Ledger.JournalOutcome(interrupted) == verdict)
+        assert(addon.Ledger.HasRosterGap(interrupted) == (linkedTarget == "party1"))
+    end
+    addon.ResetData()
+
     -- Continue while lying in the corpse. A late party kill joins the
     -- original battle and the visible ally, not the dead player, holds it.
     C_DamageMeter = nil

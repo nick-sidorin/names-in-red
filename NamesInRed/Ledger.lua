@@ -44,6 +44,40 @@ local function IsSkirmish(battle)
         and type(battle.enemies) == "table" and type(battle.events) == "table"
 end
 
+function Ledger.HasRosterGap(battle)
+    if battle.manual then return false end
+    local roster = {}
+    for _, side in ipairs({ battle.allies, battle.enemies }) do
+        for _, participant in ipairs(side) do
+            if type(participant.id) ~= "string" or participant.id == ""
+                or (participant.id:match("^legacy:attacker:") and not participant.name) then return true end
+            roster[participant.id] = true
+        end
+    end
+    local function MissingPlayer(id)
+        return type(id) == "string" and id:match("^Player%-.+") and not roster[id]
+    end
+    for _, event in ipairs(battle.events) do
+        local pet = event.petFinisher
+        if MissingPlayer(event.actorID) or MissingPlayer(event.targetID) or (pet and MissingPlayer(pet.ownerID)) then
+            return true
+        end
+        for id in pairs(event.recapDamage or {}) do if MissingPlayer(id) then return true end end
+    end
+    local segments = battle.observation and battle.observation.segments or {}
+    for _, segment in ipairs(segments) do
+        for _, field in ipairs({ "actions", "contributionLinks", "combatAggregates" }) do
+            for _, link in ipairs(segment[field] or {}) do
+                if MissingPlayer(link.actorID) or MissingPlayer(link.targetID) then return true end
+            end
+        end
+        local ally = segment.engagedAlly
+        if ally and (MissingPlayer(ally.allyID) or MissingPlayer(ally.opponentID)) then return true end
+    end
+    local last = segments[#segments]
+    return last ~= nil and last.rosterCaptureInterrupted == true
+end
+
 local meterHistoryCategories = { "DamageDone", "DamageTaken", "EnemyDamageTaken", "HealingDone", "Absorbs" }
 
 -- Preserve linked amounts as separate aggregates per segment and category.
@@ -128,6 +162,7 @@ function Ledger.Open(saved, diagnostics)
                 end
             end
         end
+        if addon.ReconcileManualRivals then addon.ReconcileManualRivals(saved) end
         if addon.RestoreCombatDiagnostics then addon.RestoreCombatDiagnostics(saved) end
         skirmishIndexes[saved], legacyIndexes[saved] = nil, nil
         return saved
@@ -166,6 +201,44 @@ end
 function Ledger.InvalidateRivalHistory(db, id)
     local index = legacyIndexes[db]
     if index then index[id] = nil end
+end
+
+function Ledger.MergeManualRival(db, manualID, guid)
+    local manual, rival = db.rivals[manualID], db.rivals[guid]
+    if not manual or not manualID:match("^manual:") or not guid:match("^Player%-.+")
+        or not manual.encounters or #manual.encounters == 0 then return end
+    local sequences = {}
+    for _, encounter in ipairs(rival and rival.encounters or {}) do
+        if encounter.sequence then sequences[encounter.sequence] = true end
+    end
+    for _, encounter in ipairs(manual.encounters) do
+        if encounter.manual ~= true or (encounter.sequence and sequences[encounter.sequence]) then return end
+        if encounter.sequence then sequences[encounter.sequence] = true end
+    end
+    -- The manual form only ever wrote standalone entries. Preserve any
+    -- unexpected shared-battle linkage rather than rewriting its identities.
+    for _, battle in pairs(db.skirmishes or {}) do
+        for _, opponent in ipairs(battle.enemies or {}) do
+            if opponent.rivalID == manualID then return end
+        end
+    end
+    if rival then
+        rival.encounters = rival.encounters or {}
+        for _, encounter in ipairs(manual.encounters) do
+            rival.encounters[#rival.encounters + 1] = encounter
+        end
+        rival.killsAgainstThem = (rival.killsAgainstThem or 0) + (manual.killsAgainstThem or 0)
+        rival.deathsToThem = (rival.deathsToThem or 0) + (manual.deathsToThem or 0)
+        for _, key in ipairs({ "class", "classLabel", "race", "raceLabel", "sex", "factionLabel" }) do
+            if rival[key] == nil then rival[key] = manual[key] end
+        end
+    else
+        db.rivals[guid] = manual
+    end
+    db.rivals[manualID] = nil
+    Ledger.InvalidateRivalHistory(db, guid)
+    Ledger.InvalidateRivalHistory(db, manualID)
+    return db.rivals[guid]
 end
 
 function Ledger.Remove(db, id)

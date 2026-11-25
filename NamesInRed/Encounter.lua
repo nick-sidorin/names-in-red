@@ -141,10 +141,89 @@ function addon.RivalAppearance(guid)
     return race, sex, class, addon.Readable(raceLabel), addon.Readable(classLabel)
 end
 
+local function NameKey(name)
+    -- Keep the provisional key stable even without the client's UTF-8 comparator.
+    return name:lower():gsub("Ё", "ё"):gsub("\208[\144-\175]", function(letter)
+        local index = letter:byte(2) - 144
+        if index < 16 then return string.char(208, 176 + index) end
+        return string.char(209, 128 + index - 16)
+    end)
+end
+
+local function SameFullName(a, b)
+    return addon.HasFullName(a) and addon.HasFullName(b)
+        and (NameKey(a) == NameKey(b) or (strcmputf8i and strcmputf8i(a, b) == 0))
+end
+
+local function GUIDRealm(guid)
+    return type(guid) == "string" and guid:match("^Player%-(%d+)%-[%x]+$")
+end
+
+local function NameScope()
+    if SafeRead(RegionalUniqueNamesEnabled) == true then return true end
+    -- A typed name without a realm can only identify a home-realm player
+    -- when the client does not confirm regional name uniqueness.
+    return GUIDRealm(SafeRead(UnitGUID, "player"))
+end
+
+local function InNameScope(guid, scope)
+    return guid:match("^Player%-.+") and (scope == true or (scope and GUIDRealm(guid) == scope))
+end
+
+local function MatchingRivals(db, name, scope)
+    local guid, manuals = nil, {}
+    for id, rival in pairs(db.rivals) do
+        local provisional = id:match("^manual:")
+        local confirmed = InNameScope(id, scope)
+        if (provisional or confirmed) and SameFullName(name, addon.ManualName(rival.displayName)) then
+            if provisional then
+                manuals[#manuals + 1] = id
+            elseif guid == nil then
+                guid = id
+            else
+                guid = false
+            end
+        end
+    end
+    return guid, manuals
+end
+
+local function LinkManualRivals(db, guid, name)
+    local scope = NameScope()
+    if not InNameScope(guid, scope) then return end
+    local confirmed, manuals = MatchingRivals(db, name, scope)
+    if confirmed ~= nil and confirmed ~= guid then return end
+    local rival
+    for _, id in ipairs(manuals) do
+        rival = addon.Ledger.MergeManualRival(db, id, guid) or rival
+    end
+    return rival
+end
+
+function addon.ReconcileManualRivals(db)
+    local scope = NameScope()
+    if not scope then return end
+    local manuals = {}
+    for id, rival in pairs(db.rivals) do
+        if id:match("^manual:") then manuals[id] = rival end
+    end
+    for id, rival in pairs(manuals) do
+        local name = addon.ManualName(rival.displayName)
+        if addon.HasFullName(name) then
+            local guid = MatchingRivals(db, name, scope)
+            if guid then addon.Ledger.MergeManualRival(db, id, guid) end
+        end
+    end
+end
+
 local function UpdateRival(guid, name, appearance, manual)
     name = addon.ManualName(name)
     local fullName = addon.HasFullName(name) and name or nil
     local rival = addon.Ledger.Find(addon.db, guid)
+    if fullName and (not rival or rival.displayName ~= fullName) then
+        if rival then rival.displayName = fullName end
+        rival = LinkManualRivals(addon.db, guid, fullName) or rival
+    end
     if not rival then
         rival = addon.Ledger.Add(addon.db, guid, fullName)
         if not rival then return end
@@ -179,7 +258,7 @@ end
 function addon.RecordEncounter(guid, name, direction, context, appearance)
     local rival = UpdateRival(guid, name, appearance, context.manual)
     if not rival then return end
-    rival[direction] = rival[direction] + 1
+    rival[direction] = (rival[direction] or 0) + 1
     rival.encounters = rival.encounters or {}
     context.direction = direction
     addon.db.encounterSequence = (addon.db.encounterSequence or 0) + 1
@@ -202,6 +281,7 @@ function addon.RecordSkirmish(id, battle)
 end
 
 function addon.ManualName(input)
+    input = addon.Readable(input)
     if type(input) ~= "string" or input:find("[%c|]") then
         return nil
     end
@@ -346,27 +426,15 @@ end
 function addon.FindVisibleRival(guid, unit)
     local rivals = addon.db.rivals
     local rival = type(guid) == "string" and rivals[guid]
-    if rival then
-        if addon.HasFullName(rival.displayName) then return rival, guid end
-        return
-    end
-    if type(unit) ~= "string" then return end
+    if rival and addon.HasFullName(rival.displayName) then return rival, guid end
+    if type(unit) ~= "string" or type(guid) ~= "string" then return end
+    local scope = NameScope()
+    if not InNameScope(guid, scope) then return end
 
     local name = addon.UnitPlayerName(unit)
     if not addon.HasFullName(name) then return end
-
-    -- Only an unambiguous full name can match an entry without a GUID.
-    local lower = strlower or string.lower
-    local key = lower(name)
-    local matched, matchedID
-    for id, entry in pairs(rivals) do
-        local stored = not id:match("^seed:") and addon.ManualName(entry.displayName)
-        if stored and (lower(stored) == key or (strcmputf8i and strcmputf8i(stored, name) == 0)) then
-            if matched or not id:match("^manual:") then return end
-            matched, matchedID = entry, id
-        end
-    end
-    return matched, matchedID
+    local confirmed, manuals = MatchingRivals(addon.db, name, scope)
+    if confirmed == nil and #manuals == 1 then return rivals[manuals[1]], manuals[1] end
 end
 
 local function CombineName(given, surname)
@@ -390,13 +458,15 @@ end
 
 function addon.ResolveRivalName(unit)
     local guid = SafeRead(UnitGUID, unit)
-    if type(guid) ~= "string" or not guid:match("^Player%-.+") then return end
+    if type(guid) ~= "string" or not guid:match("^Player%-.+") or guid == SafeRead(UnitGUID, "player") then return end
     local rival = addon.Ledger.Find(addon.db, guid)
-    if not rival or addon.HasFullName(rival.displayName) then return end
+    if rival and addon.HasFullName(rival.displayName) then return end
     local name = addon.UnitPlayerName(unit)
     if addon.HasFullName(name) then
-        rival.displayName = name
-        RefreshRivals()
+        if rival then rival.displayName = name end
+        local linked = LinkManualRivals(addon.db, guid, name)
+        if linked then linked.displayName = name end
+        if rival or linked then RefreshRivals() end
     end
 end
 
@@ -422,10 +492,22 @@ function addon.AddManualEncounter(input, direction, target)
         return nil
     end
     -- Bind only the name supplied by the target snapshot.
-    local snapshot = target and target.name == name and target
-    local id = snapshot and snapshot.guid
-        or ("manual:" .. (strlower or string.lower)(name))
-    addon.RecordEncounter(id, name, direction, {
+    local snapshot = target and SameFullName(name, target.name) and target
+    local id, displayName
+    if snapshot then
+        id, displayName = snapshot.guid, snapshot.name
+        LinkManualRivals(addon.db, id, displayName)
+    else
+        local guid, manuals = MatchingRivals(addon.db, name, NameScope())
+        if guid then
+            id, displayName = guid, addon.db.rivals[guid].displayName
+            LinkManualRivals(addon.db, id, displayName)
+        else
+            id = #manuals == 1 and manuals[1] or ("manual:" .. NameKey(name))
+            displayName = addon.db.rivals[id] and addon.db.rivals[id].displayName or name
+        end
+    end
+    addon.RecordEncounter(id, displayName, direction, {
         manual = true, outcome = direction == "killsAgainstThem" and "win" or "loss",
         rivalLevel = snapshot and snapshot.level or nil,
     }, snapshot)

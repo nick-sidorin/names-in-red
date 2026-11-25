@@ -255,6 +255,12 @@ used by cards, profile, tooltip and nameplate.
   intact. No real private captures, secrets or unnecessary personal data in
   Git. In anonymous fixtures, redact identity values and preserve status
   enums even when they use the same field names.
+- Use a readable player GUID as the durable rival identity. Resolve a typed
+  first name and surname only inside the client's confirmed name scope.
+  Preserve conflicts between confirmed GUIDs. When migrating standalone
+  manual entries, preserve their individual sequences, results and rewards.
+  Treat the displayed roster warning as a projection of roster evidence
+  independent of the evaluator's duel-specific `rosterComplete` flag.
 
 ## 5. Tests: behavior and regression, not implementation snapshots
 

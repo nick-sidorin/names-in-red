@@ -9,6 +9,7 @@ for file in NamesInRed/*.lua tests/*.lua; do
     luac5.1 -p "$file"
 done
 lua5.1 tests/ledger.lua
+lua5.1 tests/rival-identity.lua
 lua5.1 tests/outcomes.lua
 lua5.1 tests/personal-outcomes.lua
 lua5.1 tests/rival-contributions.lua

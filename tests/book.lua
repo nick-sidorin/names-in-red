@@ -162,6 +162,7 @@ addon.db.showUnitTooltip = true
 print("Rival tooltip and locale checks passed")
 
 function UnitIsPlayer(unit) return unit == "target" end
+function RegionalUniqueNamesEnabled() return true end
 function UnitName() return "Test Rival" end
 local targetGUID = "Player-target"
 function UnitGUID(unit) return unit == "target" and targetGUID or "Player-self" end
@@ -698,12 +699,17 @@ local partialCount = assert(FindText(card, "1 × 1"))
 assert(card.height < largeHeight and not FindText(card, addon.L.partialRoster))
 assert(not journalMap.shown)
 assert(not FindText(card, "Ally Warrior") and not FindText(card, "Other Rival") and not FindText(card, "0:11"))
+assert(not FindRegion(card, "template", "UIPanelInfoButton"))
+card:SetSkirmish({ allies = { allies[1] }, enemies = { enemies[1] }, events = {
+    { kind = "kill", actorID = "Player-missing", targetID = allies[1].id },
+} })
 local rosterHint = assert(FindRegion(card, "template", "UIPanelInfoButton"))
 assert(rosterHint.anchor[2] == partialCount and rosterHint.anchor[4] > 0)
 rosterHint.scripts.OnEnter(rosterHint)
 assert(GameTooltip.shown and GameTooltip.title == addon.L.partialRoster)
 assert(tooltipLines[#tooltipLines] == addon.L.partialRosterHint)
 card:SetSkirmish({ allies = { allies[1] }, enemies = { enemies[2] }, events = {} })
+assert(not rosterHint.shown and not GameTooltip.shown)
 assert(FindText(card, "Other Rival") == name)
 assert(name.color[1] == 1 and name.color[2] == 1 and name.color[3] == 1)
 card:SetSkirmish(nil)

@@ -69,7 +69,11 @@ end
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, loadedName)
-    if event == "PLAYER_TARGET_CHANGED" then
+    if event == "PLAYER_LOGIN" then
+        self:UnregisterEvent(event)
+        addon.ReconcileManualRivals(addon.db)
+        return
+    elseif event == "PLAYER_TARGET_CHANGED" then
         addon.ResolveRivalName("target")
         return
     elseif event == "UPDATE_MOUSEOVER_UNIT" then
@@ -89,6 +93,7 @@ frame:SetScript("OnEvent", function(self, event, loadedName)
         if addon.RestoreDeathLevels then addon.RestoreDeathLevels(db, NamesInRedDebugDB) end
         NamesInRedDB = db
         addon.db = db
+        self:RegisterEvent("PLAYER_LOGIN")
         self:RegisterEvent("PLAYER_TARGET_CHANGED")
         self:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
         self:RegisterEvent("PLAYER_REGEN_ENABLED")

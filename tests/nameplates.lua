@@ -133,6 +133,7 @@ plate.forbidden = false
 addon.db.rivals["Player-rival"] = nil
 addon.RefreshNameplates()
 assert(not badge.shown)
+function RegionalUniqueNamesEnabled() return true end
 addon.db.rivals["manual:cute rock"] = rival
 addon.RefreshNameplates()
 assert(badge.shown and badge.text:find("TooltipSkull.tga:14:14:0:0|t 1", 1, true))

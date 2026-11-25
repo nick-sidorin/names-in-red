@@ -775,7 +775,7 @@ function addon.CreateSkirmishCard(parent, width, onMapShown, openRival, toggleTi
         setResult(result, changed, middle, qualifier)
         zone:SetText(LocationLabel(battle))
         score:SetText(("%d × %d"):format(#battle.allies, #battle.enemies))
-        coverage:SetShown(battle.rosterComplete ~= true)
+        coverage:SetShown(addon.Ledger.HasRosterGap(battle))
         local day, time = EncounterDate(battle)
         local hasWaypoint = WaypointMap(battle) ~= nil
         local stampRight = StampRight(PositionActions(card, fullHeaderCenter, report, map, hasWaypoint))
