@@ -33,18 +33,20 @@ end
 
 function addon.NewMeterParticipantEvidence(contacts, petOwners, faction, localID)
     local evidence = setmetatable({
-        player = {}, names = {}, pet = {}, links = {}, damage = {}, contributions = {}, contacts = contacts, faction = faction,
-        localID = localID,
+        player = {}, names = {}, fullNames = {}, pet = {}, links = {}, damage = {}, contributions = {},
+        contacts = contacts, faction = faction, localID = localID,
     }, { __index = Evidence })
     for guid, contact in pairs(contacts) do
         local player = contact.latest
-        if player and player.guid == guid and player.isPlayer == true
-            and (player.faction == "Alliance" or player.faction == "Horde") then
+        if player and player.guid == guid and player.isPlayer == true then
             local name = addon.CombatContactName(player)
             if name then
                 local entry = { guid = guid, name = name, player = player }
-                evidence.player[guid] = entry
-                if player.class then Index(evidence.names, name .. "\0" .. player.class, entry) end
+                Index(evidence.fullNames, name, entry)
+                if player.faction == "Alliance" or player.faction == "Horde" then
+                    evidence.player[guid] = entry
+                    if player.class then Index(evidence.names, name .. "\0" .. player.class, entry) end
+                end
             end
         end
     end
@@ -110,6 +112,11 @@ function Evidence:Link(category, actor, detail, accept, petSource)
     local sameSide = actor.player.faction == other.player.faction
     if (support[category] and not sameSide) or (crossFaction[category] and sameSide) then return "unexpected-faction", other end
     if accept and not accept(actor, other) then return "duration-link-unconfirmed", other end
+    self:AddLink(category, actor, other, detail.amount, petSource, accept ~= nil or nil)
+    return "link", other
+end
+
+function Evidence:AddLink(category, actor, other, amount, petSource, corroborated, amountBasis)
     self.links[actor] = self.links[actor] or {}
     self.links[other] = self.links[other] or {}
     self.links[actor][other], self.links[other][actor] = true, true
@@ -117,18 +124,17 @@ function Evidence:Link(category, actor, detail, accept, petSource)
     local taken = category == "DamageTaken" or category == "EnemyDamageTaken"
     if taken then from, to = to, from end
     local pairKey = from .. ":" .. to
-    if timedDamage[category] then
+    if timedDamage[category] and not amountBasis then
         local totals = self.damage[category] or {}
         self.damage[category] = totals
         local pair = totals[pairKey] or { actorID = from, targetID = to, amount = 0 }
         totals[pairKey] = pair
-        pair.amount = pair.amount + detail.amount
+        pair.amount = pair.amount + amount
     end
     local endpoint = petSource and (taken and "target" or "actor") or nil
     local key = category .. ":" .. pairKey .. ":" .. (endpoint or "")
     self.contributions[key] = { category = category, actorID = from, targetID = to,
-        petEndpoint = endpoint, corroborated = accept ~= nil or nil }
-    return "link", other
+        petEndpoint = endpoint, corroborated = corroborated, amountBasis = amountBasis }
 end
 
 -- Anchors are GUIDs supplied by the caller. The graph does not depend on kills.
@@ -187,4 +193,13 @@ function Evidence:ContributionLinks(reached)
     table.sort(keys)
     for _, key in ipairs(keys) do result[#result + 1] = self.contributions[key] end
     return result
+end
+
+function Evidence:ApplySourceTotalLinks(links)
+    for _, link in ipairs(links or {}) do
+        local key = "EnemyDamageTaken:" .. link.attacker.guid .. ":" .. link.victim.guid .. ":"
+        if not self.contributions[key] then
+            self:AddLink("EnemyDamageTaken", link.victim, link.attacker, link.amount, false, nil, "source-total-matched")
+        end
+    end
 end

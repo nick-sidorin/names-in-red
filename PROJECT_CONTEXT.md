@@ -293,11 +293,13 @@ PR A (#43) and PR B (#44) are merged. PR C connects both projections to the
 journal and has a commit-pinned feature preview for review. Keep 1.1.0 as
 the shipped baseline pending separate release authorization.
 
-1. Review the final PR #45 follow-up and retest its exact-head preview in
-   Forever, including live pet-owner API statuses and native rendering.
-   Outcome v4 replays the original world:16 as Defeat with one loss against
-   the warlock and one literal pet finisher with an unknown player actor. See the
-   [world:16 findings](docs/forever-validation.md#original-world16-findings-and-second-follow-up).
+1. Review the current PR #45 follow-up and retest fresh joined fights in
+   its exact-head Forever preview. Live testing reported no UI errors and
+   confirmed historical world:16 Defeat. The original world:19–21 data
+   replay as three 2×1 victories with one personal rival win per fight.
+   Live pet-owner API statuses remain to be verified. See
+   [joined ally validation](docs/forever-validation.md#joined-ally-combat-and-late-generic-activity-in-world1921)
+   and [world:16 findings](docs/forever-validation.md#original-world16-findings-and-second-follow-up).
 2. Repeat migration on a copy of an older real SavedVariables file if
    available. Follow the
    [milestone integration gate](docs/character-pov-roadmap.md#integration-and-release-gate).

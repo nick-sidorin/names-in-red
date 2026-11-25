@@ -1,7 +1,7 @@
 local _, addon = ...
 local Ledger = addon.Ledger
 local DeathEvidence = addon.SkirmishDeathEvidence
-local version = 4
+local version = 5
 local deathLinkAge = DeathEvidence.timedActionAge
 
 local function LastSegment(observation)
@@ -202,7 +202,7 @@ end
 local function TerminalEvidence(battle, segment, first, last, lastAction, life, unreturned)
     if not first or not last or type(first.offset) ~= "number" or type(last.offset) ~= "number"
         or last.offset <= first.offset or (lastAction and first.offset < lastAction) then return end
-    local summary, visibleOpposition = {}, false
+    local summary, visibleOpposition, briefAllyCombat = {}, false, false
     for key, side in pairs({ friendly = battle.allies, enemy = battle.enemies }) do
         local eliminated, survivor = #side > 0, false
         for _, player in ipairs(side) do
@@ -214,7 +214,9 @@ local function TerminalEvidence(battle, segment, first, last, lastAction, life, 
             if not dead then
                 eliminated = false
                 if (a and a.dead ~= true and a.combat == true) or (b and b.dead ~= true and b.combat == true) then
-                    return nil, nil, true
+                    if key ~= "friendly" or player.isSelf or not a or not b or a.dead ~= false
+                        or b.dead ~= false or b.combat ~= false then return nil, nil, true end
+                    briefAllyCombat = true
                 end
                 local contact = segment and segment.contacts and segment.contacts[id]
                 if not a and not b and contact and contact.signal == "nameplate-removed" and contact.inCombat == true then
@@ -230,6 +232,7 @@ local function TerminalEvidence(battle, segment, first, last, lastAction, life, 
     end
     local friendly, enemy = summary.friendly, summary.enemy
     if friendly.eliminated and enemy.eliminated then return "draw", "mutual-elimination" end
+    if briefAllyCombat then return nil, nil, enemy.eliminated and "brief-ally-combat" or true end
     if enemy.eliminated and friendly.survivor then return "win", "enemy-elimination" end
     if friendly.eliminated and enemy.survivor then return "loss", "friendly-elimination" end
     if (friendly.survivor or enemy.survivor) and (not unreturned or visibleOpposition) then
@@ -278,9 +281,18 @@ function addon.EvaluatePersonalSkirmish(battle)
     if #battle.enemies == 0 and not personalDeath then return result end
     local unreturned = personalDeath and me
     local outcome, ending, active = TerminalEvidence(battle, segment, lateFirst, lateLast, lastAction, life, unreturned)
-    if not ending and not active then
-        -- Later loss of visibility does not erase an already observed ending.
-        outcome, ending = TerminalEvidence(battle, segment, first, last, lastAction, life, unreturned)
+    if not ending and active ~= true then
+        -- A short burst of ally combat can be unrelated to an eliminated
+        -- opponent. Preserve earlier elimination only if no later linked
+        -- action or meter increase contradicts those samples.
+        local cutoff = lastAction
+        local pair = assessment.meterPair
+        if active and pair and DeathEvidence.Opponents(analysis.sides, pair.actorID, pair.targetID)
+            and DeathEvidence.IsNumber(assessment.lastMeterActivity) then
+            cutoff = math.max(cutoff or 0, assessment.lastMeterActivity)
+        end
+        local earlier, observed = TerminalEvidence(battle, segment, first, last, cutoff, life, unreturned)
+        if not active or observed == "enemy-elimination" then outcome, ending = earlier, observed end
     end
     if not outcome and personalDeath and battle.rosterComplete == true and #battle.allies == 1 and #battle.enemies == 1 then
         local rival = battle.enemies[1].id

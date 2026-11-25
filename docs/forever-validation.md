@@ -1955,6 +1955,75 @@ player owner from an unknown player actor on a pet finishing blow. The
 literal pet death leaves the direct-player counters unchanged.
 [PR #45 review](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6047563563)
 
+#### Joined ally combat and late generic activity in world:19–21
+
+Live testing reported no UI errors and confirmed that historical world:16
+displayed Defeat. The supplied on-disk world:19–21 rows carry capture revision
+`d6f7bcc` and saved outcome version 3. They are evidence of the capture listed
+in SavedVariables. Replay against PR head `979fa14` yielded 2×1 Unknown and
+0:0 for world:19, and 1×1 Victory with 1:0 for each of world:20 and world:21.
+The owner confirmed an ally participated in all three fights and started the
+last two. The original file stayed private. The regression extract retains
+the original clocks, timeline rows, zero amounts, empty classes and read
+statuses for the three fights. [Live review](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6058796963)
+
+The Forever Source window creates one display entry for each native
+`combatSpells` row. `DamageMeterSpellEntryMixin:Init` reads the named second
+unit from `combatSpellDetails` and delegates the bar value to
+`DamageMeterEntryMixin:Init`, which uses `source.totalAmount`. The generated
+API declares the spell total and detail amount as separate fields. The
+three captures show a scoped `EnemyDamageTaken` shape with spell ID 0, a
+readable named player, readable false mob and pet flags, an empty detail
+class, and zero detail amount despite a positive spell total. The native
+Lua does not define the producer's grouping contract for every category.
+The addon accepts this particular shape only when a complete source
+matrix reconciles to the per-GUID `DamageDone` amounts from the same
+selection and refresh overlap. It requires unique full identities and an
+independently confirmed enemy death with a local player share in that
+segment. Names and amounts establish no hit timestamp or pet ownership.
+[Native source provider](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_DamageMeter/DamageMeterSourceWindow.lua#L176) ·
+[Native entry](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_DamageMeter/DamageMeterEntry.lua#L481) ·
+[Generated schema](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_APIDocumentationGenerated/DamageMeterDocumentation.lua#L215)
+
+In world:20, the native session lasted 11 s and the local window 5.318 s.
+Both damage-category signals started at local combat start and their last
+updates arrived about 1.085 s after local combat ended, inside the existing
+1.5 s read retry. The ally was already in combat at local start and the
+confirmed enemy targeted the ally. A readable reciprocal `DamageTaken` row
+showed 161 incoming damage for that same pair. With the two qualified
+category signals and an isolated selection, this corroborates the join.
+The incoming category had no own matching update, so its data supplies
+corroboration only. The enemy who was finished received 171 from the local
+player and 132 from the ally. The ally's other 171 belonged to a different
+enemy. Those 171 reconcile the session's totals, but create no participant,
+casualty or credit in this fight. An earlier-window overlap, no prior
+Current boundary for this extended path, an incomplete matrix or competing
+names leave the join unqualified. The ordinary duration rule is unchanged.
+
+In world:19, the confirmed enemy died at +8.454 s and both allies were
+alive and out of combat at +14.108 and +16.093 s. A generic ally combat
+flag appeared at +23.347 s and was clear again at +25.353 s. Outcome v5
+keeps the independently observed elimination when the opponent has no
+evidence of a return and later allied activity has no confirmed link to
+the confrontation. A linked action, a qualifying linked increase in that
+case, a returned enemy or an active additional opponent can still block
+reuse of those older samples.
+
+The exact original replay now yields 2×1 Victory and a personal score of
+1:0 in all three fights. World:19 retains the ally's finishing blow, so
+the local literal direct-player killing blow count is zero there and one
+in each of world:20 and world:21. Recovery requires a unique combination
+of combat sequence, debug session, owning segment, local identity,
+scope, timestamps and meter selection. It appends durable directed
+aggregate proof and uses the existing index on subsequent loads. It
+keeps raw life events and rewards intact. With no suitable retained
+diagnostic rows, older records can still receive the outcome correction
+from their existing terminal samples. They cannot gain an unevidenced
+participant. The Lua tests exercise the stored replays, the live capture
+callbacks with recorded rows, the journal and per-rival views, and
+reload with the log removed. Fresh capture and presentation on the new
+preview still need a client check.
+
 ### Preview and release provenance
 
 The original #29 preview included the new combat diagnostics with the old

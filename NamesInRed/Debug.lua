@@ -565,8 +565,20 @@ local function CaptureMeter(row, window, evidence, finalAttempt, enemies, factio
         retry = retry or retrySource
         if eligible then linked[name] = actors end
     end
+    local sourceTotals
+    if canQualify and window.context and window.context.record then
+        local done, taken = types.DamageDone, types.EnemyDamageTaken
+        local prefix = (id or 0) .. ":"
+        if done and taken then
+            local context = window.context
+            local victims = addon.MeterSegmentVictims(context.record.battle, context.segment)
+            sourceTotals = addon.MatchMeterSourceTotals(evidence, row, victims, window.startedUptime, window.previousEnd,
+                window.meterUpdates[prefix .. done], window.meterUpdates[prefix .. taken])
+            evidence:ApplySourceTotalLinks(sourceTotals)
+        end
+    end
     row.status.meter = "sampled"
-    return evidence and not finalAttempt and retry, linked
+    return evidence and not finalAttempt and retry, linked, sourceTotals
 end
 
 local handlers = {}
@@ -696,6 +708,7 @@ local function Observe(unit, reason)
     Call(unitState, "sex", UnitSex, unit)
 
     local previous = contact.latest
+    contact.initial = contact.initial or unitState
     contact.latest = unitState
     if combat.primary and not combat.areaChanged and (not previous or previous.dead ~= unitState.dead
         or previous.inCombat ~= unitState.inCombat or previous.feign ~= unitState.feign
@@ -915,7 +928,7 @@ function handlers.PLAYER_REGEN_ENABLED()
     row.pvpReasons = finished.reasons
     row.contacts, row.unresolvedContacts = {}, finished.unresolved
     for guid, contact in pairs(finished.contactSamples) do
-        row.contacts[guid] = { firstSeen = contact.firstSeen, lastSeen = contact.lastSeen, latest = contact.latest,
+        row.contacts[guid] = { firstSeen = contact.firstSeen, lastSeen = contact.lastSeen, latest = contact.latest, initial = contact.initial,
             changes = contact.changes, changeOverflow = contact.changeOverflow, signals = contact.signals }
     end
     row.contactCount, row.contactOverflow = finished.contactCount, math.max(0, finished.contactCount - 32)
@@ -979,9 +992,9 @@ function handlers.PLAYER_REGEN_ENABLED()
         local evidence = context and addon.NewMeterParticipantEvidence(finished.contacts, finished.petOwners, faction, context.self)
         local early = context and not context.record
         local probe = finished.primary and evidence and addon.NewCombatMeterProbe()
-        local retry, linked = CaptureMeter(row, finished, evidence, finalAttempt, enemies, faction, early, probe)
+        local retry, linked, sourceTotals = CaptureMeter(row, finished, evidence, finalAttempt, enemies, faction, early, probe)
         local additions, reached, links
-        if evidence and linked and next(linked) then
+        if evidence and linked and (next(linked) or (sourceTotals and #sourceTotals > 0)) then
             additions, reached = evidence:Connected(anchors)
             links = evidence:HostileLinks(reached)
         end
@@ -1013,7 +1026,7 @@ function handlers.PLAYER_REGEN_ENABLED()
                 end
             end
             addon.ApplyWorldMeterEvidence(context, additions, faction, row, links, finished.contacts, probe,
-                evidence:ContributionLinks(reached), evidence.localNpcDamage)
+                evidence:ContributionLinks(reached), evidence.localNpcDamage, sourceTotals)
             addon.SnapshotWorldContacts(context, finished.contacts)
             BeginPassiveMeter(context, row, finished, evidence, reached)
         end

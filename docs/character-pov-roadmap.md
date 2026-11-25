@@ -211,9 +211,10 @@ latest accepted main; avoid parallel changes to shared scoring/storage
 contracts. Independent fixture preparation may be parallelized only if
 it does not create conflicting changes.
 
-Next, review the final PR C follow-up and retest its exact-head preview in
-Forever, including live pet-owner API statuses and native rendering. The
-original world:16 save and its anonymized regression produce Defeat, one
-warlock loss and the retained pet hit with an unknown player actor.
-See [the world:16 validation](forever-validation.md#original-world16-findings-and-second-follow-up).
+Live PR C testing passed the UI smoke check and confirmed historical
+world:16 Defeat. The next preview should verify fresh joined fights and
+review the original world:19–21 replays, which now give three 2×1 victories
+with one rival win per fight. Live pet-owner API statuses remain a
+separate check. See [joined ally validation](forever-validation.md#joined-ally-combat-and-late-generic-activity-in-world1921)
+and [world:16 validation](forever-validation.md#original-world16-findings-and-second-follow-up).
 A public release still requires separate owner authorization.

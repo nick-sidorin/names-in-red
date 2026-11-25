@@ -170,6 +170,16 @@ used by cards, profile, tooltip and nameplate.
   Recover diagnostic evidence only when a unique session, local
   death and combat window match. Attach it without rewriting the original
   timeline or requiring the diagnostic log on later loads.
+- Treat a native `EnemyDamageTaken` no-spell row as a player-pair
+  aggregate only when the readable complete source totals reconcile
+  against same-selection GUID-keyed `DamageDone` and the full names are
+  unique. Keep the proof on the literal window of the separately
+  confirmed target. A shared session can cover another opposing player
+  or predate local combat. For a longer session with late updates,
+  require an isolated selection and independently observed combat and
+  reciprocal damage for the joined pair. Keep this proof out of the
+  passive strict-detail baseline. A brief generic ally combat flag
+  alone cannot override a witnessed elimination.
 - Preserve witnessed action times on both sides of a life transition. Per-pair
   first/last/count summaries alone can drop the only action that links an
   earlier corpse to PvP. Reconcile confirmed death and revival from readable,

@@ -50,7 +50,7 @@ local function Advance(seconds)
 end
 
 Constants = { CurrencyConsts = { CLASSIC_HONOR_CURRENCY_ID = 1901 } }
-for _, file in ipairs({ "Ledger", "SkirmishOutcomes", "SkirmishDeathEvidence", "PersonalSkirmishOutcomes", "Encounter", "Core", "SkirmishEvidence", "CombatDiagnostics", "WorldSkirmishes", "Honor", "Kills" }) do
+for _, file in ipairs({ "Ledger", "SkirmishOutcomes", "SkirmishDeathEvidence", "PersonalSkirmishOutcomes", "Encounter", "Core", "SkirmishEvidence", "MeterSourceTotals", "CombatDiagnostics", "WorldSkirmishes", "Honor", "Kills" }) do
     assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
 end
 addon.db = addon.Ledger.Open(nil)

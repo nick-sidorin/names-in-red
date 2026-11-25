@@ -371,7 +371,7 @@ assert(win == 0 and loss == 0)
 addon.EvaluateRivalContributions = currentEvaluator
 for _ = 1, 2 do
     assert(Ledger.Open(restored) == restored)
-    assert(stored.personalOutcome ~= oldProjection and stored.personalOutcome.version == 4)
+    assert(stored.personalOutcome ~= oldProjection and stored.personalOutcome.version == 5)
     assert(stored.personalOutcome.finalizedBy == "historical" and stored.personalOutcome.boundary == "area-changed")
     assert(Ledger.JournalOutcome(stored) == "loss" and stored.personalOutcome.casualties.friendly == 1)
     win, loss = Ledger.RivalContributionScore(restored, mage)

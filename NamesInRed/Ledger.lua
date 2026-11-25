@@ -110,12 +110,16 @@ function Ledger.Open(saved, diagnostics)
     if type(saved) == "table" and saved.version == 1 and type(saved.rivals) == "table" then
         if type(saved.skirmishes) == "table" then
             local changed = addon.RestoreLegacyPetRecaps and addon.RestoreLegacyPetRecaps(saved.skirmishes, diagnostics)
+            local meterWindows = addon.IndexMeterSourceTotalWindows and addon.IndexMeterSourceTotalWindows(diagnostics, saved.skirmishes)
             for id, battle in pairs(saved.skirmishes) do
                 if IsSkirmish(battle) then
-                    UpdateWorldRoster(id, battle)
                     RestoreMeterAggregates(battle)
+                    local meterChanged = meterWindows and addon.RestoreMeterSourceTotals(battle, meterWindows)
+                    UpdateWorldRoster(id, battle)
                     if addon.RestoreRivalContributionEvidence then addon.RestoreRivalContributionEvidence(battle) end
-                    if addon.RefreshPersonalSkirmish then addon.RefreshPersonalSkirmish(battle, true, changed and changed[battle]) end
+                    if addon.RefreshPersonalSkirmish then
+                        addon.RefreshPersonalSkirmish(battle, true, meterChanged or (changed and changed[battle]))
+                    end
                 end
             end
         end

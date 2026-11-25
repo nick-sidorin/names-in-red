@@ -222,6 +222,8 @@ For a rival loss, apply the analogous attribution principle to the local charact
 
 **Keep the score, direct-player counters and Finishing blows distinct.** Rival wins and losses represent credited participation in defeats and deaths. The personal killing blow and death counters use literal direct-player kill events. Finishing blows can display a verified player owner for a pet's lethal hit. The underlying death keeps the pet as its physical source, and the owner attribution can support rival credit without incrementing a direct-player counter. HKs and honor remain the game's awards.
 
+Joining an ally's fight can qualify both characters on evidence tied to the same confirmed opponent. A party roster, a longer shared meter session, or combat against another target does not establish that link. A later generic combat flag from an ally does not reopen a witnessed elimination on its own. A linked renewed PvP action or an observed returning opponent can invalidate the earlier ending.
+
 Examples:
 - I damage a mage, my brother finishes the mage: victory against the mage; zero personal finishing blows.
 - I heal my brother while he fights and defeats the mage: victory against the mage even with zero damage.

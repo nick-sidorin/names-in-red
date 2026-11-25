@@ -673,7 +673,17 @@ function addon.WorldMeterContext(window, row)
     return window, anchors, faction, enemies
 end
 
-function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, contacts, probe, contributionLinks, localNpcDamage)
+function addon.RecordWorldMeterParticipant(battle, entry, faction)
+    local player = entry.player
+    local friendly = player.faction == faction
+    Participant(friendly and battle.allies or battle.enemies, entry.guid, entry.name, player.level,
+        not friendly and entry.guid or nil, nil, {
+            race = player.race and player.race:lower(), raceLabel = player.raceName,
+            sex = player.sex, class = player.class, classLabel = player.className,
+        })
+end
+
+function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, contacts, probe, contributionLinks, localNpcDamage, sourceTotals)
     if not Valid(window) or window.area ~= area then return end
     local enemies = {}
     for _, entry in ipairs(additions) do
@@ -695,15 +705,10 @@ function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, c
     segment.localNpcDamage = localNpcDamage
     battle.time = math.max(battle.time, row.time or battle.time)
     for _, entry in ipairs(additions) do
-        local player = entry.player
-        local friendly = player.faction == faction
-        Participant(friendly and battle.allies or battle.enemies, entry.guid, entry.name, player.level,
-            not friendly and entry.guid or nil, nil, {
-                race = player.race and player.race:lower(), raceLabel = player.raceName,
-                sex = player.sex, class = player.class, classLabel = player.className,
-            })
+        addon.RecordWorldMeterParticipant(battle, entry, faction)
     end
     Ledger.RecordMeterAggregates(battle, segment, probe)
+    addon.RecordMeterSourceTotals(segment, sourceTotals)
     addon.ResolveStagedWorldKills(window, contacts)
     local state = Assessment(record)
     if not state.first and not state.last then WatchEnding(window) end

@@ -1104,6 +1104,28 @@ do
     assert(FindText(card, addon.L.lossTooltip) and not FindText(card, addon.L.shortUnknownOutcome))
     callback(GameTooltip, { guid = archiveRival })
     assert(tooltipLines[#tooltipLines] == addon.FormatRivalCounters(0, 1, false))
+
+    for _, file in ipairs({ "SkirmishOutcomes", "SkirmishEvidence", "MeterSourceTotals", "WorldSkirmishes" }) do
+        assert(loadfile("NamesInRed/" .. file .. ".lua"))("NamesInRed", addon)
+    end
+    local joined, meterLog = dofile("tests/fixtures/world19-21-anonymized.lua")
+    for id, battle in pairs(joined.skirmishes) do addon.db.skirmishes[id] = battle end
+    for id, profile in pairs(joined.rivals) do addon.db.rivals[id] = profile end
+    addon.Ledger.Open(addon.db, meterLog)
+    for number = 19, 21 do
+        local fight = joined.skirmishes["world:" .. number]
+        local opponent = fight.enemies[1].rivalID
+        card:SetSkirmish(fight, opponent, true)
+        assert(FindText(card, addon.L.winTooltip) and FindText(card, fight.allies[2].name))
+        openProfile(opponent)
+        ProfileStat(addon.L.wins, 1)
+        ProfileStat(addon.L.losses, 0)
+        compact:SetEncounter(addon.RivalEncounters(addon.db, opponent)[1], addon.db.rivals[opponent], opponent)
+        assert(CenterMarker(swords) and FindText(compact, addon.L.winTooltip))
+        local beforeTooltip = #tooltipLines
+        callback(GameTooltip, { guid = opponent })
+        assert(tooltipLines[beforeTooltip + 3] == addon.FormatRivalCounters(1, 0, false))
+    end
     openProfile(duelGUID)
 
     local before = refreshes
