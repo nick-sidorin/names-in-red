@@ -251,16 +251,19 @@ local compactActionInset = 4
 local compactHeaderGap = 6
 local compactActionStep = compactActionSize - 2 * compactActionInset + compactHeaderGap
 local compactActionRight = 11
-local compactIconY = 0.5
 
-local function CardActionButton(card, iconY)
+local function CardActionButton(card)
     local button = CreateFrame("Button", nil, card, "CommonSquareIconButtonTemplate")
     button:SetSize(compactActionSize, compactActionSize)
     button:SetHitRectInsets(compactActionInset, compactActionInset, compactActionInset, compactActionInset)
     button:RegisterForClicks("LeftButtonUp")
     button.Icon:SetSize(16, 16)
+    -- The painted bounds are centered in the native artwork. Keep the icon
+    -- on the same layout center as the button at fractional UI scales.
+    button.Icon:SetSnapToPixelGrid(false)
+    button.Icon:SetTexelSnappingBias(0)
     local function CenterIcon(self)
-        self.Icon:SetPoint("CENTER", self, "CENTER", 0, iconY or 0)
+        self.Icon:SetPoint("CENTER", self, "CENTER", 0, 0)
     end
     CenterIcon(button)
     button:HookScript("OnMouseUp", CenterIcon)
@@ -272,15 +275,13 @@ end
 local function MapAction(card, onClick)
     local map = CardActionButton(card)
     map:SetAtlas("Waypoint-MapPin-Untracked")
-    map:SetRoundLayoutToNearestPixel(true)
-    map.Icon:SetRoundLayoutToNearestPixel(true)
     map:SetTooltipInfo(L.showOnMap)
     map:SetOnClickHandler(onClick)
     return map
 end
 
 local function ReportAction(card)
-    local report = CardActionButton(card, compactIconY)
+    local report = CardActionButton(card)
     report:SetIcon(addon.issueBugIcon)
     report:SetTooltipInfo(L.reportIssue)
     report:SetOnClickHandler(function()
@@ -311,7 +312,7 @@ local function StampRight(actionRight)
     return actionRight and actionRight + compactActionSize - compactActionInset + compactHeaderGap or cardInset
 end
 
-local function CreateSkirmishResult(card)
+local function CreateSkirmishResult(card, fitCaption)
     local size = 56
     local center = CreateFrame("Frame", nil, card)
     center:SetSize(resultWidth, size + 24)
@@ -333,7 +334,7 @@ local function CreateSkirmishResult(card)
     caption:SetJustifyH("CENTER")
     caption:SetWordWrap(true)
     caption:SetMaxLines(2)
-    local tally = Label(center, "GameFontHighlightSmall", "CENTER", 0, 6, resultWidth)
+    local tally = Label(center, "GameFontHighlightSmall", "CENTER", 0, 0, resultWidth)
     tally:SetJustifyH("CENTER")
     tally:SetWordWrap(true)
     local previous
@@ -366,6 +367,7 @@ local function CreateSkirmishResult(card)
             addon.SetFramedMarkerTooltip(marker, outcome == "unknown" and L.unknownOutcome or nil)
         end
         caption:SetText(label)
+        if fitCaption then center:SetHeight(size + 4 + caption:GetStringHeight()) end
         if outcome == "loss" then
             caption:SetTextColor(1, 0.72, 0.62)
         elseif outcome ~= "win" then
@@ -419,12 +421,9 @@ local function CreateParticipantTile(parent, isOpponent, openRival, compact)
         opposing = isOpponent, showCasualty = true, showClass = true,
         highlightRim = true, livePlayerFallback = tile.isLocalCharacter,
     })
-    tile.avatar.rim:SetPoint("TOP")
     local name = tile:CreateFontString(nil, "OVERLAY", "GameFontHighlight_NoShadow")
-    local nameTop = portraitSize + 2
-    name:SetPoint("TOPLEFT", 2, -nameTop)
-    name:SetPoint("TOPRIGHT", -2, -nameTop)
-    name:SetHeight(rosterRowHeight - nameTop)
+    name:SetPoint("TOP", tile.avatar.rim, "BOTTOM", 0, -2)
+    name:SetHeight(rosterRowHeight - portraitSize - 2)
     name:SetJustifyH("CENTER")
     name:SetJustifyV("TOP")
     name:SetWordWrap(true)
@@ -451,7 +450,11 @@ local function BindParticipantTile(tile, player, known, level, died, selectedRiv
     }, player.id or player.rivalID, level, died, revived)
     local name = addon.ManualName(player.name) or addon.ManualName(known.displayName)
     if isSelf then name = name or addon.UnitPlayerName("player") or YOU end
+    tile.name:SetWidth(tile:GetWidth() - 4)
     tile.name:SetText(name or (tile.isOpponent and L.unknownRival or L.unknownPlayer))
+    local nameHeight = math.min(tile.name:GetStringHeight(), rosterRowHeight - portraitSize - 2)
+    local padding = (rosterRowHeight - portraitSize - 2 - nameHeight) / 2
+    tile.avatar.rim:SetPoint("TOP", tile, "TOP", 0, -padding)
     local color = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
     if color then tile.name:SetTextColor(color.r, color.g, color.b)
     else tile.name:SetTextColor(1, 1, 1) end
@@ -488,14 +491,14 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
     theirs:SetSize(sideWidth, rosterRowHeight)
     mine:SetPoint("TOPLEFT", cardInset, compactRosterTop)
     theirs:SetPoint("TOPRIGHT", -cardInset, compactRosterTop)
-    local setResult = CreateSkirmishResult(card)
+    local setResult = CreateSkirmishResult(card, true)
     local setRewards = CreateRewardSummary(card, "BOTTOMRIGHT", sectionPadding)
 
     local map = MapAction(card, function()
         if card.encounter then ActivateWaypoint(card.encounter, onMapShown) end
     end)
     local report = ReportAction(card)
-    local info = CardActionButton(card, compactIconY)
+    local info = CardActionButton(card)
     info:SetIcon("Interface\\FriendsFrame\\InformationIcon")
     info:SetOnEnterHandler(function(self)
         local encounter = card.encounter

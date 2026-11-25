@@ -872,15 +872,10 @@ if TooltipDataProcessor and unitTooltipType then
         local rival, id = TooltipRival(tooltip, data)
         if not rival then return end
         local counters = addon.RivalCounters(id)
-        local kills, deaths = addon.Ledger.PersonalCombatScore(addon.db, id)
-        local manual, legacy = HistoryLines(id)
-        if counters or manual or legacy or kills > 0 or deaths > 0 then
+        if counters then
             tooltip:AddLine(" ")
             tooltip:AddLine(addon.title, 1, 0.82, 0)
-            if counters then tooltip:AddLine(counters, 1, 1, 1) end
-            if manual then tooltip:AddLine(manual, 1, 1, 1) end
-            if legacy then tooltip:AddLine(legacy, 1, 1, 1) end
-            if kills > 0 or deaths > 0 then tooltip:AddLine(L.personalFinishingBlows:format(kills, deaths), 1, 1, 1) end
+            tooltip:AddLine(counters, 1, 1, 1)
         end
     end)
 end
