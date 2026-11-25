@@ -1,7 +1,7 @@
 # Names in Red
 
 A personal PvP journal for World of Warcraft: Forever. Remember who you fought,
-what happened, and where you last met.
+what happened, and where you last met. Every rival has a story.
 
 Names in Red targets Forever 1.60.1 (interface 16001). Click the crossed swords
 on the minimap to browse rivals. Information shows your skirmish stats and the
@@ -120,9 +120,9 @@ results keep their existing interpretation. New world records derive
 coverage are stored separately. A `kind = "revive"` event marks a later
 readable living state for the same character and preserves the killing
 blow. The skull marks a death during the fight. The portrait returns to
-color after an observed revival. Rival tooltips show a separate personal
-kill/death score. Skirmish wins/losses and Blizzard rewards have their own
-counters.
+color after an observed revival. Rival tooltips show the personal rival win/loss score based on confirmed
+contribution, not literal killing blows. Skirmish outcomes, direct-player
+kills/deaths and Blizzard rewards are distinct.
 Mark the local player `isSelf` and identify profile links with `rivalID`.
 Store `honorableKills` and `honor` under `rewards[opponent.id]`. Re-saving
 the same skirmish ID replaces the indexed result and rewards.
