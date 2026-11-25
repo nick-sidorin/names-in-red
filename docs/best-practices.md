@@ -47,7 +47,7 @@ if a reference or target build changes.
 
 | Area | Existing reference / project implementation | Convention |
 | --- | --- | --- |
-| Modern text buttons | `SharedButtonSmallTemplate`, `128-RedButton` three-slice art, `SetTextToFit`; Book.lua header/add, IssueReport.lua footer, ManualDialog.lua add/cancel. PR #31 corrected report-button template. | Use the native height and state art for equivalent modern actions. Refit labels that change at runtime, including translated page counts. Keep adjacent actions in one control family. |
+| Modern text buttons | `SharedButtonSmallTemplate`, `128-RedButton` three-slice art, `SetTextToFit`; Book.lua header/add, IssueReport.lua footer, ManualDialog.lua add/cancel. PR #31 corrected report-button template. | Use the native height and state art for equivalent modern actions. Refit labels that change at runtime, including localized state labels. Keep adjacent actions in one control family. |
 | Other controls | EncounterCards.lua uses `CommonSquareIconButtonTemplate` for compact actions; Back in Book.lua follows `UIPanelButtonTemplate` from the professions crafter order reference. | Choose the actual reference-specific control; no blanket replacement of every old-named template. Explain exceptions. |
 | Journal window and layout | Book.lua: `PortraitFrameTemplate`, Camelot ProfessionsFrame/ProfessionsCrafting, `Profession-Background-Overview`, `Profession-Background-Template2`, `Professions-background-summarylist`, `LargeSideTabButtonTemplate`, `PanelTopTabButtonTemplate`. | Retain the professions reference's authored geometry, tab anchors, list/detail relationship, padding and continuous background; use native components first. |
 | Profession rows and statistics | RivalList.lua: `ProfessionsRecipeListRecipeTemplate` with safe handling of handlers that need recipe IDs. Book.lua: `ProfessionsReagentSlotBaseTemplate`, its intrinsic ItemButton mask/layers, `Professions-Slot-bg`, `Professions-Slot-Frame` fallback. | Reuse native reagent/recipe layouts and actual spacing, label anchors and selection art. Don't invent another card/slot style. |
@@ -55,7 +55,7 @@ if a reference or target build changes.
 | Window ordering | Book.lua: independent movable top-level `MEDIUM` frame, `SetToplevel(true)`, `Raise()` on show, native close/Escape via UISpecialFrames. | Main windows must coexist and raise naturally like native panels; a permanent DIALOG stratum can prevent ordinary panels rising above them. Genuine dialogs may have different ordering, e.g. existing IssueReport.lua. Check overlap, clicking, dragging, close/Escape and focus. Don't add all windows to a protected native manager blindly. |
 | Sounds | ProfessionsMixin:OnShow/OnHide in the matching Camelot/shared source; Book.lua uses `SOUNDKIT.UI_PROFESSIONS_WINDOW_OPEN` and `UI_PROFESSIONS_WINDOW_CLOSE`. | Match the reference's sounds on equivalent actions (open/close, tabs, buttons, selection where the native reference actually plays them). Inspect native inherited handlers to avoid duplicate playback. Play once per actual transition, not on redundant Show/Hide or refresh. |
 | Minimap | Book.lua shortcut follows Azeroth Fitness Shortcut:Init; `MiniMap-TrackingBorder`, `UI-Minimap-Background`, circle mask, native highlight, stored angle and size-change positioning. | Center artwork in the visible opening, not blindly in the full texture. Preserve drag and left/right-click meanings, tooltip anchoring, scale and position persistence. |
-| Issue report | IssueReport.lua: `PortraitFrameTemplate`, `InputBoxTemplate`, `InputScrollFrameTemplate`, modern buttons, optional detail pages. | Retain native selection/scroll/focus/close behavior and public-sharing warning. No automatic upload or requiring external combat logging. |
+| Issue report | IssueReport.lua: `PortraitFrameTemplate`, `InputBoxTemplate`, `InputScrollFrameTemplate`, one Select Report button and one scroll field. | Keep native selection, scrolling, focus and close behavior. Preserve the public-sharing warning. |
 
 ### Geometry and icon centering
 
@@ -125,6 +125,14 @@ used by cards, profile, tooltip and nameplate.
 
 ## 4. API and evidence conventions
 
+- Export one pseudonymized JSONL block with a native full-text selection.
+  Distinguish the submission service's body limit from the EditBox viewport
+  and clipboard behavior. Measure widget storage by reading the text back.
+  If an export must fit a verified bound, preserve core facts and the most
+  useful evidence first. Emit complete rows and label every shortened section
+  separately from capture omissions. Keep attaching SavedVariables optional.
+  [Transport and native behavior](forever-validation.md#public-issue-reports)
+
 - Match Forever build/source and distinguish documented APIs, actual delivery,
   readable fields, test mocks and observed real-client behavior. For exact
   API research, record source/build/symbol and evidence in Forever validation.
@@ -173,13 +181,35 @@ used by cards, profile, tooltip and nameplate.
 - Treat a native `EnemyDamageTaken` no-spell row as a player-pair
   aggregate only when the readable complete source totals reconcile
   against same-selection GUID-keyed `DamageDone` and the full names are
-  unique. Keep the proof on the literal window of the separately
-  confirmed target. A shared session can cover another opposing player
-  or predate local combat. For a longer session with late updates,
+  unique. A normally scoped and concordant pair can bootstrap a skirmish
+  without an existing record, death, or damage in the reverse direction.
+  A shared session can cover another opposing player or predate local
+  combat. Require the existing independent target anchor for such a
+  session. For a longer session with late updates,
   require an isolated selection and independently observed combat and
   reciprocal damage for the joined pair. Keep this proof out of the
   passive strict-detail baseline. A brief generic ally combat flag
   alone cannot override a witnessed elimination.
+- Keep a corroborated opponent-to-ally target observation separate from
+  the directed damage or support used for credit. Cross-check GUID,
+  flag readability and same-window combat. An observed, non-feigning corpse
+  supported by the directed PvP pair can supply an actorless death event.
+  A verified local combat exit supports elimination only after every
+  recorded opponent's confirmed death, with no contradictory later evidence.
+- Keep earned rewards durable while combat confirmation is pending. A
+  live claim can transfer a previously counted award once to its exact
+  window and record. Attribute an actorless award to a rival only when the
+  native HK and honor observations match one confirmed opponent death in
+  the scoped window. Check directed evidence, timestamps and competing
+  episodes independently of roster size. Historical recovery needs a unique
+  unowned window, the same pair checks and an unambiguous saved balance.
+  Reclassify a previously recovered card in place only with the matching
+  raw award window and durable recovery key. Keep the key independently of
+  the debug buffer so reload or removal cannot replay the window.
+- Capture an available combat-start location through the shared encounter
+  location reader. Historical recovery uses the validated map ID and
+  normalized coordinates on the exact matched start row. Missing, invalid
+  or unrelated positions leave the waypoint unavailable.
 - Preserve witnessed action times on both sides of a life transition. Per-pair
   first/last/count summaries alone can drop the only action that links an
   earlier corpse to PvP. Reconcile confirmed death and revival from readable,
@@ -256,6 +286,11 @@ meaningful tests for changed behavior, unless a concrete reason is stated
   changes smoke test relevant live behavior if feasible; do not make the
   owner repeat dozens of historical encounters. Preserve meaningful gaps as
   explicit limitations and release blockers when warranted.
+  Owner decision (25 November 2026): do not block an otherwise accepted
+  milestone solely on waiting for uncommon live scenarios. Record untested
+  scenarios as follow-ups; investigate newly reported defects promptly and
+  ship focused fixes. This does not waive known data loss/corruption, crashes,
+  taint, reproducible core-behavior defects, failing checks or package integrity.
 - Run the full existing checks locally before submitting when a checkout is
   available. CI must pass on the exact final PR head. If local execution is
   unavailable, state that and use actual CI evidence; do not claim local tests.
@@ -269,12 +304,24 @@ the PR head tree even when the workflow checks out GitHub's merge commit to
 test integration. Stamp the packaged TOC with the exact commit in
 `X-Preview-Revision` so a report can identify the installed build without a
 version bump. Verify the archive against the head and the expected stamp
-before supplying it. Before publishing,
-resolve the remote tag explicitly and verify the published asset against
-the tagged files. Compare the public CurseForge file independently and
+before supplying it. Build release ZIPs with fixed member times, file modes,
+platform metadata and an explicit compression level. Verify independent
+builds of the same source byte for byte. Before publishing, resolve the
+remote tag explicitly and verify any uploaded asset against that build.
+Compare the public CurseForge file independently and
 check pending automatic packaging before any manual upload. The
 [preview and release incidents](forever-validation.md#preview-and-release-provenance)
 record why these checks matter.
+
+### Public listing copy
+
+Keep the CurseForge description evergreen and benefits-first: a short tagline,
+compact feature bullets, then optional topical explanations, setup, compatibility
+and support. Describe the addon as a product, not a release announcement. Do not
+include addon version headings, "New in" sections, release histories or changelog
+entries in the permanent listing. Keep release-specific changes in CHANGELOG.md
+and release notes. Client-version compatibility may remain in its own section.
+Update public feature claims only when the corresponding behavior is available.
 
 ## 6. Living technical memory: learn from every durable correction
 

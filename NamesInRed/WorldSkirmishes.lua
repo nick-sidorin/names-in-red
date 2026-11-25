@@ -80,7 +80,7 @@ local function NewWindow(place, reason)
     }
 end
 
-local function Save(record)
+local function Save(record, window)
     if record.id and (not addon.db.skirmishes or addon.db.skirmishes[record.id] ~= record.battle) then return end
     if not record.id then
         addon.db.encounterSequence = (addon.db.encounterSequence or 0) + 1
@@ -88,6 +88,7 @@ local function Save(record)
         local prefix = record.battle.origin == "battleground" and "bg:" or "world:"
         record.id = prefix .. record.battle.sequence
     end
+    if addon.ReconcileHonorWindow then addon.ReconcileHonorWindow(window or record.lastWindow, record.battle) end
     addon.RecordSkirmish(record.id, record.battle)
     return record.id
 end
@@ -786,7 +787,7 @@ function addon.RecordWorldMeterParticipant(battle, entry, faction)
         })
 end
 
-function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, contacts, probe, contributionLinks, localNpcDamage, sourceTotals)
+function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, contacts, probe, contributionLinks, localNpcDamage, sourceTotals, outgoing)
     if not Valid(window) or window.area ~= area then return end
     local enemies = {}
     for _, entry in ipairs(additions) do
@@ -825,10 +826,12 @@ function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, c
     end
     Ledger.RecordMeterAggregates(battle, segment, probe)
     addon.RecordMeterSourceTotals(segment, sourceTotals)
+    addon.RecordOutgoingWindowContext(battle, segment, window.segmentIndex, outgoing, faction)
+    window.rewardCorpse = row.restrictedPartyKills == 0 and outgoing and outgoing.rewardCorpse
     addon.ResolveStagedWorldKills(window, contacts)
     local state = Assessment(record)
     if not state.first and not state.last then WatchEnding(window) end
-    Save(record)
+    Save(record, window)
     window.dirty = nil
 end
 

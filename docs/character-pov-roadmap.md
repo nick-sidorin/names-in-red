@@ -1,17 +1,15 @@
 # Character POV — milestone roadmap
 
-**Status:** Approved to begin implementation, 24 November 2026. The Character POV
-contract is in [the product specification](skirmish-product-spec.md).
-PR A (#43) and PR B (#44) are merged. PR C implements journal integration
-and is ready for review and a Forever preview. This roadmap is not release
-authorization or a final version-number decision.
+**Status:** Character POV is accepted. PRs #43, #44, #45 and #48 are merged
+in main `9b6876b`. Issue #47 is closed. The planned release is 2.0.0.
+Final release review remains separate from milestone acceptance.
 
 **Baseline:** GitHub v1.1.0, with permanent battle history, automatic diagnostics,
 in-game issue reporting, and the existing side-outcome scoring model. The
 new milestone is a semantic redesign, not a rewrite of the whole addon.
 
 **Working title:** Character POV. Consider 2.0.0 because the meaning of rival
-wins/losses changes; decide the release number with the owner before publishing.
+wins/losses changes in 2.0.0.
 No deadline is committed. A fast iteration is desirable, but client restrictions
 and migration evidence determine readiness.
 
@@ -157,7 +155,7 @@ manufacture perfect coverage.
   deletion, no invented old credit. Preserve honor/HKs and BG/display settings.
 - Extend issue reports with versioned personal outcome and credit rationale,
   missing/partial evidence and group context when available. Preserve stable
-  aliases, paging, report size bounds and optional SavedVariables instructions.
+  aliases, one copyable report, explicit export limits and optional SavedVariables instructions.
 - Keep Blizzard-native look, use existing assets/templates, localize changed
   UI across all supported locales, and update product-facing text only when
   corresponding behavior is actually delivered.
@@ -188,10 +186,48 @@ After PR C, prepare one installable preview of the entire milestone.
   limits; no new quota on permanent history.
 - Resolve actual release blockers; put non-blocking improvements into
   future ideas or follow-up issues rather than extend the milestone.
-- Only after separate owner authorization, choose version, update changelog
-  and listing copy, build verified ZIP, publish tag/GitHub Release and verify
-  CurseForge separately. Do not assume a publisher exists just because 1.1.0
-  was released; the temporary 1.1.0 workflow was removed.
+- Prepare the approved version, changelog, listing copy and reviewed
+  publisher in a release PR. Push the version tag only after final owner
+  approval. GitHub and CurseForge publication are checked independently.
+  The GitHub publisher builds from the exact tag. CurseForge uses the
+  existing source packager and `.pkgmeta`.
+
+### 2.0.0 gate status
+
+- Merged main `9b6876bd314d36f3336d18402160444fec6c555b` passed
+  [GitHub Checks](https://github.com/nick-sidorin/names-in-red/actions/runs/45654965236).
+- The owner accepted restored world:16 and world:19–21 outcomes, roster,
+  score and reload on preview `22fada7`. The owner confirmed recovered
+  world:22–24 history in Forever on `218f1b1`. The release replay uses copies
+  of the original SavedVariables with repeat loads and checks direct stats,
+  separate awards and durable history.
+- The suite covers legacy and manual entries, 1,050-battle score indexing,
+  diagnostic compaction, localization and all existing combat replays.
+  CI checks the package manifest and versions in addition to the installable
+  feature preview.
+- Issue #49's private save reproduces a missing fight on the previous
+  release-preparation build. Replay on the repaired build restores a 2×1
+  Victory, one rival win and 1 HK / 4 honor on both the card and rival profile.
+  Older preview cards reclassify verified awards in place. The indexed result
+  survives repeat loads and removal prevents recovery from replaying it.
+  [Outgoing-only recovery](forever-validation.md#outgoing-only-aid-in-forever-71091)
+- The owner verified the restored card and compact report in Forever on
+  `6961d33`. The final preview checks the corrected rival profile. The
+  original card has no captured map position. Checks establish that two
+  independent release builds from one commit produce identical ZIP bytes.
+  Publication awaits final review.
+
+### Non-blocking live follow-ups
+
+- Verify a fresh group fight with a healer, late join or overlapping
+  combat windows. Available reports and raw samples vary by combat and
+  restrict which supporting players can be credited.
+- Verify a readable hostile pet-owner token during Death Recap across the
+  post-combat retries. Unknown owner stays valid when the native identity
+  read is absent, secret or ambiguous.
+- Verify rare return-after-revival and true battleground reset boundaries
+  when they are observed. Vary active observation and client restrictions.
+  Keep the existing replay fixtures as the regression baseline.
 
 ## Agent workflow
 
@@ -211,12 +247,13 @@ latest accepted main; avoid parallel changes to shared scoring/storage
 contracts. Independent fixture preparation may be parallelized only if
 it does not create conflicting changes.
 
-PR C merged after the joined-ally follow-up. Later live testing found a
-split encounter across a brief combat gap. Verify the standalone
-Issue #47 fix in its exact-head Forever preview before preparing the
-public release. See [control-gap validation](forever-validation.md#control-gap-replay-world2324).
-The original world:19–21 replays still give three 2×1 victories and
-historical world:16 remains Defeat. Live pet-owner API statuses are a
-separate check. See [joined ally validation](forever-validation.md#joined-ally-combat-and-late-generic-activity-in-world1921)
-and [world:16 validation](forever-validation.md#original-world16-findings-and-second-follow-up).
-A public release still requires separate owner authorization.
+Owner acceptance of preview `22fada7` covered the restored world:19–21
+rosters and victories, rival scores, world:16 Defeat and persistence after
+reload. The owner also confirmed the world:22–24 recovery in the Forever
+preview `218f1b1`. Fresh group encounters and live pet-owner attribution
+remain useful follow-ups. The owner accepts shipping a completed milestone
+while uncommon live scenarios are still unobserved. Data integrity,
+stability, core behavior, CI and installable-package checks stay part of the
+release gate.
+[PR C acceptance](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6060358381) ·
+[Control-gap validation](forever-validation.md#control-gap-replay-world2324)

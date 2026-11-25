@@ -1,18 +1,24 @@
 # Names in Red — Project context and conversation handoff
 
-**Snapshot: 24 November 2026.** Read this first when starting a fresh ChatGPT,
+**Snapshot: 25 November 2026.** Read this first when starting a fresh ChatGPT,
 Codex or other coding session. This is a compact record of decisions, evidence
 and status, not a raw chat transcript. Verify live repository and release state
 before acting. The authoritative target behavior is
 [the Character POV product specification](docs/skirmish-product-spec.md);
-the shipped README and CurseForge copy describe 1.1.0 until new behavior ships.
+the release branch README and CurseForge copy describe the 2.0.0 candidate.
+The published 1.1.0 listing remains current until release and listing updates
+are separately verified.
 
 ## Owner intent and workflow
 
 - Repository: https://github.com/nick-sidorin/names-in-red
 - Project: a Warcraft-native personal PvP rival journal, "Remember who got you.
   Plan your revenge." Immersive gameplay and the personal story matter more than
-  an esport scoreboard. The owner plays a night elf hunter in Forever with a
+  an esport scoreboard. Public listing copy emphasizes personal rivalries and
+  the revenge theme; the short summary naturally includes vendetta and revenge
+  alongside PvP and rival statistics. Keep the permanent listing evergreen:
+  feature bullets first, then topical details, no addon release numbers or
+  changelog sections. The owner plays a night elf hunter in Forever with a
   brother (druid in Gnomeregan); also consider pure healer and solo play.
 - Talk to the owner in Russian; repository docs/code/PRs in English. Read root
   [AGENTS.md](AGENTS.md), pinned [standards](docs/standards/AGENTS.md),
@@ -162,7 +168,9 @@ features into an approved release. See product spec for all acceptance rules.
   24 dense logs 1,118,784 bytes, 26 stress cards ~1,656 KiB Lua heap. These are
   fixture measurements, not frame-time proof or caps on permanent history.
 - Report an Issue: from header/settings or compact/full card bug icon, copy
-  versioned JSONL, optional detail pages with stable aliases, 24 KiB/page.
+  one versioned JSONL report with stable aliases and one full-text selection.
+  The 60 KiB export budget leaves room in the GitHub issue body. The report
+  identifies omitted sections and can rebuild for a smaller EditBox capacity.
   Reports distinguish observations, aggregates, inferred results, restriction
   status and retention/truncation. Optional attachment of existing NamesInRed.lua
   as-is; no manual anonymization, no hunt for timestamps, no prerequisite
@@ -289,27 +297,35 @@ technical evidence predicates remain implementation choices.
 PR A implements the independent personal result and participation lifecycle.
 See [the timing and replay notes](docs/forever-validation.md#character-pov-pr-a)
 for the 12-second settlement window, evidence rules and historical results.
-PR A (#43) and PR B (#44) are merged. PR C connects both projections to the
-journal and merged in #45. Keep 1.1.0 as
-the shipped baseline pending separate release authorization.
+PR A (#43), PR B (#44), PR C (#45) and the control-gap fix (#48) are
+merged. Issue #47 is closed and the owner confirmed restored history in
+Forever on preview `218f1b1`. Integrated main is `9b6876b`. The owner
+accepted Character POV for the planned 2.0.0 release. The public baseline
+remains 1.1.0 until publication is verified.
 
-1. Review the Issue #47 combat-gap fix and verify its exact-head Forever
-   preview before preparing the public release. The original third card
-   is recovered into the preceding two-segment Defeat. The independent
-   Victory and the rival score of 1:1 survive. See
-   [control-gap validation](docs/forever-validation.md#control-gap-replay-world2324).
-2. Live PR #45 testing reported no UI errors and
-   confirmed historical world:16 Defeat. The original world:19–21 data
-   replay as three 2×1 victories with one personal rival win per fight.
-   Live pet-owner API statuses remain to be verified. See
-   [joined ally validation](docs/forever-validation.md#joined-ally-combat-and-late-generic-activity-in-world1921)
-   and [world:16 findings](docs/forever-validation.md#original-world16-findings-and-second-follow-up).
-3. Repeat migration on a copy of an older real SavedVariables file if
-   available. Follow the
-   [milestone integration gate](docs/character-pov-roadmap.md#integration-and-release-gate).
+1. Prepare the 2.0.0 release PR and preview the single-copy issue report.
+   Complete final product and technical review before pushing a public
+   version tag. Follow the [integration gate](docs/character-pov-roadmap.md#integration-and-release-gate).
+   PR #50 also fixes Issue #49. A concordant outgoing pair can record a
+   skirmish independently of a killing blow. The exact private replay
+   recovers the assisted 2×1 Victory with one rival win and the same 1 HK /
+   4 honor on the card and rival profile. The owner verified the restored
+   card and compact report on `6961d33`. The next preview checks the updated
+   rival profile after upgrading that card. Its old diagnostic window carries
+   no map position. The release gate checks deterministic ZIP output. See
+   [Forever validation](docs/forever-validation.md#outgoing-only-aid-in-forever-71091).
+2. Preserve the earlier real-client acceptance of restored world:19–21,
+   world:16 Defeat, rival scores and reload. The owner confirmed the two-fight
+   recovery from #48 after that check. Unobserved rare group and hostile
+   pet-owner scenarios stay as follow-ups under the accepted release policy.
+   [PR C acceptance](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6060358381) ·
+   [Control-gap validation](docs/forever-validation.md#control-gap-replay-world2324)
+3. Known data loss, crashes, core behavior defects, failing checks and
+   package problems still block publication. Verify GitHub and CurseForge
+   artifacts independently once the owner accepts the final release.
 4. Later ideas (not blockers): full timeline viewer, general history pagination,
    optional consenting peer observations, formal duel history, target-frame
-   marker, ranks/achievements. See docs/future-ideas.md.
+   marker, ranks and achievements. See docs/future-ideas.md.
 
 To resume in a new chat: provide the repository link and ask the assistant to
 read this file and docs/skirmish-product-spec.md, verify main/PR/release state,

@@ -36,6 +36,7 @@ A skirmish is a **continuous, connected hostile confrontation** between the two 
 
 - Engaging an enemy can begin before the first damage is dealt: an offensive ability, crowd control, or commanding a pet to attack may be the first action.
 - An attempted attack that never connects or contributes to any real PvP confrontation should not create a completed fight by itself.
+- Confirmed directed damage from the local character to an opposing player can establish a skirmish even when nobody dies and no incoming damage is available. A Damage Meter pair must identify both players and belong to the observed combat window.
 - Targeting a hostile player, being in range, seeing a nameplate, or being in a group **does not by itself** establish participation.
 - **Visible nameplates are not required.** Ranged attacks, spells, controlled pets, and observations of an ongoing fight can precede nameplate visibility.
 - The local character may arrive **mid-fight**. Observed participants and events from the earlier phase of the same connected confrontation should be retained when available, rather than starting the story at the first personal killing blow.
@@ -66,6 +67,8 @@ Qualifying involvement can include:
 The support case matters: **a priest who only heals a fighting ally is still a participant**, even with no recorded damage or killing blow.
 
 A player does **not** become a participant solely by being in the party, appearing on a nameplate, being selected as a target, standing nearby, or fighting an unrelated NPC. Actions must connect them to this confrontation. Conversely, a character need not be in our party/raid to be an ally.
+
+For a fight joined in progress, a hostile player's consistent focus on an independently identified friendly player in the same confrontation can corroborate involvement when that friendly player is also observed alive, PvP-flagged, and fighting around the hostile player's confirmed death. Record the roster evidence separately from any damage, support, or finishing-blow attribution.
 
 ### The limits of observation
 
@@ -201,8 +204,8 @@ No new requirement for global synchronization or exhaustive observation.
 - **Primary outcome:** Victory, Defeat or Draw from section 6; exceptional Unknown for genuinely unresolved endings. Show In progress separately for ongoing/settling encounters.
 - **Observed sides and roster:** identify actual Alliance and Horde participants, including meaningful support; keep known class, race, name and level. Use Blizzard's skull only for an explicitly observed skull-level value; hide an unavailable level.
 - **Casualties and timeline:** confirmed deaths, finishing blows and revivals, plus meaningful actions and available permanent aggregates. A pet finishing blow shows its verified player owner as the actor. When ownership is unresolved, show an unknown player and retain the actual source as technical evidence. Do not mark disappearance as death or fabricate a killer or individual hit from an aggregate.
-- **Rewards:** distinguish game-awarded Honorable Kills and Honor Points from both personal and rival outcomes. Preserve earned rewards at the most specific confirmed scope (rival, skirmish, or journal); no invented attribution.
-- **When/where, origin and coverage:** date, zone, map waypoint if available, observed rather than guaranteed full roster. Both compact and full battleground cards retain the localized Battleground label beside the location.
+- **Rewards:** distinguish game-awarded Honorable Kills and Honor Points from both personal and rival outcomes. Preserve earned rewards at the most specific confirmed scope. A unique confirmed opponent death with matched native award observations in the same window can attribute the award to that rival without identifying the finishing blow. Move an already-counted award once on stronger evidence, preserving the journal total. Show rival- and skirmish-scoped awards in their respective views. Keep journal-wide unmatched awards in internal accounting and diagnostics.
+- **When/where, origin and coverage:** date, zone, map waypoint if available, observed rather than guaranteed full roster. A recovered fight can show a waypoint when its exact combat window retained a validated player map position. Both compact and full battleground cards retain the localized Battleground label beside the location.
 - **Group context:** optional and explicitly labeled. It does not replace the character's primary outcome.
 
 ### Personal rival score: participation, not last-hit ownership
@@ -297,7 +300,7 @@ The original capture was 1 vs 2, later reconstructed as 2 vs 3 with two enemy de
 19. Permanent history survives reload, pruning and years of new records; oldest card retains roster, outcomes, confirmed timeline, contribution facts, aggregates and rewards. The latest-100 view is display-only.
 20. Legacy group outcomes remain labeled as legacy; do not silently reinterpret as character outcomes or credit them to every rival. Re-evaluate only from sufficient retained evidence, preserve explicitly manual results, and test migration and repeat reload idempotency.
 21. Duplicate notifications, overlapping meter categories, repeated read/replay, and revival followed by a new death: don't double count the same episode or erase legitimate distinct ones.
-22. Report an Issue remains automatic, bounded and copyable; report identifies outcome reason, credit evidence and missing fields separately. No requirement for prior logging, other addon installations, or public sharing.
+22. Report an Issue exports one pseudonymized JSONL document for one selection and copy. The report identifies outcome reason, credit evidence, unavailable fields and any sections omitted to fit the submission limit. Prior logging and SavedVariables sharing are optional.
 23. Three rivals damage the character in the same lethal episode: each earns one rival loss; one friendly death episode and one skirmish result under section 6. A bystander or unrelated earlier attacker gets none.
 24. Two genuine deaths of the same rival separated by revival, with qualifying local contribution in both: two rival victories, one skirmish; duplicate reads of either death do not add credit.
 25. Stealth or temporary disengagement then linked re-engagement: continue the same skirmish. Two allies dead, one enemy dead, character escapes and the encounter ends: Defeat by casualty balance, not inferred intention.
@@ -311,7 +314,7 @@ The original capture was 1 vs 2, later reconstructed as 2 vs 3 with two enemy de
 - This is a post-1.1.0 product redesign, not a hotfix to the released build. No runtime changes or release are implied by approval of this document.
 - Preserve all existing real history, reward totals, user settings, identity handling, and the current native UI style. Separate versioned personal outcome and rival contribution from legacy side outcome; derived results must be traceable and re-evaluable without overwriting facts.
 - No manual correction UI as a substitute for automatic inference. Existing manual-entry behavior remains separately identified.
-- The Report an Issue feature already ships in 1.1.0. Preserve pseudonymized JSONL, extra report pages, and optional existing SavedVariables attachment without prior logging or mandatory editing. Persist evidence necessary for future product views, not only in an expiring debug buffer.
+- Report an Issue keeps native scrolling and focus in a compact window with one Select Report action. Preserve pseudonymization, the public attachment warning and optional use of the existing SavedVariables file. Keep evidence needed for future product views in permanent history independently of the diagnostic buffer.
 - A full battle timeline viewer is later work. Preserve accessible facts and accepted aggregates now; never reconstruct exact casts, hits or times from untimed totals.
 - Optional addon-to-addon synchronization between consenting friends/group members is a future idea, not a dependency. Research permitted Forever addon messages and provenance, trust, deduplication, privacy and conflicting observations before implementing. Solo operation must remain complete and useful; no expectation that opponents install Names in Red.
 - Feasibility design and in-client validation remain necessary, especially for support linkage, terminal deaths/return, non-lethal outcomes and migration. Prefer small PRs: outcome boundary/evaluator, rival attribution and migration, then consistent UI/stat semantics and regression checks. Reconcile README and CurseForge descriptions when the behavior actually ships.

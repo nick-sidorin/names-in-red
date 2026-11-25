@@ -1217,18 +1217,34 @@ entry window's rock background from Blizzard's
 The form link precedes the report so each can be copied in sequence. The native feedback
 submission flow is outside this feature.
 
-The owner's screenshots showed the older button art and a split filename
-in the 550-unit dialog. The footer now uses the 28-unit native height of
-`SharedButtonSmallTemplate` and refits the text on page changes. The
-660 × 410 window shows the path on a separate line with mid-word wrapping
-disabled. `InputScrollFrame_OnLoad` sizes the EditBox from the scroll
-frame width during initialization. The addon sets the EditBox width after
-placing the scroll frame. The shorter viewport holds the whole current
-part. Select-all highlights it and switching parts returns to the top.
-The tests exercise selection and paging. The final path fit and system
-clipboard behavior remain client checks.
-[InputScrollFrame source](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.lua#L82-L109) ·
-[PR #31](https://github.com/nick-sidorin/names-in-red/pull/31) ·
+The 660 × 320 dialog keeps the existing width and removes 90 units of
+viewport height. The SavedVariables path keeps its own line and can wrap
+without splitting a word. The native XML provides a multiline EditBox
+without autofocus. `InputScrollFrame_OnLoad` applies the instance's letter
+limit and initializes its scrolling. `InputScrollFrame_OnTextChanged`,
+`ScrollingEdit_OnCursorChanged` and the update script maintain the native
+cursor/scroll behavior. The report clears configured byte and letter limits
+with `SetMaxBytes(0)` and `SetMaxLetters(0)`, then checks actual storage with
+`GetText()`. **Select Report** focuses the EditBox and calls native
+`HighlightText()` with no range to select the entire buffer.
+
+GitHub's issue endpoint was exercised with generated ASCII at 65,536 and
+65,537 characters. Both requests had a deliberately blank required title
+and failed with HTTP 422. Only the 65,537-character request also failed body
+validation and returned the 65,536-character maximum. Neither request
+created an issue. The addon uses a conservative 60 KiB UTF-8 body budget to
+leave room for the template and the player's description. There is no report
+row limit. The old 24,576-byte and 520-row limits were addon export choices.
+
+A long test report passes full selection after scrolling. A simulated
+EditBox cap triggers a smaller valid export with complete JSONL rows and
+an explicit `editbox-capacity` marker. The matching Forever Lua/XML exposes
+native selection, but gives no engine or OS clipboard size guarantee.
+Live verification for the compact window includes copying a long report
+and checking the closing `limits` row reaches the GitHub form.
+[InputScrollFrame XML](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.xml#L72-L177) ·
+[InputScrollFrame Lua](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.lua#L13-L19) ·
+[GitHub issue validation](https://github.com/orgs/community/discussions/41331) ·
 [Report tests](../tests/issue-report.lua)
 
 The copy field contains a fenced JSON Lines report. Each line is an object
@@ -1236,9 +1252,9 @@ with a `section`, beginning with format version 1 and ending with a list of
 truncated sections. Player aliases are scoped to the report; names, GUIDs,
 account metadata and raw chat are omitted. Review the remaining public
 context before posting. A saved segment retains a compact meter status and
-reason counts with its exact combat-end reference. Only an unambiguous
-session, combat sequence, server time and uptime match can add a retained
-debug row. Evicted rows and unlinked legacy records are explicitly labeled.
+reason counts with its exact combat-end reference. An unambiguous session,
+combat sequence, server time and uptime match can supply the report's
+canonical meter summary. Each segment emits that summary once. Evicted rows and unlinked legacy records are explicitly labeled.
 Automated tests exercise the projection and EditBox actions. Native sizing,
 scrolling and clipboard selection still need a client smoke check.
 
@@ -1427,11 +1443,12 @@ identity and omit rows with a resolved player outside that roster.
 Rows with one known endpoint carry `participant-only` attribution.
 They can describe damage received or a cast observed without linking it
 to a particular opponent. The coverage rows count omitted observations.
-A record created before capture remains `not-recorded`. The summary and
-each optional detail part stay within 24 KiB. When the summary omits
-sample rows, **Next part** exposes separately fenced JSONL parts with the
-same aliases and record ID. Runtime drops, compaction and export truncation
-are distinct fields.
+A record created before capture remains `not-recorded`. The report emits
+one JSONL block with retained diagnostics. The export budget prioritizes
+outcome and reward totals, participants, credited deaths and their evidence
+before lower-priority samples and repeated action rows. Its final `limits`
+object records `truncatedSections` and `omittedRows` distinctly from capture
+drops, privacy filters and historical compaction.
 
 For optional additional detail, attach the existing `NamesInRed.lua`
 containing `NamesInRedDB` and `NamesInRedDebugDB`. A typical Windows
@@ -1439,8 +1456,8 @@ installation keeps it under
 `_forever_\WTF\Account\<account>\<realm>\<character>\SavedVariables\NamesInRed.lua`.
 The file can be attached as is and can contain names and GUIDs. GitHub
 attachments are public on a public issue. The addon's window uses the
-existing report frame and native input templates. Its localized footer
-and pagination controls still need a smoke test in the Forever client.
+existing report frame and native input templates. Its shorter layout and
+full-buffer clipboard transfer still need an in-client check.
 
 #### Gnomeregan report replay on current main
 
@@ -1707,8 +1724,8 @@ coverage, reason, confirmed casualty counts and rival credit proof.
 The proof identifies the aliases for rival, actor, victim and any supported
 teammate, the death-event index and evidence type/category. Meter links carry
 their segment index and have no invented action time. Historical side
-resolution has its own scope. The existing alias rules, byte limits, paging
-and optional SavedVariables path still apply. Anonymous Duskwood, Gnomeregan
+resolution has its own scope. One bounded export keeps the same aliases
+and optional SavedVariables path. Anonymous Duskwood, Gnomeregan
 and battleground replays remain green. Gnomeregan `world:4` displays Victory
 from the supported personal projection; `world:7`, `world:12` and
 `world:14` display Defeat. Duskwood remains Unknown with two confirmed
@@ -2078,6 +2095,70 @@ reopening without the debug log, view and index consistency, and the
 live recorder tests exercise the captured intervals and native recap.
 Fresh in-client capture on the fix preview remains to be checked.
 
+### Outgoing-only aid in Forever 71091
+
+[Issue #49](https://github.com/nick-sidorin/names-in-red/issues/49) records
+a real joined open-world fight. On the previous release-preparation build
+the fight was absent, with 1 HK and 4 honor left at journal scope. The
+original save contained the exact unowned start and end of the 11.828-second
+local window, one 13-second current Damage Meter selection, two timely
+category updates, and complete readable views. GUID-keyed `DamageDone`
+reports 630 for the local player, including native pet damage. The druid's
+`EnemyDamageTaken` reports the same 630 in a no-spell row naming the local
+player. Its detail amount is zero and the class string is empty. The existing
+complete matrix check can establish this outgoing direction before a skirmish
+exists. Shared, late, and mismatched selections still require the earlier
+independent evidence or are rejected.
+
+The druid was observed alive and in combat at entry and non-feigning and dead
+5.839 seconds into the window. Both samples show the same target GUID. A
+readable nameplate identified that GUID as a friendly paladin in PvP combat
+2.082 seconds after the corpse observation. The addon can retain that
+corroborated roster connection outside the party. The capture contains no
+action or PARTY_KILL that assigns the killing blow. A local alive and
+out-of-combat sample at the end of the window, all recorded enemies confirmed
+dead, and the absence of contradictory later PvP activity support Victory.
+An outgoing pair alone still creates a record when death is unobserved. It
+supplies neither a casualty nor a rival win in that case.
+
+The owner confirmed the 2×1 Victory, one rival win and 1 HK / 4 honor on the
+card in Forever on `6961d33`, with the rival profile still at 0 HK / 0 honor.
+The missing fight allocates `world:26` in the original SavedVariables and
+`world:27` in the owner's current history. The revised replay attributes the
+same 1 HK / 4 honor to the rival, retains the actorless death and zero direct
+killing blows, and preserves the total earned rewards. The duplicate native
+HK notifications reflect one session-counter increment. A single readable
+honor line and that increment occur within two seconds of the confirmed death.
+One unmatched-award marker and an exact saved balance identify the original
+transfer. A second claim or an ambiguous stored balance leaves those awards
+at journal scope.
+
+Live awards can arrive before or after window confirmation. The same scoped
+corpse and paired award times are required for rival attribution. Previously
+recovered cards can upgrade their existing fight-level awards in place while
+their exact diagnostic window is still available. Once attributed, rewards
+and the index survive reload without diagnostics. Recovery keys also prevent
+record removal from replaying the window. If the diagnostic window expired
+before that migration, the preserved awards stay on the skirmish card.
+
+The original window contains a zone but no saved position, so its restored
+card has no map action. New diagnostic start rows retain the same validated
+native `C_Map.GetBestMapForUnit` / `GetPlayerMapPosition` sample as an ordinary
+encounter when available. Historical recovery reads only the matched start
+row. Regressions cover a valid location, absent coordinates, malformed values
+and positions belonging to a different combat window.
+
+The anonymized fixture keeps the actual offsets, amounts, shape, and field
+statuses. Replays reject stale updates, mismatched totals, unidentified names,
+NPC sources, overlapping records, unverified allies, feign and contradictory
+life evidence. The UI tests verify the card, rival profile, compact card and
+tooltip, and check that unmatched awards are absent from the journal heading.
+The owner also reported the single-copy report working on `6961d33`. The
+follow-up preview targets the corrected rival profile on the same recovered
+card. Captures that no longer retain a uniquely scoped
+readable pair cannot recover a missing fight. Unreadable game awards or
+ambiguous balances still limit historical award attribution.
+
 ### Preview and release provenance
 
 The original #29 preview included the new combat diagnostics with the old
@@ -2109,3 +2190,40 @@ version on the published file, independently of the GitHub release and
 project listing copy. [GitHub publisher run](https://github.com/nick-sidorin/names-in-red/actions/runs/45284416748) ·
 [GitHub release](https://github.com/nick-sidorin/names-in-red/releases/tag/v1.1.0) ·
 [CurseForge file](https://www.curseforge.com/wow/addons/names-in-red/files/9782367)
+
+#### Character POV 2.0.0 release preparation
+
+The owner accepted the integrated milestone after confirming restored
+history on Forever previews `22fada7` and `218f1b1`. Main `9b6876b`
+passed the required Checks job. Three private SavedVariables copies were
+replayed against 2.0.0. Their battle counts were 16 → 16, 20 → 20 and
+23 → 22 after the supported two-segment repair. Their timeline event
+counts stayed at 19, 23 and 25. Their earned totals stayed at 10 HK and
+40 honor, 13 HK and 49 honor, and 14 HK and 55 honor respectively.
+Each copy retained all rival records. The repaired history and indexed
+scores stayed stable on repeated open with and without the debug log.
+The automated suite separately checks manual history and a 1,050-battle
+index. [Integrated main Checks](https://github.com/nick-sidorin/names-in-red/actions/runs/45654965236)
+
+The permanent publisher is triggered by a stable version tag on a
+checked main commit. It reruns the suite and verifies the manifest,
+TOC, changelog and bytes before a draft asset can become public.
+Local simulation exercised draft creation, upload verification, a
+successful retry and refusal of a moved tag or altered asset. The
+existing CurseForge source path was run locally with uploads disabled.
+The dry run identified `PROJECT_CONTEXT.md` as an extra member. The
+packager now excludes it. The release workflow relies on the existing
+CurseForge integration for delivery, and the public file needs separate
+verification after approval and release.
+
+The earlier ZIP builder used the current wall clock for member timestamps.
+Two builds of the same commit reproduced different SHA-256 digests despite
+identical runtime members. CI now assembles the exact source twice, past
+ZIP's two-second timestamp boundary, and checks byte equality. The builder
+sets a fixed DOS-compatible timestamp, Unix file metadata and a compression
+level. The publisher's downloaded-asset comparison and remote tag checks
+remain in place. The same workflow script was exercised against a local
+GitHub stub. An interruption after the first draft upload left one asset.
+The independent build verified that asset and published the existing draft
+once. A further retry accepted the published release. The script refused a
+modified asset and a moved tag. The simulation made no public tag or release.

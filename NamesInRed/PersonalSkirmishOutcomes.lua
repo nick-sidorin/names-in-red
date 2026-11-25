@@ -294,6 +294,25 @@ function addon.EvaluatePersonalSkirmish(battle)
         local earlier, observed = TerminalEvidence(battle, segment, first, last, cutoff, life, unreturned)
         if not active or observed == "enemy-elimination" then outcome, ending = earlier, observed end
     end
+    -- A verified local combat exit after the observed opposing deaths can
+    -- settle an outgoing-only window even if later sampled units disappear.
+    if not outcome and not active and not unreturned and not (localLife and localLife.dead)
+        and segment and segment.outgoingLocalSurvivor and #battle.enemies > 0 then
+        local phase = analysis.segments[#analysis.segments]
+        local finish = phase and phase.finish
+        local pair = assessment.meterPair
+        local meterAfterExit = finish and pair and DeathEvidence.Opponents(analysis.sides, pair.actorID, pair.targetID)
+            and DeathEvidence.IsNumber(assessment.lastMeterActivity) and assessment.lastMeterActivity > finish
+        local eliminated = finish and not meterAfterExit and (not lastAction or lastAction <= finish)
+        for _, rival in ipairs(battle.enemies) do
+            local death = life[rival.id] and life[rival.id].death
+            if not death or not DeathEvidence.IsNumber(death.offset) or not finish or death.offset > finish then
+                eliminated = false
+                break
+            end
+        end
+        if eliminated then outcome, ending = "win", "enemy-elimination" end
+    end
     if not outcome and personalDeath and battle.rosterComplete == true and #battle.allies == 1 and #battle.enemies == 1 then
         local rival = battle.enemies[1].id
         local sample = lateLast and lateLast.units and lateLast.units[rival] and lateLast or last

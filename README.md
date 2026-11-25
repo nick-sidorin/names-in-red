@@ -1,7 +1,7 @@
 # Names in Red
 
 A personal PvP journal for World of Warcraft: Forever. Remember who you fought,
-what happened, and where you last met.
+what happened, and where you last met. Every rival has a story.
 
 Names in Red targets Forever 1.60.1 (interface 16001). Click the crossed swords
 on the minimap to browse rivals. Information shows your skirmish stats and the
@@ -69,26 +69,20 @@ See [diagnostics and sample data](docs/debug-preview.md) for details.
 The journal records local fights in the open world and on battlegrounds.
 Battleground cards label their origin and use the same rival profiles.
 A battleground fight can have a different result from the overall match.
-The [PvP skirmish product specification](docs/skirmish-product-spec.md)
-describes the approved next Character POV model. The score below describes
-**shipped 1.1.0 behavior**, not that future model. See [project context](PROJECT_CONTEXT.md)
-for the handoff.
+Version 2.0.0 introduces [Character POV](docs/skirmish-product-spec.md).
 
-- **Wins** and **Losses** count the result of your side.
-  A recorded result counts once in the journal and once in each opponent's
-  profile. If you die and your surviving teammate finishes the opposing
-  side, it counts as one win against every opponent in the battle.
-- In open-world history, a direct fight between you and the only recorded
-  opponent counts as a duel. If another participant is recorded in the same
-  fight, the result is recalculated using the larger roster.
-- A skirmish receives a result when terminal observations support a
-  side. A confirmed departure under pressure can count with zero kills.
-  Unknown stays in history without contributing a win or loss. Older
-  recorded and manually entered results stay available.
-- **Honorable Kills** and **Honor Points** show how much the game awarded you for
-  identifiable opponents. Both skirmish card sizes show the totals for the
-  whole fight. An award may count even when the team outcome is unknown.
-  Shared or closely spaced signals can leave a reward unattributed.
+- The full skirmish card shows your character's result. A confirmed ending can
+  be **Victory**, **Defeat** or **Draw**. Open fights show **In progress**.
+  **Unknown** preserves a fight whose ending could not be determined.
+- Rival wins and losses count credited participation in confirmed death
+  episodes. Damage, relevant healing, shielding and control can count.
+  Activity from a pet can count when its owner is verified. Each enemy you
+  helped defeat adds a win against that rival, and each rival who helped
+  defeat you adds a loss to your score against them. A revival can make a later death count
+  separately. The nameplate, tooltip, compact card and profile show that score.
+- Direct killing blows and deaths, **Honorable Kills** and **Honor Points**
+  keep their own counters. Original historical and manual entries stay in the
+  journal. Older side results carry their historical scope.
 
 Deleting a rival clears their profile and its statistics. Shared battles
 remain in the journal with their recorded participants and timeline.
@@ -96,14 +90,15 @@ remain in the journal with their recorded participants and timeline.
 ## Development
 
 The [PvP skirmish product specification](docs/skirmish-product-spec.md)
-describes the target participation, outcome and battleground behavior for future development.
+describes participation, outcomes and battleground behavior.
 
 Use **Report an issue** in the journal header or addon settings, or click the
-bug icon on a skirmish to prepare a report for that fight. Copy the report and
-the GitHub issue link from the dialog, then review the report before posting.
+bug icon on a skirmish to prepare a report for that fight. Open the form
+from the link, click **Select Report**, then copy and paste the report once.
+Review the pasted report before posting.
 Participant aliases replace character names and GUIDs in the report. Names in
 Red saves bounded combat evidence automatically, so it can be reported after
-a reload. Use **Next part** if the report offers additional pages.
+a reload. The report identifies any sections shortened to fit the issue form.
 You can optionally attach the existing `NamesInRed.lua` SavedVariables file
 for more detail. That file may contain character names and GUIDs and is
 public when attached to a public issue.
@@ -125,16 +120,16 @@ results keep their existing interpretation. New world records derive
 coverage are stored separately. A `kind = "revive"` event marks a later
 readable living state for the same character and preserves the killing
 blow. The skull marks a death during the fight. The portrait returns to
-color after an observed revival. Rival tooltips show a separate personal
-kill/death score. Skirmish wins/losses and Blizzard rewards have their own
-counters.
+color after an observed revival. Rival tooltips show the personal rival win/loss score based on confirmed
+contribution, not literal killing blows. Skirmish outcomes, direct-player
+kills/deaths and Blizzard rewards are distinct.
 Mark the local player `isSelf` and identify profile links with `rivalID`.
 Store `honorableKills` and `honor` under `rewards[opponent.id]`. Re-saving
 the same skirmish ID replaces the indexed result and rewards.
 
 Live open-world capture can record a skirmish with zero kills or rewards
-when a readable harmful effect or post-combat link establishes that the
-player was involved. Observed local combat windows can join one record
+when a readable harmful effect or a confirmed directed damage pair establishes
+that the player was involved. Observed local combat windows can join one record
 if a corroborating hostile action links them. The preview checks specific
 damage, healing, absorb, interrupt and dispel links when the meter supplies
 both identities. It can credit a pet with a confirmed owner. Nearby sightings,
@@ -142,12 +137,22 @@ group membership alone and unnamed meter totals do not establish participation.
 At death, visible nameplates can supply details when the target and mouseover
 are unavailable. For live records, `rosterComplete` still covers observed
 one-on-one kills and is recalculated at load and on each save.
-Honor correlation uses one readable
-opponent death and a single increase in the session honorable kill count.
-An honor amount also requires one award message and a readable amount from
-that message or a matching honor currency update. Ambiguous broadcasts
-remain in diagnostics. Rewards are collected for new observations. The
+Rival-specific honor correlation uses a linked kill or an independently
+confirmed opponent death with a single increase in the session honorable kill
+count. For an actorless death, a unique readable honor award must match that
+death in the same combat window. A late-confirmed combat window can receive
+awards originally saved in the journal's internal totals when their window
+is unambiguous. Unmatched awards remain in saved accounting and diagnostics. The
 seeded preview exercises completed outcomes and attributed rewards.
 
 The pinned [WoW Addon Standards](docs/standards/AGENTS.md) are used for development
 and are outside the installable addon folder.
+
+### Release packaging
+
+After final product and technical approval, push the version tag on the
+approved main commit. The [tag publisher](.github/workflows/release.yml)
+requires successful CI for that exact main commit, reruns the local suite,
+and verifies the installable ZIP before publishing the GitHub Release.
+The existing CurseForge source packager uses `.pkgmeta`. Verify the
+CurseForge file and game version separately after publication.

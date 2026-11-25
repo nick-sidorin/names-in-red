@@ -565,20 +565,20 @@ local function CaptureMeter(row, window, evidence, finalAttempt, enemies, factio
         retry = retry or retrySource
         if eligible then linked[name] = actors end
     end
-    local sourceTotals
-    if canQualify and window.context and window.context.record then
+    local sourceTotals, outgoing
+    if canQualify then
         local done, taken = types.DamageDone, types.EnemyDamageTaken
         local prefix = (id or 0) .. ":"
         if done and taken then
             local context = window.context
-            local victims = addon.MeterSegmentVictims(context.record.battle, context.segment)
-            sourceTotals = addon.MatchMeterSourceTotals(evidence, row, victims, window.startedUptime, window.previousEnd,
+            local victims = addon.MeterSegmentVictims(context.record and context.record.battle, context.segment)
+            sourceTotals, outgoing = addon.MatchMeterSourceTotals(evidence, row, victims, window.startedUptime, window.previousEnd,
                 window.meterUpdates[prefix .. done], window.meterUpdates[prefix .. taken])
             evidence:ApplySourceTotalLinks(sourceTotals)
         end
     end
     row.status.meter = "sampled"
-    return evidence and not finalAttempt and retry, linked, sourceTotals
+    return evidence and not finalAttempt and retry, linked, sourceTotals, outgoing
 end
 
 local handlers = {}
@@ -751,6 +751,12 @@ function handlers.PLAYER_REGEN_DISABLED()
     local row = Add("COMBAT_START")
     Sample(row)
     CopyGroup(row)
+    local world = addon.WorldCombatWindow and addon.WorldCombatWindow(row.uptime)
+    local place = world and world.began == world.localStart and world.place
+        or (addon.RecordingPvPOrigin() and addon.EncounterContext())
+    if place and place.zone == row.zone then
+        row.mapID, row.x, row.y = place.mapID, place.x, place.y
+    end
     local baseline = C_DamageMeter and SessionIDs(row, C_DamageMeter)
     combat = {
         baseline = baseline, contacts = {}, contactSamples = {}, unresolved = {}, previousPending = previousPending,
@@ -763,7 +769,6 @@ function handlers.PLAYER_REGEN_DISABLED()
     }
     if addon.NewCombatDiagnostics and addon.RecordingPvPOrigin() then
         combat.primary = addon.NewCombatDiagnostics(row.uptime, row.time, diagnosticBuild, diagnosticRegistration)
-        local world = addon.WorldCombatWindow and addon.WorldCombatWindow(row.uptime)
         if world then addon.BindCombatDiagnostics(world, combat.primary) end
     end
     ObserveCurrent(row, "combat-start")
@@ -992,7 +997,7 @@ function handlers.PLAYER_REGEN_ENABLED()
         local evidence = context and addon.NewMeterParticipantEvidence(finished.contacts, finished.petOwners, faction, context.self)
         local early = context and not context.record
         local probe = finished.primary and evidence and addon.NewCombatMeterProbe()
-        local retry, linked, sourceTotals = CaptureMeter(row, finished, evidence, finalAttempt, enemies, faction, early, probe)
+        local retry, linked, sourceTotals, outgoing = CaptureMeter(row, finished, evidence, finalAttempt, enemies, faction, early, probe)
         local additions, reached, links
         if evidence and linked and (next(linked) or (sourceTotals and #sourceTotals > 0)) then
             additions, reached = evidence:Connected(anchors)
@@ -1026,7 +1031,7 @@ function handlers.PLAYER_REGEN_ENABLED()
                 end
             end
             addon.ApplyWorldMeterEvidence(context, additions, faction, row, links, finished.contacts, probe,
-                evidence:ContributionLinks(reached), evidence.localNpcDamage, sourceTotals)
+                evidence:ContributionLinks(reached), evidence.localNpcDamage, sourceTotals, outgoing)
             addon.SnapshotWorldContacts(context, finished.contacts)
             BeginPassiveMeter(context, row, finished, evidence, reached)
         end

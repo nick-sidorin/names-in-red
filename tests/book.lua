@@ -1003,13 +1003,14 @@ print("Numeric, skull-level, and unknown badges survive card recycling")
 -- native stats and latest card after late evidence, removal and data reset.
 do
     local createFrame = CreateFrame
-    local book, shortcut, openProfile
+    local book, shortcut, openProfile, sideTabs
     UIParent, Minimap = MockRegion(), MockRegion()
     Minimap:SetSize(120, 120)
     function Minimap:GetFrameLevel() return 1 end
     function Minimap:GetWidth() return self.width end
     function Minimap:GetHeight() return self.height end
     UISpecialFrames, StaticPopupDialogs, SOUNDKIT = {}, {}, {}
+    sideTabs = {}
     tinsert, BACK = table.insert, "Back"
     function PlaySound() end
     function PanelTemplates_SetNumTabs(parent)
@@ -1021,6 +1022,7 @@ do
     function PanelTemplates_SetTab(parent, id) parent.selectedTab = id end
     function PanelTemplates_GetSelectedTab(parent) return parent.selectedTab end
     function PanelTemplates_TabResize() end
+    function StaticPopup_Hide() end
     function addon.CreateRivalList(parent, selectRival)
         openProfile = selectRival
         return MockRegion(parent), MockRegion(parent)
@@ -1039,7 +1041,11 @@ do
         if template == "PanelTopTabButtonTemplate" then
             frame.LeftActive, frame.MiddleActive, frame.RightActive = MockRegion(), MockRegion(), MockRegion()
         end
-        if template == "LargeSideTabButtonTemplate" then frame.Icon = MockRegion(frame) end
+        if template == "LargeSideTabButtonTemplate" then
+            frame.Icon = MockRegion(frame)
+            frame.SetCustomOnMouseUpHandler = frame.SetOnClickHandler
+            sideTabs[#sideTabs + 1] = frame
+        end
         if frameName == "NamesInRedMinimapButton" then shortcut = frame end
         if frameName == "NamesInRedRivalBook" then
             book = frame
@@ -1055,6 +1061,19 @@ do
     addon.RecordSkirmish(duelRef, directBattle)
     bookLogin({ UnregisterEvent = function() end })
     shortcut.scripts.OnClick(shortcut, "LeftButton")
+    addon.db.unassignedRewards = { honorableKills = 1, honor = 4 }
+    local journalTab = sideTabs[2]
+    journalTab.scripts.OnClick(journalTab, "LeftButton", true)
+    local legacyHeading = "Rewards without a skirmish"
+    local function HasLegacyHeading(region)
+        if type(region.text) == "string" and region.text:find(legacyHeading, 1, true) then return true end
+        for _, child in ipairs(region.children) do if HasLegacyHeading(child) then return true end end
+    end
+    assert(not HasLegacyHeading(book) and addon.L.unassignedRewards == nil)
+    local totals = addon.Ledger.JournalRewards(addon.db)
+    assert(totals.unassignedHK == 1 and totals.unassignedHonor == 4)
+    addon.db.unassignedRewards = nil
+    sideTabs[1].scripts.OnClick(sideTabs[1], "LeftButton", true)
     openProfile(duelGUID)
     local function ProfileStat(label, value)
         assert(FindText(book, addon.L.statValue:format(label, value)))
@@ -1148,6 +1167,33 @@ do
     callback(GameTooltip, { guid = opponent })
     assert(tooltipLines[#tooltipLines - 1] == addon.FormatRivalCounters(1, 1, false))
     assert(tooltipLines[#tooltipLines] == addon.L.personalFinishingBlows:format(1, 1))
+
+    assert(loadfile("NamesInRed/Honor.lua"))("NamesInRed", addon)
+    assert(loadfile("NamesInRed/IssueReport.lua"))("NamesInRed", addon)
+    local outgoing, outgoingLog = dofile("tests/fixtures/outgoing-only-anonymized.lua")
+    addon.db = addon.Ledger.Open(outgoing, outgoingLog)
+    local assisted = addon.db.skirmishes["world:26"]
+    local druid = assisted.enemies[1].rivalID
+    card:SetSkirmish(assisted, druid, true)
+    assert(FindText(card, addon.L.winTooltip) and FindText(card, assisted.allies[2].name))
+    assert(not FindRegion(card, "atlas", "Waypoint-MapPin-Untracked"))
+    CheckRewards(card, "1", "4", 463450)
+    openProfile(druid)
+    ProfileStat(addon.L.wins, 1)
+    ProfileStat(addon.L.losses, 0)
+    ProfileStat(addon.L.honorableKills, 1)
+    ProfileStat(addon.L.honor, 4)
+    compact:SetEncounter(addon.RivalEncounters(addon.db, druid)[1], addon.db.rivals[druid], druid)
+    assert(CenterMarker(swords) and FindText(compact, addon.L.winTooltip))
+    callback(GameTooltip, { guid = druid })
+    assert(tooltipLines[#tooltipLines] == addon.FormatRivalCounters(1, 0, false))
+
+    local mapped, mappedLog = dofile("tests/fixtures/outgoing-only-anonymized.lua")
+    local start = mappedLog.rows[1]
+    start.mapID, start.x, start.y = 1431, 0.45, 0.67
+    addon.db = addon.Ledger.Open(mapped, mappedLog)
+    card:SetSkirmish(addon.db.skirmishes["world:26"], druid, true)
+    assert(FindRegion(card, "atlas", "Waypoint-MapPin-Untracked"))
     addon.db = previous
     openProfile(duelGUID)
 

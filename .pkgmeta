@@ -5,6 +5,7 @@ enable-nolib-creation: no
 ignore:
   - AGENTS.md
   - CHANGELOG.md
+  - PROJECT_CONTEXT.md
   - README.md
   - idea.md
   - docs
