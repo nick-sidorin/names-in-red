@@ -2126,3 +2126,28 @@ version on the published file, independently of the GitHub release and
 project listing copy. [GitHub publisher run](https://github.com/nick-sidorin/names-in-red/actions/runs/45284416748) ·
 [GitHub release](https://github.com/nick-sidorin/names-in-red/releases/tag/v1.1.0) ·
 [CurseForge file](https://www.curseforge.com/wow/addons/names-in-red/files/9782367)
+
+#### Character POV 2.0.0 release preparation
+
+The owner accepted the integrated milestone after confirming restored
+history on Forever previews `22fada7` and `218f1b1`. Main `9b6876b`
+passed the required Checks job. Three private SavedVariables copies were
+replayed against 2.0.0. Their battle counts were 16 → 16, 20 → 20 and
+23 → 22 after the supported two-segment repair. Their timeline event
+counts stayed at 19, 23 and 25. Their earned totals stayed at 10 HK and
+40 honor, 13 HK and 49 honor, and 14 HK and 55 honor respectively.
+Each copy retained all rival records. The repaired history and indexed
+scores stayed stable on repeated open with and without the debug log.
+The automated suite separately checks manual history and a 1,050-battle
+index. [Integrated main Checks](https://github.com/nick-sidorin/names-in-red/actions/runs/45654965236)
+
+The permanent publisher is triggered by a stable version tag on a
+checked main commit. It reruns the suite and verifies the manifest,
+TOC, changelog and bytes before a draft asset can become public.
+Local simulation exercised draft creation, upload verification, a
+successful retry and refusal of a moved tag or altered asset. The
+existing CurseForge source path was run locally with uploads disabled.
+The dry run identified `PROJECT_CONTEXT.md` as an extra member. The
+packager now excludes it. The release workflow relies on the existing
+CurseForge integration for delivery, and the public file needs separate
+verification after approval and release.

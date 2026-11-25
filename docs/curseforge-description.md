@@ -7,13 +7,13 @@
 Your personal journal for open-world PvP and battleground skirmishes for **World of Warcraft: Forever**:
 
 - 📖 **Remember your rivals** — Build a searchable record of identifiable enemies you've fought, saved separately for each character.
-- ⚔️ **Track the score** — See wins, losses, Honorable Kills, and attributed Honor Points against each rival.
+- ⚔️ **Track the score** — See the Character POV score against each rival alongside Honorable Kills and attributed Honor Points.
 - 📜 **Revisit past skirmishes** — Browse a rival's full history or open the latest 100 fights across all rivals.
 - 🛡️ **See who fought** — Open detailed cards with observed allies, enemies, results, casualties, finishing blows and rewards.
 - 🚩 **Record battleground clashes** — Review local fights in the same journal. Turn recording off in settings while keeping your existing history.
 - 💬 **Recognize familiar enemies** — See your win/loss record on their nameplates and in their standard unit tooltips.
 - 📍 **Remember where it happened** — Place a map waypoint when a saved skirmish has a usable location.
-- 🐞 **Report a problem from the journal** — Copy a diagnostic report for a skirmish or a general issue.
+- 🐞 **Report a problem from the journal** — Select and copy a single privacy-filtered report for a skirmish or a general issue.
 - ✍️ **Fill in the gaps** — Manually add a skirmish when automatic tracking cannot capture what happened.
 
 The journal is saved per character and keeps your recorded rival and skirmish history indefinitely. Nameplate indicators and tooltip details can be switched off independently.
@@ -26,9 +26,20 @@ The **Rivals** view contains a searchable list of familiar opponents. Select a n
 
 The separate **Skirmish History** view collects the latest 100 recorded fights across all opponents. Open a fight to inspect it, or follow a known opponent back to their rival profile.
 
-## ⚔️ More Than a Kill Counter
+## ⚔️ New in 2.0.0 · Character POV
 
-A skirmish can involve more than two players. The detailed view shows the participants the addon was able to observe on each side, with available class and level information, casualties, recorded levels or skull-level indicators, a win/loss result when known, and a **Finishing blows** list in recorded order.
+A skirmish can involve more than two players. The detailed view shows the participants the addon was able to observe on each side, with available class and level information, casualties, recorded levels or skull-level indicators, and a **Finishing blows** list in recorded order.
+
+A full card shows **Victory**, **Defeat**, **Draw**, **In progress**, or
+**Unknown** from your character's perspective. Your rival score follows
+what you contributed to each confirmed defeat. Help bring down a rival
+with damage, healing, protection or control to earn a win against them.
+Each rival who contributed to your death adds a loss to your score against them.
+Activity from a pet with a verified owner can count. A later death after
+revival can earn another credit in the same fight.
+
+Rival scores appear in profiles, compact cards, nameplates and tooltips.
+Direct kills and deaths, Honorable Kills, and Honor Points stay separate.
 
 Fight cards also show the date, time, zone, and any Honorable Kills or Honor Points that could be linked reliably to the encounter. Alliance and Horde get their own faction artwork and Honor Points icons.
 
@@ -49,7 +60,7 @@ Names in Red observes **open-world PvP and battleground skirmishes** using infor
 
 Not every encounter exposes a complete team or a certain result. Those records remain in the journal with an incomplete roster or unknown outcome instead of guessing. Rewards appear on the most specific confirmed record. If the addon cannot associate an award with a fight, the journal shows it in **Rewards without a skirmish**. An unidentified player may appear as **Unknown rival** until their full name is available.
 
-Battleground recording and automatic outcome assessment are still being refined. Forever can restrict access to combat data, so some support players, revivals, repeat kills or rewards may be missing.
+A brief retreat or return after resurrection can continue the same fight. An independent rematch gets its own record. Forever can restrict identities, pet ownership and event timing, so some participants, revivals, repeat kills or rewards may be unavailable. The upgrade preserves recorded fights, manual entries and rewards.
 
 You can also add a skirmish manually by entering an opponent's full name and choosing the outcome. The addon is a personal history, not a complete combat log or a battleground scoreboard.
 
@@ -77,11 +88,9 @@ More diagnostic and demo commands are documented in the [project guide](https://
 - **History:** Stored separately for each character; unavailable identity, team size, rewards, or outcomes are not fabricated.
 - **Diagnostics:** A rolling local log and bounded per-fight samples help investigate bugs. You can copy an issue report after reload. Older detailed diagnostics can be compacted while the fight and its confirmed timeline stay in your history.
 
-**Update 1.1.0** adds local battleground skirmishes, fights without killing blows, resurrection history and in-game issue reports with optional detail pages.
-
 **[Report a Bug or Suggest a Feature](https://github.com/nick-sidorin/names-in-red/issues)**
 
-Click **New issue** to report a problem or share an idea. For a bug, click the bug icon on the affected skirmish or use **Report an issue** in the journal header. Review and paste the report, then add the game build, addon version and steps to reproduce where available. The report window also shows where to find the optional `NamesInRed.lua` SavedVariables file. That file can contain character names and GUIDs, and attachments to a public issue are public.
+Click **New issue** to report a problem or share an idea. For a bug, click the bug icon on the affected skirmish or use **Report an issue** in the journal header. Click **Select Report**, copy once, and paste into the GitHub form. Review the report and include the steps that led to the problem. The report window also shows where to find the optional `NamesInRed.lua` SavedVariables file. That file can contain character names and GUIDs, and attachments to a public issue are public.
 
 **[Source Code](https://github.com/nick-sidorin/names-in-red)**
 

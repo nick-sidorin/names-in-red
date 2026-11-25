@@ -15,6 +15,12 @@ jobs:
           fetch-depth: 2
       - run: sudo apt-get update && sudo apt-get install -y lua5.1
       - run: bash scripts/check.sh
+      - name: Verify release package and changelog
+        env:
+          PACKAGE_SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          version=$(git show "$PACKAGE_SOURCE:NamesInRed/NamesInRed.toc" | sed -n 's/^## Version: //p')
+          python3 scripts/package_release.py --commit "$PACKAGE_SOURCE" --version "$version" --output "$RUNNER_TEMP/names-in-red-release-check"
       - name: Stage debug preview
         id: preview
         if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'feature/')

@@ -11,7 +11,7 @@
 ## Notes-ruRU: Запоминай противников и просматривай стычки в открытом мире и на полях боя.
 ## Notes-zhCN: 记住你的对手，回顾开放世界和战场中的交战。
 ## Notes-zhTW: 記住你的對手，回顧開放世界和戰場中的交戰。
-## Version: 1.1.0
+## Version: 2.0.0
 ## IconTexture: Interface\AddOns\NamesInRed\Art\CrossedSwords.tga
 ## SavedVariablesPerCharacter: NamesInRedDB, NamesInRedDebugDB
 

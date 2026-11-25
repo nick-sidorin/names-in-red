@@ -1,0 +1,129 @@
+name: Publish tagged release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: names-in-red-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      commit: ${{ steps.tag.outputs.commit }}
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify tag and integrated main checks
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          EVENT_SHA: ${{ github.sha }}
+          REF_DELETED: ${{ github.event.deleted }}
+        run: |
+          set -euo pipefail
+          [[ "$REF_DELETED" == false && "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          commit=$(git rev-parse "refs/tags/$TAG^{commit}")
+          test "$commit" = "$(git rev-parse "$EVENT_SHA^{commit}")"
+          test "$commit" = "$(git rev-parse HEAD)"
+          git merge-base --is-ancestor "$commit" origin/main
+          # Use the exact main-push run, independently of the tag's own push run.
+          runs="repos/$REPO/actions/workflows/ci.yml/runs?branch=main&event=push&head_sha=$commit"
+          verdict=$(gh api "$runs" --jq '.workflow_runs[0].conclusion // ""')
+          test "$verdict" = success
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+      - run: sudo apt-get update && sudo apt-get install -y lua5.1
+      - run: bash scripts/check.sh
+      - name: Package exact tagged source
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+          COMMIT: ${{ steps.tag.outputs.commit }}
+        run: |
+          set -euo pipefail
+          python3 scripts/package_release.py --commit "$COMMIT" --version "$VERSION" --output dist
+          cd dist
+          sha256sum "NamesInRed-$VERSION.zip" > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tagged-release
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: tagged-release
+          path: dist
+      - name: Verify draft asset and publish existing tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+          COMMIT: ${{ needs.build.outputs.commit }}
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum --check SHA256SUMS
+          asset="NamesInRed-$VERSION.zip"
+          title="Names in Red $VERSION"
+          marker="<!-- names-in-red-source: $COMMIT -->"
+          verify_remote_tag() {
+            local refs actual
+            refs=$(git ls-remote --tags "https://github.com/$REPO.git" "refs/tags/$TAG" "refs/tags/$TAG^{}")
+            actual=$(awk -v ref="refs/tags/$TAG" '$2 == ref {tag=$1} $2 == ref "^{}" {peeled=$1} END {print peeled ? peeled : tag}' <<< "$refs")
+            test "$actual" = "$COMMIT"
+          }
+          verify_remote_tag
+
+          # Search releases including drafts. A failing API lookup aborts rather
+          # than treating a permission or network failure as a missing release.
+          releases=$(gh api --paginate --slurp "repos/$REPO/releases?per_page=100")
+          release=$(jq -cer --arg tag "$TAG" '[.[][] | select(.tag_name == $tag)] | if length <= 1 then first // {} else error("duplicate releases") end' <<< "$releases")
+          if [[ "$release" == '{}' ]]; then
+            gh release create "$TAG" --repo "$REPO" --verify-tag --draft --title "$title" --notes-file release-notes.md
+            release=$(gh release view "$TAG" --repo "$REPO" --json name,body,isDraft,isPrerelease,assets)
+          fi
+          jq -e --arg title "$title" --arg marker "$marker" --arg asset "$asset" '
+            (.name == $title) and (.body | contains($marker)) and
+            ((.prerelease // .isPrerelease // false) | not) and
+            ([.assets[].name] | all(. == $asset))
+          ' <<< "$release" > /dev/null
+          draft=$(jq -r '.draft // .isDraft // false' <<< "$release")
+          if [[ $(jq '.assets | length' <<< "$release") == 0 ]]; then
+            test "$draft" = true
+            gh release upload "$TAG" "$asset" --repo "$REPO"
+          fi
+          mkdir verified
+          gh release download "$TAG" --repo "$REPO" --pattern "$asset" --dir verified
+          cmp "$asset" "verified/$asset"
+          verify_remote_tag
+          if [[ "$draft" == true ]]; then
+            gh release edit "$TAG" --repo "$REPO" --draft=false --latest
+          fi
+          published=$(gh release view "$TAG" --repo "$REPO" --json url,tagName,isDraft,isPrerelease,assets)
+          jq -e --arg tag "$TAG" --arg asset "$asset" '
+            .tagName == $tag and (.isDraft | not) and (.isPrerelease | not) and
+            ([.assets[].name] == [$asset])
+          ' <<< "$published" > /dev/null
+          jq -r '.url' <<< "$published"
