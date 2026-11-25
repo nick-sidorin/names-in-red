@@ -103,15 +103,20 @@ jobs:
           marker="<!-- names-in-red-source: $COMMIT -->"
           remote_tag() {
             local refs
-            refs=$(git ls-remote --tags "https://github.com/$REPO.git" "refs/tags/$TAG" "refs/tags/$TAG^{}")
+            refs=$(git ls-remote --tags "https://github.com/$REPO.git" "refs/tags/$TAG" "refs/tags/$TAG^{}") || return 1
             awk -v ref="refs/tags/$TAG" '$2 == ref {tag=$1} $2 == ref "^{}" {peeled=$1} END {print peeled ? peeled : tag}' <<< "$refs"
           }
           verify_remote_tag() {
             test "$(remote_tag)" = "$COMMIT"
           }
+          # Search releases including drafts. A failing API lookup aborts rather
+          # than treating a permission or network failure as a missing release.
+          releases=$(gh api --paginate --slurp "repos/$REPO/releases?per_page=100")
+          release=$(jq -cer --arg tag "$TAG" '[.[][] | select(.tag_name == $tag)] | if length <= 1 then first // {} else error("duplicate releases") end' <<< "$releases")
           actual=$(remote_tag)
           if [[ -z "$actual" ]]; then
             test "$MODE" = request
+            test "$release" = '{}'
             # Never force or move a tag. The same job publishes because a
             # GITHUB_TOKEN-created tag does not trigger another Actions run.
             gh api --method POST "repos/$REPO/git/refs" -f "ref=refs/tags/$TAG" -f "sha=$COMMIT" >/dev/null
@@ -121,10 +126,6 @@ jobs:
           fi
           verify_remote_tag
 
-          # Search releases including drafts. A failing API lookup aborts rather
-          # than treating a permission or network failure as a missing release.
-          releases=$(gh api --paginate --slurp "repos/$REPO/releases?per_page=100")
-          release=$(jq -cer --arg tag "$TAG" '[.[][] | select(.tag_name == $tag)] | if length <= 1 then first // {} else error("duplicate releases") end' <<< "$releases")
           if [[ "$release" == '{}' ]]; then
             gh release create "$TAG" --repo "$REPO" --verify-tag --draft --title "$title" --notes-file release-notes.md
             release=$(gh release view "$TAG" --repo "$REPO" --json name,body,isDraft,isPrerelease,assets)
