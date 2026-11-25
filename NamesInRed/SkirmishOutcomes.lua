@@ -82,13 +82,16 @@ local function ReadRangeExit(unit, probe)
     end
 end
 
-function addon.ReadWorldOutcomeUnits(ids, pressure, lifeOnly)
+function addon.ReadWorldOutcomeUnits(ids, pressure, lifeOnly, readTarget)
     local units = {}
     VisitUnits(function(unit)
         local guid = ReadUnit(UnitGUID, unit)
         if type(guid) ~= "string" or not ids[guid] or units[guid] then return end
         local state = addon.ReadWorldOutcomeState(unit)
         if not state then return end
+        if readTarget and ReadUnit(UnitIsPlayer, unit) == true then
+            state.targetID = ReadUnit(UnitGUID, unit .. "target")
+        end
         if not lifeOnly then state.position = Position(unit) end
         local probe = pressure and pressure[guid] and pressure[guid].range
         if probe and state.dead == false and state.combat == false then

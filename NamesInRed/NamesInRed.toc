@@ -27,6 +27,7 @@ SkirmishEvidence.lua
 MeterSourceTotals.lua
 CombatDiagnostics.lua
 WorldSkirmishes.lua
+SkirmishGapHistory.lua
 Honor.lua
 Kills.lua
 Deaths.lua

@@ -110,6 +110,7 @@ function Ledger.Open(saved, diagnostics)
     if type(saved) == "table" and saved.version == 1 and type(saved.rivals) == "table" then
         if type(saved.skirmishes) == "table" then
             local changed = addon.RestoreLegacyPetRecaps and addon.RestoreLegacyPetRecaps(saved.skirmishes, diagnostics)
+            if addon.RestoreSplitSkirmishes then addon.RestoreSplitSkirmishes(saved.skirmishes, diagnostics) end
             local meterWindows = addon.IndexMeterSourceTotalWindows and addon.IndexMeterSourceTotalWindows(diagnostics, saved.skirmishes)
             for id, battle in pairs(saved.skirmishes) do
                 if IsSkirmish(battle) then

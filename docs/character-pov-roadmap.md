@@ -211,10 +211,12 @@ latest accepted main; avoid parallel changes to shared scoring/storage
 contracts. Independent fixture preparation may be parallelized only if
 it does not create conflicting changes.
 
-Live PR C testing passed the UI smoke check and confirmed historical
-world:16 Defeat. The next preview should verify fresh joined fights and
-review the original world:19–21 replays, which now give three 2×1 victories
-with one rival win per fight. Live pet-owner API statuses remain a
+PR C merged after the joined-ally follow-up. Later live testing found a
+split encounter across a brief combat gap. Verify the standalone
+Issue #47 fix in its exact-head Forever preview before preparing the
+public release. See [control-gap validation](forever-validation.md#control-gap-replay-world2324).
+The original world:19–21 replays still give three 2×1 victories and
+historical world:16 remains Defeat. Live pet-owner API statuses are a
 separate check. See [joined ally validation](forever-validation.md#joined-ally-combat-and-late-generic-activity-in-world1921)
 and [world:16 validation](forever-validation.md#original-world16-findings-and-second-follow-up).
 A public release still requires separate owner authorization.

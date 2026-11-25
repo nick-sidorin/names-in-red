@@ -290,20 +290,24 @@ PR A implements the independent personal result and participation lifecycle.
 See [the timing and replay notes](docs/forever-validation.md#character-pov-pr-a)
 for the 12-second settlement window, evidence rules and historical results.
 PR A (#43) and PR B (#44) are merged. PR C connects both projections to the
-journal and has a commit-pinned feature preview for review. Keep 1.1.0 as
+journal and merged in #45. Keep 1.1.0 as
 the shipped baseline pending separate release authorization.
 
-1. Review the current PR #45 follow-up and retest fresh joined fights in
-   its exact-head Forever preview. Live testing reported no UI errors and
+1. Review the Issue #47 combat-gap fix and verify its exact-head Forever
+   preview before preparing the public release. The original third card
+   is recovered into the preceding two-segment Defeat. The independent
+   Victory and the rival score of 1:1 survive. See
+   [control-gap validation](docs/forever-validation.md#control-gap-replay-world2324).
+2. Live PR #45 testing reported no UI errors and
    confirmed historical world:16 Defeat. The original world:19–21 data
    replay as three 2×1 victories with one personal rival win per fight.
    Live pet-owner API statuses remain to be verified. See
    [joined ally validation](docs/forever-validation.md#joined-ally-combat-and-late-generic-activity-in-world1921)
    and [world:16 findings](docs/forever-validation.md#original-world16-findings-and-second-follow-up).
-2. Repeat migration on a copy of an older real SavedVariables file if
+3. Repeat migration on a copy of an older real SavedVariables file if
    available. Follow the
    [milestone integration gate](docs/character-pov-roadmap.md#integration-and-release-gate).
-3. Later ideas (not blockers): full timeline viewer, general history pagination,
+4. Later ideas (not blockers): full timeline viewer, general history pagination,
    optional consenting peer observations, formal duel history, target-frame
    marker, ranks/achievements. See docs/future-ideas.md.
 

@@ -242,13 +242,13 @@ local function CorroborateCorpse(record, id, unit, stamp)
     end
 end
 
-local function SampleEnding(record, pressure, lifeOnly)
+local function SampleEnding(record, pressure, lifeOnly, readTarget)
     local ids = {}
     for _, side in ipairs({ record.battle.allies, record.battle.enemies }) do
         for _, player in ipairs(side) do ids[player.id] = true end
     end
     return { offset = GetTime() - record.began, at = addon.EncounterContext().time,
-        units = addon.ReadWorldOutcomeUnits(ids, pressure, lifeOnly) }
+        units = addon.ReadWorldOutcomeUnits(ids, pressure, lifeOnly, readTarget) }
 end
 
 local function RememberLocalDeathWitnesses(window, sample)
@@ -295,8 +295,19 @@ local function Finalize(record, reason, discardUnsaved)
     local participation = Participation(record)
     participation.state, participation.boundary = "finalized", reason
     participation.closedAt = addon.EncounterContext().time
-    record.settlement = nil
+    record.settlement, record.continuationCandidate, record.finishQuiet = nil, nil, nil
     if record.id or not discardUnsaved then Save(record) end
+end
+
+local function CandidateDeadline(window, previous)
+    if not Valid(window) or window.area ~= area or window.previous ~= previous
+        or (open ~= window and tail ~= window) or window.pveBoundary then return end
+    return math.min(window.began + continuationWait, window.ended or math.huge) + lateEvent
+end
+
+function addon.FitsWorldCombatGap(gap, activityOffset)
+    return gap >= 0 and gap <= bridgeAge
+        and (activityOffset == nil or (activityOffset >= 0 and activityOffset <= continuationWait))
 end
 
 local function WatchParticipation(window)
@@ -312,7 +323,7 @@ local function WatchParticipation(window)
             and lastRecord == record and record.lastWindow == window
     end
     local function Sample()
-        if not Current() or (open and open ~= window) or not Origin()
+        if not Current() or (open and open ~= window) or (tail and tail ~= window and tail.previous == record) or not Origin()
             or not SameScope(window.place, addon.EncounterContext()) then return end
         local sample = SampleEnding(record, nil, true)
         RememberLocalDeathWitnesses(window, sample)
@@ -331,11 +342,19 @@ local function WatchParticipation(window)
     C_Timer.After(0.75, function() early = Sample() end)
     C_Timer.After(2.75, function() SavePair(early, Sample()) end)
     if remaining >= 2 then C_Timer.After(remaining - 2, function() late = Sample() end) end
-    C_Timer.After(remaining, function()
+    local function FinishQuiet()
         if not Current() then return end
-        SavePair(late, Sample(), true)
+        local deadline = CandidateDeadline(record.continuationCandidate, record)
+        local now = GetTime()
+        if deadline and now < deadline then
+            record.finishQuiet = FinishQuiet
+            C_Timer.After(deadline - now, FinishQuiet)
+            return
+        end
+        if not record.finishQuiet then SavePair(late, Sample(), true) end
         Finalize(record, "quiet-timeout")
-    end)
+    end
+    C_Timer.After(remaining, FinishQuiet)
 end
 
 local function Await(window, evidenceAt)
@@ -356,7 +375,8 @@ local function WatchEnding(window)
     record.endingTicket = ticket
     local function Sample()
         if record.endingTicket ~= ticket or not Valid(window) or window.area ~= area
-            or lastRecord ~= record or record.lastWindow ~= window or open then return end
+            or lastRecord ~= record or record.lastWindow ~= window or open
+            or (tail and tail ~= window and tail.previous == record) then return end
         local place = addon.EncounterContext()
         if not Origin() or not SameScope(window.place, place) then return end
         local sample = SampleEnding(record, state.pressure)
@@ -414,7 +434,77 @@ local function NewActivity(window, actor, target, kind, spell, targetUnit, uptim
     WatchEnding(window)
 end
 
-local function Confirm(window, opponents, basis)
+local function QuietPair(state, me, enemy)
+    local function Quiet(sample)
+        local units = sample and sample.units
+        local player, opponent = units and units[me], units and units[enemy]
+        return player and player.dead == false and player.combat == false
+            and opponent and opponent.dead == false and opponent.combat == false
+    end
+    return state and Quiet(state.first) and Quiet(state.last)
+        and type(state.first.offset) == "number" and type(state.last.offset) == "number"
+        and state.first.offset < state.last.offset
+end
+
+local damageCategories = { DamageDone = true, DamageTaken = true, EnemyDamageTaken = true }
+
+local function LocalMeterOpponents(links, me)
+    local opponents = {}
+    for _, link in ipairs(links or {}) do
+        if damageCategories[link.category] and not link.corroborated and link.petEndpoint ~= "target" then
+            if link.actorID == me and link.targetID then opponents[link.targetID] = true
+            elseif link.targetID == me and link.actorID then opponents[link.actorID] = true end
+        end
+    end
+    return opponents
+end
+
+function addon.SegmentLocalHostility(segment, me, enemy)
+    for _, action in ipairs(segment.actions or {}) do
+        if (action.actorID == me and action.targetID == enemy) or (action.actorID == enemy and action.targetID == me) then
+            return true
+        end
+    end
+    return LocalMeterOpponents(segment.contributionLinks, me)[enemy]
+end
+
+-- This checks an unresolved, directly observed pair at the exit. Callers
+-- separately establish identity at entry and a qualified action in the new window.
+function addon.OpenWorldGapPair(battle, close, me, enemy)
+    local player, opponent = close and close[me], close and close[enemy]
+    if not player or player.dead ~= false or not opponent or opponent.dead ~= false or opponent.combat ~= true then return end
+    local observation = battle.observation
+    if QuietPair(observation.participation, me, enemy) or QuietPair(observation.assessment, me, enemy) then return end
+    return not Ledger.IndicatesDeath(Ledger.LatestParticipantLife(battle, me))
+        and not Ledger.IndicatesDeath(Ledger.LatestParticipantLife(battle, enemy))
+end
+
+local function ReserveContinuation(window)
+    local previous = window.previous
+    if not Pending(previous) or previous.continuationCandidate or not previous.endingContact
+        or not previous.quietUntil or window.began > previous.quietUntil then return end
+    local before = previous.lastWindow
+    if not Valid(before) or before.area ~= area or before.self ~= window.self or before.segment.observationStopped
+        or before.segment.endReason ~= "local-combat-ended" or not before.ended
+        or not addon.FitsWorldCombatGap(window.began - before.ended) then return end
+    local possible, me = {}, window.self
+    for _, rival in ipairs(previous.battle.enemies) do
+        local contact = previous.endingContact[rival.id]
+        if contact and contact.targetID == me and addon.OpenWorldGapPair(previous.battle, previous.endingContact, me, rival.id)
+            and addon.SegmentLocalHostility(before.segment, me, rival.id) then possible[rival.id] = true end
+    end
+    if not next(possible) then return end
+    local candidates = {}
+    for id, unit in pairs(addon.ReadWorldOutcomeUnits(possible, nil, true, true)) do
+        if unit.dead == false and unit.targetID == me then candidates[id] = true end
+    end
+    if next(candidates) then
+        window.continuationOpponents = candidates
+        previous.continuationCandidate = window
+    end
+end
+
+local function Confirm(window, opponents, basis, localPairs, evidenceAt)
     if window.record then return window.record end
     local previous = window.previous
     local bridge = previous and previous.bridge
@@ -425,12 +515,20 @@ local function Confirm(window, opponents, basis)
     local linked = continuing and bridge and opponents[bridge.opponent]
         and math.abs(window.began - bridge.seen) <= bridgeAge
         and (basis ~= "meter" or bridge.seen <= (window.ended or GetTime()))
-    if continuing and not linked and basis == "harmful-aura" and previous.endingContact
-        and GetTime() - previous.lastWindow.ended <= bridgeAge
+    local observedGap
+    local deadline = continuing and lastRecord == previous and previous.continuationCandidate == window
+        and CandidateDeadline(window, previous)
+    if not linked and localPairs and deadline and GetTime() <= deadline
+        and addon.FitsWorldCombatGap(window.began - previous.lastWindow.ended, (evidenceAt or GetTime()) - window.began) then
+        for id in pairs(localPairs) do
+            if window.continuationOpponents[id] then linked, observedGap = true, true; break end
+        end
+    end
+    if continuing and not linked and basis == "harmful-aura" and previous.endingContact and previous.lastWindow.ended
+        and addon.FitsWorldCombatGap(window.began - previous.lastWindow.ended)
         and previous.battle.observation.playerState == "alive" then
         for id in pairs(opponents) do
-            local contact = previous.endingContact[id]
-            if contact and contact.combat == true and contact.dead == false then linked = true end
+            if addon.OpenWorldGapPair(previous.battle, previous.endingContact, window.self, id) then linked = true end
         end
     end
     if linked
@@ -438,9 +536,10 @@ local function Confirm(window, opponents, basis)
         record = previous
         InvalidateEnding(record)
         record.bridge, record.endingContact, record.settlement, record.quietUntil = nil, nil, nil, nil
+        record.continuationCandidate, record.finishQuiet = nil, nil
         ClearParticipationSamples(record)
         SetParticipationState(record, "active")
-        window.segment.continuation = "observed-hostility"
+        window.segment.continuation = observedGap and "observed-combat-gap" or "observed-hostility"
     else
         if continuing then Finalize(previous, "independent-engagement") end
         local place = window.place
@@ -497,10 +596,14 @@ local function Close(window, place, reason)
     window.segment.endedAt = place.time
     window.segment.duration = window.ended - window.began
     window.segment.endReason = reason
+    local previous = window.previous
+    if previous and previous.continuationCandidate == window and previous.finishQuiet then
+        C_Timer.After(lateEvent, previous.finishQuiet)
+    end
     if Pending(window.record) then
         local record = window.record
         if reason == "local-combat-ended" then
-            record.endingContact = SampleEnding(record).units
+            record.endingContact = SampleEnding(record, nil, nil, true).units
         end
         local life = record.battle.observation.playerState
         local preserveDeadline = record.quietUntil and (life == "dead" or life == "ghost")
@@ -690,7 +793,7 @@ function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, c
         if entry.player.faction ~= faction and entry.player.pvp ~= false then enemies[entry.guid] = true end
     end
     if not window.record and not next(enemies) then return end
-    local record = Confirm(window, enemies, "meter")
+    local record = Confirm(window, enemies, "meter", LocalMeterOpponents(contributionLinks, window.self), window.ended)
     local battle = record.battle
     local segment = window.segment
     if segment.confirmedBy == "meter" and segment.continuation and battle.observation.playerState == "alive" then
@@ -706,6 +809,19 @@ function addon.ApplyWorldMeterEvidence(window, additions, faction, row, links, c
     battle.time = math.max(battle.time, row.time or battle.time)
     for _, entry in ipairs(additions) do
         addon.RecordWorldMeterParticipant(battle, entry, faction)
+    end
+    -- Meter can create the record after Close ran. Keep the captured exit,
+    -- since the opponent's combat flag may already differ at read time.
+    if not record.endingContact and record.lastWindow == window and segment.endReason == "local-combat-ended" then
+        local closing = {}
+        for id, contact in pairs(contacts) do
+            local unit = contact.latest
+            if unit and unit.guid == id and unit.reason == "combat-end" and type(unit.uptime) == "number"
+                and math.abs(unit.uptime - window.ended) <= 0.05 then
+                closing[id] = { combat = unit.inCombat, dead = unit.dead, targetID = unit.targetGUID }
+            end
+        end
+        record.endingContact = closing
     end
     Ledger.RecordMeterAggregates(battle, segment, probe)
     addon.RecordMeterSourceTotals(segment, sourceTotals)
@@ -812,7 +928,8 @@ function addon.RecordWorldEncounter(guid, name, direction, context)
         if not record and context.petFinisher then record = Confirm(bound, {}, "pet-death-recap") end
         if not record then return end
     else
-        record = Confirm(window, { [guid] = true }, "kill")
+        local localPair = (not outgoing or not context.actorID or context.actorID == window.self) and { [guid] = true }
+        record = Confirm(window, { [guid] = true }, "kill", localPair, context.killUptime)
     end
     local battle = record.battle
     local actorID = outgoing and (context.actorID or window.self) or guid
@@ -1071,7 +1188,8 @@ local function ObserveHarmfulAura(targetUnit, aura)
         if C_Timer and C_Timer.After then C_Timer.After(0.5, CloseUnpaired) end
     end
     if friendly ~= self and not Present(record.battle.enemies, hostile) then return end
-    record = Confirm(window, { [hostile] = true }, "harmful-aura")
+    local opponents = { [hostile] = true }
+    record = Confirm(window, opponents, "harmful-aura", friendly == self and opponents)
     local battle = record.battle
     Participant(battle.allies, friendly, addon.UnitPlayerName(ally), nil, nil, friendly == self, addon.UnitAppearance(ally))
     Participant(battle.enemies, hostile, addon.UnitPlayerName(enemy), nil, hostile, nil, addon.UnitAppearance(enemy))
@@ -1191,7 +1309,10 @@ function handlers.PLAYER_REGEN_DISABLED()
         Close(open, place, "next-local-combat")
     end
     open = NewWindow(place, "local-combat")
-    if open then open.localStart = open.began end
+    if open then
+        open.localStart = open.began
+        ReserveContinuation(open)
+    end
 end
 
 function handlers.PLAYER_REGEN_ENABLED()
