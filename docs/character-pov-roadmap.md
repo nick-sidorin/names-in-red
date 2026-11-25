@@ -1,9 +1,9 @@
 # Character POV — milestone roadmap
 
-**Status:** Character POV is accepted; 2.0.0 publication authorized. Release
-PR #50 squash-merged at `a58fccad02de7e50357e63546b1b3710cd1ea01f`.
-Issues #47 and #49 are closed. Verify the tag-driven publisher and public
-availability separately before calling the release published.
+**Status:** Character POV is accepted and [2.0.0 is published on GitHub](https://github.com/nick-sidorin/names-in-red/releases/tag/v2.0.0).
+PR #50 squash-merged at `a58fccad`; published tag `89ba7eb` has the identical
+runtime and current owner-only workflow. Issues #47 and #49 are closed.
+CurseForge public availability remains unverified. Next: existing-product polish.
 
 **Baseline:** GitHub v1.1.0, with permanent battle history, automatic diagnostics,
 in-game issue reporting, and the existing side-outcome scoring model. The
