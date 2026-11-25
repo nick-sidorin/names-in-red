@@ -1133,7 +1133,10 @@ and an open skirmish. Check that a newly recorded fight leaves the current
 selection in place. Run `/nir` in chat and from an action-bar macro, both with
 the book closed and with it already open. Check the minimap toggle and
 right-click settings. Lua regressions exercise the opening and retained view
-state. Client rendering and macro execution remain to be checked in Forever.
+state. The owner reported the `df86350` preview works in Forever and
+explicitly authorized the patch release. Individual scroll/macro permutations
+were not separately reported. Both exact-head Checks passed; [review](https://github.com/nick-sidorin/names-in-red/pull/61#pullrequestreview-6065996868),
+squash merge `4dfc3bc`.
 
 ## AddOn settings and data reset
 
