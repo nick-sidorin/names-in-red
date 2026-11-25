@@ -289,20 +289,20 @@ technical evidence predicates remain implementation choices.
 PR A implements the independent personal result and participation lifecycle.
 See [the timing and replay notes](docs/forever-validation.md#character-pov-pr-a)
 for the 12-second settlement window, evidence rules and historical results.
-PR A (#43) and PR B (#44) are merged. PR C connects both projections to the
-journal and has a commit-pinned feature preview for review. Keep 1.1.0 as
-the shipped baseline pending separate release authorization.
+PR A (#43), PR B (#44) and PR C (#45) are merged. Owner acceptance of exact
+preview `22fada7` passed all five historical/UI/reload checks. Fresh group
+encounters were unavailable; live pet-owner API attribution is not verified.
+The owner authorizes release of the completed feature milestone and accepts
+rare-scenario live checks as non-blocking follow-ups. The published baseline
+remains 1.1.0 until a new public artifact is verified.
 
-1. Review the current PR #45 follow-up and retest fresh joined fights in
-   its exact-head Forever preview. Live testing reported no UI errors and
-   confirmed historical world:16 Defeat. The original world:19–21 data
-   replay as three 2×1 victories with one personal rival win per fight.
-   Live pet-owner API statuses remain to be verified. See
-   [joined ally validation](docs/forever-validation.md#joined-ally-combat-and-late-generic-activity-in-world1921)
-   and [world:16 findings](docs/forever-validation.md#original-world16-findings-and-second-follow-up).
-2. Repeat migration on a copy of an older real SavedVariables file if
-   available. Follow the
-   [milestone integration gate](docs/character-pov-roadmap.md#integration-and-release-gate).
+1. Verify integrated main (`805c242ce2ab88fd7ab2822d23cf51dc00fb2bc5`),
+   finish the [integration gate](docs/character-pov-roadmap.md#integration-and-release-gate)
+   and record the actual remaining limitations. See [acceptance review](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6060358381).
+2. Agree the release version, update public documentation and changelog, restore
+   a verified tag-driven publisher via PR, and verify GitHub and CurseForge
+   distribution independently. Do not block release solely on unobserved rare
+   live scenarios when relevant automated evidence and client smoke tests pass.
 3. Later ideas (not blockers): full timeline viewer, general history pagination,
    optional consenting peer observations, formal duel history, target-frame
    marker, ranks/achievements. See docs/future-ideas.md.
