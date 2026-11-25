@@ -871,6 +871,7 @@ local function FindDeathRecap(window, timestamp)
 end
 
 function addon.RecordWorldEncounter(guid, name, direction, context)
+    if guid and guid == PlayerGUID() then return end
     local origin = Origin()
     local bound = context.worldWindow
     local recap = direction == "deathsToThem" and context.deathTimestamp

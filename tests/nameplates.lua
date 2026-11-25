@@ -94,7 +94,13 @@ local battle = { startedAt = 10, allies = { { id = "Player-self", isSelf = true 
     } }
 addon.RecordSkirmish("plate-fight", battle)
 assert(badge.text == addon.FormatRivalCounters(2, 1, true, 0))
+rival.encounters[3] = { manual = true, direction = "deathsToThem" }
+addon.RefreshNameplates()
+assert(badge.text == addon.FormatRivalCounters(2, 2, true, 0))
 addon.Ledger.RemoveSkirmish(addon.db, "plate-fight")
+addon.RefreshNameplates()
+assert(badge.text == addon.FormatRivalCounters(0, 1, true, 0))
+rival.encounters[3] = nil
 addon.RefreshNameplates()
 assert(badge.text:find(addon.L.legacyResult, 1, true))
 

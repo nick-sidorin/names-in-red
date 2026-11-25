@@ -205,7 +205,7 @@ end
 
 function Ledger.MergeManualRival(db, manualID, guid)
     local manual, rival = db.rivals[manualID], db.rivals[guid]
-    if not manual or not manualID:match("^manual:") or not guid:match("^Player%-.+")
+    if not manual or manual.manualIdentityAmbiguous or not manualID:match("^manual:") or not guid:match("^Player%-.+")
         or not manual.encounters or #manual.encounters == 0 then return end
     local sequences = {}
     for _, encounter in ipairs(rival and rival.encounters or {}) do
@@ -229,7 +229,7 @@ function Ledger.MergeManualRival(db, manualID, guid)
         end
         rival.killsAgainstThem = (rival.killsAgainstThem or 0) + (manual.killsAgainstThem or 0)
         rival.deathsToThem = (rival.deathsToThem or 0) + (manual.deathsToThem or 0)
-        for _, key in ipairs({ "class", "classLabel", "race", "raceLabel", "sex", "factionLabel" }) do
+        for _, key in ipairs({ "class", "classLabel", "race", "raceLabel", "sex", "faction", "factionLabel", "observedLevel" }) do
             if rival[key] == nil then rival[key] = manual[key] end
         end
     else
@@ -607,6 +607,12 @@ end
 function Ledger.RivalContributionScore(db, id)
     local old, battles = LegacyStats(db, id), RivalSkirmishIndex(db, id)
     return old.wins + (battles and battles.contributionWins or 0), old.losses + (battles and battles.contributionLosses or 0)
+end
+
+function Ledger.RivalScore(db, id)
+    local wins, losses = Ledger.RivalContributionScore(db, id)
+    local old = LegacyStats(db, id)
+    return wins + old.manualWins, losses + old.manualLosses
 end
 
 function Ledger.RivalRewards(db, id)

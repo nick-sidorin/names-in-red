@@ -68,8 +68,12 @@ potential Evercanon pattern, not a change to that separate repository.
 - Permanent owner-only publisher #54; request #55 failed with 403 before tag creation against an older workflow-changing commit. Request #56 succeeded using the checked runtime-identical target with current workflows. No additional credentials or permissions. Do not retag published versions; for future requests select a checked main commit with current workflow files. Manual owner dispatch is configured but not independently exercised. See [validation](docs/forever-validation.md#owner-only-release-entrypoint).
 - The post-2.0.0 polish branch reconciles standalone manual identities, uses
   evidence-based roster warnings and refines the native card and tooltip
-  layout. The [Forever preview checklist](docs/forever-validation.md#live-preview-checklist)
-  is the next acceptance step.
+  layout. The owner accepted the general appearance of preview `344f64b`.
+  The three follow-up fixes in PR #58 cover native tooltip wrapping, a
+  unified personal score with manual results, and manual-entry enrichment
+  including an explicit self-target. Use the
+  [Forever preview checklist](docs/forever-validation.md#live-preview-checklist)
+  for acceptance of the updated preview.
 
 ## Previous release: 1.1.0
 
@@ -209,8 +213,10 @@ features into an approved release. See product spec for all acceptance rules.
   samples; assess class-aware corroboration without blindly treating nil as false.
 - NamesInRed/RivalContributions.lua derives versioned per-rival credits from
   the shared PvP death episodes used by the personal outcome. The profile,
-  compact cards, nameplates and unit tooltip read the same indexed credit.
-  Scoped legacy and manual results remain available. Accepted meter pairs
+  compact cards read indexed per-fight credit. The profile, nameplates and
+  unit tooltip use the indexed personal score, including explicit manual
+  results with separate provenance. Scoped legacy results remain available.
+  Accepted meter pairs
   and scoped recap contributors survive diagnostic pruning. See the
   [PR B evidence](docs/forever-validation.md#character-pov-pr-b) and
   [PR C journal validation](docs/forever-validation.md#character-pov-pr-c).

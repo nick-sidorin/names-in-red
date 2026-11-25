@@ -57,6 +57,19 @@ addon.db = addon.Ledger.Open(nil)
 Fire("PLAYER_ENTERING_WORLD")
 
 local fenrik, ghash, brother = units.target[1], units.mouseover[1], units.party1[1]
+do
+    local original = units.target
+    units.target = units.player
+    local self = assert(addon.ManualTarget())
+    assert(addon.AddManualEncounter(self.name, "killsAgainstThem", self) == self.guid)
+    assert(addon.Ledger.RivalScore(addon.db, self.guid) == 1)
+    assert(not addon.RecordWorldEncounter(self.guid, self.name, "killsAgainstThem", addon.EncounterContext("target")))
+    Fire("PARTY_KILL", brother, self.guid)
+    assert(not addon.db.skirmishes)
+    assert(addon.Ledger.PersonalCombatScore(addon.db, self.guid) == 0)
+    addon.ResetData()
+    units.target = original
+end
 local function GainHK()
     hk = hk + 1
     Fire("PLAYER_PVP_KILLS_CHANGED", "player")

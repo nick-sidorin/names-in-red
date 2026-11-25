@@ -84,6 +84,8 @@ local function Verify(saved)
     assert(ledger.PersonalCombatScore(saved, liveID) == 1)
     local povWins, povLosses = ledger.RivalContributionScore(saved, rivalID)
     assert(povWins == 1 and povLosses == 0)
+    local totalWins, totalLosses = ledger.RivalScore(saved, rivalID)
+    assert(totalWins == 2 and totalLosses == 1)
     local total = ledger.JournalRewards(saved)
     assert(total.honorableKills == 6 and total.honor == 27 and total.unassignedHonor == 5)
 end
@@ -101,6 +103,7 @@ addon.db = ledger.Open()
 local namesakeA, namesakeB = "Player-100-00000005", "Player-200-00000006"
 ledger.Add(addon.db, namesakeA, "Старый Друг")
 ledger.Add(addon.db, namesakeB, "старый друг")
+targetID = nil
 provisional = addon.AddManualEncounter("Старый Друг", "killsAgainstThem")
 assert(provisional:match("^manual:"))
 targetID = namesakeB
@@ -114,6 +117,7 @@ assert(#addon.db.rivals[provisional].encounters == 1 and #addon.db.rivals[namesa
 function RegionalUniqueNamesEnabled() return false end
 addon.db = ledger.Open()
 ledger.Add(addon.db, namesakeB, "Старый Друг")
+targetID = nil
 provisional = addon.AddManualEncounter("Старый Друг", "killsAgainstThem")
 assert(provisional:match("^manual:") and not addon.FindVisibleRival("Player-200-00000007", "target"))
 local remote = addon.db.rivals[namesakeB]
@@ -139,4 +143,147 @@ for _, conflict in ipairs({ "sequence", "battle-link", "non-manual" }) do
     assert(ledger.Open(legacy).rivals[manualID] and #legacy.rivals[liveID].encounters == 1)
 end
 
-print("Manual identity, scope, promotion, historical migration, rewards and repeated reload checks passed")
+-- Manual saves use readable observations from the current unit and the
+-- existing roster. One GUID may supply complementary data through two tokens.
+function RegionalUniqueNamesEnabled() return true end
+local secret = {}
+function issecretvalue(value) return value == secret end
+local units = {}
+function UnitGUID(unit) return unit == "player" and home or units[unit] and units[unit].guid end
+function UnitIsPlayer(unit) return units[unit] ~= nil end
+function UnitName(unit) return units[unit].name end
+function UnitLevel(unit) return units[unit] and units[unit].level end
+function UnitRace(unit)
+    local race = units[unit] and units[unit].race
+    return race, race
+end
+function UnitSex(unit) return units[unit] and units[unit].sex end
+function UnitClass(unit)
+    local class = units[unit] and units[unit].class
+    return class, class
+end
+function UnitFactionGroup(unit)
+    local faction = units[unit] and units[unit].faction
+    return faction, faction
+end
+local function Plate(unit, forbidden)
+    return { unitToken = unit, IsForbidden = function() return forbidden end }
+end
+local plates = { Plate("nameplate1"), Plate("nameplate2", true) }
+C_NamePlate = { GetNamePlates = function() return plates end }
+addon.db = ledger.Open()
+
+local mouse = { guid = namesakeA, name = "Frost Weaver", level = secret, race = "Orc", sex = 2 }
+local plate = { guid = namesakeA, name = "Frost Weaver", level = 44, class = "MAGE", faction = "Horde" }
+units.mouseover, units.nameplate1 = mouse, plate
+units.nameplate2 = { guid = namesakeB, name = plate.name, level = 60 }
+assert(addon.AddManualEncounter(" frost  WEAVER ", "killsAgainstThem") == namesakeA)
+local enriched = addon.db.rivals[namesakeA]
+assert(enriched.race == "orc" and enriched.sex == 2 and enriched.class == "MAGE")
+assert(enriched.faction == "Horde" and enriched.factionLabel == "Horde")
+assert(enriched.encounters[1].rivalLevel == 44 and enriched.observedLevel == 44)
+units.mouseover, units.nameplate1 = nil, nil
+assert(addon.AddManualEncounter("Frost Weaver", "deathsToThem") == namesakeA)
+assert(enriched.encounters[1].rivalLevel == nil and enriched.observedLevel == 44)
+local w, l = ledger.RivalScore(addon.db, namesakeA)
+assert(w == 1 and l == 1)
+assert(ledger.RivalContributionScore(addon.db, namesakeA) == 0)
+local k, d = ledger.PersonalCombatScore(addon.db, namesakeA)
+local hk, honor = ledger.RivalRewards(addon.db, namesakeA)
+assert(k == 0 and d == 0 and hk == 0 and honor == 0)
+
+local plateOnly = "Player-100-00000009"
+units.nameplate1 = { guid = plateOnly, name = "Visible Rival", class = "DRUID", level = 37 }
+assert(addon.AddManualEncounter("Visible Rival", "killsAgainstThem") == plateOnly)
+assert(addon.db.rivals[plateOnly].class == "DRUID" and addon.db.rivals[plateOnly].encounters[1].rivalLevel == 37)
+units.nameplate1 = nil
+
+-- Reuse a level from older battle evidence for the matched GUID and never
+-- timestamp the historical observation as part of the new manual encounter.
+local prior = "Player-100-00000010"
+addon.RecordSkirmish("earlier-sight", {
+    time = 100, allies = { { id = home, isSelf = true } },
+    enemies = { { id = prior, rivalID = prior, name = "Earlier Rival", level = 29, race = "orc", sex = 2 } },
+    events = {},
+})
+assert(addon.AddManualEncounter("Earlier Rival", "killsAgainstThem") == prior)
+local profile = addon.db.rivals[prior]
+assert(profile.race == "orc" and profile.observedLevel == 29 and profile.encounters[1].rivalLevel == nil)
+
+-- A changed target with the same name can be two different people.
+local freshID, staleID = "Player-100-00000011", "Player-100-00000012"
+units.target = { guid = staleID, name = "Changed Target", race = "Human", level = 30 }
+local opening = assert(addon.ManualTarget())
+units.target = { guid = freshID, name = "Changed Target", race = "Orc", level = 41 }
+local changed = addon.AddManualEncounter("Changed Target", "killsAgainstThem", opening)
+assert(changed:match("^manual:") and addon.db.rivals[changed].manualIdentityAmbiguous)
+assert(not addon.db.rivals[staleID] and not addon.db.rivals[freshID])
+assert(addon.AddManualEncounter("Changed Target", "deathsToThem", addon.ManualTarget()) == freshID)
+assert(addon.db.rivals[freshID].race == "orc" and addon.db.rivals[freshID].encounters[1].rivalLevel == 41)
+
+units.target = { guid = staleID, name = "Opening Name", race = "Human", level = 30 }
+opening = assert(addon.ManualTarget())
+units.target, units.mouseover = { guid = freshID, name = "Different Name" },
+    { guid = freshID, name = "Opening Name", level = 41 }
+local staleMouseover = addon.AddManualEncounter("Opening Name", "deathsToThem", opening)
+assert(staleMouseover:match("^manual:") and addon.db.rivals[staleMouseover].manualIdentityAmbiguous)
+
+-- A name-only match with two readable GUIDs stays provisional even when
+-- only one of the two rivals has a profile at the next reload.
+local twinA, twinB = "Player-100-00000021", "Player-100-00000022"
+units.target = nil
+units.mouseover = { guid = twinA, name = "Two Twins", race = "Human", level = 25 }
+units.nameplate1 = { guid = twinB, name = "Two Twins", race = "Orc", level = 31 }
+local conflicting = addon.AddManualEncounter("Two Twins", "killsAgainstThem")
+assert(conflicting:match("^manual:") and addon.db.rivals[conflicting].manualIdentityAmbiguous)
+assert(not addon.FindVisibleRival(twinA, "mouseover"))
+ledger.Add(addon.db, twinA, "Two Twins")
+addon.db = ledger.Open(Copy(addon.db))
+assert(addon.db.rivals[conflicting] and addon.db.rivals[changed])
+assert(ledger.RivalScore(addon.db, twinA) == 0)
+w, l = ledger.RivalScore(addon.db, namesakeA)
+assert(w == 1 and l == 1)
+ledger.Remove(addon.db, namesakeA)
+assert(ledger.RivalScore(addon.db, namesakeA) == 0 and ledger.RivalRewards(addon.db, namesakeA) == 0)
+
+-- A direct target identifies only the newly entered result when a previously
+-- unresolved entry could refer to either of two currently readable GUIDs.
+units.mouseover, units.nameplate1 = nil, nil
+local earlierManual = addon.AddManualEncounter("Later Conflict", "killsAgainstThem")
+units.target = { guid = "Player-100-00000023", name = "Later Conflict" }
+units.mouseover = { guid = "Player-100-00000024", name = "Later Conflict" }
+local exact = assert(addon.ManualTarget())
+assert(addon.AddManualEncounter(exact.name, "deathsToThem", exact) == exact.guid)
+addon.db = ledger.Open(Copy(addon.db))
+assert(addon.db.rivals[earlierManual].manualIdentityAmbiguous)
+w, l = ledger.RivalScore(addon.db, exact.guid)
+assert(w == 0 and l == 1)
+
+-- Restricted or reused unit tokens supply no guessed identity or appearance.
+local pendingID = "Player-100-00000031"
+units.target, units.mouseover = nil, nil
+units.nameplate1 = { guid = secret, name = "Hidden Name", level = secret, race = secret, faction = secret }
+local pending = addon.AddManualEncounter("Hidden Name", "deathsToThem")
+local unknown = addon.db.rivals[pending]
+assert(pending:match("^manual:") and not unknown.race and not unknown.observedLevel and not unknown.faction)
+units.mouseover = { guid = pendingID, name = "Hidden Name", class = "PRIEST", level = 22 }
+addon.ResolveRivalName("mouseover")
+profile = assert(addon.db.rivals[pendingID])
+assert(not addon.db.rivals[pending] and profile.class == "PRIEST" and profile.observedLevel == 22)
+assert(profile.encounters[1].manual and profile.encounters[1].rivalLevel == nil)
+units.mouseover.race, units.mouseover.sex, units.mouseover.faction = "Orc", 2, "Horde"
+addon.ResolveRivalName("mouseover")
+assert(profile.race == "orc" and profile.sex == 2 and profile.faction == "Horde")
+w, l = ledger.RivalScore(addon.db, pendingID)
+assert(w == 0 and l == 1)
+
+local unitRace = UnitRace
+units.nameplate1 = { guid = pendingID, name = "Reused Token", race = "Orc", level = 22 }
+function UnitRace(unit)
+    if unit == "nameplate1" then units[unit] = { guid = twinB, name = "Other Character" } end
+    return unitRace(unit)
+end
+local reused = addon.AddManualEncounter("Reused Token", "killsAgainstThem")
+assert(reused:match("^manual:") and not addon.db.rivals[reused].race)
+UnitRace = unitRace
+print("Manual identity, live observations, scope, promotion, migration and score reload checks passed")

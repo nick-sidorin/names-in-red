@@ -1686,8 +1686,9 @@ Manual entries, undated directional rows and group verdicts supply no new
 participation evidence. Existing manual labels, raw timeline, direct totals
 and reward fields remain available. The profile keeps HK and honor separate.
 The nameplate shows a labelled historical fallback when the rival lacks a
-verified score. The polish unit tooltip shows the verified score as icons
-and numbers below the addon heading.
+personal score. The polish unit tooltip shows personal score icons and
+numbers below the addon heading. Explicit manual results join that visible
+score while retaining their provenance.
 
 **Index and invalidation.** The ledger lazily builds one in-memory projection
 per loaded database. Warm nameplate and tooltip queries look up the rival's
@@ -2257,8 +2258,8 @@ case-insensitively, including Cyrillic and Ё/ё. Forever's Camelot
 `NameUtil.FormatUnitNameForDisplay` uses the first name and surname.
 `RegionalUniqueNamesEnabled()` determines when a name match can span the
 region. With regional uniqueness unavailable, the addon's name-only lookup
-uses the home-realm portion of the readable player GUID. A matched snapshot
-supplies the GUID regardless of name scope. The migration requires one
+uses the home-realm portion of the readable player GUID. A matching current
+target supplies the GUID regardless of name scope. The migration requires one
 confirmed match and a standalone manual history. It moves original rows with
 their order keys, explicit results and rewards. Conflicting sequence IDs or
 unexpected shared-battle links leave the provisional profile intact.
@@ -2300,16 +2301,66 @@ wrapped string height, within the existing row and two-line limits.
 [Bug asset](https://github.com/Gethe/wow-ui-source/blob/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_PTRFeedback/Blizzard_PTRFeedback.lua) ·
 [Font inheritance](https://github.com/Gethe/wow-ui-source/blob/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_Fonts_Shared/Shared/FontStyles.xml)
 
+### Live review follow-up
+
+The owner approved the general appearance of preview `344f64b` in Forever
+and requested three follow-up fixes. [Live review](https://github.com/nick-sidorin/names-in-red/pull/58#pullrequestreview-6065423782)
+
+**Native tooltip wrap.** In `Book.Stat`, `GameTooltip:SetText` previously
+used the default unwrapped mode. Forever's generated `FrameAPITooltip`
+declares argument six as `wrap`. The native Adventure Map quest tooltip
+passes it to `SetText`. Native item and spell data use
+`TooltipDataHandlerMixin:AddLineDataText` to forward the line's
+`wrapText` via `GameTooltip_AddColoredLine` to `AddLine`. The four
+profile stats now use the native wrap argument, and manual and legacy
+history lines use the same wrapping path. GameTooltip owns width and height.
+The original translations and punctuation are preserved. The sources for
+these calls agree in builds 71091 and 71139. UI mocks verify wrap flags and
+unaltered text. [Native SetText](https://github.com/Gethe/wow-ui-source/blob/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_APIDocumentationGenerated/FrameAPITooltipDocumentation.lua#L120-L133) ·
+[Native quest tooltip](https://github.com/Gethe/wow-ui-source/blob/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_AdventureMap/AM_QuestDialog.lua#L267-L279) ·
+[Item and spell line handler](https://github.com/Gethe/wow-ui-source/blob/d9c22e32cb240afb82bb2ecefbb78ef935333f59/Interface/AddOns/Blizzard_SharedXMLGame/Tooltip/TooltipDataHandler.lua#L338-L349)
+
+**Visible score.** Preview `344f64b` read contribution-only scores for
+profiles and unit tooltips. The unit tooltip had dropped its separate
+history lines, so rivals with only manual results could disappear from it.
+`Ledger.RivalScore` now adds manual wins and losses once to the verified
+contribution totals used by the profile, unit tooltip and nameplate. The
+existing historical fallback on nameplates is labelled as such. A manual
+result keeps its label in the card and its provenance in the profile hover.
+The direct-player, award, and contribution-only counters remain independent.
+Tests cover manual-only and mixed profiles, unit tooltip and nameplate
+visibility, deletion, duplicate migration and repeated reload.
+
+**Manual observations.** Opening the form can prefill the selected unit's
+full name. Save matches the current target by exact normalized full name
+and verifies GUID stability around the appearance read. Mouseover and
+visible permitted nameplates may supplement the same GUID or supply a
+unique name-only match in scope. The ledger supplies previously retained
+identity and profile information. Contradictory name-only observations
+leave a provisional profile with a persisted ambiguity marker. A targeted
+namesake can receive a new, explicitly identified entry. A stored level
+from earlier history or learned later is profile evidence used when a
+manual card lacks a recorded level. The saved encounter retains its original
+level field. Later target or mouseover events and new verified PvP evidence
+can enrich a provisional match. Self-target uses the local unit's name and
+appearance for this explicit path. Automatic opponent capture rejects the
+local player GUID. Regressions cover stale selection, token reuse, secret
+fields, forbidden plates, visible conflicts and manual self-entry.
+
 ### Live preview checklist
 
-The source inspection and Lua mocks cover layout relationships, not final
-client pixels. Use the revision-stamped preview in Forever.
+Use the revision-stamped preview in Forever to validate rendering and
+interaction. The updated preview's three follow-up fixes remain pending
+live acceptance.
 
 1. Clear the target and add a result for an existing rival using the full name,
    with different case or spacing. Look for one profile, the original and
    new records, the manual result and the same earned rewards after `/reload`.
-   Add a previously unrecorded rival by name and then target or mouse over
-   that character to check promotion. Open the migrated manual card's report.
+   Add an opponent found through mouseover or a visible nameplate and verify
+   its appearance and level. Add a previously unrecorded rival by name and
+   then target or mouse over that character to check promotion. Select your
+   own character, add a manual result, and check its card and unit tooltip.
+   Open the migrated manual card's report.
 2. Open restored World:27. Expect 2×1, Victory, 1 HK / 4 honor and no roster
    warning. Compare a normal group card and an interrupted or unresolved
    capture with a genuine roster gap.
@@ -2324,8 +2375,11 @@ client pixels. Use the revision-stamped preview in Forever.
    name and a recycled card while scrolling.
 6. In the compact card, compare Victory, Defeat and No credit, including a
    caption that wraps. Check the vertical center of the combined result.
-7. Hover wins and losses in Russian and English. Compare a solo finish and
-   a win earned by supporting the finishing ally.
-8. Hover a known rival with a confirmed score. Check the native unit lines
-   followed by the Names in Red heading and both icon counters. Toggle the
-   unit tooltip option and confirm the nameplate still obeys its own setting.
+7. Hover wins and losses in Russian and English. Check native wrap with long
+   hints and manual or legacy history lines. Check the HK and honor slots.
+   Compare a solo finish and a win earned by supporting the finishing ally.
+8. Compare a manual-only rival and a mixed manual and automatic profile.
+   Check the same score in the profile, unit tooltip and nameplate with
+   independent display options. Verify the heading, icons and numbers in the
+   unit tooltip. Check attribution and rewards after reload and deletion
+   using an entry created for this test.

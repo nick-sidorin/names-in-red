@@ -549,8 +549,9 @@ function addon.CreateCompactEncounterCard(parent, width, onMapShown, openSkirmis
         BindParticipantTile(mine, player or {}, addon.UnitAppearance("player"), encounter.playerLevel,
             encounter.playerDeathIndex ~= nil
             or (not encounter.manual and encounter.direction == "deathsToThem"), nil, encounter.playerRevived)
+        local rivalLevel = encounter.rivalLevel or (encounter.manual and rival and rival.observedLevel)
         BindParticipantTile(theirs, opponent or { rivalID = rivalID, name = rival and rival.displayName },
-            rival or {}, encounter.rivalLevel, encounter.opponentDeathIndex ~= nil
+            rival or {}, rivalLevel, encounter.opponentDeathIndex ~= nil
             or (not encounter.manual and encounter.direction == "killsAgainstThem"), nil, encounter.opponentRevived)
 
         local hasWaypoint = WaypointMap(encounter) ~= nil

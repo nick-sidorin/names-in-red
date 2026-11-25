@@ -28,7 +28,7 @@ unconfirmed. Rivals and skirmishes stay saved indefinitely, including the
 core timeline and linked Damage Meter aggregates. Older battles remain
 available in each rival's history after diagnostic data is compacted.
 The map pin places a waypoint when the saved location supports one. Known
-rivals with a credited score show its icons and numbers in the standard unit
+rivals with a personal score show its icons and numbers in the standard unit
 tooltip.
 
 The interface follows the language selected in World of Warcraft. It supports
@@ -80,14 +80,17 @@ Version 2.0.0 introduces [Character POV](docs/skirmish-product-spec.md).
   Activity from a pet can count when its owner is verified. You earn a win
   each time you defeat the rival alone or with allies. The same rule applies
   when the rival defeats you. A revival can make a later death count
-  separately. The nameplate, tooltip, compact card and profile use that score.
+  separately. Explicit manual results also count once in the same profile,
+  nameplate and tooltip totals. Compact cards show the individual encounter.
 - Direct killing blows and deaths, **Honorable Kills** and **Honor Points**
   keep their own counters. Original historical and manual entries stay in the
   journal. Older side results carry their historical scope.
 
-When you add a manual result by full name, a unique match in the game's
-name scope reuses the existing rival profile. A provisional profile can be
-linked to a confirmed character later. Each manual result stays in history.
+When you save a manual result, the addon can reuse a matching current
+target, mouseover, visible nameplate or known rival profile. You can choose
+your own character as the current target for a manual entry. A provisional
+profile can be linked to a confirmed character later. The card keeps its
+manual label and the original recorded details.
 
 Deleting a rival clears their profile and its statistics. Shared battles
 remain in the journal with their recorded participants and timeline.
@@ -125,9 +128,9 @@ results keep their existing interpretation. New world records derive
 coverage are stored separately. A `kind = "revive"` event marks a later
 readable living state for the same character and preserves the killing
 blow. The skull marks a death during the fight. The portrait returns to
-color after an observed revival. The unit tooltip shows only the confirmed
-rival score. Skirmish outcomes, direct-player kills and deaths, and Blizzard
-rewards use independent counters.
+color after an observed revival. The unit tooltip uses the same visible
+personal rival score as the profile and nameplate. Skirmish outcomes,
+direct-player kills and deaths, and Blizzard rewards use independent counters.
 Mark the local player `isSelf` and identify profile links with `rivalID`.
 Store `honorableKills` and `honor` under `rewards[opponent.id]`. Re-saving
 the same skirmish ID replaces the indexed result and rewards.

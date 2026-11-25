@@ -25,16 +25,17 @@ function CreateFrame()
     }
 end
 
-local tooltipLines = {}
+local tooltipLines, tooltipWrap = {}, {}
 GameTooltip = {
     IsOwned = function(self, owner) return self.owner == owner end,
     SetOwner = function(self, owner) self.owner = owner end,
-    SetText = function(self, title) self.title = title end,
+    SetText = function(self, title, _, _, _, _, wrap) self.title, self.titleWrap = title, wrap end,
     Show = function(self) self.shown = true end,
     Hide = function(self) self.shown, self.owner = false, nil end,
-    AddLine = function(_, text)
+    AddLine = function(_, text, _, _, _, wrap)
         assert(type(text) == "string" and text ~= "")
         table.insert(tooltipLines, text)
+        tooltipWrap[#tooltipLines] = wrap
     end,
 }
 Enum = { TooltipDataType = { Unit = 2 } }
@@ -164,11 +165,15 @@ assert(#tooltipLines == 0)
 addon.db.showUnitTooltip = true
 print("Rival tooltip and locale checks passed")
 
-function UnitIsPlayer(unit) return unit == "target" end
+function UnitIsPlayer(unit) return unit == "target" or unit == "player" end
 function RegionalUniqueNamesEnabled() return true end
-function UnitName() return "Test Rival" end
+local targetName = "Target Rival"
+function UnitName(unit) return unit == "player" and "Local Character" or targetName end
 local targetGUID = "Player-target"
-function UnitGUID(unit) return unit == "target" and targetGUID or "Player-self" end
+function UnitGUID(unit)
+    if unit == "target" then return targetGUID end
+    if unit == "player" then return "Player-self" end
+end
 local targetLevel = 42
 function UnitLevel() return targetLevel end
 function UnitRace() return "Human", "Human" end
@@ -177,8 +182,6 @@ function UnitClass() return "Mage", "MAGE" end
 function UnitFactionGroup() return "Alliance", "Alliance" end
 
 local target = assert(addon.ManualTarget())
-targetGUID = "Player-other"
-targetLevel = 77
 local id = addon.AddManualEncounter(target.name, "killsAgainstThem", target)
 assert(id == "Player-target")
 local linked = addon.db.rivals[id]
@@ -191,13 +194,22 @@ assert(differentID == "manual:different rival")
 local different = addon.db.rivals[differentID]
 assert(not different.race and not different.class and not different.factionLabel and not different.encounters[1].rivalLevel)
 callback(GameTooltip, { guid = "Player-target" })
-assert(#tooltipLines == 0)
+assert(#tooltipLines == 3 and tooltipLines[2] == addon.title)
+assert(tooltipLines[3] == swordCounter .. " 1   " .. loss .. " 0")
 callback(GameTooltip, { guid = "Player-other" })
-assert(#tooltipLines == 0)
+assert(#tooltipLines == 3)
 targetGUID = secret
 assert(addon.ManualTarget() == nil)
 targetGUID = "Player-self"
-assert(addon.ManualTarget() == nil)
+local selfTarget = assert(addon.ManualTarget())
+assert(selfTarget.name == "Local Character" and selfTarget.guid == targetGUID)
+assert(addon.AddManualEncounter(selfTarget.name, "deathsToThem", selfTarget) == targetGUID)
+callback(GameTooltip, { guid = targetGUID })
+assert(#tooltipLines == 6 and tooltipLines[6] == swordCounter .. " 0   " .. loss .. " 1")
+addon.db.showUnitTooltip = false
+callback(GameTooltip, { guid = targetGUID })
+assert(#tooltipLines == 6)
+addon.db.showUnitTooltip = true
 targetGUID, targetLevel = "Player-restricted", secret
 assert(addon.ManualTarget().level == nil)
 print("Target-linked manual entry checks passed")
@@ -208,11 +220,15 @@ function UnitName() return "Айро", surname end
 targetGUID = "Player-ayro"
 assert(addon.ManualTarget().name == "Айро Топичмолоток")
 
+targetGUID = nil
 local manualID = assert(addon.AddManualEncounter("Айро\194\160Топичмолоток", "deathsToThem"))
 local manualRival = addon.db.rivals[manualID]
+targetGUID = "Player-ayro"
 assert(addon.FindVisibleRival(targetGUID, "target") == manualRival)
+function GameTooltip:GetUnit() return "Айро Топичмолоток", "target", targetGUID end
 callback(GameTooltip, { guid = targetGUID })
-assert(#tooltipLines == 0)
+assert(#tooltipLines == 9 and tooltipLines[9] == swordCounter .. " 0   " .. loss .. " 1")
+GameTooltip.GetUnit = nil
 assert(addon.db.rivals[manualID] == manualRival and manualRival.deathsToThem == 1)
 assert(addon.db.rivals[targetGUID] == nil)
 surname = nil
@@ -222,8 +238,9 @@ addon.db.rivals["Player-namesake"] = { displayName = "Айро Топичмол�
 assert(not addon.FindVisibleRival(targetGUID, "target"))
 assert(addon.AddManualEncounter(addon.ManualTarget().name, "killsAgainstThem", addon.ManualTarget()) == targetGUID)
 callback(GameTooltip, { guid = secret })
-assert(#tooltipLines == 0)
+assert(#tooltipLines == 9)
 print("Full-name manual identity checks passed")
+tooltipLines, tooltipWrap = {}, {}
 
 local duelGUID = "Player-reciprocal"
 local directBattle = {
@@ -1134,6 +1151,53 @@ do
     ProfileStat(addon.L.honor, 5)
     assert(FindText(book, addon.FormatRivalCounters(1, 1, false, 0)))
 
+    openProfile("Player-target")
+    ProfileStat(addon.L.wins, 1)
+    ProfileStat(addon.L.losses, 0)
+    ProfileStat(addon.L.honorableKills, 0)
+    ProfileStat(addon.L.honor, 0)
+    assert(FindText(book, addon.L.qualifiedOutcome:format(addon.L.manual, addon.L.winTooltip)))
+
+    assert(addon.AddManualEncounter("Reciprocal Rival", "deathsToThem") == duelGUID)
+    addon.RecordEncounter(duelGUID, "Reciprocal Rival", "killsAgainstThem", { outcome = "win" })
+    openProfile(duelGUID)
+    ProfileStat(addon.L.wins, 1)
+    ProfileStat(addon.L.losses, 2)
+    ProfileStat(addon.L.honorableKills, 1)
+    ProfileStat(addon.L.honor, 5)
+    local beforeMixed = #tooltipLines
+    callback(GameTooltip, { guid = duelGUID })
+    assert(#tooltipLines == beforeMixed + 3 and tooltipLines[#tooltipLines] == addon.FormatRivalCounters(1, 2, false))
+
+    for _, stat in ipairs({
+        { addon.L.wins, 1, addon.L.rivalWinsHint, true },
+        { addon.L.losses, 2, addon.L.rivalLossesHint, true },
+        { addon.L.honorableKills, 1, addon.L.honorableKills },
+        { addon.L.honor, 5, addon.L.honor },
+    }) do
+        local label = assert(FindText(book, addon.L.statValue:format(stat[1], stat[2])))
+        local beforeHint = #tooltipLines
+        local checked
+        for _, child in ipairs(label.parent.children) do
+            if child.scripts.OnEnter then
+                child.scripts.OnEnter(child)
+                assert(GameTooltip.title == stat[3] and GameTooltip.titleWrap == true)
+                checked = true
+                child.scripts.OnLeave(child)
+                break
+            end
+        end
+        assert(checked)
+        if stat[4] then
+            assert(#tooltipLines == beforeHint + 2)
+            assert(tooltipLines[beforeHint + 1] == addon.L.historyPair:format(addon.L.manual, 0, 1))
+            assert(tooltipLines[beforeHint + 2] == addon.L.historyPair:format(addon.L.legacyResult, 1, 0))
+            assert(tooltipWrap[beforeHint + 1] and tooltipWrap[beforeHint + 2])
+        else
+            assert(#tooltipLines == beforeHint)
+        end
+    end
+
     local saved, log = dofile("tests/fixtures/world16-anonymized.lua")
     local archiveBattle = saved.skirmishes["world:16"]
     local archiveRival = archiveBattle.enemies[1].rivalID
@@ -1242,6 +1306,9 @@ do
     StaticPopupDialogs.NAMES_IN_RED_DELETE_RIVAL.OnAccept(nil, duelGUID)
     assert(not addon.db.rivals[duelGUID] and refreshes == before + 1)
     assert(not FindText(book, addon.FormatRivalCounters(1, 1, false, 0)))
+    local beforeDeleted = #tooltipLines
+    callback(GameTooltip, { guid = duelGUID })
+    assert(#tooltipLines == beforeDeleted)
     addon.ResetData()
     assert(not next(addon.db.rivals) and refreshes == before + 2)
 end

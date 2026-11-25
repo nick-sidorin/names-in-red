@@ -42,12 +42,10 @@ local function HistoryLines(id)
 end
 
 function addon.RivalCounters(id, hideZero, iconOffsetY)
-    local wins, losses = addon.Ledger.RivalContributionScore(addon.db, id)
+    local wins, losses = addon.Ledger.RivalScore(addon.db, id)
     local counters = addon.FormatRivalCounters(wins, losses, hideZero, iconOffsetY)
     if counters or not hideZero then return counters end
-    local manualWins, manualLosses, legacyWins, legacyLosses = addon.Ledger.RivalHistoryContext(addon.db, id)
-    local manual = addon.FormatRivalCounters(manualWins, manualLosses, true, iconOffsetY)
-    if manual then return L.qualifiedOutcome:format(L.manual, manual) end
+    local _, _, legacyWins, legacyLosses = addon.Ledger.RivalHistoryContext(addon.db, id)
     local legacy = addon.FormatRivalCounters(legacyWins, legacyLosses, true, iconOffsetY)
     if legacy then return L.qualifiedOutcome:format(L.legacyResult, legacy) end
 end
@@ -119,11 +117,11 @@ local function Stat(parent, section, x, y, width, texture, tooltipText, showHist
 
     slot:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(tooltipText)
+        GameTooltip:SetText(tooltipText, nil, nil, nil, nil, true)
         if showHistory and selected then
             local manual, legacy = HistoryLines(selected)
-            if manual then GameTooltip:AddLine(manual) end
-            if legacy then GameTooltip:AddLine(legacy) end
+            if manual then GameTooltip:AddLine(manual, 1, 1, 1, true) end
+            if legacy then GameTooltip:AddLine(legacy, 1, 1, 1, true) end
         end
         GameTooltip:Show()
     end)
@@ -209,7 +207,7 @@ local function ShowDetails()
             profile = profile ~= "" and profile .. "\n" .. L.manual or L.manual
         end
         status:SetText(profile)
-        local winCount, lossCount = addon.Ledger.RivalContributionScore(addon.db, selected)
+        local winCount, lossCount = addon.Ledger.RivalScore(addon.db, selected)
         local honorableKillCount, honorTotal = addon.Ledger.RivalRewards(addon.db, selected)
         wins:SetText(L.statValue:format(L.wins, winCount))
         losses:SetText(L.statValue:format(L.losses, lossCount))
@@ -224,7 +222,7 @@ local function ShowDetails()
                 break
             end
         end
-        profilePortrait:SetParticipant(rival, selected, level)
+        profilePortrait:SetParticipant(rival, selected, level or rival.observedLevel)
         latestCard:SetEncounter(history[1], rival, selected)
         latestEmpty:SetShown(history[1] == nil)
     end

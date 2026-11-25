@@ -22,7 +22,7 @@ A skirmish is more than a collection of killing blows. Healers, supporters, pets
 - **Battlegrounds are supported and enabled by default.** The player can opt out of **recording** battleground encounters using one settings checkbox: **Track Battleground Skirmishes** (default **ON**). **This option controls recording only, not recognition or display of existing rival history.**
 - When the checkbox is ON, battleground skirmishes follow the same fundamental idea as open-world skirmishes: track the **local, connected confrontation**, not automatically the entire battleground match, its full team rosters, or its final scoreboard.
 - When the checkbox is OFF, **do not record new battleground skirmishes, kills, deaths, rewards, or battleground-driven changes to rival history and scores**. Existing records remain saved and browseable; open-world tracking is unaffected.
-- **Always recognize previously recorded rivals in battlegrounds and the open world, regardless of this checkbox.** The unit tooltip shows their confirmed rival score. Nameplates keep their existing historical fallback. Both surfaces obey their independent display settings.
+- **Always recognize previously recorded rivals in battlegrounds and the open world, regardless of this checkbox.** The unit tooltip shows their personal rival score, including explicit manual results. Nameplates use the same score and keep their labelled historical fallback. Both surfaces obey their independent display settings.
 - The same opposing player can be recognized later in the world or on another battleground, **even when battleground recording is disabled**. Keep **one rival identity and shared history**, with each individual encounter labelled by its origin; do not create duplicate rival profiles for each context.
 - Other instanced PvP modes are outside this specification. Do not silently expand scope to them.
 - Do not turn ordinary PvE encounters, friendly activity, nearby spectators, or independent fights into this skirmish.
@@ -236,7 +236,12 @@ Examples:
 
 **Approved counting unit:** one credit per rival, per genuine death episode, per direction. Repeated signals, overlapping categories, late reads and replay of the same death do not add another credit. A confirmed revival followed by another relevant death is another episode: helping defeat the same mage twice earns two rival victories. The character's own two deaths may likewise earn two losses against a qualifying rival even if they belong to one skirmish. The skirmish itself has one final personal outcome, independent of those counts. A confirmed death plus reliably linked participation is enough even if the finisher is unknown.
 
-Keep original historical side outcomes and explicitly manual results with their original scope. Re-evaluate an old record only where its retained evidence supports the new semantics.
+Count every explicit manual win or loss once in the visible personal rival
+score. Keep the manual provenance in the ledger and the card label. Manual
+results carry no automatic contribution evidence, finishing blows, deaths,
+Honorable Kills or Honor Points. Preserve any awards already recorded in
+historical data. Re-evaluate an old side result only where retained evidence
+supports the new semantics.
 
 ### UI semantics
 
@@ -329,11 +334,11 @@ The original capture was 1 vs 2, later reconstructed as 2 vs 3 with two enemy de
 The owner accepted release 2.0.0 and deferred these corrections until after publication. The polish preview implements the following behavior. Live Forever acceptance is pending.
 
 - **Coverage UX.** The displayed count is the observed roster. The warning requires a concrete unresolved participant or evidence of observation cut short during an ongoing PvP exchange. Roster size, a missing finisher, or a general API restriction alone do not trigger it. The outcome evaluator retains its own `rosterComplete` evidence. The restored 2×1 World:27 is the acceptance example.
-- **Manual rival identity.** A unique normalized full-name match reuses the existing profile in the client's confirmed regional name scope, or in the home realm when regional uniqueness is unavailable. A matched target snapshot supplies its GUID directly. Later identification can link a provisional profile. Safe reconciliation moves intact explicit manual records and preserves rewards and statistics. Conflicting confirmed GUIDs and ambiguous matches stay separate.
+- **Manual rival identity.** A unique normalized full-name match reuses the existing profile in the client's confirmed regional name scope, or in the home realm when regional uniqueness is unavailable. The current matching target can supply a GUID directly, including the player's own character as an explicit manual entry. On save, resolve matching readable details from the target, mouseover, available nameplates and previously identified profiles. Revalidate the dialog's opening target against the typed name and the identities available at save. Later target, mouseover or fight evidence can enrich a provisional profile. Preserve unknown fields and the original context of the manual encounter. Conflicting confirmed GUIDs and ambiguous matches stay separate, including after reload.
 - **Shared card action buttons.** The waypoint diamond, details icon and report bug use a common centered native button geometry wherever they appear. The frame, hit area, tooltips and action behavior are preserved.
 - **Portrait and result layout.** The shared level digits are one UI unit smaller and centered in the badge. Both card layouts center each portrait with its displayed name. The compact result centers its icon and caption together. Wrapped localized names and multi-row rosters retain their layout.
-- **Natural score language.** Explanatory tooltips describe defeating a rival, or being defeated by them, alone or with allies. Confirmed support retains the same credit as before.
-- **Unit tooltip.** Its Names in Red section shows the heading plus confirmed rival-score icons and numbers. Historical and explicit manual results remain available in the journal. Native tooltip content and the existing display options are preserved.
+- **Natural score language.** Explanatory tooltips describe defeating a rival, or being defeated by them, alone or with allies. Confirmed support retains its credit. Let Blizzard size and wrap all four profile statistics tooltips and their history lines.
+- **Unit tooltip.** Its Names in Red section shows the heading plus personal rival-score icons and numbers. The profile and nameplate use the same personal total. Historical side results and the provenance of explicit manual entries remain available in the journal. Native tooltip content and the existing display options are preserved.
 - **Out of scope:** leave honor/currency number and icon alignment as it is (owner withdrew this request after comparing the native bag presentation). No formal duels, ally profiles, target menu, progression, new timeline features, or other future-idea implementation in this polish phase.
 
 Use focused tests and preview acceptance for the actual fixes; avoid changing the accepted Character POV scoring or old records merely for visual polish.
