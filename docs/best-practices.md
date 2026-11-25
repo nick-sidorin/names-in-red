@@ -308,6 +308,12 @@ before supplying it. Build release ZIPs with fixed member times, file modes,
 platform metadata and an explicit compression level. Verify independent
 builds of the same source byte for byte. Before publishing, resolve the
 remote tag explicitly and verify any uploaded asset against that build.
+The permanent publisher accepts only the owner as initial and retry actor,
+from this repository. An owner-approved request-only main commit or manual
+main dispatch supplies exact version and checked SHA; external stable tags
+remain supported. Build with read-only permissions before tag creation; publish
+in a separate write-permission job. Never rely on a GITHUB_TOKEN tag push to
+trigger another Actions workflow. Do not add a PAT or a per-release publisher.
 Compare the public CurseForge file independently and
 check pending automatic packaging before any manual upload. The
 [preview and release incidents](forever-validation.md#preview-and-release-provenance)

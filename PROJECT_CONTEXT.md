@@ -85,7 +85,7 @@ potential Evercanon pattern, not a change to that separate repository.
   publication and cleanup. The retrospective independently verified the
   public [CurseForge 1.1.0 file](https://www.curseforge.com/wow/addons/names-in-red/files/9782367)
   as Release for Forever 1.60.1 and compared both archives to the tag.
-  No permanent GitHub release workflow remains. Verify the automatic
+  The temporary 1.1.0 workflow was removed; the current permanent publisher is described below. Verify the automatic
   packaging status before any manual upload. Copy-ready listing texts
   live in [the full description](docs/curseforge-description.md) and
   [short summary](docs/curseforge-summary.txt). Their publication on the
@@ -321,7 +321,11 @@ unverified until the tag-driven publisher and CurseForge are checked.
    pet-owner scenarios stay as follow-ups under the accepted release policy.
    [PR C acceptance](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6060358381) ·
    [Control-gap validation](docs/forever-validation.md#control-gap-replay-world2324)
-3. Known data loss, crashes, core behavior defects, failing checks and
+3. Release entrypoint: the owner requested a permanent owner-only launch via
+   Actions or an isolated release-request PR. The exact accepted 2.0.0 source
+   remains `a58fccad02de7e50357e63546b1b3710cd1ea01f`. No runtime changes or
+   unreviewed code are included by this infrastructure update. Verify real
+   publication independently. Known data loss, crashes, core behavior defects, failing checks and
    package problems still block publication. Verify GitHub and CurseForge
    artifacts independently once the owner accepts the final release.
 4. After 2.0.0 publication, prioritize polishing the existing journal, not new

@@ -187,7 +187,8 @@ After PR C, prepare one installable preview of the entire milestone.
 - Resolve actual release blockers; put non-blocking improvements into
   future ideas or follow-up issues rather than extend the milestone.
 - Prepare the approved version, changelog, listing copy and reviewed
-  publisher in a release PR. Push the version tag only after final owner
+  publisher in a release PR. Start the permanent owner-only publisher via
+  a request-only PR, main dispatch, or stable tag only after final owner
   approval. GitHub and CurseForge publication are checked independently.
   The GitHub publisher builds from the exact tag. CurseForge uses the
   existing source packager and `.pkgmeta`.

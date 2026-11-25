@@ -4,6 +4,7 @@ cd "$(dirname "$0")/.."
 
 python3 scripts/standards.py check --target .
 python3 scripts/check_manifest.py
+python3 tests/release_intent.py
 for file in NamesInRed/*.lua tests/*.lua; do
     luac5.1 -p "$file"
 done

@@ -150,9 +150,23 @@ and are outside the installable addon folder.
 
 ### Release packaging
 
-After final product and technical approval, push the version tag on the
-approved main commit. The [tag publisher](.github/workflows/release.yml)
-requires successful CI for that exact main commit, reruns the local suite,
-and verifies the installable ZIP before publishing the GitHub Release.
+After final product and technical approval, choose **Publish release → Run workflow**
+on the main branch with the version (e.g. 2.0.0) and the approved 40-character
+main commit SHA, or merge a separate PR that changes only
+`.github/release-request.json` with exactly those two fields:
+
+```json
+{"version":"2.0.0","commit":"<approved 40-character SHA>"}
+```
+
+The permanent [publisher](.github/workflows/release.yml) accepts only the
+repository owner (including a retry), on this repository. It requires
+successful main-push CI for the exact target, reruns the suite and verifies
+the package before creating a missing tag and publishing. It refuses to move
+existing tags and verifies existing assets on retry. A manually pushed stable
+tag by the owner is also supported. No per-release workflow or personal token
+is necessary. Ordinary PR checks and unrelated main changes do not publish.
+Repository write/admin access must remain restricted; workflow guards do not
+replace branch/tag access control.
 The existing CurseForge source packager uses `.pkgmeta`. Verify the
 CurseForge file and game version separately after publication.

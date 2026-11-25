@@ -1,58 +1,69 @@
-name: Publish tagged release
+name: Publish release
 
 on:
   push:
+    branches: [main]
+    paths: ['.github/release-request.json']
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Stable version (major.minor.patch)
+        required: true
+        type: string
+      commit:
+        description: Exact approved main commit SHA (40 characters)
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: names-in-red-release-${{ github.ref }}
+  group: names-in-red-release
   cancel-in-progress: false
 
 jobs:
   build:
+    if: github.repository == 'nick-sidorin/names-in-red' && github.actor == 'nick-sidorin' && github.triggering_actor == 'nick-sidorin'
     runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
     outputs:
-      commit: ${{ steps.tag.outputs.commit }}
-      version: ${{ steps.tag.outputs.version }}
+      commit: ${{ steps.intent.outputs.commit }}
+      version: ${{ steps.intent.outputs.version }}
+      mode: ${{ steps.intent.outputs.mode }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Verify tag and integrated main checks
-        id: tag
+      - name: Validate owner and release intent
+        id: intent
+        env:
+          RELEASE_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        run: python3 scripts/release_intent.py
+      - name: Verify approved main commit and integrated checks
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          TAG: ${{ github.ref_name }}
-          EVENT_SHA: ${{ github.sha }}
-          REF_DELETED: ${{ github.event.deleted }}
+          COMMIT: ${{ steps.intent.outputs.commit }}
         run: |
           set -euo pipefail
-          [[ "$REF_DELETED" == false && "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          commit=$(git rev-parse "refs/tags/$TAG^{commit}")
-          test "$commit" = "$(git rev-parse "$EVENT_SHA^{commit}")"
-          test "$commit" = "$(git rev-parse HEAD)"
-          git merge-base --is-ancestor "$commit" origin/main
-          # Use the exact main-push run, independently of the tag's own push run.
-          runs="repos/$REPO/actions/workflows/ci.yml/runs?branch=main&event=push&head_sha=$commit"
-          verdict=$(gh api "$runs" --jq '.workflow_runs[0].conclusion // ""')
-          test "$verdict" = success
-          echo "commit=$commit" >> "$GITHUB_OUTPUT"
-          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          test "$(git rev-parse "$COMMIT^{commit}")" = "$COMMIT"
+          git merge-base --is-ancestor "$COMMIT" origin/main
+          # Check the exact main-push run, not a PR or tag run.
+          runs="repos/$REPO/actions/workflows/ci.yml/runs?branch=main&event=push&head_sha=$COMMIT"
+          gh api "$runs" --jq '.workflow_runs[0].conclusion' | grep -Fx success
+          git checkout --detach "$COMMIT"
       - run: sudo apt-get update && sudo apt-get install -y lua5.1
       - run: bash scripts/check.sh
       - name: Package exact tagged source
         env:
-          VERSION: ${{ steps.tag.outputs.version }}
-          COMMIT: ${{ steps.tag.outputs.commit }}
+          VERSION: ${{ steps.intent.outputs.version }}
+          COMMIT: ${{ steps.intent.outputs.commit }}
         run: |
           set -euo pipefail
           python3 scripts/package_release.py --commit "$COMMIT" --version "$VERSION" --output dist
@@ -65,6 +76,7 @@ jobs:
           if-no-files-found: error
 
   publish:
+    if: github.repository == 'nick-sidorin/names-in-red' && github.actor == 'nick-sidorin' && github.triggering_actor == 'nick-sidorin' && needs.build.result == 'success'
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -74,11 +86,12 @@ jobs:
         with:
           name: tagged-release
           path: dist
-      - name: Verify draft asset and publish existing tag
+      - name: Create or verify tag, verify asset and publish
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          TAG: ${{ github.ref_name }}
+          MODE: ${{ needs.build.outputs.mode }}
+          TAG: v${{ needs.build.outputs.version }}
           VERSION: ${{ needs.build.outputs.version }}
           COMMIT: ${{ needs.build.outputs.commit }}
         run: |
@@ -88,18 +101,31 @@ jobs:
           asset="NamesInRed-$VERSION.zip"
           title="Names in Red $VERSION"
           marker="<!-- names-in-red-source: $COMMIT -->"
-          verify_remote_tag() {
-            local refs actual
-            refs=$(git ls-remote --tags "https://github.com/$REPO.git" "refs/tags/$TAG" "refs/tags/$TAG^{}")
-            actual=$(awk -v ref="refs/tags/$TAG" '$2 == ref {tag=$1} $2 == ref "^{}" {peeled=$1} END {print peeled ? peeled : tag}' <<< "$refs")
-            test "$actual" = "$COMMIT"
+          remote_tag() {
+            local refs
+            refs=$(git ls-remote --tags "https://github.com/$REPO.git" "refs/tags/$TAG" "refs/tags/$TAG^{}") || return 1
+            awk -v ref="refs/tags/$TAG" '$2 == ref {tag=$1} $2 == ref "^{}" {peeled=$1} END {print peeled ? peeled : tag}' <<< "$refs"
           }
-          verify_remote_tag
-
+          verify_remote_tag() {
+            test "$(remote_tag)" = "$COMMIT"
+          }
           # Search releases including drafts. A failing API lookup aborts rather
           # than treating a permission or network failure as a missing release.
           releases=$(gh api --paginate --slurp "repos/$REPO/releases?per_page=100")
           release=$(jq -cer --arg tag "$TAG" '[.[][] | select(.tag_name == $tag)] | if length <= 1 then first // {} else error("duplicate releases") end' <<< "$releases")
+          actual=$(remote_tag)
+          if [[ -z "$actual" ]]; then
+            test "$MODE" = request
+            test "$release" = '{}'
+            # Never force or move a tag. The same job publishes because a
+            # GITHUB_TOKEN-created tag does not trigger another Actions run.
+            gh api --method POST "repos/$REPO/git/refs" -f "ref=refs/tags/$TAG" -f "sha=$COMMIT" >/dev/null
+          elif [[ "$actual" != "$COMMIT" ]]; then
+            echo "Refusing to move existing tag $TAG" >&2
+            exit 1
+          fi
+          verify_remote_tag
+
           if [[ "$release" == '{}' ]]; then
             gh release create "$TAG" --repo "$REPO" --verify-tag --draft --title "$title" --notes-file release-notes.md
             release=$(gh release view "$TAG" --repo "$REPO" --json name,body,isDraft,isPrerelease,assets)
