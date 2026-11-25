@@ -1217,18 +1217,34 @@ entry window's rock background from Blizzard's
 The form link precedes the report so each can be copied in sequence. The native feedback
 submission flow is outside this feature.
 
-The owner's screenshots showed the older button art and a split filename
-in the 550-unit dialog. The footer now uses the 28-unit native height of
-`SharedButtonSmallTemplate` and refits the text on page changes. The
-660 × 410 window shows the path on a separate line with mid-word wrapping
-disabled. `InputScrollFrame_OnLoad` sizes the EditBox from the scroll
-frame width during initialization. The addon sets the EditBox width after
-placing the scroll frame. The shorter viewport holds the whole current
-part. Select-all highlights it and switching parts returns to the top.
-The tests exercise selection and paging. The final path fit and system
-clipboard behavior remain client checks.
-[InputScrollFrame source](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.lua#L82-L109) ·
-[PR #31](https://github.com/nick-sidorin/names-in-red/pull/31) ·
+The 660 × 320 dialog keeps the existing width and removes 90 units of
+viewport height. The SavedVariables path keeps its own line and can wrap
+without splitting a word. The native XML provides a multiline EditBox
+without autofocus. `InputScrollFrame_OnLoad` applies the instance's letter
+limit and initializes its scrolling. `InputScrollFrame_OnTextChanged`,
+`ScrollingEdit_OnCursorChanged` and the update script maintain the native
+cursor/scroll behavior. The report clears configured byte and letter limits
+with `SetMaxBytes(0)` and `SetMaxLetters(0)`, then checks actual storage with
+`GetText()`. **Select Report** focuses the EditBox and calls native
+`HighlightText()` with no range to select the entire buffer.
+
+GitHub's issue endpoint was exercised with generated ASCII at 65,536 and
+65,537 characters. Both requests had a deliberately blank required title
+and failed with HTTP 422. Only the 65,537-character request also failed body
+validation and returned the 65,536-character maximum. Neither request
+created an issue. The addon uses a conservative 60 KiB UTF-8 body budget to
+leave room for the template and the player's description. There is no report
+row limit. The old 24,576-byte and 520-row limits were addon export choices.
+
+A long test report passes full selection after scrolling. A simulated
+EditBox cap triggers a smaller valid export with complete JSONL rows and
+an explicit `editbox-capacity` marker. The matching Forever Lua/XML exposes
+native selection, but gives no engine or OS clipboard size guarantee.
+Live verification for the compact window includes copying a long report
+and checking the closing `limits` row reaches the GitHub form.
+[InputScrollFrame XML](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.xml#L72-L177) ·
+[InputScrollFrame Lua](https://github.com/Gethe/wow-ui-source/blob/734f065329cff4992835b01a84f210a297db91b6/Interface/AddOns/Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.lua#L13-L19) ·
+[GitHub issue validation](https://github.com/orgs/community/discussions/41331) ·
 [Report tests](../tests/issue-report.lua)
 
 The copy field contains a fenced JSON Lines report. Each line is an object
@@ -1236,9 +1252,9 @@ with a `section`, beginning with format version 1 and ending with a list of
 truncated sections. Player aliases are scoped to the report; names, GUIDs,
 account metadata and raw chat are omitted. Review the remaining public
 context before posting. A saved segment retains a compact meter status and
-reason counts with its exact combat-end reference. Only an unambiguous
-session, combat sequence, server time and uptime match can add a retained
-debug row. Evicted rows and unlinked legacy records are explicitly labeled.
+reason counts with its exact combat-end reference. An unambiguous session,
+combat sequence, server time and uptime match can supply the report's
+canonical meter summary. Each segment emits that summary once. Evicted rows and unlinked legacy records are explicitly labeled.
 Automated tests exercise the projection and EditBox actions. Native sizing,
 scrolling and clipboard selection still need a client smoke check.
 
@@ -1427,11 +1443,12 @@ identity and omit rows with a resolved player outside that roster.
 Rows with one known endpoint carry `participant-only` attribution.
 They can describe damage received or a cast observed without linking it
 to a particular opponent. The coverage rows count omitted observations.
-A record created before capture remains `not-recorded`. The summary and
-each optional detail part stay within 24 KiB. When the summary omits
-sample rows, **Next part** exposes separately fenced JSONL parts with the
-same aliases and record ID. Runtime drops, compaction and export truncation
-are distinct fields.
+A record created before capture remains `not-recorded`. The report emits
+one JSONL block with retained diagnostics. The export budget prioritizes
+outcome and reward totals, participants, credited deaths and their evidence
+before lower-priority samples and repeated action rows. Its final `limits`
+object records `truncatedSections` and `omittedRows` distinctly from capture
+drops, privacy filters and historical compaction.
 
 For optional additional detail, attach the existing `NamesInRed.lua`
 containing `NamesInRedDB` and `NamesInRedDebugDB`. A typical Windows
@@ -1439,8 +1456,8 @@ installation keeps it under
 `_forever_\WTF\Account\<account>\<realm>\<character>\SavedVariables\NamesInRed.lua`.
 The file can be attached as is and can contain names and GUIDs. GitHub
 attachments are public on a public issue. The addon's window uses the
-existing report frame and native input templates. Its localized footer
-and pagination controls still need a smoke test in the Forever client.
+existing report frame and native input templates. Its shorter layout and
+full-buffer clipboard transfer still need an in-client check.
 
 #### Gnomeregan report replay on current main
 
@@ -1707,8 +1724,8 @@ coverage, reason, confirmed casualty counts and rival credit proof.
 The proof identifies the aliases for rival, actor, victim and any supported
 teammate, the death-event index and evidence type/category. Meter links carry
 their segment index and have no invented action time. Historical side
-resolution has its own scope. The existing alias rules, byte limits, paging
-and optional SavedVariables path still apply. Anonymous Duskwood, Gnomeregan
+resolution has its own scope. One bounded export keeps the same aliases
+and optional SavedVariables path. Anonymous Duskwood, Gnomeregan
 and battleground replays remain green. Gnomeregan `world:4` displays Victory
 from the supported personal projection; `world:7`, `world:12` and
 `world:14` display Defeat. Duskwood remains Unknown with two confirmed

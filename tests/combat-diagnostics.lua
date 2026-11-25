@@ -182,25 +182,16 @@ for index = 1, 5 do
 end
 local longCapture = battle.combatDiagnostics
 assert(#longCapture.windows == 2 and longCapture.windowsDropped == 4)
-local longReport, parts = addon.BuildIssueReport(db, nil, "world:14", nil, true)
+local longReport, extra = addon.BuildIssueReport(db, nil, "world:14")
 Includes(longReport, '"windowsDropped": 4')
 Includes(longReport, '"rateLimited": 1080')
-local truncated = assert(longReport:match('"truncatedSections": "([^"]+)"'))
-Includes(truncated, "primaryEvidence")
-assert(#longReport <= 24576 and longReport:sub(-4) == "\n```")
-assert(#parts > 1)
-for index, part in ipairs(parts) do
-    assert(#part <= 24576 and part:sub(-4) == "\n```")
-    Includes(part, '"id": "world:14"')
-    Includes(part, '"part": ' .. index)
-    Includes(part, '"finalPart": ' .. tostring(index == #parts))
-    Excludes(part, rival)
-end
-local details = table.concat(parts, "\n")
-local _, occurrences = details:gsub('"effect": "WOUND"', "")
+local _, occurrences = longReport:gsub('"effect": "WOUND"', "")
 assert(occurrences == #longCapture.windows * 16)
-Includes(details, '"target": "Player-2"')
-Excludes(details, '"section": "meterFollowup"') -- Its older window was dropped.
+assert(extra == nil and #longReport <= 60 * 1024 and longReport:sub(-4) == "\n```")
+Includes(longReport, '"id": "world:14"')
+Excludes(longReport, rival)
+Includes(longReport, '"target": "Player-2"')
+Excludes(longReport, '"section": "meterFollowup"') -- Its older window was dropped.
 
 local function SavedVariablesSize(value, depth)
     if type(value) == "string" then return #("%q"):format(value) end

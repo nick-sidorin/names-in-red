@@ -1,7 +1,10 @@
 local addonName, addon = ...
 local L = addon.L
 local issuesURL = "https://github.com/nick-sidorin/names-in-red/issues/new?template=bug_report.md"
-local maxBytes, maxRows = 24576, 520
+-- Keep room in GitHub's 65,536-character issue body for its template
+-- and the player's description. A byte budget is conservative for UTF-8.
+local reportBudget = 60 * 1024
+local footerBudget = 1024
 addon.issueBugIcon = "Interface\\HelpFrame\\HelpIcon-Bug.blp"
 
 local function Table(value)
@@ -65,51 +68,56 @@ local function Fields(source, tokens, numbers, flags)
     return result
 end
 
-local function MakeWriter(pageHeader)
-    local lines, size, truncated = { "```jsonl" }, 9, {}
-    local pages = pageHeader and {}
-    local function Close(finalPart)
+local priorities = {
+    report = 1, currentContext = 1, record = 1, side = 1, personalOutcome = 1,
+    rivalContribution = 1, resolution = 1, rewardTotal = 1, rewardUnassignedOpponent = 1,
+    journalRewards = 1, combatCapture = 1,
+    observation = 1, assessment = 1, participation = 1,
+    combatAggregate = 3, meterReasons = 3, meterSpellSample = 3, primaryEvidence = 3,
+    action = 4,
+}
+
+local function MakeWriter(budget)
+    local queues = { {}, {}, {}, {} }
+    local sizes, truncated = { 0, 0, 0, 0 }, {}
+    local limit = (budget or reportBudget) - footerBudget
+    local omitted = 0
+    local function Omit(section)
+        truncated[section], omitted = true, omitted + 1
+    end
+    local function Write(section, fields)
+        local priority = section == "primaryEvidence" and fields.api == "C_DeathRecap" and 2 or priorities[section] or 2
+        if sizes[priority] >= limit then Omit(section); return end
+        fields.section = section
+        local line = Object(fields)
+        local queue = queues[priority]
+        queue[#queue + 1] = { section = section, line = line }
+        sizes[priority] = sizes[priority] + #line + 1
+    end
+    local function Each(collection, visit)
+        for index, item in ipairs(Table(collection)) do visit(Table(item), index) end
+    end
+    local function Finish()
+        local lines, size = { "```jsonl" }, 9
+        for _, queue in ipairs(queues) do
+            for _, entry in ipairs(queue) do
+                local needed = #entry.line + 1
+                if size + needed <= limit then
+                    lines[#lines + 1], size = entry.line, size + needed
+                else
+                    Omit(entry.section)
+                end
+            end
+        end
         local names = {}
         for section in pairs(truncated) do names[#names + 1] = section end
         table.sort(names)
-        if pageHeader then
-            pageHeader.part = #pages + 1
-            table.insert(lines, 2, Object(pageHeader))
-        end
         lines[#lines + 1] = Object({ section = "limits", truncatedSections = table.concat(names, ","),
-            finalPart = finalPart })
+            omittedRows = omitted, transport = budget and "editbox-capacity" or (omitted > 0 and "github-issue-budget" or nil) })
         lines[#lines + 1] = "```"
         return table.concat(lines, "\n")
     end
-    local function Write(section, fields)
-        fields.section = section
-        local line = Object(fields)
-        -- Reserve room for the footer and the optional page header.
-        if pages and #lines > 1 and (size + #line + 1 > maxBytes - 1024 or #lines >= maxRows) then
-            pages[#pages + 1] = Close(false)
-            lines, size = { "```jsonl" }, 9
-        end
-        if size + #line + 1 > maxBytes - 1024 or #lines >= maxRows then
-            truncated[section] = true
-            return
-        end
-        lines[#lines + 1], size = line, size + #line + 1
-    end
-    local function Each(section, collection, limit, visit)
-        for index, item in ipairs(Table(collection)) do
-            if index > limit then
-                truncated[section] = true
-                break
-            end
-            visit(Table(item), index)
-        end
-    end
-    local function Finish()
-        if not pages then return Close() end
-        pages[#pages + 1] = Close(true)
-        return pages
-    end
-    return Write, Each, Finish, truncated
+    return Write, Each, Finish
 end
 
 local function Reasons(input)
@@ -255,10 +263,10 @@ local function ReportCombatDiagnostics(journal, write, each, alias)
         write("primaryEvidence", fields)
         return true
     end
-    each("primaryEvidence", journal.recaps, 8, function(row)
+    each(journal.recaps, function(row)
         Primary(row, "C_DeathRecap")
     end)
-    each("combatWindow", journal.windows, 4, function(window)
+    each(journal.windows, function(window)
         local fields = Fields(window, "ending meterStatus meterWindow meterInterruption", "time endOffset")
         fields.build = Token(window.build) or Number(window.build)
         fields.window = Number(window.index)
@@ -266,7 +274,7 @@ local function ReportCombatDiagnostics(journal, write, each, alias)
         local availability = Fields(Table(window.availability), combatRegistration)
         availability.window = fields.window
         write("combatAvailability", availability)
-        each("meterFollowup", window.meterFollowups, 8, function(row)
+        each(window.meterFollowups, function(row)
             local attribution = Attribution(row.actorID, row.targetID)
             local update = Fields(row, "status category localDeadStatus localGhostStatus",
                 "sessionID readOffset", "localDead localGhost")
@@ -289,7 +297,7 @@ local function ReportCombatDiagnostics(journal, write, each, alias)
                 local category = Table(Table(meter.categories)[name])
                 if next(category) then
                     local omitted = 0
-                    each("meterSpellSample", category.rows, 6, function(row)
+                    each(category.rows, function(row)
                         local attribution = Attribution(row.meterUnitID, row.otherID)
                         if not attribution or (Flag(row.isMob) and not alias(row.otherID)) then
                             omitted = omitted + 1
@@ -314,7 +322,7 @@ local function ReportCombatDiagnostics(journal, write, each, alias)
                 local summary = Fields(samples, nil, "dropped rateLimited duplicates")
                 summary.api, summary.window = stream[2], fields.window
                 summary.outsideRosterOrUnresolved = 0
-                each("primaryEvidence", samples.rows, 16, function(row)
+                each(samples.rows, function(row)
                     if not Primary(row, stream[2], fields.window) then
                         summary.outsideRosterOrUnresolved = summary.outsideRosterOrUnresolved + 1
                     end
@@ -325,8 +333,8 @@ local function ReportCombatDiagnostics(journal, write, each, alias)
     end)
 end
 
-function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
-    local write, each, finish, truncated = MakeWriter()
+local function BuildIssueReport(db, debugDB, battleID, legacy, budget)
+    local write, each, finish = MakeWriter(budget)
     local version, build, interface = Read(GetBuildInfo)
     local metadata = C_AddOns and C_AddOns.GetAddOnMetadata
     local journal = Table(db)
@@ -347,13 +355,10 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
         if not requested then
             local ok, totals = pcall(addon.Ledger.JournalRewards, journal)
             if ok then write("journalRewards", Fields(totals, nil, "honorableKills honor unassignedHK unassignedHonor")) end
-            local emitted = 0
-            for i = #rows, math.max(1, #rows - 95), -1 do
+            for i = #rows, 1, -1 do
                 local row = Table(rows[i])
                 local kind = Token(row.kind)
                 if kind == "PVP_DECISION" or kind == "COMBAT_END" then
-                    emitted = emitted + 1
-                    if emitted > 12 then truncated.recentDecision = true; break end
                     local fields = Reasons(row.pvpReasons)
                     local status = Table(row.status)
                     fields.reason, fields.meter, fields.meterWindow = Token(row.reason), Token(status.meter), Token(status.meterWindow)
@@ -372,7 +377,6 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
         value = addon.Readable(value)
         if type(value) ~= "string" or value == "" then return end
         if not aliases[value] then
-            if aliasCount >= 256 then truncated.participant = true; return end
             aliasCount = aliasCount + 1
             aliases[value] = "Player-" .. aliasCount
         end
@@ -416,7 +420,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
     write("record", record)
 
     for _, side in ipairs({ "allies", "enemies" }) do
-        each("participant", battle[side], 64, function(player)
+        each(battle[side], function(player)
             local id = addon.Readable(player.id)
             local fields = Fields(player, "class race faction", "level sex", "isSelf")
             fields.player, fields.side = Alias(id), side
@@ -440,7 +444,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
     write("personalOutcome", pov)
 
     local analysis = Table(Read(addon.AnalyzeSkirmishLives, battle))
-    each("deathEpisode", analysis.episodes, 128, function(episode)
+    each(analysis.episodes, function(episode)
         local target = rosterAliases[addon.Readable(episode.targetID)]
         if not target or not episode.index then return end
         write("deathEpisode", { target = target, deathIndex = Number(episode.index), confirmed = episode.pvpDeath ~= nil,
@@ -455,7 +459,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
     write("rivalContribution", { version = Number(contribution.version), credits = count,
         availability = scope == "manual" and "manual" or count > 0 and "confirmed-links-only"
             or (scope == "personal" and "no-confirmed-credit" or "legacy-or-unavailable") })
-    each("rivalCredit", credits, 128, function(credit)
+    each(credits, function(credit)
         local rival = rivalAliases[addon.Readable(credit.rivalID)]
         local actor = rosterAliases[addon.Readable(credit.actorID)]
         local victim = rosterAliases[addon.Readable(credit.victimID)]
@@ -479,7 +483,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
     local capture = Table(battle.combatDiagnostics)
     local captured = CombatCoverage(capture, write)
     local kills, deaths = {}, {}
-    each("event", battle.events, 128, function(event, index)
+    each(battle.events, function(event, index)
         local fields = Fields(event, "kind source recapStatus nonPvPLethal", "time offset spellID segmentIndex", "observedDead pvpLinked")
         fields.index = index
         local evidence = addon.SkirmishDeathEvidence
@@ -495,7 +499,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
         end
         fields.evidence = "derived"
         Actor("event", fields, event)
-        each("petOwnerProbe", pet.ownerAttempts, 4, function(attempt)
+        each(pet.ownerAttempts, function(attempt)
             local detail = Fields(attempt, "phase petToken tokenSource petBefore petAfter ownerGUID ownerToken decision", "delay")
             detail.deathIndex = index
             write("petOwnerProbe", detail)
@@ -510,7 +514,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
         local player = aliases[id]
         if kills[player] or deaths[player] then
             write("personal", { player = player, killingBlows = kills[player] or 0, deaths = deaths[player] or 0,
-                partial = truncated.event == true })
+                partial = false })
         end
         local reward = Fields(Table(Table(battle.rewards)[id]), nil, "honorableKills honor")
         if next(reward) then
@@ -523,7 +527,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
     if next(unassigned) then write("rewardUnassignedOpponent", unassigned) end
     write("rewardTotal", { honorableKills = honorableKills + (unassigned.honorableKills or 0),
         honor = honor + (unassigned.honor or 0), available = next(Table(battle.rewards)) ~= nil or next(unassigned) ~= nil,
-        partial = truncated.participant == true })
+        partial = false })
 
     local observation = Table(battle.observation)
     local assessment = Table(observation.assessment)
@@ -537,7 +541,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
     write("participation", participationFields)
     Actor("lastHostileAction", Fields(Table(assessment.lastAction), "kind", "offset"), Table(assessment.lastAction))
     Actor("lastMeterPair", {}, Table(assessment.meterPair))
-    each("localLife", observation.life, 32, function(life)
+    each(observation.life, function(life)
         write("localLife", Fields(life, "state source", "at offset"))
     end)
     ForKnown(assessment.pressure, function(pressure, player)
@@ -589,7 +593,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
             end
         end
     end
-    each("segment", observation.segments, 24, function(segment, index)
+    each(observation.segments, function(segment, index)
         local fields = Fields(segment, "startReason endReason continuation confirmedBy observationStopped",
             "startedAt endedAt duration offset", "localNpcDamage localNpcPressure")
         fields.segment = index
@@ -604,17 +608,17 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
             item.player, item.segment = player, index
             write("contact", item)
         end)
-        each("action", segment.actions, 60, function(action)
+        each(segment.actions, function(action)
             local item = Fields(action, "kind", "spellID first last count")
             item.segment, item.evidence = index, "derived"
             Actor("action", item, action)
         end)
-        each("combatAggregate", segment.combatAggregates, 32, function(aggregate)
+        each(segment.combatAggregates, function(aggregate)
             local item = Fields(aggregate, "category petEndpoint amountBasis", "spellID amount")
             item.segment, item.evidence, item.api = index, "aggregate", "C_DamageMeter"
             Actor("combatAggregate", item, aggregate)
         end)
-        each("contributionLink", segment.contributionLinks, 32, function(link)
+        each(segment.contributionLinks, function(link)
             local item = Fields(link, "category petEndpoint amountBasis", nil, "corroborated")
             item.segment, item.evidence = index, "aggregate"
             Actor("contributionLink", item, link)
@@ -631,7 +635,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
             local item = Fields(meter, "scope selection", "sessionID")
             item.segment = index
             write("meterEvidence", item)
-            each("meterLink", meter.hostileLinks, 60, function(link)
+            each(meter.hostileLinks, function(link)
                 write("meterLink", { segment = index, ally = Alias(link.allyID), opponent = Alias(link.opponentID),
                     evidence = "derived" })
             end)
@@ -648,10 +652,7 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
                     found = row
                 end
             end
-            Meter("meterSnapshot", snapshot, index)
-            if found then
-                Meter("linkedDebug", addon.ReportMeterSnapshot(found), index)
-            end
+            Meter("meterSnapshot", found and addon.ReportMeterSnapshot(found) or snapshot, index)
         end
         write("diagnostics", { segment = index, availability = found and "exact-combat-window"
             or (found == false and "ambiguous") or (next(snapshot) and "retained-row-unavailable")
@@ -663,23 +664,14 @@ function addon.BuildIssueReport(db, debugDB, battleID, legacy, includeDetails)
         if type(id) == "string" then return rosterAliases[id] end
     end
     if captured then ReportCombatDiagnostics(capture, write, each, RosterAlias) end
-    local summary = finish()
-    if not includeDetails or not captured then return summary end
-    for _, section in ipairs({ "combatWindow", "combatAvailability", "combatStream", "primaryEvidence",
-        "meterSampleBatch", "meterSampleCoverage", "meterSpellSample", "meterFollowup", "meterFollowupCoverage" }) do
-        if truncated[section] then
-            local detailWrite, detailEach, detailFinish = MakeWriter({ section = "report", schema = "names-in-red-issue",
-                version = 1, scope = "combat-details", id = record.id })
-            CombatCoverage(capture, detailWrite)
-            ReportCombatDiagnostics(capture, detailWrite, detailEach, RosterAlias)
-            return summary, detailFinish()
-        end
-    end
-    return summary
+    return finish()
 end
 
-local window, report, link, nextPart
-local reportParts, currentPart
+function addon.BuildIssueReport(db, debugDB, battleID, legacy)
+    return BuildIssueReport(db, debugDB, battleID, legacy)
+end
+
+local window, report, link
 local function CopyField(box, value)
     if box.reportText == nil then
         box:HookScript("OnTextChanged", function(self, userInput)
@@ -696,19 +688,10 @@ local function Select(box)
     box:HighlightText()
 end
 
-local function ShowPart(index)
-    currentPart = index
-    CopyField(report, reportParts[index])
-    report:SetCursorPosition(0)
-    report:GetParent():SetVerticalScroll(0)
-    nextPart:SetShown(#reportParts > 1)
-    nextPart:SetTextToFit(L.issueReportPart:format(index, #reportParts))
-end
-
 local function BuildWindow()
     local width = 660
     window = CreateFrame("Frame", "NamesInRedIssueReport", UIParent, "PortraitFrameTemplate")
-    window:SetSize(width, 410)
+    window:SetSize(width, 320)
     window:SetPoint("CENTER")
     window:SetFrameStrata("DIALOG")
     window:SetToplevel(true)
@@ -758,11 +741,6 @@ local function BuildWindow()
     copy:SetTextToFit(L.issueSelectReport)
     copy:SetScript("OnClick", function() Select(report) end)
 
-    nextPart = CreateFrame("Button", nil, window, "SharedButtonSmallTemplate")
-    nextPart:SetPoint("BOTTOMRIGHT", savedVariablesHint, "TOPRIGHT", 0, 10)
-    nextPart:SetWidth(230)
-    nextPart:SetScript("OnClick", function() ShowPart(currentPart % #reportParts + 1) end)
-
     local scroll = CreateFrame("ScrollFrame", nil, window, "InputScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", reportHint, "BOTTOMLEFT", 3, -12)
     scroll:SetPoint("TOPRIGHT", reportHint, "BOTTOMRIGHT", -2, -12)
@@ -779,10 +757,22 @@ end
 
 function addon.OpenIssueReport(battleID, legacy)
     if not window then BuildWindow() end
-    local summary, details = addon.BuildIssueReport(addon.db, NamesInRedDebugDB, battleID, legacy, true)
-    reportParts = { summary }
-    for _, part in ipairs(details or {}) do reportParts[#reportParts + 1] = part end
-    ShowPart(1)
+    local text = BuildIssueReport(addon.db, NamesInRedDebugDB, battleID, legacy)
+    CopyField(report, text)
+    local stored = report:GetText()
+    if stored ~= text then
+        -- Native storage can be measured without accessing the OS clipboard.
+        -- Rebuild at a complete-row boundary if the widget clips the payload.
+        if type(stored) == "string" and #stored > footerBudget and #stored < #text then
+            text = BuildIssueReport(addon.db, NamesInRedDebugDB, battleID, legacy, #stored)
+            CopyField(report, text)
+        end
+        if report:GetText() ~= text then
+            CopyField(report, '```jsonl\n{"section": "limits", "truncatedSections": "all", "transport": "editbox-capacity"}\n```')
+        end
+    end
+    report:SetCursorPosition(0)
+    report:GetParent():SetVerticalScroll(0)
     window:Show()
     window:Raise()
 end

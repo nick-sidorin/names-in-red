@@ -57,7 +57,7 @@ local report = Report({ rows = { row, { kind = "COMBAT_END", session = row.sessi
     combatSequence = 4, time = row.time, uptime = row.uptime, status = { meter = "wrong-window" } }, secret } })
 for _, part in ipairs({ '"id": "world:17"', '"origin": "Open World"', '"outcome": "win"', "opponents-eliminated",
     '"actor": "Player-3"', '"target": "Player-2"', '"killingBlows": 1', '"deaths": 1', '"honor": 5',
-    '"section": "linkedDebug"', "details-secret", "exact-combat-window", '"zone": "Duskwood"' }) do
+    '"section": "meterSnapshot"', "details-secret", "exact-combat-window", '"zone": "Duskwood"' }) do
     Includes(report, part)
 end
 for _, part in ipairs({ "Private", "Never export", "wrong-window", unpack(aliases) }) do Excludes(report, part) end
@@ -67,6 +67,8 @@ db = addon.Ledger.Open(previous)
 local expired = Report()
 Includes(expired, "retained-row-unavailable")
 Includes(expired, "details-secret")
+local _, snapshots = report:gsub('"section": "meterSnapshot"', "")
+assert(snapshots == 1)
 Excludes(expired, "linkedDebug")
 assert(previous == db and db.skirmishes["world:17"] == battle and #battle.events == 3)
 assert(addon.Ledger.PersonalCombatScore(db, aliases[2]) == 1)
@@ -134,7 +136,7 @@ Includes(directional, '"kind": "finishing-blow"')
 Includes(directional, '"outcomeScope": "unavailable"')
 
 local large = { origin = "battleground", observation = { segments = {} }, allies = {}, enemies = {}, events = {} }
-for i = 1, 215 do
+for i = 1, 92 do
     large.enemies[i] = { id = "Player-5566-secret" .. i }
     large.events[i] = { actorID = aliases[1], targetID = large.enemies[i].id, kind = "kill", offset = i }
     large.observation.segments[i] = { actions = large.events }
@@ -143,8 +145,10 @@ db.skirmishes["bg:20"] = large
 local bounded = addon.BuildIssueReport(db, nil, "bg:20")
 Includes(bounded, '"origin": "Battleground"')
 Includes(bounded, '"truncatedSections": "')
-Includes(bounded, "event,")
-assert(#bounded <= 24576 and bounded:sub(-4) == "\n```")
+Includes(bounded, '"transport": "github-issue-budget"')
+Includes(bounded, '"section": "rewardTotal"')
+Includes(bounded, '"section": "personalOutcome"')
+assert(#bounded > 24576 and #bounded <= 60 * 1024 and bounded:sub(-4) == "\n```")
 
 local widgets = {}
 local function Widget(parent)
@@ -162,14 +166,19 @@ local function Widget(parent)
     end
     function widget:SetScript(key, callback) self.scripts[key] = callback end
     function widget:HookScript(key, callback) self.hooks[key] = callback end
-    function widget:SetText(value) self.text = value end
+    function widget:SetText(value) self.text = self.capacity and value:sub(1, self.capacity) or value end
+    function widget:GetText() return self.text end
     function widget:SetSize(width, height) self.width, self.height = width, height end
     function widget:SetWidth(width) self.width = width end
     function widget:SetNonSpaceWrap(enabled) self.nonSpaceWrap = enabled end
     function widget:SetShown(value) self.visible = value end
     function widget:SetFocus() self.focus = true end
     function widget:ClearFocus() self.focus = false end
-    function widget:HighlightText() self.selected = true end
+    function widget:SetVerticalScroll(value) self.vertical = value end
+    function widget:SetCursorPosition(value) self.cursor = value end
+    function widget:HighlightText(first, last)
+        self.selected = (not first and not last) and self.text or nil
+    end
     return setmetatable(widget, { __index = function(_, key) if key:match("^%u") then return function() end end end })
 end
 function CreateFrame(kind, name, parent, template)
@@ -187,11 +196,11 @@ end
 function ButtonFrameTemplate_HidePortrait() end
 UISpecialFrames, tinsert = {}, table.insert
 addon.OpenIssueReport("bg:20")
-local window, link, select, nextPart, input = unpack(widgets)
+local window, link, select, input = unpack(widgets)
 local linkHint, reportHint, savedVariablesHint = unpack(window.labels)
 assert(window.template == "PortraitFrameTemplate")
-assert(window.width == 660 and window.height == 410 and input.EditBox.width == 594)
-assert(select.template == "SharedButtonSmallTemplate" and nextPart.template == select.template)
+assert(window.width == 660 and window.height == 320 and input.EditBox.width == 594)
+assert(select.template == "SharedButtonSmallTemplate")
 assert(linkHint.text == "Перейди на форму по ссылке и напиши о проблеме")
 assert(reportHint.text == "Отправь мне этот код с информацией о стычке")
 assert(linkHint.font == "GameFontHighlight" and reportHint.font == "GameFontHighlight")
@@ -201,32 +210,57 @@ assert(link.points.TOPLEFT[1] == linkHint and reportHint.points.TOPLEFT[1] == li
 assert(input.points.TOPLEFT[1] == reportHint)
 assert(link.template == "InputBoxTemplate" and input.template == "InputScrollFrameTemplate")
 assert(input.EditBox.text == bounded and select.text == addon.L.issueSelectReport)
-assert(not nextPart.visible)
 Includes(savedVariablesHint.text, "в папке World of Warcraft")
 Includes(savedVariablesHint.text, [[_forever_\WTF\Account\<account>\<realm>\<character>\SavedVariables\NamesInRed.lua]])
 Includes(savedVariablesHint.text, "как есть")
 Includes(savedVariablesHint.text, "GUID")
 Excludes(savedVariablesHint.text, "/combatlog")
 select.scripts.OnClick()
-assert(input.EditBox.focus and input.EditBox.selected)
+assert(input.EditBox.focus and input.EditBox.selected == bounded)
 link.hooks.OnEditFocusGained(link)
 assert(link.selected and link.text:find("/issues/new?template=bug_report.md", 1, true))
 input.EditBox.hooks.OnTextChanged(input.EditBox, true)
 assert(input.EditBox.text == bounded)
 addon.OpenIssueReport()
-assert(#widgets == 5 and input.EditBox.text == addon.BuildIssueReport(db))
--- The original block stays available when an oversized battle needs a details page.
+assert(#widgets == 4 and input.EditBox.text == addon.BuildIssueReport(db))
+-- The detailed sample and outcome share one document, even when low
+-- priority action rows exhaust the GitHub budget.
 large.combatDiagnostics = { version = 1, recaps = {}, windows = {
     { index = 1, streams = { aura = { rows = { { targetID = large.enemies[1].id, spellID = 327 } } } } },
 } }
 addon.OpenIssueReport("bg:20")
-assert(nextPart.visible and nextPart.text == addon.L.issueReportPart:format(1, 2))
-nextPart.scripts.OnClick()
-Includes(input.EditBox.text, '"scope": "combat-details"')
-Includes(input.EditBox.text, '"spellID": 327')
-nextPart.scripts.OnClick()
-Includes(input.EditBox.text, '"scope": "skirmish"')
+local single = input.EditBox.text
+local _, reports = single:gsub('"section": "report"', "")
+local _, samples = single:gsub('"spellID": 327', "")
+assert(reports == 1 and samples == 1 and #single > 24576 and #single <= 60 * 1024)
+Includes(single, '"scope": "skirmish"')
+Includes(single, '"section": "combatWindow"')
+Includes(single, '"truncatedSections": "action')
+Excludes(single, '"scope": "combat-details"')
+input:SetVerticalScroll(200)
+select.scripts.OnClick()
+assert(input.EditBox.selected == single and input.vertical == 200)
+input.EditBox.hooks.OnEditFocusLost(input.EditBox)
+assert(not input.EditBox.selected)
+
+-- Re-export complete rows if an EditBox returns less text than it received.
+input.EditBox.capacity = 32768
+addon.OpenIssueReport("bg:20")
+local clipped = input.EditBox.text
+assert(#clipped <= input.EditBox.capacity and clipped:sub(-4) == "\n```")
+Includes(clipped, '"transport": "editbox-capacity"')
+Includes(clipped, '"section": "personalOutcome"')
+select.scripts.OnClick()
+assert(input.EditBox.selected == clipped and input.vertical == 0 and input.EditBox.cursor == 0)
+input.EditBox.capacity = nil
 addon.OpenIssueReport()
-assert(not nextPart.visible and #widgets == 5)
+assert(#widgets == 4 and input.EditBox.text == addon.BuildIssueReport(db))
+
+local rows = {}
+for index = 1, 600 do rows[index] = { kind = "PVP_DECISION", time = index } end
+local noRowLimit = addon.BuildIssueReport(db, { rows = rows })
+local _, decisions = noRowLimit:gsub('"section": "recentDecision"', "")
+assert(decisions == 600)
+Includes(noRowLimit, '"omittedRows": 0')
 assert(UISpecialFrames[1] == window.name)
 print("Issue report selection, stable record identity, reload, diagnostics, privacy and size checks passed")

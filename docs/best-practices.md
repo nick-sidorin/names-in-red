@@ -47,7 +47,7 @@ if a reference or target build changes.
 
 | Area | Existing reference / project implementation | Convention |
 | --- | --- | --- |
-| Modern text buttons | `SharedButtonSmallTemplate`, `128-RedButton` three-slice art, `SetTextToFit`; Book.lua header/add, IssueReport.lua footer, ManualDialog.lua add/cancel. PR #31 corrected report-button template. | Use the native height and state art for equivalent modern actions. Refit labels that change at runtime, including translated page counts. Keep adjacent actions in one control family. |
+| Modern text buttons | `SharedButtonSmallTemplate`, `128-RedButton` three-slice art, `SetTextToFit`; Book.lua header/add, IssueReport.lua footer, ManualDialog.lua add/cancel. PR #31 corrected report-button template. | Use the native height and state art for equivalent modern actions. Refit labels that change at runtime, including localized state labels. Keep adjacent actions in one control family. |
 | Other controls | EncounterCards.lua uses `CommonSquareIconButtonTemplate` for compact actions; Back in Book.lua follows `UIPanelButtonTemplate` from the professions crafter order reference. | Choose the actual reference-specific control; no blanket replacement of every old-named template. Explain exceptions. |
 | Journal window and layout | Book.lua: `PortraitFrameTemplate`, Camelot ProfessionsFrame/ProfessionsCrafting, `Profession-Background-Overview`, `Profession-Background-Template2`, `Professions-background-summarylist`, `LargeSideTabButtonTemplate`, `PanelTopTabButtonTemplate`. | Retain the professions reference's authored geometry, tab anchors, list/detail relationship, padding and continuous background; use native components first. |
 | Profession rows and statistics | RivalList.lua: `ProfessionsRecipeListRecipeTemplate` with safe handling of handlers that need recipe IDs. Book.lua: `ProfessionsReagentSlotBaseTemplate`, its intrinsic ItemButton mask/layers, `Professions-Slot-bg`, `Professions-Slot-Frame` fallback. | Reuse native reagent/recipe layouts and actual spacing, label anchors and selection art. Don't invent another card/slot style. |
@@ -55,7 +55,7 @@ if a reference or target build changes.
 | Window ordering | Book.lua: independent movable top-level `MEDIUM` frame, `SetToplevel(true)`, `Raise()` on show, native close/Escape via UISpecialFrames. | Main windows must coexist and raise naturally like native panels; a permanent DIALOG stratum can prevent ordinary panels rising above them. Genuine dialogs may have different ordering, e.g. existing IssueReport.lua. Check overlap, clicking, dragging, close/Escape and focus. Don't add all windows to a protected native manager blindly. |
 | Sounds | ProfessionsMixin:OnShow/OnHide in the matching Camelot/shared source; Book.lua uses `SOUNDKIT.UI_PROFESSIONS_WINDOW_OPEN` and `UI_PROFESSIONS_WINDOW_CLOSE`. | Match the reference's sounds on equivalent actions (open/close, tabs, buttons, selection where the native reference actually plays them). Inspect native inherited handlers to avoid duplicate playback. Play once per actual transition, not on redundant Show/Hide or refresh. |
 | Minimap | Book.lua shortcut follows Azeroth Fitness Shortcut:Init; `MiniMap-TrackingBorder`, `UI-Minimap-Background`, circle mask, native highlight, stored angle and size-change positioning. | Center artwork in the visible opening, not blindly in the full texture. Preserve drag and left/right-click meanings, tooltip anchoring, scale and position persistence. |
-| Issue report | IssueReport.lua: `PortraitFrameTemplate`, `InputBoxTemplate`, `InputScrollFrameTemplate`, modern buttons, optional detail pages. | Retain native selection/scroll/focus/close behavior and public-sharing warning. No automatic upload or requiring external combat logging. |
+| Issue report | IssueReport.lua: `PortraitFrameTemplate`, `InputBoxTemplate`, `InputScrollFrameTemplate`, one Select Report button and one scroll field. | Keep native selection, scrolling, focus and close behavior. Preserve the public-sharing warning. |
 
 ### Geometry and icon centering
 
@@ -124,6 +124,14 @@ used by cards, profile, tooltip and nameplate.
   revived portrait, real finishing blow vs participation credit).
 
 ## 4. API and evidence conventions
+
+- Export one pseudonymized JSONL block with a native full-text selection.
+  Distinguish the submission service's body limit from the EditBox viewport
+  and clipboard behavior. Measure widget storage by reading the text back.
+  If an export must fit a verified bound, preserve core facts and the most
+  useful evidence first. Emit complete rows and label every shortened section
+  separately from capture omissions. Keep attaching SavedVariables optional.
+  [Transport and native behavior](forever-validation.md#public-issue-reports)
 
 - Match Forever build/source and distinguish documented APIs, actual delivery,
   readable fields, test mocks and observed real-client behavior. For exact

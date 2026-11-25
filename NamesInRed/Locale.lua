@@ -74,7 +74,6 @@ local dictionaries = {
         issueLinkHint = "Open the linked form and describe the problem",
         issueReportHint = "Send me this code with information about the skirmish",
         issueSelectReport = "Select report",
-        issueReportPart = "Next part (%d/%d)",
         issueSavedVariablesHint = "For more diagnostics, you can attach the file as is. This is its usual location in your World of Warcraft folder.\n%s\nAnyone can view a public attachment. The file may contain character names and GUIDs.",
 
         debugSeedsAdded = "Sample rivals added: %d",
@@ -155,7 +154,6 @@ local dictionaries = {
         issueLinkHint = "Öffne das verlinkte Formular und beschreibe das Problem",
         issueReportHint = "Schick mir diesen Code mit Informationen zum Gefecht",
         issueSelectReport = "Bericht auswählen",
-        issueReportPart = "Nächster Teil (%d/%d)",
         issueSavedVariablesHint = "Für mehr Diagnosedaten kannst du die Datei unverändert anhängen. Du findest sie für gewöhnlich hier im World-of-Warcraft-Ordner.\n%s\nÖffentliche Anhänge sind für alle sichtbar. Die Datei kann Charakternamen und GUIDs enthalten.",
 
         debugSeedsAdded = "Beispielgegner hinzugefügt: %d",
@@ -236,7 +234,6 @@ local dictionaries = {
         issueLinkHint = "Abre el formulario del enlace y describe el problema",
         issueReportHint = "Envíame este código con los datos de la escaramuza",
         issueSelectReport = "Seleccionar informe",
-        issueReportPart = "Siguiente parte (%d/%d)",
         issueSavedVariablesHint = "Si quieres aportar más datos, adjunta el archivo tal cual. Esta es su ubicación habitual en la carpeta de World of Warcraft.\n%s\nLos adjuntos públicos son visibles para todos. El archivo puede contener nombres de personajes y GUID.",
 
         debugSeedsAdded = "Adversarios de ejemplo añadidos: %d",
@@ -317,7 +314,6 @@ local dictionaries = {
         issueLinkHint = "Ouvrez le formulaire du lien et décrivez le problème",
         issueReportHint = "Envoyez-moi ce code avec les informations sur l’escarmouche",
         issueSelectReport = "Sélectionner le rapport",
-        issueReportPart = "Partie suivante (%d/%d)",
         issueSavedVariablesHint = "Pour fournir plus de détails, vous pouvez joindre le fichier tel quel. Il se trouve généralement ici dans le dossier de World of Warcraft.\n%s\nTout le monde peut voir une pièce jointe publique. Le fichier peut contenir des noms de personnages et des GUID.",
 
         debugSeedsAdded = "Exemples d’adversaires ajoutés : %d",
@@ -398,7 +394,6 @@ local dictionaries = {
         issueLinkHint = "Apri il modulo dal link e descrivi il problema",
         issueReportHint = "Inviami questo codice con i dati della schermaglia",
         issueSelectReport = "Seleziona rapporto",
-        issueReportPart = "Parte successiva (%d/%d)",
         issueSavedVariablesHint = "Per fornire più dati diagnostici, puoi allegare il file così com’è. Di solito si trova qui nella cartella di World of Warcraft.\n%s\nGli allegati pubblici sono visibili a tutti. Il file può contenere nomi dei personaggi e GUID.",
 
         debugSeedsAdded = "Avversari di esempio aggiunti: %d",
@@ -479,7 +474,6 @@ local dictionaries = {
         issueLinkHint = "링크의 양식을 열고 문제를 설명해 주세요",
         issueReportHint = "교전 정보가 담긴 이 코드를 보내 주세요",
         issueSelectReport = "보고서 선택",
-        issueReportPart = "다음 부분 (%d/%d)",
         issueSavedVariablesHint = "추가 진단 정보를 보내려면 파일을 그대로 첨부하세요. 보통 World of Warcraft 폴더의 다음 경로에 있습니다.\n%s\n공개 첨부 파일은 누구나 볼 수 있습니다. 파일에는 캐릭터 이름과 GUID가 들어 있을 수 있습니다.",
 
         debugSeedsAdded = "추가한 예시 상대: %d",
@@ -560,7 +554,6 @@ local dictionaries = {
         issueLinkHint = "Abra o formulário do link e descreva o problema",
         issueReportHint = "Envie-me este código com os dados da escaramuça",
         issueSelectReport = "Selecionar relatório",
-        issueReportPart = "Próxima parte (%d/%d)",
         issueSavedVariablesHint = "Você pode anexar o arquivo como está para fornecer mais dados. Este é o local habitual dele na pasta do World of Warcraft.\n%s\nQualquer pessoa pode ver um anexo público. O arquivo pode conter nomes de personagens e GUIDs.",
 
         debugSeedsAdded = "Adversários de exemplo adicionados: %d",
@@ -641,7 +634,6 @@ local dictionaries = {
         issueLinkHint = "Перейди на форму по ссылке и напиши о проблеме",
         issueReportHint = "Отправь мне этот код с информацией о стычке",
         issueSelectReport = "Выделить отчёт",
-        issueReportPart = "Следующая часть (%d/%d)",
         issueSavedVariablesHint = "По желанию приложи файл как есть. Обычно он лежит по этому пути в папке World of Warcraft.\n%s\nПубличное вложение видно всем. В файле могут быть имена персонажей и GUID.",
 
         debugSeedsAdded = "Добавлено тестовых противников: %d",
@@ -722,7 +714,6 @@ local dictionaries = {
         issueLinkHint = "打开链接中的表单并描述问题",
         issueReportHint = "请把这段包含交战信息的代码发给我",
         issueSelectReport = "选中报告",
-        issueReportPart = "下一部分（%d/%d）",
         issueSavedVariablesHint = "如需提供更多诊断信息，可以直接附上原文件。它通常位于 World of Warcraft 文件夹下的此路径。\n%s\n任何人都可以查看公开附件。文件可能包含角色名和 GUID。",
 
         debugSeedsAdded = "已添加示例对手：%d",
@@ -803,7 +794,6 @@ local dictionaries = {
         issueLinkHint = "開啟連結中的表單並描述問題",
         issueReportHint = "請把這段包含交戰資訊的代碼傳給我",
         issueSelectReport = "選取報告",
-        issueReportPart = "下一部分（%d/%d）",
         issueSavedVariablesHint = "若要提供更多診斷資料，可以直接附上原始檔案。檔案通常位於 World of Warcraft 資料夾下的這個路徑。\n%s\n任何人都能查看公開附件。檔案可能包含角色名稱和 GUID。",
 
         debugSeedsAdded = "已新增範例對手：%d",

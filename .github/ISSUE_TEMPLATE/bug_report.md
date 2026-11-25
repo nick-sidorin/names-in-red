@@ -15,9 +15,7 @@ title: ""
 
 ### Diagnostic report
 
-In Names in Red, click the bug icon on the affected skirmish. For a general issue, choose **Report an issue** in the journal header or addon settings. Select the report, press Ctrl+C, and paste it below. Review it before posting. Addon version and client build are included in the report.
-
-If the report window shows **Next part**, copy each remaining part into a separate comment on the same issue.
+In Names in Red, click the bug icon on the affected skirmish. For a general issue, choose **Report an issue** in the journal header or addon settings. Click **Select Report**, press Ctrl+C, and paste it below once. Review it before posting. Addon version and client build are included in the report.
 
 ### SavedVariables file (optional)
 
