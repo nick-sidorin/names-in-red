@@ -63,7 +63,13 @@ repository history for missing reusable lessons; mark unverified details
 rather than invent them. Generic continuous engineering learning is also a
 potential Evercanon pattern, not a change to that separate repository.
 
-## Released baseline: 1.1.0
+## Released baseline: 2.0.0 (GitHub)
+
+- [v2.0.0 — Character POV](https://github.com/nick-sidorin/names-in-red/releases/tag/v2.0.0) published 25 November 2026, 20:41:31 UTC. Tag `89ba7eb381ad0606fbfbe28045ff0cd56e80d624` has identical 34 runtime blobs, CHANGELOG and .pkgmeta to accepted #50 commit `a58fccad`. [ZIP](https://github.com/nick-sidorin/names-in-red/releases/download/v2.0.0/NamesInRed-2.0.0.zip) SHA-256 `b0af00385971984a4f4901c7b1b3b11abe41a03d91345a2033e97f8aa98a7334`; [publisher run](https://github.com/nick-sidorin/names-in-red/actions/runs/45697286233) succeeded. CurseForge availability and listing updates remain unverified.
+- Permanent owner-only publisher #54; request #55 failed with 403 before tag creation against an older workflow-changing commit. Request #56 succeeded using the checked runtime-identical target with current workflows. No additional credentials or permissions. Do not retag published versions; for future requests select a checked main commit with current workflow files. Manual owner dispatch is configured but not independently exercised. See [validation](docs/forever-validation.md#owner-only-release-entrypoint).
+- Next phase is the approved existing-product polish; no larger future features yet.
+
+## Previous release: 1.1.0
 
 - Target WoW: Forever 1.60.1 (Camelot), interface 16001, Lua 5.1. Research initially
   used build 70959; latest owner captures use build 71037. Verify APIs on matching
@@ -302,8 +308,7 @@ merged. Issue #47 is closed and the owner confirmed restored history in
 Forever on preview `218f1b1`. The pre-release integration baseline was `9b6876b`. The owner accepted
 Character POV and authorized publication of 2.0.0. PR #50 is squash-merged
 at `a58fccad02de7e50357e63546b1b3710cd1ea01f`; Issue #49 is closed. PR #46
-is superseded and closed without a second merge. Public availability remains
-unverified until the tag-driven publisher and CurseForge are checked.
+is superseded and closed without a second merge. GitHub 2.0.0 publication is verified; CurseForge is still unverified. See the current released baseline above.
 
 1. Prepare the 2.0.0 release PR and preview the single-copy issue report.
    Complete final product and technical review before pushing a public
@@ -322,10 +327,9 @@ unverified until the tag-driven publisher and CurseForge are checked.
    [PR C acceptance](https://github.com/nick-sidorin/names-in-red/pull/45#pullrequestreview-6060358381) ·
    [Control-gap validation](docs/forever-validation.md#control-gap-replay-world2324)
 3. Release entrypoint: the owner requested a permanent owner-only launch via
-   Actions or an isolated release-request PR. The exact accepted 2.0.0 source
-   remains `a58fccad02de7e50357e63546b1b3710cd1ea01f`. No runtime changes or
-   unreviewed code are included by this infrastructure update. Verify real
-   publication independently. Known data loss, crashes, core behavior defects, failing checks and
+   Actions or an isolated release-request PR. The accepted runtime from `a58fccad` is byte-identical in the published tag
+   `89ba7eb`; no runtime changes were introduced by infrastructure or docs.
+   GitHub publication succeeded; verify CurseForge separately. Known data loss, crashes, core behavior defects, failing checks and
    package problems still block publication. Verify GitHub and CurseForge
    artifacts independently once the owner accepts the final release.
 4. After 2.0.0 publication, prioritize polishing the existing journal, not new

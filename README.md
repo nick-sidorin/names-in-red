@@ -165,7 +165,10 @@ successful main-push CI for the exact target, reruns the suite and verifies
 the package before creating a missing tag and publishing. It refuses to move
 existing tags and verifies existing assets on retry. A manually pushed stable
 tag by the owner is also supported. No per-release workflow or personal token
-is necessary. Ordinary PR checks and unrelated main changes do not publish.
+is necessary for a checked main target with current workflow files. Creating a
+historical ref with different workflows can require additional permissions;
+if denied, stop and ask the owner to create the tag. Never silently retarget
+or move a published tag. Ordinary PR checks and unrelated main changes do not publish.
 Repository write/admin access must remain restricted; workflow guards do not
 replace branch/tag access control.
 The existing CurseForge source packager uses `.pkgmeta`. Verify the
