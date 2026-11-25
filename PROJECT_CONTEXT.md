@@ -71,9 +71,10 @@ potential Evercanon pattern, not a change to that separate repository.
   layout. The owner accepted the general appearance of preview `344f64b`.
   The three follow-up fixes in PR #58 cover native tooltip wrapping, a
   unified personal score with manual results, and manual-entry enrichment
-  including an explicit self-target. Use the
-  [Forever preview checklist](docs/forever-validation.md#live-preview-checklist)
-  for acceptance of the updated preview.
+  including an explicit self-target. The owner confirmed the fixes in
+  Forever on preview `46740ff`; PR #58 squash-merged at `1d56d584` after
+  both exact-head Checks passed. The public version remains 2.0.0.
+  Prepare a patch release only after separate release authorization.
 
 ## Previous release: 1.1.0
 
@@ -338,8 +339,8 @@ is superseded and closed without a second merge. GitHub 2.0.0 publication is ver
    GitHub publication succeeded; verify CurseForge separately. Known data loss, crashes, core behavior defects, failing checks and
    package problems still block publication. Verify GitHub and CurseForge
    artifacts independently once the owner accepts the final release.
-4. Review the post-2.0.0 polish branch and run the
-   [Forever preview checklist](docs/forever-validation.md#live-preview-checklist).
+4. Post-2.0.0 polish is accepted and integrated. Next: patch release
+   preparation and publication after owner authorization.
    The approved behavior is in [product spec section 10](docs/skirmish-product-spec.md#10-approved-post-200-polish).
    Larger ideas, including target menu and ally profiles, stay deferred in
    docs/future-ideas.md.
