@@ -1,4 +1,5 @@
 local addon, callback, locale = { db = { version = 1, rivals = {} } }, nil, "enUS"
+SlashCmdList = {}
 local pixelFactor, dividerScale = 0.8, 0.7
 local displayHandlers, bookLogin = {}
 PixelUtil = {
@@ -252,6 +253,49 @@ local directBattle = {
         { kind = "kill", actorID = duelGUID, targetID = "Player-self", offset = 5 } },
 }
 local duelRef = "tooltip-skirmish"
+do
+    local ledger = addon.Ledger
+    local db = ledger.Open()
+    local uncredited, credited, otherCredit = "Player-a", "Player-z", "Player-y"
+    ledger.Add(db, uncredited, "Alpha Rival")
+    ledger.Add(db, credited, "Zulu Rival")
+    ledger.Add(db, otherCredit, "Yonder Rival")
+    assert(not addon.LatestRival(db))
+
+    local me = "Player-self"
+    local battle = {
+        startedAt = 10, time = 100, sequence = 4,
+        allies = { { id = me, isSelf = true } },
+        enemies = { { id = credited, rivalID = credited }, { id = uncredited, rivalID = uncredited },
+            { id = otherCredit, rivalID = otherCredit } },
+        events = { { kind = "kill", actorID = me, targetID = credited, offset = 1 } },
+    }
+    ledger.SaveSkirmish(db, "fixture:recent", battle)
+    assert(addon.LatestRival(db) == credited)
+    battle.events[2] = { kind = "kill", actorID = otherCredit, targetID = me, offset = 2 }
+    ledger.SaveSkirmish(db, "fixture:recent", battle)
+    assert(addon.LatestRival(db) == otherCredit)
+    battle.enemies[1], battle.enemies[3] = battle.enemies[3], battle.enemies[1]
+    assert(addon.LatestRival(ledger.Open(db)) == otherCredit)
+
+    battle.events = {}
+    battle.outcome = "win"
+    ledger.SaveSkirmish(db, "fixture:recent", battle)
+    assert(addon.LatestRival(db) == uncredited)
+    ledger.Add(db, "Player-incomplete")
+    ledger.SaveSkirmish(db, "fixture:orphan", {
+        time = 200, allies = battle.allies, events = {},
+        enemies = { { id = "Player-unlinked" }, { id = "Player-missing", rivalID = "Player-missing" },
+            { id = "Player-incomplete", rivalID = "Player-incomplete" } },
+    })
+    assert(addon.LatestRival(db) == uncredited)
+    local manualID = "manual:typed rival"
+    local manual = ledger.Add(db, manualID, "Typed Rival")
+    manual.encounters = { { manual = true, recordedAt = 100, sequence = 5 } }
+    assert(addon.LatestRival(db) == manualID)
+    manual.encounters[1].sequence = 3
+    assert(addon.LatestRival(db) == uncredited)
+end
 local refreshes = 0
 function GameTooltip:IsShown() return true end
 function GameTooltip:IsTooltipType(kind) return kind == Enum.TooltipDataType.Unit end
@@ -442,7 +486,7 @@ do
     PROFESSION_RECIPE_COLOR = Color(0.85, 0.84, 0.81)
     DIM_RED_FONT_COLOR = Color(0.9, 0.22, 0.28)
     HIGHLIGHT_FONT_COLOR = Color(1, 1, 1)
-    ScrollBoxConstants = { RetainScrollPosition = true }
+    ScrollBoxConstants = { RetainScrollPosition = true, AlignNearest = 3, NoScrollInterpolation = true }
     CreateDataProvider = function(entries) return entries end
     local view
     function CreateScrollBoxListLinearView(top, bottom, left, right, spacing)
@@ -488,6 +532,12 @@ do
             function scroll:ForEachFrame(callback)
                 for index, entry in ipairs(self.entries) do callback(self.rows[index], entry) end
             end
+            function scroll:ScrollToElementDataByPredicate(predicate, alignment, offset, noInterpolation)
+                assert(alignment == ScrollBoxConstants.AlignNearest and offset == 0 and noInterpolation == true)
+                for _, entry in ipairs(self.entries) do
+                    if predicate(entry) then self.visibleEntry = entry end
+                end
+            end
             scroll.rows = {}
         end,
     }
@@ -499,6 +549,8 @@ do
     assert(addon.rivalListWidth == 304 and bar.anchor[2] == list and view.height == 20)
     assert(view.template == "ProfessionsRecipeListRecipeTemplate")
     list:SetRivals({ firstRival, secondRival }, "second")
+    list:ScrollToRival("second")
+    assert(list.visibleEntry == secondRival and list.entries[1] == firstRival)
     local first, second = unpack(list.rows)
     local normal = first.Label.color
     assert(first.Label:GetText() == "First Rival" and normal[1] > normal[2] and normal[1] > normal[3])
@@ -1058,22 +1110,28 @@ compact:SetEncounter({}, knownRival, rivalID)
 assert(not FindText(compact, 53) and not FindRegion(compact, "atlas", skullLevelAtlas))
 print("Numeric, skull-level, and unknown badges survive card recycling")
 
--- Open the journal through the minimap and verify the actual profile's
--- native stats and latest card after late evidence, removal and data reset.
-do
+-- Drive both journal entry points, then exercise the profile's stats and
+-- latest card after late evidence, removal and data reset.
+local function CheckBookLifecycle()
     local createFrame = CreateFrame
-    local book, shortcut, openProfile, sideTabs
+    local book, shortcut, openProfile, sideTabs, rivalList, query, profileTabs
+    local scrollFrames, reveals, opened, closed, settingsOpened = {}, 0, 0, 0, 0
     UIParent, Minimap = MockRegion(), MockRegion()
     Minimap:SetSize(120, 120)
     function Minimap:GetFrameLevel() return 1 end
     function Minimap:GetWidth() return self.width end
     function Minimap:GetHeight() return self.height end
-    UISpecialFrames, StaticPopupDialogs, SOUNDKIT = {}, {}, {}
+    UISpecialFrames, StaticPopupDialogs = {}, {}
+    SOUNDKIT = { UI_PROFESSIONS_WINDOW_OPEN = 1, UI_PROFESSIONS_WINDOW_CLOSE = 2 }
     sideTabs = {}
     tinsert, BACK = table.insert, "Back"
-    function PlaySound() end
+    function PlaySound(sound)
+        if sound == SOUNDKIT.UI_PROFESSIONS_WINDOW_OPEN then opened = opened + 1 end
+        if sound == SOUNDKIT.UI_PROFESSIONS_WINDOW_CLOSE then closed = closed + 1 end
+    end
     function PanelTemplates_SetNumTabs(parent)
         parent.Tabs = {}
+        profileTabs = parent.Tabs
         for _, child in ipairs(parent.children) do
             if child.template == "PanelTopTabButtonTemplate" then table.insert(parent.Tabs, child) end
         end
@@ -1082,9 +1140,26 @@ do
     function PanelTemplates_GetSelectedTab(parent) return parent.selectedTab end
     function PanelTemplates_TabResize() end
     function StaticPopup_Hide() end
+    function addon.OpenSettings() settingsOpened = settingsOpened + 1 end
     function addon.CreateRivalList(parent, selectRival)
         openProfile = selectRival
-        return MockRegion(parent), MockRegion(parent)
+        rivalList = MockRegion(parent)
+        function rivalList:SetRivals(entries, selected)
+            self.entries, self.selected = entries, selected
+        end
+        function rivalList:ScrollToRival(id)
+            assert(self.selected == id and book:IsShown())
+            for index, entry in ipairs(self.entries) do
+                if entry.id == id then
+                    self.scroll = index
+                    reveals = reveals + 1
+                    return
+                end
+            end
+            error("Reveal requires a rival in the visible list")
+        end
+        function rivalList:ScrollToBegin() self.scroll = 0 end
+        return rivalList, MockRegion(parent)
     end
     function CreateFrame(frameType, frameName, parent, template)
         local frame = createFrame(frameType, frameName, parent, template)
@@ -1093,10 +1168,32 @@ do
         function frame:GetHeight() return self.height or 0 end
         function frame:GetFrameLevel() return 1 end
         function frame:IsShown() return self.shown end
+        function frame:IsVisible()
+            local current = self
+            while current do
+                if not current.shown then return false end
+                current = current.parent
+            end
+            return true
+        end
+        function frame:SetID(id) self.id = id end
+        function frame:GetID() return self.id end
         function frame:GetVerticalScroll() return self.scroll or 0 end
         function frame:SetVerticalScroll(value) self.scroll = value end
-        if template == "SearchBoxTemplate" then frame:SetText("") end
-        if template == "ScrollFrameTemplate" then frame.ScrollBar = MockRegion(frame) end
+        if template == "SearchBoxTemplate" then
+            query = frame
+            frame:SetText("")
+            local setText = frame.SetText
+            function frame:SetText(value)
+                local changed = self:GetText() ~= value
+                setText(self, value)
+                if changed and self.scripts.OnTextChanged then self.scripts.OnTextChanged(self) end
+            end
+        end
+        if template == "ScrollFrameTemplate" then
+            frame.ScrollBar = MockRegion(frame)
+            scrollFrames[#scrollFrames + 1] = frame
+        end
         if template == "PanelTopTabButtonTemplate" then
             frame.LeftActive, frame.MiddleActive, frame.RightActive = MockRegion(), MockRegion(), MockRegion()
         end
@@ -1110,6 +1207,12 @@ do
             book = frame
             local portrait = MockRegion(frame)
             function frame:GetPortrait() return portrait end
+            function frame:SetShown(shown)
+                if self.shown == shown then return end
+                self.shown = shown
+                local handler = self.scripts[shown and "OnShow" or "OnHide"]
+                if handler then handler(self) end
+            end
             frame.PortraitContainer = MockRegion(frame)
             frame.Bg, frame.TopTileStreaks = MockRegion(frame), MockRegion(frame)
         end
@@ -1118,8 +1221,57 @@ do
 
     directBattle.rewards = { [duelGUID] = { honorableKills = 1, honor = 5 } }
     addon.RecordSkirmish(duelRef, directBattle)
+    for index = 1, 40 do
+        addon.Ledger.Add(addon.db, "Player-test-row" .. index, ("Alpha Row %02d"):format(index))
+    end
+    local rawHistory = {}
+    for index = 1, 8 do rawHistory[index] = { time = index } end
+    addon.db.rivals[duelGUID].encounters = rawHistory
     bookLogin({ UnregisterEvent = function() end })
+    assert(SLASH_NAMESINREDOPEN1 == "/nir")
+    local slash = assert(SlashCmdList.NAMESINREDOPEN)
+    slash("")
+    local openedBook = book
+    assert(book:IsShown() and opened == 1 and closed == 0)
+    assert(rivalList.selected == duelGUID and reveals == 1 and rivalList.scroll > 40)
+    assert(rivalList.entries[1].name == "Alpha Row 01" and FindText(book, "Reciprocal Rival"))
+    slash("")
+    assert(book == openedBook and opened == 1 and closed == 0 and reveals == 1)
+
+    query:SetText("Reciprocal")
+    profileTabs[2].scripts.OnClick(profileTabs[2])
+    local details = scrollFrames[1]
+    details:SetVerticalScroll(160)
+    local chosenTab = profileTabs[2]
     shortcut.scripts.OnClick(shortcut, "LeftButton")
+    assert(not book:IsShown() and closed == 1)
+    local newer = "Player-newer"
+    addon.RecordEncounter(newer, "Newer Rival", "killsAgainstThem", { time = 200 })
+    shortcut.scripts.OnClick(shortcut, "LeftButton")
+    assert(book == openedBook and book:IsShown() and opened == 2 and reveals == 1)
+    assert(query:GetText() == "Reciprocal" and chosenTab.SelectedHighlight.shown)
+    assert(details:IsVisible() and details:GetVerticalScroll() == 160 and rivalList.selected == duelGUID)
+    shortcut.scripts.OnClick(shortcut, "RightButton")
+    assert(settingsOpened == 1 and book:IsShown())
+
+    profileTabs[1].scripts.OnClick(profileTabs[1])
+    local openFight = assert(FindRegion(book, "title", addon.L.openSkirmish))
+    openFight.scripts.OnClick(openFight)
+    local linkedBattle = assert(FindRegion(book, "skirmish", directBattle))
+    assert(linkedBattle.reportRef == duelRef)
+    shortcut.scripts.OnClick(shortcut, "LeftButton")
+    slash("")
+    slash("")
+    assert(book == openedBook and opened == 3 and closed == 2 and reveals == 1)
+    assert(FindRegion(book, "skirmish", directBattle) == linkedBattle and query:GetText() == "Reciprocal")
+    local backButton = assert(FindText(book, BACK))
+    backButton.scripts.OnClick(backButton)
+    query:SetText("")
+    assert(rivalList.selected == duelGUID)
+    rivalList.scroll = 33
+    addon.RecordEncounter(newer, "Newer Rival", "deathsToThem", { time = 201 })
+    slash("")
+    assert(rivalList.selected == duelGUID and rivalList.scroll == 33 and reveals == 1)
     addon.db.unassignedRewards = { honorableKills = 1, honor = 4 }
     local journalTab = sideTabs[2]
     journalTab.scripts.OnClick(journalTab, "LeftButton", true)
@@ -1311,5 +1463,21 @@ do
     assert(#tooltipLines == beforeDeleted)
     addon.ResetData()
     assert(not next(addon.db.rivals) and refreshes == before + 2)
+
+    local function Rebuild()
+        book:Hide()
+        sideTabs = {}
+        assert(loadfile("NamesInRed/Book.lua"))("NamesInRed", addon)
+        SlashCmdList.NAMESINREDOPEN("")
+    end
+    Rebuild()
+    assert(book ~= openedBook and book:IsShown() and FindText(book, addon.L.empty) and reveals == 1)
+    addon.Ledger.Add(addon.db, "Player-a", "Alpha Rival")
+    local last = addon.Ledger.Add(addon.db, "manual:typed rival", "Typed Rival")
+    last.encounters = { { recordedAt = 123, manual = true, outcome = "win" } }
+    Rebuild()
+    assert(book:IsShown() and rivalList.selected == "manual:typed rival" and FindText(book, "Typed Rival"))
+    assert(reveals == 2 and rivalList.entries[1].name == "Alpha Rival")
 end
-print("Journal profile, compact card, unit tooltip refresh, removal and reset stay synchronized")
+CheckBookLifecycle()
+print("Journal opening, retained view state, profile, tooltip refresh, removal and reset checks passed")

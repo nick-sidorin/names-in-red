@@ -123,5 +123,9 @@ function addon.CreateRivalList(parent, onSelect)
             self:ForEachFrame(BindRow)
         end
     end
+    function scroll:ScrollToRival(id)
+        self:ScrollToElementDataByPredicate(function(entry) return entry.id == id end,
+            ScrollBoxConstants.AlignNearest, 0, ScrollBoxConstants.NoScrollInterpolation)
+    end
     return scroll, bar
 end

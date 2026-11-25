@@ -357,10 +357,11 @@ function addon.RivalEncounters(db, id)
     return entries
 end
 
-function addon.RecentEncounters(db, limit)
+function addon.RecentEncounters(db, limit, accept)
     local entries = {}
     local function Insert(entry)
         if #entries >= limit and not MoreRecent(entry, entries[limit]) then return end
+        if accept and not accept(entry) then return end
         local low, high = 1, #entries
         while low <= high do
             local middle = math.floor((low + high) / 2)
@@ -388,6 +389,37 @@ function addon.RecentEncounters(db, limit)
         })
     end
     return entries
+end
+
+function addon.LatestRival(db)
+    local function Eligible(id)
+        local rival = id and db.rivals[id]
+        return rival and addon.IsRosterRival(id, rival)
+    end
+    local latest = addon.RecentEncounters(db, 1, function(entry)
+        if entry.encounter then return Eligible(entry.id) end
+        for _, opponent in ipairs(entry.skirmish.enemies or {}) do
+            if Eligible(opponent.rivalID) then return true end
+        end
+    end)[1]
+    if not latest then return end
+    if latest.encounter then return latest.id end
+
+    local battle = latest.skirmish
+    local evidence = addon.Ledger.SkirmishContributionEvidence(db, latest.id, battle)
+    local credited = {}
+    for _, credit in ipairs(evidence and evidence.credits or {}) do
+        credited[credit.rivalID] = true
+    end
+    local first, personal
+    for _, opponent in ipairs(battle.enemies) do
+        local id = opponent.rivalID
+        if Eligible(id) then
+            if not first or id < first then first = id end
+            if credited[id] and (not personal or id < personal) then personal = id end
+        end
+    end
+    return personal or first
 end
 
 local function LegacyOpponent(db, id, recordedName, level)

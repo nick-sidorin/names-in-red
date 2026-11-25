@@ -4,8 +4,11 @@ A personal PvP journal for World of Warcraft: Forever. Remember who you fought,
 what happened, and where you last met. Every rival has a story.
 
 Names in Red targets Forever 1.60.1 (interface 16001). Click the crossed swords
-on the minimap to browse rivals. Information shows your skirmish stats and the
-latest skirmish. The Skirmishes tab lists that rival's recorded history, newest
+on the minimap or enter `/nir` to browse rivals. The first opening after login
+or `/reload` selects a rival from the latest encounter with an available profile.
+The list stays alphabetical and scrolls to the selected rival. Later openings
+in the same session restore your current view. Information shows your skirmish
+stats and the latest skirmish. The Skirmishes tab lists that rival's recorded history, newest
 first. Both card layouts show portraits with class and recorded level badges.
 Full names can wrap to two lines. Both layouts show a circular result badge
 with a caption, using crossed swords for a victory and a torn gray banner on a
@@ -54,6 +57,7 @@ Enter these commands in the in-game chat box.
 
 | Command | What it does |
 | --- | --- |
+| `/nir` | Opens the journal and leaves it open if it is already visible. Put `/nir` on its own line in a WoW macro to open the journal from an action bar. |
 | `/nirreset` | Opens **Reset data**. Confirm to delete the current character's rivals, skirmishes, manual entries, demo data and diagnostic log. Display preferences and the minimap icon position are kept. |
 | `/nirdebug` | Prints the number of retained and dropped diagnostic records and the session number. |
 | `/nirdebug sample` | Adds a diagnostic snapshot of the current target, mouseover, honorable kill totals and available PvP scoreboard data. |

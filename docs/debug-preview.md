@@ -58,8 +58,11 @@ replayed into the ledger.
 
 ## Rival Book preview
 
-The minimap crossed-swords icon opens the Rival Book and can be dragged around the
-minimap. Select a name to see totals and the last skirmish in Information.
+The minimap crossed-swords icon toggles the Rival Book and can be dragged
+around the minimap. Use `/nir` in chat or on its own line in a macro to
+open the book. The first opening after login or reload reveals the most
+recent eligible rival. Later openings preserve the session's current view.
+Select a name to see totals and the last skirmish in Information.
 Skirmishes shows all saved cards in newest-first order. Existing totals load
 without needing saved encounter details. The standard GameTooltip gets a
 history section for recognized rivals with nonzero counts.

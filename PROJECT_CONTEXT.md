@@ -339,11 +339,10 @@ is superseded and closed without a second merge. GitHub 2.0.0 publication is ver
    GitHub publication succeeded; verify CurseForge separately. Known data loss, crashes, core behavior defects, failing checks and
    package problems still block publication. Verify GitHub and CurseForge
    artifacts independently once the owner accepts the final release.
-4. Post-2.0.0 polish is accepted and integrated. Before the proposed patch
-   release, implement the two approved journal-opening follow-ups in product
-   spec section 10: first-open latest rival selection without disturbing
-   existing hide/show state, and native /nir open command. Review and accept
-   a focused preview before release preparation and publication.
+4. Post-2.0.0 polish is accepted and integrated. The journal-opening preview
+   adds first-open latest rival selection and the native `/nir` command.
+   It retains the session's existing hide/show state. Verify the preview
+   in Forever before preparing the proposed patch release.
    The approved behavior is in [product spec section 10](docs/skirmish-product-spec.md#10-approved-post-200-polish).
    Larger ideas, including target menu and ally profiles, stay deferred in
    docs/future-ideas.md.

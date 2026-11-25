@@ -131,6 +131,8 @@ assert(not rows[3].get())
 assert(rows[4].label == addon.L.resetData and rows[5].label == "Сообщить о проблеме")
 local resetCommand = SlashCmdList.NAMESINREDRESET
 assert(SLASH_NAMESINREDRESET1 == "/nirreset" and resetCommand == rows[4].click)
+assert(SLASH_NAMESINREDOPEN1 == "/nir" and type(SlashCmdList.NAMESINREDOPEN) == "function")
+assert(SlashCmdList.NAMESINREDOPEN ~= resetCommand)
 local showPopup = StaticPopup_Show
 StaticPopup_Show = nil
 resetCommand("")

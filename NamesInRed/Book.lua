@@ -464,8 +464,9 @@ local function CreateSideTabs()
     window:SetClampRectInsets(0, sideTabs[1]:GetWidth(), 0, 0)
 end
 
-local function ToggleBook()
-    if not addon.db then return end
+local function OpenBook()
+    if not addon.db or (window and window:IsShown()) then return end
+    local initialRival
     if not window then
         window = CreateFrame("Frame", "NamesInRedRivalBook", UIParent, "PortraitFrameTemplate")
         window:Hide()
@@ -736,13 +737,18 @@ local function ToggleBook()
             search:ClearFocus()
             StaticPopup_Hide(deletePopup)
         end)
-    elseif window:IsShown() then
-        window:Hide()
-        return
+        if activeView == rivalsView and not selected then
+            initialRival = addon.LatestRival(addon.db)
+            selected = initialRival
+        end
     end
     window:Show()
     addon.RefreshBook()
+    if initialRival and selected == initialRival then names:ScrollToRival(initialRival) end
 end
+
+SLASH_NAMESINREDOPEN1 = "/nir"
+SlashCmdList.NAMESINREDOPEN = OpenBook
 
 local function CreateShortcut()
     if not Minimap then return end
@@ -809,7 +815,11 @@ local function CreateShortcut()
             HideTooltip(self)
             addon.OpenSettings()
         elseif not self.dragged then
-            ToggleBook()
+            if window and window:IsShown() then
+                window:Hide()
+            else
+                OpenBook()
+            end
         end
     end)
     button:SetScript("OnEnter", function(self)

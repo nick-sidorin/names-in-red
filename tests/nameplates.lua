@@ -1,5 +1,6 @@
 local rival = { displayName = "Cute Rock", encounters = { { outcome = "win" } } }
 local addon = { db = { version = 1, rivals = { ["Player-rival"] = rival } }, L = {} }
+SlashCmdList = {}
 local secret = {}
 function issecretvalue(value) return value == secret end
 local unit, guid = "nameplate1", "Player-rival"
