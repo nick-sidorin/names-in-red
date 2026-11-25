@@ -8,7 +8,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-from zipfile import ZIP_DEFLATED, ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 
 REPO = Path(__file__).resolve().parent.parent
@@ -76,9 +76,12 @@ def package(revision, version, output):
 
     output.mkdir(parents=True, exist_ok=True)
     path = output / f"NamesInRed-{version}.zip"
-    with ZipFile(path, "w", ZIP_DEFLATED) as archive:
+    with ZipFile(path, "w") as archive:
         for name, content in sorted(files.items()):
-            archive.writestr(name, content)
+            member = ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            member.create_system = 3  # Unix metadata on every runner.
+            member.external_attr = 0o100644 << 16
+            archive.writestr(member, content, compress_type=ZIP_DEFLATED, compresslevel=6)
     with ZipFile(path) as archive:
         if archive.testzip() or sorted(archive.namelist()) != sorted(files):
             raise ValueError("ZIP paths, CRC or inventory differ")
