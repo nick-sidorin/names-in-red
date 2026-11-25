@@ -73,8 +73,9 @@ potential Evercanon pattern, not a change to that separate repository.
   unified personal score with manual results, and manual-entry enrichment
   including an explicit self-target. The owner confirmed the fixes in
   Forever on preview `46740ff`; PR #58 squash-merged at `1d56d584` after
-  both exact-head Checks passed. The public version remains 2.0.0.
-  Prepare a patch release only after separate release authorization.
+  both exact-head Checks passed. The owner also confirmed the journal-opening
+  preview `df86350` works in Forever and authorized 2.0.1 publication without
+  further Codex work. PR #61 squash-merged at `4dfc3bc`.
 
 ## Previous release: 1.1.0
 
@@ -339,10 +340,9 @@ is superseded and closed without a second merge. GitHub 2.0.0 publication is ver
    GitHub publication succeeded; verify CurseForge separately. Known data loss, crashes, core behavior defects, failing checks and
    package problems still block publication. Verify GitHub and CurseForge
    artifacts independently once the owner accepts the final release.
-4. Post-2.0.0 polish is accepted and integrated. The journal-opening preview
-   adds first-open latest rival selection and the native `/nir` command.
-   It retains the session's existing hide/show state. Verify the preview
-   in Forever before preparing the proposed patch release.
+4. Post-2.0.0 polish and the journal-opening follow-up are accepted and
+   integrated. Prepare and publish the authorized 2.0.1 patch via the existing
+   publisher after exact main CI; public baseline remains 2.0.0 until verified.
    The approved behavior is in [product spec section 10](docs/skirmish-product-spec.md#10-approved-post-200-polish).
    Larger ideas, including target menu and ally profiles, stay deferred in
    docs/future-ideas.md.

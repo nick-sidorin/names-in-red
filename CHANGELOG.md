@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.1
+
+- Open the journal on your most recent rival after login or reload. The list stays alphabetical and scrolls to the selected rival. Reopening keeps your current view.
+- Open Names in Red with `/nir` in chat or from an action-bar macro.
+- Manual victories and defeats now count in the same personal score as recorded fights, without inventing killing blows or rewards.
+- Adding a known rival manually reuses their profile when identity is unambiguous. Matching visible characters can supply available portrait and character details; existing duplicates are reconciled only when safe.
+- Roster warnings now indicate concrete missing participant evidence or observation gaps, rather than appearing merely because a fight has multiple participants.
+- Refine card alignment, level badges and action icons. Profile hints use natural wording and native text wrapping; unit tooltips show the score icons and numbers without duplicate lines.
+
 ## 2.0.0
 
 **Character POV** for World of Warcraft: Forever 1.60.1.

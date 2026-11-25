@@ -25,11 +25,11 @@ Every recorded skirmish has its own outcome, while your personal score against e
 - You heal an ally who defeats an enemy: your confirmed support can count, even without dealing damage.
 - You defeat one enemy and another kills you: your journal can show a defeat for the skirmish, a win against the first rival and a loss against the second.
 
-Rival wins and losses are separate from direct kills and deaths, Honorable Kills and Honor Points. A pet's activity can count toward its player owner when that ownership and contribution are reliably linked. Fights without a killing blow can also be recorded.
+Rival wins and losses are separate from direct kills and deaths, Honorable Kills and Honor Points. A pet's activity can count toward its player owner when that ownership and contribution are reliably linked. Fights without a killing blow can also be recorded. Explicit manual wins and losses count toward the same personal score without adding invented kills or rewards.
 
 ## 📖 Your PvP History
 
-Open Names in Red using the crossed-swords button by the minimap.
+Open Names in Red using the crossed-swords button by the minimap or the `/nir` command. The first opening after login or reload selects your latest recorded rival with an available profile; reopening keeps your current view.
 
 - **Rivals:** search your opponents, see their portrait and personal score, and browse their full recorded encounter history.
 - **Skirmish History:** revisit the latest 100 recorded fights across all rivals. Older fights remain available in individual rival histories.
@@ -50,7 +50,7 @@ Some identities, participants, pet owners, actions or outcomes may be unavailabl
 
 Install through CurseForge, or place the `NamesInRed/` folder in `_forever_/Interface/AddOns/`.
 
-Click the minimap button to open your journal. Right-click it or open **Options → AddOns → Names in Red** to configure nameplates, tooltips and battleground tracking.
+Click the minimap button or enter `/nir` to open your journal. You can also put `/nir` in a macro on your action bar. Right-click the minimap button or open **Options → AddOns → Names in Red** to configure nameplates, tooltips and battleground tracking.
 
 **Reset data** (also available via `/nirreset`) asks for confirmation before deleting the current character's history, manual entries, demo entries and diagnostic log. Display preferences and minimap position are retained. For optional diagnostic and demo commands, see the [project guide](https://github.com/nick-sidorin/names-in-red/blob/main/docs/debug-preview.md).
 
