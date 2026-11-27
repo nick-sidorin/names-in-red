@@ -40,12 +40,12 @@ A skirmish is a **continuous, connected hostile confrontation** between the two 
 - Targeting a hostile player, being in range, seeing a nameplate, or being in a group **does not by itself** establish participation.
 - **Visible nameplates are not required.** Ranged attacks, spells, controlled pets, and observations of an ongoing fight can precede nameplate visibility.
 - The local character may arrive **mid-fight**. Observed participants and events from the earlier phase of the same connected confrontation should be retained when available, rather than starting the story at the first personal killing blow.
-- The character may witness a fight before joining it; that observation is useful context. The journal is about locally experienced or joined PvP, not logging all distant fights the character never engages with.
+- The character may witness a fight before joining it. Retain a bounded, locally available observation history and associate its relevant earlier phase only after meaningful local participation establishes a connected skirmish. Keep the earliest supported hostile event or observation distinct from local engagement and local combat windows; never backdate an encounter to a mere sighting. The journal is about locally experienced or joined PvP, not logging all distant fights the character never engages with.
 - People who fought before any usable observation may be unknowable. Do not create invented players or backfill unobserved actions.
 
 ### Keeping a confrontation together
 
-- Multiple targets, kills, heals, brief pauses, stealth, resurrections, and reinforcements can belong to **one** skirmish.
+- Multiple targets, kills, heals, brief pauses, stealth, resurrections, and reinforcements can belong to **one** skirmish. For example, two enemies attack an ally, the local character intervenes (possibly after the ally dies), defeats those opponents, and a third enemy engages the local character before the connected encounter settles. Keep one five-participant record if the locally observed links support it; do not require simultaneous activity or infer motives for joining. A later unrelated or finalized engagement is still separate.
 - A local character's death can end their own participation without ending the observed confrontation. Keep reliable allied continuation as context, and allow a genuine return to the same fight to reopen the provisional personal ending.
 - Separate nearby fights must remain separate when they are not part of the same connected confrontation.
 - A genuinely new engagement after the previous local confrontation has ended starts a new skirmish; don't merge independent fights merely because they happen near each other.
@@ -68,7 +68,7 @@ The support case matters: **a priest who only heals a fighting ally is still a p
 
 A player does **not** become a participant solely by being in the party, appearing on a nameplate, being selected as a target, standing nearby, or fighting an unrelated NPC. Actions must connect them to this confrontation. Conversely, a character need not be in our party/raid to be an ally.
 
-For a fight joined in progress, a hostile player's consistent focus on an independently identified friendly player in the same confrontation can corroborate involvement when that friendly player is also observed alive, PvP-flagged, and fighting around the hostile player's confirmed death. Record the roster evidence separately from any damage, support, or finishing-blow attribution.
+For a fight joined in progress, corroborated hostile focus on an independently identified friendly player can establish roster involvement even if that ally has stopped fighting or is already dead when directly observed. The previously validated living-ally, single-opponent case remains valid, but is not the only eligible pattern. Repeated, readable cross-faction targeting by engaged opponents, coherent combat-state transitions, identity and life observations in the same connected episode can together establish involvement. Target selection or combat flags alone remain insufficient; do not add unrelated spectators, old corpses or independently fighting players. Multiple opponents, changed targets, mixed NPC damage and an ally dying before the local character joins must not categorically veto roster admission. Preserve the stricter independent requirements for attributed damage, support, PvP death, finishing blows, rival score and native awards. An observed non-feign corpse does not establish who killed the player, the cause or exact time of death. Keep roster evidence distinct from those facts.
 
 ### The limits of observation
 
