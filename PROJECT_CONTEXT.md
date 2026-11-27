@@ -345,8 +345,14 @@ is superseded and closed without a second merge. GitHub 2.0.0 publication is ver
    package problems still block publication. Verify GitHub and CurseForge
    artifacts independently once the owner accepts the final release.
 4. Post-2.0.0 polish and journal-opening follow-up shipped in 2.0.1 on
-   GitHub. Verify CurseForge separately. No next feature implementation is
-   authorized; continue with owner-directed polish or planning.
+   GitHub. Verify CurseForge separately. The next approved corrective scope is
+   connected roster reconstruction for a fight joined in progress (world:40
+   case): retain bounded locally observable pre-engagement context; admit a
+   corroborated earlier ally even if first seen directly as a corpse, retain
+   later linked reinforcements, and keep roster evidence separate from score
+   and death attribution. See product spec sections 3–4 and validation notes.
+   Runtime implementation/replay remains pending. Diagnostic storage budget
+   optimization is a separate discussion, not part of this fix.
    The approved behavior is in [product spec section 10](docs/skirmish-product-spec.md#10-approved-post-200-polish).
    Larger ideas, including target menu and ally profiles, stay deferred in
    docs/future-ideas.md.

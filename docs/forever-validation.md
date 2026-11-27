@@ -2427,3 +2427,41 @@ squash merge `1d56d584`. Keep this checklist for subsequent regression checks.
 ### Patch release 2.0.1
 
 Owner accepted previews `46740ff` and `df86350` in live Forever. PRs #58 and #61 were squash-integrated, #62 prepared metadata and #63 supplied the isolated release request. All relevant Checks passed. The 34 runtime files at tag `8976c3d27b4adf9f5147a5a6a8d184d6fd84bdf7` differ from the accepted preview only in the TOC version. [Integrated CI](https://github.com/nick-sidorin/names-in-red/actions/runs/45715777972) built two byte-identical ZIPs, SHA-256 `3eb0bdd1f77c047e3ba657908363b7c8210e87b109f3bfff7fec375a4d2d29c9`. [Owner-only publisher](https://github.com/nick-sidorin/names-in-red/actions/runs/45715961344) completed both jobs on the first attempt; the public GitHub asset digest and exact tag match. No additional Codex work or permission change. Individual live checklist permutations were not separately reported. Public CurseForge file list could not be independently retrieved; no manual duplicate upload attempted.
+
+
+### Connected intervention with a missing ally (world:40, 2.0.1)
+
+A real open-world intervention reported after 2.0.1: the character joined
+an attack on an ally, killed two opponents, then disengaged after a third
+hostile player joined. The released journal recorded a single 1x3 Victory
+with two local kills, two rival wins, 2 HK and 11 honor. A private SavedVariables
+inspection identified a fifth contact, an Alliance PvP-flagged rogue (level
+33). At the local combat-start both already-engaged hostile players targeted
+that same GUID with readable combat/identity fields; further target changes
+corroborated the focus. At +16.636s the ally was directly observed dead,
+not feigning, out of combat. The actual time, cause and killer of the ally's
+death are not established. Earlier local observations in the same session
+include the living ally targeting one of those enemies about 29.6s before
+local combat-start, while the ally was not in combat; this is identity/context,
+not proof of earlier hostile action or grounds to merge earlier PvE windows.
+The current window includes 1525 NPC damage. The third opponent entered later
+and survived the sampled ending; the local character survived.
+
+The released MeterSourceTotals.TargetedAlly fallback is tied to a single
+outgoing victim, absence of local NPC damage, stable targeting through the
+victim's corpse and a living ally fighting near that corpse. Debug.lua starts
+contact accumulation at local PLAYER_REGEN_DISABLED. IssueReport.lua limits
+participant-specific details to the roster. This excludes otherwise useful
+corroborating evidence in the case above. The target correction is a single
+observed 2x3 confrontation, with the ally's non-feign dead state preserved
+without inventing a killer, death time or PvP attribution. Re-evaluate the
+primary result under the existing contract with only supported facts; do not
+alter confirmed rival credit or awards. Recover existing cards only with
+unambiguous scoped evidence, not by assuming the owner's account is available
+to the addon. Preserve useful links before diagnostic pruning. Keep early
+observations bounded, event-driven and session/area scoped; no indiscriminate
+worldwide tracking. Add a sanitized regression derived from the exact private
+window, plus negative cases for unrelated combat, target-only spectators,
+old corpses, stale/reused tokens, restricted data, gaps, mixed PvE and reload.
+No raw SavedVariables, character names or GUIDs should be committed. This is
+an approved product correction, not an implemented or live-tested fix yet.
